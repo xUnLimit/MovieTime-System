@@ -1,0 +1,190 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Copy, Calendar, DollarSign, Mail, Lock, User } from 'lucide-react';
+import { TemplateMensaje, TipoTemplate } from '@/types';
+import { useTemplatesMensajesStore } from '@/store/templatesMensajesStore';
+import { toast } from 'sonner';
+
+interface TemplateEditorProps {
+  templates: TemplateMensaje[];
+}
+
+const TIPO_TEMPLATES: { value: TipoTemplate; label: string }[] = [
+  { value: 'notificacion_regular', label: 'Notificación Regular' },
+  { value: 'dia_pago', label: 'Notificación Día de Pago' },
+  { value: 'renovacion', label: 'Notificación de Renovación' },
+  { value: 'venta', label: 'Notificación de Venta' },
+  { value: 'cancelacion', label: 'Cancelación de Servicio' },
+];
+
+const PLACEHOLDERS = [
+  { key: '{saludo}', description: 'El saludo (Buenos días, tardes, etc.)', icon: User },
+  { key: '{cliente}', description: 'El nombre completo del cliente', icon: User },
+  { key: '{nombre_cliente}', description: 'El primer nombre del cliente', icon: User },
+  { key: '{categoria}', description: 'La categoría del servicio', icon: Calendar },
+  { key: '{correo}', description: 'El correo electrónico del servicio', icon: Mail },
+  { key: '{contrasena}', description: 'La contraseña del servicio', icon: Lock },
+  { key: '{vencimiento}', description: 'La fecha de vencimiento', icon: Calendar },
+  { key: '{monto}', description: 'El monto a pagar', icon: DollarSign },
+];
+
+export function TemplateEditor({ templates }: TemplateEditorProps) {
+  const { updateTemplate, createTemplate } = useTemplatesMensajesStore();
+  const [selectedTipo, setSelectedTipo] = useState<TipoTemplate>('notificacion_regular');
+  const [contenido, setContenido] = useState('');
+  const [currentTemplate, setCurrentTemplate] = useState<TemplateMensaje | null>(null);
+
+  // Load template content when tipo changes
+  useEffect(() => {
+    const template = templates.find((t) => t.tipo === selectedTipo);
+    if (template) {
+      setCurrentTemplate(template);
+      setContenido(template.contenido);
+    } else {
+      setCurrentTemplate(null);
+      setContenido('');
+    }
+  }, [selectedTipo, templates]);
+
+  const handleCopyPlaceholder = async (placeholder: string) => {
+    try {
+      await navigator.clipboard.writeText(placeholder);
+      toast.success('Placeholder copiado');
+    } catch (error) {
+      toast.error('Error al copiar');
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      // Detect placeholders in content
+      const detectedPlaceholders = PLACEHOLDERS
+        .map((p) => p.key)
+        .filter((placeholder) => contenido.includes(placeholder));
+
+      if (currentTemplate) {
+        // Update existing template
+        await updateTemplate(currentTemplate.id, {
+          contenido,
+          placeholders: detectedPlaceholders,
+        });
+        toast.success('Plantilla actualizada');
+      } else {
+        // Create new template
+        const tipoLabel = TIPO_TEMPLATES.find((t) => t.value === selectedTipo)?.label || selectedTipo;
+        await createTemplate({
+          nombre: tipoLabel,
+          tipo: selectedTipo,
+          contenido,
+          placeholders: detectedPlaceholders,
+        });
+        toast.success('Plantilla creada');
+      }
+    } catch (error) {
+      toast.error('Error al guardar plantilla');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <Tabs value={selectedTipo} onValueChange={(value) => setSelectedTipo(value as TipoTemplate)}>
+        <TabsList className="justify-start rounded-none h-auto p-0 bg-transparent w-fit border-b">
+          {TIPO_TEMPLATES.map((tipo) => (
+            <TabsTrigger
+              key={tipo.value}
+              value={tipo.value}
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+            >
+              {tipo.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+
+        {TIPO_TEMPLATES.map((tipo) => (
+          <TabsContent key={tipo.value} value={tipo.value} className="mt-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Editor Section */}
+              <Card className="lg:col-span-2 p-5 space-y-3">
+                <div>
+                  <h2 className="text-lg font-semibold">Plantilla de {tipo.label}</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Edita el mensaje para notificar sobre vencimientos próximos.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Contenido del Mensaje</label>
+                  <div className="relative">
+                    <Textarea
+                      value={contenido}
+                      onChange={(e) => setContenido(e.target.value)}
+                      placeholder="Escribe aquí el contenido del mensaje..."
+                      className="h-[320px] font-mono text-sm leading-relaxed resize-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button onClick={handleSave} size="sm">
+                    Guardar Plantilla
+                  </Button>
+                </div>
+              </Card>
+
+              {/* Placeholders Section */}
+              <Card className="p-5">
+                <div className="space-y-3">
+                  <div>
+                    <h3 className="text-lg font-semibold">Placeholders Disponibles</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Usa estos placeholders en tu mensaje. Serán reemplazados por los valores reales.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    {PLACEHOLDERS.map((placeholder) => {
+                      const Icon = placeholder.icon;
+                      return (
+                        <div
+                          key={placeholder.key}
+                          className="p-2.5 rounded-lg border bg-card hover:bg-accent/50 transition-colors group"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-start gap-2 flex-1 min-w-0">
+                              <Icon className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <code className="text-xs font-mono font-semibold block text-foreground">
+                                  {placeholder.key}
+                                </code>
+                                <p className="text-xs text-muted-foreground mt-0.5 leading-tight">
+                                  {placeholder.description}
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => handleCopyPlaceholder(placeholder.key)}
+                            >
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </TabsContent>
+        ))}
+      </Tabs>
+    </div>
+  );
+}
