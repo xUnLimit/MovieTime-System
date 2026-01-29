@@ -13,7 +13,9 @@
       "Bash(wc:*)",
       "Bash(taskkill //F //PID 16208)",
       "Bash(dir:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git config:*)"
     ]
   }
 }
