@@ -36,11 +36,11 @@ export function NotificationBell() {
     router.push('/notificaciones');
   };
 
-  const handleNotificationClick = (notificationId: string, ventaId?: string) => {
+  const handleNotificationClick = (notificationId: string, suscripcionId?: string) => {
     handleMarkAsRead(notificationId);
     setOpen(false);
-    if (ventaId) {
-      router.push(`/ventas?highlight=${ventaId}`);
+    if (suscripcionId) {
+      router.push(`/suscripciones?highlight=${suscripcionId}`);
     }
   };
 
@@ -101,7 +101,7 @@ export function NotificationBell() {
                   !notificacion.leida ? 'bg-primary/5' : ''
                 }`}
                 onClick={() =>
-                  handleNotificationClick(notificacion.id, notificacion.ventaId)
+                  handleNotificationClick(notificacion.id, notificacion.suscripcionId)
                 }
               >
                 <div className="flex items-start gap-3">

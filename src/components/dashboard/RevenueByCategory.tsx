@@ -11,10 +11,10 @@ import {
   Cell,
   LabelList,
 } from 'recharts';
-import { Venta } from '@/types';
+import { Suscripcion } from '@/types';
 
 interface RevenueByCategoryProps {
-  ventas: Venta[];
+  suscripciones: Suscripcion[];
 }
 
 const COLORS = [
@@ -27,20 +27,20 @@ const COLORS = [
   '#14b8a6', // teal
 ];
 
-export function RevenueByCategory({ ventas }: RevenueByCategoryProps) {
-  // Agrupar ventas por categoría y calcular rentabilidad
-  const categoryData = ventas.reduce((acc, venta) => {
-    if (venta.estado === 'activa') {
-      const categoria = venta.categoriaNombre;
+export function RevenueByCategory({ suscripciones }: RevenueByCategoryProps) {
+  // Agrupar suscripciones por categoría y calcular rentabilidad
+  const categoryData = suscripciones.reduce((acc, suscripcion) => {
+    if (suscripcion.estado === 'activa') {
+      const categoria = suscripcion.categoriaNombre;
       if (!acc[categoria]) {
         acc[categoria] = {
           ingresos: 0,
           gastos: 0,
         };
       }
-      acc[categoria].ingresos += venta.monto;
+      acc[categoria].ingresos += suscripcion.monto;
       // Asumimos un costo aproximado de 30% del ingreso como gasto por servicio
-      acc[categoria].gastos += venta.monto * 0.3;
+      acc[categoria].gastos += suscripcion.monto * 0.3;
     }
     return acc;
   }, {} as Record<string, { ingresos: number; gastos: number }>);

@@ -19,18 +19,18 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import { Venta, Servicio } from '@/types';
+import { Suscripcion, Servicio } from '@/types';
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, addMonths, subMonths, eachMonthOfInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { TrendingUp, TrendingDown, Lightbulb } from 'lucide-react';
 
 interface IngresosVsGastosChartProps {
-  ventas: Venta[];
+  suscripciones: Suscripcion[];
   servicios: Servicio[];
 }
 
 export function IngresosVsGastosChart({
-  ventas,
+  suscripciones,
   servicios,
 }: IngresosVsGastosChartProps) {
   const [selectedMonth, setSelectedMonth] = useState('actual');
@@ -43,9 +43,9 @@ export function IngresosVsGastosChart({
     .reduce((sum, s) => sum + s.costoTotal, 0);
 
   // Calcular ingresos totales
-  const totalIngresos = ventas
-    .filter((v) => v.estado === 'activa')
-    .reduce((sum, v) => sum + v.monto, 0);
+  const totalIngresos = suscripciones
+    .filter((s) => s.estado === 'activa')
+    .reduce((sum, s) => sum + s.monto, 0);
 
   // Generar datos según el período seleccionado
   const data = useMemo(() => {
@@ -94,9 +94,9 @@ export function IngresosVsGastosChart({
     const monthName = format(month, 'MMMM yyyy', { locale: es });
 
     // Proyección basada en tendencia actual
-    const ingresosProyectados = ventas
-      .filter((v) => v.estado === 'activa')
-      .reduce((sum, v) => sum + v.monto, 0) * (1 + i * 0.1); // 10% crecimiento mensual
+    const ingresosProyectados = suscripciones
+      .filter((s) => s.estado === 'activa')
+      .reduce((sum, s) => sum + s.monto, 0) * (1 + i * 0.1); // 10% crecimiento mensual
 
     const gastosProyectados = totalGastosMensual;
     const gananciaProyectada = ingresosProyectados - gastosProyectados;

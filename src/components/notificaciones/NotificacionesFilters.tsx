@@ -37,7 +37,7 @@ export function NotificacionesFilters({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">Todos</SelectItem>
-          <SelectItem value="venta_vencimiento">Venta Vencimiento</SelectItem>
+          <SelectItem value="suscripcion_vencimiento">Suscripción Vencimiento</SelectItem>
           <SelectItem value="pago_servicio">Pago Servicio</SelectItem>
           <SelectItem value="sistema">Sistema</SelectItem>
         </SelectContent>

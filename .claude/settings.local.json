@@ -15,7 +15,10 @@
       "Bash(dir:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git config:*)"
+      "Bash(git config:*)",
+      "Bash(tree:*)",
+      "Bash(npx tsc:*)",
+      "Bash(git mv:*)"
     ]
   }
 }

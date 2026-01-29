@@ -21,12 +21,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Venta, Cliente, Revendedor, Servicio, MetodoPago, Categoria } from '@/types';
-import { useVentasStore } from '@/store/ventasStore';
+import { Suscripcion, Cliente, Revendedor, Servicio, MetodoPago, Categoria } from '@/types';
+import { useSuscripcionesStore } from '@/store/suscripcionesStore';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
-const ventaSchema = z.object({
+const suscripcionSchema = z.object({
   tipo: z.enum(['cliente', 'revendedor']),
   clienteId: z.string().optional(),
   revendedorId: z.string().optional(),
@@ -49,12 +49,12 @@ const ventaSchema = z.object({
   path: ['clienteId'],
 });
 
-type VentaFormData = z.infer<typeof ventaSchema>;
+type SuscripcionFormData = z.infer<typeof suscripcionSchema>;
 
-interface VentaDialogProps {
+interface SuscripcionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  venta: Venta | null;
+  suscripcion: Suscripcion | null;
   clientes: Cliente[];
   revendedores: Revendedor[];
   servicios: Servicio[];
@@ -62,17 +62,17 @@ interface VentaDialogProps {
   categorias: Categoria[];
 }
 
-export function VentaDialog({
+export function SuscripcionDialog({
   open,
   onOpenChange,
-  venta,
+  suscripcion,
   clientes,
   revendedores,
   servicios,
   metodosPago,
   categorias,
-}: VentaDialogProps) {
-  const { createVenta, updateVenta } = useVentasStore();
+}: SuscripcionDialogProps) {
+  const { createSuscripcion, updateSuscripcion } = useSuscripcionesStore();
   const {
     register,
     handleSubmit,
@@ -80,8 +80,8 @@ export function VentaDialog({
     watch,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<VentaFormData>({
-    resolver: zodResolver(ventaSchema),
+  } = useForm<SuscripcionFormData>({
+    resolver: zodResolver(suscripcionSchema),
     defaultValues: {
       tipo: 'cliente',
       clienteId: '',
@@ -104,17 +104,17 @@ export function VentaDialog({
   const cicloPagoValue = watch('cicloPago');
 
   useEffect(() => {
-    if (venta) {
+    if (suscripcion) {
       reset({
-        tipo: venta.tipo,
-        clienteId: venta.clienteId,
-        revendedorId: venta.revendedorId,
-        servicioId: venta.servicioId,
-        monto: venta.monto,
-        moneda: venta.moneda,
-        metodoPagoId: venta.metodoPagoId,
-        cicloPago: venta.cicloPago,
-        fechaInicio: new Date(venta.fechaInicio),
+        tipo: suscripcion.tipo,
+        clienteId: suscripcion.clienteId,
+        revendedorId: suscripcion.revendedorId,
+        servicioId: suscripcion.servicioId,
+        monto: suscripcion.monto,
+        moneda: suscripcion.moneda,
+        metodoPagoId: suscripcion.metodoPagoId,
+        cicloPago: suscripcion.cicloPago,
+        fechaInicio: new Date(suscripcion.fechaInicio),
       });
     } else {
       reset({
@@ -129,7 +129,7 @@ export function VentaDialog({
         fechaInicio: new Date(),
       });
     }
-  }, [venta, reset]);
+  }, [suscripcion, reset]);
 
   // Auto-populate metodoPago based on cliente/revendedor
   useEffect(() => {
@@ -146,7 +146,7 @@ export function VentaDialog({
     }
   }, [tipoValue, clienteIdValue, revendedorIdValue, clientes, revendedores, setValue]);
 
-  const onSubmit = async (data: VentaFormData) => {
+  const onSubmit = async (data: SuscripcionFormData) => {
     try {
       const servicio = servicios.find((s) => s.id === data.servicioId);
       const categoria = categorias.find((c) => c.id === servicio?.categoriaId);
@@ -154,9 +154,9 @@ export function VentaDialog({
       const cliente = data.tipo === 'cliente' ? clientes.find((c) => c.id === data.clienteId) : null;
       const revendedor = data.tipo === 'revendedor' ? revendedores.find((r) => r.id === data.revendedorId) : null;
 
-      const ventaData = {
+      const suscripcionData = {
         ...data,
-        createdBy: venta?.createdBy || 'current-user',
+        createdBy: suscripcion?.createdBy || 'current-user',
         categoriaId: servicio?.categoriaId || '',
         correo: servicio?.correo || '',
         contrasena: servicio?.contrasena || '',
@@ -167,16 +167,16 @@ export function VentaDialog({
         revendedorNombre: revendedor?.nombre,
       };
 
-      if (venta) {
-        await updateVenta(venta.id, ventaData);
-        toast.success('Venta actualizada');
+      if (suscripcion) {
+        await updateSuscripcion(suscripcion.id, suscripcionData);
+        toast.success('Suscripción actualizada');
       } else {
-        await createVenta(ventaData);
-        toast.success('Venta creada');
+        await createSuscripcion(suscripcionData);
+        toast.success('Suscripción creada');
       }
       onOpenChange(false);
     } catch (error) {
-      toast.error('Error al guardar venta');
+      toast.error('Error al guardar suscripción');
     }
   };
 
@@ -192,13 +192,13 @@ export function VentaDialog({
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {venta ? 'Editar' : 'Nueva'} Venta
+            {suscripcion ? 'Editar' : 'Nueva'} Suscripción
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="tipo">Tipo de Venta</Label>
+            <Label htmlFor="tipo">Tipo de Suscripción</Label>
             <Select
               value={tipoValue}
               onValueChange={(value) => {

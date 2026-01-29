@@ -1,6 +1,6 @@
 import { addMonths, differenceInDays, format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CicloPago, EstadoVenta } from '@/types';
+import { CicloPago, EstadoSuscripcion } from '@/types';
 
 /**
  * Calcula la fecha de vencimiento basada en fecha de inicio y ciclo de pago
@@ -14,7 +14,7 @@ export function calcularFechaVencimiento(
 }
 
 /**
- * Calcula el porcentaje de consumo de una venta basado en fechas
+ * Calcula el porcentaje de consumo de una suscripción basado en fechas
  */
 export function calcularConsumo(
   fechaInicio: Date,
@@ -32,7 +32,7 @@ export function calcularConsumo(
 }
 
 /**
- * Calcula el monto restante de una venta
+ * Calcula el monto restante de una suscripción
  */
 export function calcularMontoRestante(
   montoTotal: number,
@@ -42,15 +42,15 @@ export function calcularMontoRestante(
 }
 
 /**
- * Determina el estado de una venta basado en fecha de vencimiento
+ * Determina el estado de una suscripción basado en fecha de vencimiento
  */
-export function calcularEstadoVenta(fechaVencimiento: Date): EstadoVenta {
+export function calcularEstadoSuscripcion(fechaVencimiento: Date): EstadoSuscripcion {
   const hoy = new Date();
   return hoy > fechaVencimiento ? 'vencida' : 'activa';
 }
 
 /**
- * Calcula los días de retraso de una venta vencida
+ * Calcula los días de retraso de una suscripción vencida
  */
 export function calcularDiasRetraso(fechaVencimiento: Date): number {
   const hoy = new Date();
@@ -151,10 +151,10 @@ export function calcularRentabilidad(
 }
 
 /**
- * Determina el color del badge según estado de venta
+ * Determina el color del badge según estado de suscripción
  */
-export function getColorEstado(estado: EstadoVenta): string {
-  const colores: Record<EstadoVenta, string> = {
+export function getColorEstado(estado: EstadoSuscripcion): string {
+  const colores: Record<EstadoSuscripcion, string> = {
     activa: 'bg-green-500',
     suspendida: 'bg-yellow-500',
     inactiva: 'bg-gray-500',

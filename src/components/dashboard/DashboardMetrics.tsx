@@ -2,25 +2,25 @@
 
 import { MetricCard } from '@/components/shared/MetricCard';
 import { DollarSign, TrendingUp, TrendingDown, Wallet, CreditCard } from 'lucide-react';
-import { Venta } from '@/types';
+import { Suscripcion } from '@/types';
 import { Servicio } from '@/types';
 import { formatearMoneda } from '@/lib/utils/calculations';
 
 interface DashboardMetricsProps {
-  ventas: Venta[];
+  suscripciones: Suscripcion[];
   servicios: Servicio[];
 }
 
-export function DashboardMetrics({ ventas, servicios }: DashboardMetricsProps) {
+export function DashboardMetrics({ suscripciones, servicios }: DashboardMetricsProps) {
   // Calcular gastos totales (suma de costos de servicios activos)
   const gastosTotal = servicios
     .filter((s) => s.activo)
     .reduce((sum, s) => sum + s.costoTotal, 0);
 
-  // Calcular ingresos totales (ventas activas)
-  const ingresosTotal = ventas
-    .filter((v) => v.estado === 'activa')
-    .reduce((sum, v) => sum + v.monto, 0);
+  // Calcular ingresos totales (suscripciones activas)
+  const ingresosTotal = suscripciones
+    .filter((s) => s.estado === 'activa')
+    .reduce((sum, s) => sum + s.monto, 0);
 
   // Calcular ganancias
   const gananciasTotal = ingresosTotal - gastosTotal;
@@ -30,10 +30,10 @@ export function DashboardMetrics({ ventas, servicios }: DashboardMetricsProps) {
     .filter((s) => s.activo && s.renovacionAutomatica)
     .reduce((sum, s) => sum + s.costoTotal, 0);
 
-  // Calcular ingreso mensual esperado (basado en ventas activas recurrentes)
-  const ingresoMensualEsperado = ventas
-    .filter((v) => v.estado === 'activa' && v.cicloPago === 'mensual')
-    .reduce((sum, v) => sum + v.monto, 0);
+  // Calcular ingreso mensual esperado (basado en suscripciones activas recurrentes)
+  const ingresoMensualEsperado = suscripciones
+    .filter((s) => s.estado === 'activa' && s.cicloPago === 'mensual')
+    .reduce((sum, s) => sum + s.monto, 0);
 
   return (
     <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-5">
@@ -48,7 +48,7 @@ export function DashboardMetrics({ ventas, servicios }: DashboardMetricsProps) {
       <MetricCard
         title="Ingresos Totales"
         value={formatearMoneda(ingresosTotal)}
-        description="Suma de todas las ventas"
+        description="Suma de todas las suscripciones"
         icon={TrendingUp}
         iconColor="text-blue-500"
         borderColor="border-l-blue-500"

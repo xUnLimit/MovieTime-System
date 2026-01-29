@@ -3,21 +3,21 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
-import { VentasMetrics } from '@/components/ventas/VentasMetrics';
-import { VentasFilters } from '@/components/ventas/VentasFilters';
-import { VentasTable } from '@/components/ventas/VentasTable';
-import { VentaDialog } from '@/components/ventas/VentaDialog';
-import { useVentasStore } from '@/store/ventasStore';
+import { SuscripcionesMetrics } from '@/components/suscripciones/SuscripcionesMetrics';
+import { SuscripcionesFilters } from '@/components/suscripciones/SuscripcionesFilters';
+import { SuscripcionesTable } from '@/components/suscripciones/SuscripcionesTable';
+import { SuscripcionDialog } from '@/components/suscripciones/SuscripcionDialog';
+import { useSuscripcionesStore } from '@/store/suscripcionesStore';
 import { useClientesStore } from '@/store/clientesStore';
 import { useRevendedoresStore } from '@/store/revendedoresStore';
 import { useServiciosStore } from '@/store/serviciosStore';
 import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { useCategoriasStore } from '@/store/categoriasStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
-import { Venta } from '@/types';
+import { Suscripcion } from '@/types';
 
-function VentasPageContent() {
-  const { ventas, fetchVentas } = useVentasStore();
+function SuscripcionesPageContent() {
+  const { suscripciones, fetchSuscripciones } = useSuscripcionesStore();
   const { clientes, fetchClientes } = useClientesStore();
   const { revendedores, fetchRevendedores } = useRevendedoresStore();
   const { servicios, fetchServicios } = useServiciosStore();
@@ -25,7 +25,7 @@ function VentasPageContent() {
   const { categorias, fetchCategorias } = useCategoriasStore();
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedVenta, setSelectedVenta] = useState<Venta | null>(null);
+  const [selectedSuscripcion, setSelectedSuscripcion] = useState<Suscripcion | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [tipoFilter, setTipoFilter] = useState('all');
@@ -34,14 +34,14 @@ function VentasPageContent() {
   const [cicloFilter, setCicloFilter] = useState('all');
 
   useEffect(() => {
-    fetchVentas();
+    fetchSuscripciones();
     fetchClientes();
     fetchRevendedores();
     fetchServicios();
     fetchMetodosPago();
     fetchCategorias();
   }, [
-    fetchVentas,
+    fetchSuscripciones,
     fetchClientes,
     fetchRevendedores,
     fetchServicios,
@@ -49,21 +49,21 @@ function VentasPageContent() {
     fetchCategorias,
   ]);
 
-  const filteredVentas = useMemo(() => {
-    return ventas.filter((venta) => {
+  const filteredSuscripciones = useMemo(() => {
+    return suscripciones.filter((suscripcion) => {
       const matchesSearch =
-        venta.clienteNombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        venta.revendedorNombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        venta.servicioNombre.toLowerCase().includes(searchTerm.toLowerCase());
+        suscripcion.clienteNombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        suscripcion.revendedorNombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        suscripcion.servicioNombre.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const matchesTipo = tipoFilter === 'all' || venta.tipo === tipoFilter;
+      const matchesTipo = tipoFilter === 'all' || suscripcion.tipo === tipoFilter;
 
       const matchesCategoria =
-        categoriaFilter === 'all' || venta.categoriaId === categoriaFilter;
+        categoriaFilter === 'all' || suscripcion.categoriaId === categoriaFilter;
 
-      const matchesEstado = estadoFilter === 'all' || venta.estado === estadoFilter;
+      const matchesEstado = estadoFilter === 'all' || suscripcion.estado === estadoFilter;
 
-      const matchesCiclo = cicloFilter === 'all' || venta.cicloPago === cicloFilter;
+      const matchesCiclo = cicloFilter === 'all' || suscripcion.cicloPago === cicloFilter;
 
       return (
         matchesSearch &&
@@ -73,15 +73,15 @@ function VentasPageContent() {
         matchesCiclo
       );
     });
-  }, [ventas, searchTerm, tipoFilter, categoriaFilter, estadoFilter, cicloFilter]);
+  }, [suscripciones, searchTerm, tipoFilter, categoriaFilter, estadoFilter, cicloFilter]);
 
   const handleCreate = useCallback(() => {
-    setSelectedVenta(null);
+    setSelectedSuscripcion(null);
     setDialogOpen(true);
   }, []);
 
-  const handleEdit = useCallback((venta: Venta) => {
-    setSelectedVenta(venta);
+  const handleEdit = useCallback((suscripcion: Suscripcion) => {
+    setSelectedSuscripcion(suscripcion);
     setDialogOpen(true);
   }, []);
 
@@ -89,20 +89,20 @@ function VentasPageContent() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Ventas</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Suscripciones</h1>
           <p className="text-muted-foreground">
-            Gestiona las ventas y suscripciones activas
+            Gestiona las suscripciones y suscripciones activas
           </p>
         </div>
         <Button onClick={handleCreate}>
           <Plus className="mr-2 h-4 w-4" />
-          Nueva Venta
+          Nueva Suscripcion
         </Button>
       </div>
 
-      <VentasMetrics ventas={ventas} />
+      <SuscripcionesMetrics suscripciones={suscripciones} />
 
-      <VentasFilters
+      <SuscripcionesFilters
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
         tipoFilter={tipoFilter}
@@ -116,12 +116,12 @@ function VentasPageContent() {
         categorias={categorias}
       />
 
-      <VentasTable ventas={filteredVentas} onEdit={handleEdit} />
+      <SuscripcionesTable suscripciones={filteredSuscripciones} onEdit={handleEdit} />
 
-      <VentaDialog
+      <SuscripcionDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        venta={selectedVenta}
+        suscripcion={selectedSuscripcion}
         clientes={clientes}
         revendedores={revendedores}
         servicios={servicios}
@@ -132,10 +132,10 @@ function VentasPageContent() {
   );
 }
 
-export default function VentasPage() {
+export default function SuscripcionesPage() {
   return (
-    <ModuleErrorBoundary moduleName="Ventas">
-      <VentasPageContent />
+    <ModuleErrorBoundary moduleName="Suscripciones">
+      <SuscripcionesPageContent />
     </ModuleErrorBoundary>
   );
 }

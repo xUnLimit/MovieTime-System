@@ -1,55 +1,55 @@
 'use client';
 
 import { memo, useMemo } from 'react';
-import { Venta } from '@/types';
+import { Suscripcion } from '@/types';
 import { MetricCard } from '@/components/shared/MetricCard';
 import { ShoppingCart, DollarSign, TrendingUp, AlertTriangle } from 'lucide-react';
 
-interface VentasMetricsProps {
-  ventas: Venta[];
+interface SuscripcionesMetricsProps {
+  suscripciones: Suscripcion[];
 }
 
-export const VentasMetrics = memo(function VentasMetrics({ ventas }: VentasMetricsProps) {
+export const SuscripcionesMetrics = memo(function SuscripcionesMetrics({ suscripciones }: SuscripcionesMetricsProps) {
   const metrics = useMemo(() => {
-    let ventasActivas = 0;
-    let ventasSuspendidas = 0;
-    let ventasVencidas = 0;
+    let suscripcionesActivas = 0;
+    let suscripcionesSuspendidas = 0;
+    let suscripcionesVencidas = 0;
     let ingresoMensual = 0;
     let ingresoTotal = 0;
     let montoRestante = 0;
 
-    ventas.forEach((v) => {
-      if (v.estado === 'activa') {
-        ventasActivas++;
-        ingresoTotal += v.monto;
-        montoRestante += v.montoRestante;
-        if (v.cicloPago === 'mensual') {
-          ingresoMensual += v.monto;
+    suscripciones.forEach((s) => {
+      if (s.estado === 'activa') {
+        suscripcionesActivas++;
+        ingresoTotal += s.monto;
+        montoRestante += s.montoRestante;
+        if (s.cicloPago === 'mensual') {
+          ingresoMensual += s.monto;
         }
-      } else if (v.estado === 'suspendida') {
-        ventasSuspendidas++;
-      } else if (v.estado === 'vencida') {
-        ventasVencidas++;
+      } else if (s.estado === 'suspendida') {
+        suscripcionesSuspendidas++;
+      } else if (s.estado === 'vencida') {
+        suscripcionesVencidas++;
       }
     });
 
     return {
-      ventasActivas,
-      ventasSuspendidas,
-      ventasVencidas,
+      suscripcionesActivas,
+      suscripcionesSuspendidas,
+      suscripcionesVencidas,
       ingresoMensual,
       ingresoTotal,
       montoRestante,
     };
-  }, [ventas]);
+  }, [suscripciones]);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <MetricCard
-        title="Ventas Activas"
-        value={metrics.ventasActivas}
+        title="Suscripciones Activas"
+        value={metrics.suscripcionesActivas}
         icon={ShoppingCart}
-        description={`${metrics.ventasSuspendidas} suspendidas, ${metrics.ventasVencidas} vencidas`}
+        description={`${metrics.suscripcionesSuspendidas} suspendidas, ${metrics.suscripcionesVencidas} vencidas`}
         borderColor="border-l-purple-500"
         iconColor="text-purple-500"
       />
@@ -57,7 +57,7 @@ export const VentasMetrics = memo(function VentasMetrics({ ventas }: VentasMetri
         title="Ingreso Mensual"
         value={`$${metrics.ingresoMensual.toFixed(2)}`}
         icon={DollarSign}
-        description="De ventas mensuales"
+        description="De suscripciones mensuales"
         borderColor="border-l-orange-500"
         iconColor="text-orange-500"
       />
@@ -65,7 +65,7 @@ export const VentasMetrics = memo(function VentasMetrics({ ventas }: VentasMetri
         title="Ingreso Total"
         value={`$${metrics.ingresoTotal.toFixed(2)}`}
         icon={TrendingUp}
-        description="Todas las ventas activas"
+        description="Todas las suscripciones activas"
         borderColor="border-l-green-500"
         iconColor="text-green-500"
       />

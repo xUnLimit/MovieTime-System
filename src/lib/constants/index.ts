@@ -19,8 +19,8 @@ export const NAVIGATION_ITEMS = [
     icon: 'Server'
   },
   {
-    label: 'Ventas',
-    href: '/ventas',
+    label: 'Suscripciones',
+    href: '/suscripciones',
     icon: 'ShoppingCart'
   },
   {
@@ -69,7 +69,7 @@ export const CICLOS_PAGO = [
 // ESTADO OPTIONS
 // ===========================
 
-export const ESTADOS_VENTA = [
+export const ESTADOS_SUSCRIPCION = [
   { value: 'activa', label: 'Activa', color: 'green' },
   { value: 'suspendida', label: 'Suspendida', color: 'yellow' },
   { value: 'inactiva', label: 'Inactiva', color: 'gray' },

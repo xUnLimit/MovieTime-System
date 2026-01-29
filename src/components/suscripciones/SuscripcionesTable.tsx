@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Venta } from '@/types';
+import { Suscripcion } from '@/types';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,73 +13,73 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Edit, Trash2, MoreVertical, RefreshCw, Pause, Play, MessageCircle } from 'lucide-react';
-import { useVentasStore } from '@/store/ventasStore';
+import { useSuscripcionesStore } from '@/store/suscripcionesStore';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { toast } from 'sonner';
 import { format, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-interface VentasTableProps {
-  ventas: Venta[];
-  onEdit: (venta: Venta) => void;
+interface SuscripcionesTableProps {
+  suscripciones: Suscripcion[];
+  onEdit: (suscripcion: Suscripcion) => void;
 }
 
-export function VentasTable({ ventas, onEdit }: VentasTableProps) {
-  const { deleteVenta, renovarVenta, suspenderVenta, reactivarVenta } = useVentasStore();
+export function SuscripcionesTable({ suscripciones, onEdit }: SuscripcionesTableProps) {
+  const { deleteSuscripcion, renovarSuscripcion, suspenderSuscripcion, reactivarSuscripcion } = useSuscripcionesStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [ventaToDelete, setVentaToDelete] = useState<Venta | null>(null);
+  const [suscripcionToDelete, setSuscripcionToDelete] = useState<Suscripcion | null>(null);
 
-  const handleDelete = (venta: Venta) => {
-    setVentaToDelete(venta);
+  const handleDelete = (suscripcion: Suscripcion) => {
+    setSuscripcionToDelete(suscripcion);
     setDeleteDialogOpen(true);
   };
 
   const handleConfirmDelete = async () => {
-    if (ventaToDelete) {
+    if (suscripcionToDelete) {
       try {
-        await deleteVenta(ventaToDelete.id);
-        toast.success('Venta eliminada');
+        await deleteSuscripcion(suscripcionToDelete.id);
+        toast.success('Suscripción eliminada');
       } catch (error) {
-        toast.error('Error al eliminar venta');
+        toast.error('Error al eliminar suscripción');
       }
     }
   };
 
-  const handleRenovar = async (venta: Venta) => {
+  const handleRenovar = async (suscripcion: Suscripcion) => {
     try {
-      await renovarVenta(venta.id);
-      toast.success('Venta renovada');
+      await renovarSuscripcion(suscripcion.id);
+      toast.success('Suscripción renovada');
     } catch (error) {
-      toast.error('Error al renovar venta');
+      toast.error('Error al renovar suscripción');
     }
   };
 
-  const handleSuspender = async (venta: Venta) => {
+  const handleSuspender = async (suscripcion: Suscripcion) => {
     try {
-      await suspenderVenta(venta.id);
-      toast.success('Venta suspendida');
+      await suspenderSuscripcion(suscripcion.id);
+      toast.success('Suscripción suspendida');
     } catch (error) {
-      toast.error('Error al suspender venta');
+      toast.error('Error al suspender suscripción');
     }
   };
 
-  const handleActivar = async (venta: Venta) => {
+  const handleActivar = async (suscripcion: Suscripcion) => {
     try {
-      await reactivarVenta(venta.id);
-      toast.success('Venta activada');
+      await reactivarSuscripcion(suscripcion.id);
+      toast.success('Suscripción activada');
     } catch (error) {
-      toast.error('Error al activar venta');
+      toast.error('Error al activar suscripción');
     }
   };
 
-  const handleWhatsApp = (venta: Venta) => {
-    const phone = venta.clienteNombre || venta.revendedorNombre || '';
+  const handleWhatsApp = (suscripcion: Suscripcion) => {
+    const phone = suscripcion.clienteNombre || suscripcion.revendedorNombre || '';
     // TODO: Get actual phone number from cliente/revendedor
     toast.info('Función de WhatsApp pendiente de implementación');
   };
 
-  const getEstadoBadge = (estado: Venta['estado']) => {
-    const variants: Record<Venta['estado'], 'default' | 'secondary' | 'destructive' | 'outline'> = {
+  const getEstadoBadge = (estado: Suscripcion['estado']) => {
+    const variants: Record<Suscripcion['estado'], 'default' | 'secondary' | 'destructive' | 'outline'> = {
       activa: 'default',
       suspendida: 'secondary',
       inactiva: 'outline',
@@ -88,11 +88,11 @@ export function VentasTable({ ventas, onEdit }: VentasTableProps) {
     return <Badge variant={variants[estado]}>{estado.charAt(0).toUpperCase() + estado.slice(1)}</Badge>;
   };
 
-  const getDaysUntilExpiration = (venta: Venta) => {
-    return differenceInDays(new Date(venta.fechaVencimiento), new Date());
+  const getDaysUntilExpiration = (suscripcion: Suscripcion) => {
+    return differenceInDays(new Date(suscripcion.fechaVencimiento), new Date());
   };
 
-  const columns: Column<Venta>[] = [
+  const columns: Column<Suscripcion>[] = [
     {
       key: 'cliente',
       header: 'Cliente/Revendedor',
@@ -188,7 +188,7 @@ export function VentasTable({ ventas, onEdit }: VentasTableProps) {
   return (
     <>
       <DataTable
-        data={ventas}
+        data={suscripciones}
         columns={columns}
         actions={(item) => (
           <div className="flex gap-2">
@@ -242,8 +242,8 @@ export function VentasTable({ ventas, onEdit }: VentasTableProps) {
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
         onConfirm={handleConfirmDelete}
-        title="Eliminar Venta"
-        description={`¿Estás seguro de que quieres eliminar esta venta? Esta acción no se puede deshacer.`}
+        title="Eliminar Suscripción"
+        description={`¿Estás seguro de que quieres eliminar esta suscripción? Esta acción no se puede deshacer.`}
         confirmText="Eliminar"
         variant="danger"
       />

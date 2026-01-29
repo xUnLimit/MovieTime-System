@@ -4,7 +4,49 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-MovieTime PTY is a subscription management system for streaming services in Panama. It manages clients, resellers, services (Netflix, Disney+, etc.), sales with payment cycles, and automatic notifications. The frontend is fully implemented with mock data using Zustand for state management, ready for backend integration.
+MovieTime PTY is a subscription management system for streaming services in Panama. It manages clients, resellers, services (Netflix, Disney+, etc.), subscriptions with payment cycles, and automatic notifications. The frontend is fully implemented with mock data using Zustand for state management, ready for backend integration.
+
+## Project Structure (Reorganized Jan 2026)
+
+```
+MovieTime System/
+├── proxy.ts                   # Next.js 16 Edge Runtime proxy (root level)
+├── vitest.config.ts          # Test configuration
+├── docs/                      # Documentation
+├── public/                    # Static assets (cleaned)
+├── tests/                     # Test files
+│   ├── unit/                 # Unit tests
+│   ├── integration/          # Integration tests
+│   └── e2e/                  # End-to-end tests
+└── src/
+    ├── app/                  # Next.js App Router
+    ├── components/           # React components by feature
+    ├── config/               # Configuration files
+    │   ├── constants.ts      # App constants
+    │   ├── env.ts           # Environment config
+    │   └── site.ts          # Site metadata
+    ├── hooks/                # Custom React hooks
+    ├── lib/                  # Utilities and helpers
+    │   ├── constants/       # (Original location, re-exported from config)
+    │   ├── mock-data/       # Mock data (separated by entity)
+    │   └── utils/           # Utility functions
+    ├── store/                # Zustand stores
+    ├── test/                 # Test utilities
+    │   ├── setup.ts         # Test setup
+    │   └── utils.ts         # Test helpers
+    └── types/                # TypeScript types (separated by domain)
+        ├── index.ts         # Barrel export
+        ├── auth.ts          # Authentication types
+        ├── categorias.ts    # Category types
+        ├── clientes.ts      # Client/Reseller types
+        ├── common.ts        # Shared types
+        ├── dashboard.ts     # Dashboard types
+        ├── metodos-pago.ts  # Payment method types
+        ├── notificaciones.ts # Notification types
+        ├── servicios.ts     # Service types
+        ├── suscripciones.ts # Subscription types
+        └── whatsapp.ts      # WhatsApp types
+```
 
 ## Common Commands
 
@@ -43,19 +85,32 @@ fetchItems: async () => {
 
 ### Store Directory
 
-- `src/store/` - All Zustand stores (ventasStore, authStore, etc.)
+- `src/store/` - All Zustand stores (suscripcionesStore, authStore, etc.)
 - ~~`src/stores/`~~ - **REMOVED** (was duplicate/legacy, consolidated Jan 2026)
 - All stores are in a single directory for consistency
 - Some stores use re-exports for convenience (clientesStore, revendedoresStore)
 
 ### Type System
 
-All types are centralized in `src/types/index.ts`. Key concepts:
+Types are **organized by domain** in `src/types/` directory:
+- `auth.ts` - User, authentication
+- `categorias.ts` - Categories
+- `clientes.ts` - Clients, Resellers
+- `common.ts` - Shared types (Activity logs, Config, Gastos, Templates)
+- `dashboard.ts` - Dashboard metrics
+- `metodos-pago.ts` - Payment methods
+- `notificaciones.ts` - Notifications
+- `servicios.ts` - Services
+- `suscripciones.ts` - Subscriptions
+- `whatsapp.ts` - WhatsApp integration
+- `index.ts` - Barrel export (imports work from `@/types`)
 
-- **Venta (Sale)**: Has calculated fields (`consumoPorcentaje`, `montoRestante`, `estado`) that must be recomputed when dates change
+Key concepts:
+
+- **Suscripción (Subscription)**: Has calculated fields (`consumoPorcentaje`, `montoRestante`, `estado`) that must be recomputed when dates change
 - **Payment Cycles**: `mensual` (1 month), `trimestral` (3 months), `anual` (12 months)
-- **Sale States**: `activa`, `suspendida`, `inactiva`, `vencida` (auto-calculated based on dates)
-- **Notification Days**: [100, 11, 8, 7, 3, 2, 1] - sales are notified at these intervals before expiration
+- **Subscription States**: `activa`, `suspendida`, `inactiva`, `vencida` (auto-calculated based on dates)
+- **Notification Days**: [100, 11, 8, 7, 3, 2, 1] - subscriptions are notified at these intervals before expiration
 
 ### Calculation Utilities
 
@@ -64,10 +119,10 @@ All business logic calculations are in `src/lib/utils/calculations.ts`:
 - `calcularFechaVencimiento()` - Computes expiration date from start date + cycle
 - `calcularConsumo()` - Returns 0-100% consumption based on elapsed time
 - `calcularMontoRestante()` - Amount remaining based on consumption
-- `calcularEstadoVenta()` - Determines if sale is `activa` or `vencida`
+- `calcularEstadoSuscripcion()` - Determines if subscription is `activa` or `vencida`
 - `formatearMoneda()` - Formats numbers as USD currency
 
-**Important**: When updating sales dates, always recalculate these fields using the utility functions.
+**Important**: When updating subscription dates, always recalculate these fields using the utility functions.
 
 ### WhatsApp Integration
 
@@ -92,7 +147,7 @@ src/app/
 │   ├── dashboard/   # Home dashboard
 │   ├── servicios/   # Streaming service management
 │   ├── usuarios/    # Clients & Resellers (tabs)
-│   ├── ventas/      # Sales with cycle tracking
+│   ├── suscripciones/  # Subscriptions with cycle tracking
 │   ├── notificaciones/
 │   ├── editor-mensajes/  # WhatsApp template editor
 │   ├── log-actividad/
@@ -145,9 +200,9 @@ const onSubmit = async (data: FormData) => {
 
 ## Critical Implementation Details
 
-### Sales (Ventas) Complexity
+### Suscripciones Complexity
 
-Sales are the most complex entity:
+Subscriptions are the most complex entity:
 
 1. **Auto-calculated fields** - Never set these manually in forms:
    - `fechaVencimiento` (computed from `fechaInicio` + `cicloPago`)
@@ -155,7 +210,7 @@ Sales are the most complex entity:
    - `montoRestante` (monto × remaining percentage)
    - `estado` (active if before expiration, vencida after)
 
-2. **Renovation Logic** (`renovarVenta`):
+2. **Renovation Logic** (`renovarSuscripcion`):
    - Sets new `fechaInicio` to today
    - Recalculates `fechaVencimiento` based on cycle
    - Increments `renovaciones` counter
@@ -163,7 +218,7 @@ Sales are the most complex entity:
    - Sets `estado` to 'activa'
 
 3. **Type Switching**:
-   - Sales can be for `cliente` or `revendedor`
+   - Subscriptions can be for `cliente` or `revendedor`
    - When type changes in form, clear the selected user ID
    - Auto-populate payment method from selected user
 
@@ -176,7 +231,7 @@ Sales are the most complex entity:
 
 ### Notifications
 
-- Generated automatically based on sale expiration dates
+- Generated automatically based on subscription expiration dates
 - Priority increases as expiration approaches (100 days = baja, 1 day = crítica)
 - `estado` field maps to notification thresholds: '100_dias', '11_dias', '8_dias', '7_dias', '3_dias', '2_dias', '1_dia', 'vencido'
 
@@ -193,7 +248,7 @@ Mock authentication (`authStore`):
    - Redirects to `/login` if not authenticated
    - Shows loading spinner while hydrating state from localStorage
 
-2. **Server-Side (Proxy):** `src/proxy.ts`
+2. **Server-Side (Proxy):** `proxy.ts` (project root)
    - Next.js 16 Edge Runtime proxy
    - Exports `function proxy()` (Next.js 16 convention)
    - Currently allows all navigation (auth is client-side)
@@ -206,11 +261,35 @@ Mock authentication (`authStore`):
 3. **CRUD operations**: Call store methods, which update state + show toast
 4. **No persistence**: Changes lost on reload (except auth & templates)
 
+## Typography and Fonts
+
+**CRITICAL: Always use the system font (Inter)**
+
+- The project uses **Inter** font (Google Font) configured in `src/app/layout.tsx`
+- **NEVER use `font-mono` class** - All text must use the default Inter font
+- Font size is set to 80% globally in `src/app/globals.css`
+- Available weights: 400 (regular), 500 (medium), 600 (semibold), 700 (bold)
+
+**Font Usage Rules:**
+```typescript
+// ✅ CORRECT - Use default Inter font
+<span className="font-medium">{text}</span>
+<span className="text-sm">{identifier}</span>
+
+// ❌ WRONG - Never use font-mono
+<span className="font-mono text-sm">{identifier}</span>
+```
+
+**When creating new components:**
+- Do NOT add `font-mono` to any elements (numbers, codes, identifiers, etc.)
+- Use `font-medium` or `font-semibold` for emphasis, never change font family
+- Keep consistent typography across all modules
+
 ## UI/UX Conventions
 
 ### Color Coding
 
-- **Sale Status**:
+- **Subscription Status**:
   - Activa: green
   - Suspendida: yellow
   - Inactiva: gray
@@ -247,7 +326,7 @@ Standard layout for metrics:
 
 ## Common Pitfalls
 
-1. **Recalculate sale fields**: When updating `fechaInicio` or `fechaVencimiento`, you must recalculate `consumoPorcentaje`, `montoRestante`, and `estado` using the calculation utilities.
+1. **Recalculate subscription fields**: When updating `fechaInicio` or `fechaVencimiento`, you must recalculate `consumoPorcentaje`, `montoRestante`, and `estado` using the calculation utilities.
 
 2. **Form default values**: Always use `useEffect` to reset form when item changes:
 ```typescript

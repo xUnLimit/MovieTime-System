@@ -11,7 +11,7 @@ import {
 import { Search } from 'lucide-react';
 import { Categoria } from '@/types';
 
-interface VentasFiltersProps {
+interface SuscripcionesFiltersProps {
   searchTerm: string;
   setSearchTerm: (value: string) => void;
   tipoFilter: string;
@@ -25,7 +25,7 @@ interface VentasFiltersProps {
   categorias: Categoria[];
 }
 
-export function VentasFilters({
+export function SuscripcionesFilters({
   searchTerm,
   setSearchTerm,
   tipoFilter,
@@ -37,13 +37,13 @@ export function VentasFilters({
   cicloFilter,
   setCicloFilter,
   categorias,
-}: VentasFiltersProps) {
+}: SuscripcionesFiltersProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Buscar ventas..."
+          placeholder="Buscar suscripciones..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="pl-9"

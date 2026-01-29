@@ -97,6 +97,8 @@ export function RevendedorDialog({
         active: revendedor?.active ?? true,
         createdBy: revendedor?.createdBy || 'current-user',
         metodoPagoNombre: metodoPago?.nombre || '',
+        suscripcionesTotales: revendedor?.suscripcionesTotales ?? 0,
+        montoTotal: revendedor?.montoTotal ?? 0,
       };
 
       if (revendedor) {

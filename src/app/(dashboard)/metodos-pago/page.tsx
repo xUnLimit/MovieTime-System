@@ -1,83 +1,82 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
-import { useMetodosPagoStore } from '@/store/metodosPagoStore';
+import { useEffect, useState, useCallback } from 'react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
-import { MetodosPagoTable } from '@/components/metodos-pago/MetodosPagoTable';
+import Link from 'next/link';
+import { UsuariosMetodosPagoTable } from '@/components/metodos-pago/UsuariosMetodosPagoTable';
+import { ServiciosMetodosPagoTable } from '@/components/metodos-pago/ServiciosMetodosPagoTable';
 import { MetodoPagoDialog } from '@/components/metodos-pago/MetodoPagoDialog';
+import { MetodosPagoMetrics } from '@/components/metodos-pago/MetodosPagoMetrics';
+import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 import { MetodoPago } from '@/types';
-import { Input } from '@/components/ui/input';
-import { Search } from 'lucide-react';
 
 function MetodosPagoPageContent() {
   const { metodosPago, fetchMetodosPago } = useMetodosPagoStore();
+  const [activeTab, setActiveTab] = useState('usuarios');
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingMetodo, setEditingMetodo] = useState<MetodoPago | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedMetodo, setSelectedMetodo] = useState<MetodoPago | null>(null);
 
   useEffect(() => {
     fetchMetodosPago();
   }, [fetchMetodosPago]);
 
+  const handleCreate = useCallback(() => {
+    setSelectedMetodo(null);
+    setDialogOpen(true);
+  }, []);
+
   const handleEdit = useCallback((metodo: MetodoPago) => {
-    setEditingMetodo(metodo);
+    setSelectedMetodo(metodo);
     setDialogOpen(true);
   }, []);
-
-  const handleAdd = useCallback(() => {
-    setEditingMetodo(null);
-    setDialogOpen(true);
-  }, []);
-
-  const handleDialogClose = useCallback((open: boolean) => {
-    setDialogOpen(open);
-    if (!open) {
-      setEditingMetodo(null);
-    }
-  }, []);
-
-  const filteredMetodos = useMemo(() =>
-    metodosPago.filter(
-      (m) =>
-        m.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        m.identificador?.toLowerCase().includes(searchTerm.toLowerCase())
-    ),
-    [metodosPago, searchTerm]
-  );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div>
+        <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">Métodos de Pago</h1>
-          <p className="text-muted-foreground">
-            Gestiona los métodos de pago disponibles
+          <p className="text-sm text-muted-foreground">
+            <Link href="/" className="hover:text-foreground transition-colors">Dashboard</Link> / <span className="text-foreground">Métodos de Pago</span>
           </p>
         </div>
-        <Button onClick={handleAdd}>
+        <Button onClick={handleCreate}>
           <Plus className="mr-2 h-4 w-4" />
           Nuevo Método
         </Button>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por nombre o identificador..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-9"
-        />
-      </div>
+      <MetodosPagoMetrics metodosPago={metodosPago} />
 
-      <MetodosPagoTable metodosPago={filteredMetodos} onEdit={handleEdit} />
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="usuarios">Usuarios</TabsTrigger>
+          <TabsTrigger value="servicios">Servicios</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="usuarios" className="space-y-4">
+          <UsuariosMetodosPagoTable
+            metodosPago={metodosPago}
+            onEdit={handleEdit}
+            title="Métodos de pago de Usuarios"
+          />
+        </TabsContent>
+
+        <TabsContent value="servicios" className="space-y-4">
+          <ServiciosMetodosPagoTable
+            metodosPago={metodosPago}
+            onEdit={handleEdit}
+            title="Métodos de pago de Servicios"
+          />
+        </TabsContent>
+      </Tabs>
 
       <MetodoPagoDialog
         open={dialogOpen}
-        onOpenChange={handleDialogClose}
-        metodoPago={editingMetodo}
+        onOpenChange={setDialogOpen}
+        metodoPago={selectedMetodo}
       />
     </div>
   );

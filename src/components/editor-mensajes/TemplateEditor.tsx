@@ -18,7 +18,7 @@ const TIPO_TEMPLATES: { value: TipoTemplate; label: string }[] = [
   { value: 'notificacion_regular', label: 'Notificación Regular' },
   { value: 'dia_pago', label: 'Notificación Día de Pago' },
   { value: 'renovacion', label: 'Notificación de Renovación' },
-  { value: 'venta', label: 'Notificación de Venta' },
+  { value: 'suscripcion', label: 'Notificación de Suscripción' },
   { value: 'cancelacion', label: 'Cancelación de Servicio' },
 ];
 

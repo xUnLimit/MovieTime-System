@@ -20,7 +20,7 @@ interface UsuariosState {
 
   // Revendedor Actions
   fetchRevendedores: () => Promise<void>;
-  createRevendedor: (revendedor: Omit<Revendedor, 'id' | 'createdAt' | 'updatedAt' | 'ventasTotales' | 'montoTotal'>) => Promise<void>;
+  createRevendedor: (revendedor: Omit<Revendedor, 'id' | 'createdAt' | 'updatedAt' | 'suscripcionesTotales' | 'montoTotal'>) => Promise<void>;
   updateRevendedor: (id: string, updates: Partial<Revendedor>) => Promise<void>;
   deleteRevendedor: (id: string) => Promise<void>;
   setSelectedRevendedor: (revendedor: Revendedor | null) => void;
@@ -115,7 +115,7 @@ export const useUsuariosStore = create<UsuariosState>()(
         const newRevendedor: Revendedor = {
           ...revendedorData,
           id: `revendedor-${Date.now()}`,
-          ventasTotales: 0,
+          suscripcionesTotales: 0,
           montoTotal: 0,
           active: true,
           createdAt: new Date(),

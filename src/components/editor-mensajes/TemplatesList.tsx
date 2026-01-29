@@ -61,7 +61,7 @@ export function TemplatesList({ templates, onEdit, onPreview }: TemplatesListPro
       notificacion_regular: 'Notificación Regular',
       dia_pago: 'Día de Pago',
       renovacion: 'Renovación',
-      venta: 'Venta',
+      suscripcion: 'Suscripción',
       cancelacion: 'Cancelación',
     };
     return labels[tipo];

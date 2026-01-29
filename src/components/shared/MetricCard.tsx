@@ -52,10 +52,10 @@ export const MetricCard = memo(function MetricCard({
       <Card className="pt-3 pb-0 gap-0 overflow-hidden flex flex-col">
         <CardHeader className="flex flex-row items-center gap-2 space-y-0 p-0 px-4 pb-1">
           {Icon && <Icon className={`h-4 w-4 ${iconColor || 'text-muted-foreground'}`} />}
-          <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+          <CardTitle className="text-sm font-medium text-foreground">{title}</CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-3 pt-0">
-          <div className="text-3xl font-bold">{value}</div>
+          <div className="text-2xl font-bold">{value}</div>
         </CardContent>
         <div className={`h-1 w-full ${underlineColor}`} />
       </Card>
@@ -70,7 +70,7 @@ export const MetricCard = memo(function MetricCard({
         {Icon && <Icon className={`h-4 w-4 ${iconColor || 'text-muted-foreground'}`} />}
       </CardHeader>
       <CardContent className="px-4 pb-0 pt-0">
-        <div className="text-2xl font-bold">{value}</div>
+        <div className="text-xl font-bold">{value}</div>
         {description && (
           <p className="text-xs text-muted-foreground line-clamp-1 mt-1">{description}</p>
         )}

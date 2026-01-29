@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useVentasStore } from '@/store/ventasStore';
+import { useSuscripcionesStore } from '@/store/suscripcionesStore';
 import { useServiciosStore } from '@/store/serviciosStore';
 import { useUsuariosStore } from '@/store/usuariosStore';
 import { useActivityLogStore } from '@/store/activityLogStore';
@@ -13,35 +13,35 @@ import { CrecimientoUsuarios } from '@/components/dashboard/CrecimientoUsuarios'
 import { Progress } from '@/components/ui/progress';
 
 export default function DashboardPage() {
-  const { ventas, fetchVentas, isLoading: isLoadingVentas } = useVentasStore();
+  const { suscripciones, fetchSuscripciones, isLoading: isLoadingSuscripciones } = useSuscripcionesStore();
   const { servicios, fetchServicios, isLoading: isLoadingServicios } = useServiciosStore();
   const { clientes, revendedores, fetchClientes, fetchRevendedores, isLoading: isLoadingUsuarios } = useUsuariosStore();
   const { logs, fetchLogs } = useActivityLogStore();
   const [progress, setProgress] = useState(0);
 
-  const chartsReady = !isLoadingVentas && !isLoadingServicios && !isLoadingUsuarios
-    && (ventas.length > 0 || servicios.length > 0);
+  const chartsReady = !isLoadingSuscripciones && !isLoadingServicios && !isLoadingUsuarios
+    && (suscripciones.length > 0 || servicios.length > 0);
 
   useEffect(() => {
-    fetchVentas();
+    fetchSuscripciones();
     fetchServicios();
     fetchClientes();
     fetchRevendedores();
     fetchLogs();
-  }, [fetchVentas, fetchServicios, fetchClientes, fetchRevendedores, fetchLogs]);
+  }, [fetchSuscripciones, fetchServicios, fetchClientes, fetchRevendedores, fetchLogs]);
 
   // Calcular progreso real basado en los stores cargados
   useEffect(() => {
     let loadedStores = 0;
     const totalStores = 3;
 
-    if (!isLoadingVentas) loadedStores++;
+    if (!isLoadingSuscripciones) loadedStores++;
     if (!isLoadingServicios) loadedStores++;
     if (!isLoadingUsuarios) loadedStores++;
 
     const realProgress = (loadedStores / totalStores) * 100;
     setProgress(realProgress);
-  }, [isLoadingVentas, isLoadingServicios, isLoadingUsuarios]);
+  }, [isLoadingSuscripciones, isLoadingServicios, isLoadingUsuarios]);
 
   return (
     <div className="space-y-4">
@@ -55,12 +55,12 @@ export default function DashboardPage() {
       {chartsReady ? (
         <>
           {/* 5 Metric Cards */}
-          <DashboardMetrics ventas={ventas} servicios={servicios} />
+          <DashboardMetrics suscripciones={suscripciones} servicios={servicios} />
 
-          <IngresosVsGastosChart ventas={ventas} servicios={servicios} />
+          <IngresosVsGastosChart suscripciones={suscripciones} servicios={servicios} />
           <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
             <CrecimientoUsuarios clientes={clientes} revendedores={revendedores} />
-            <RevenueByCategory ventas={ventas} />
+            <RevenueByCategory suscripciones={suscripciones} />
             <RecentActivity logs={logs} />
           </div>
         </>

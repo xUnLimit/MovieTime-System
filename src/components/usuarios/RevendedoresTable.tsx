@@ -102,17 +102,17 @@ export function RevendedoresTable({ revendedores, onEdit, title = 'Revendedores'
       width: '16%',
     },
     {
-      key: 'ventasTotales',
+      key: 'suscripcionesTotales',
       header: 'Servicios Activos',
       sortable: true,
       align: 'center',
       width: '16%',
       render: (item) => {
-        const isActive = item.ventasTotales > 0;
+        const isActive = item.suscripcionesTotales > 0;
         return (
           <div className="flex items-center justify-center gap-2">
             <Monitor className={`h-4 w-4 ${isActive ? 'text-green-500' : 'text-muted-foreground'}`} />
-            <span className={isActive ? '' : 'text-muted-foreground'}>{item.ventasTotales}</span>
+            <span className={isActive ? '' : 'text-muted-foreground'}>{item.suscripcionesTotales}</span>
           </div>
         );
       },

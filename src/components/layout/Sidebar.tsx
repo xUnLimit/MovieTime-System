@@ -49,8 +49,8 @@ const navigationSections = [
         icon: Server
       },
       {
-        name: 'Ventas',
-        href: '/ventas',
+        name: 'Suscripciones',
+        href: '/suscripciones',
         icon: ShoppingCart
       }
     ]

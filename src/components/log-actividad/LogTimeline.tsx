@@ -57,13 +57,13 @@ export function LogTimeline({
 
   const getEntityLabel = (entidad: ActivityLog['entidad']) => {
     const labels = {
-      venta: 'Venta',
+      suscripcion: 'Suscripción',
       cliente: 'Cliente',
       revendedor: 'Revendedor',
       servicio: 'Servicio',
       usuario: 'Usuario',
       categoria: 'Categoría',
-      metodo_pago: 'Pago de Venta',
+      metodo_pago: 'Pago de Suscripción',
       gasto: 'Gasto',
     };
     return labels[entidad];
