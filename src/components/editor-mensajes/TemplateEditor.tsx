@@ -82,6 +82,7 @@ export function TemplateEditor({ templates }: TemplateEditorProps) {
           tipo: selectedTipo,
           contenido,
           placeholders: detectedPlaceholders,
+          activo: true,
         });
         toast.success('Plantilla creada');
       }
@@ -124,7 +125,7 @@ export function TemplateEditor({ templates }: TemplateEditorProps) {
                       value={contenido}
                       onChange={(e) => setContenido(e.target.value)}
                       placeholder="Escribe aquí el contenido del mensaje..."
-                      className="h-[320px] font-mono text-sm leading-relaxed resize-none"
+                      className="h-[320px] text-sm leading-normal resize-none"
                     />
                   </div>
                 </div>

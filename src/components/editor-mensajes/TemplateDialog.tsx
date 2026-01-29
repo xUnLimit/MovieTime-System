@@ -111,6 +111,7 @@ export function TemplateDialog({ open, onOpenChange, template }: TemplateDialogP
       const templateData = {
         ...data,
         placeholders: detectedPlaceholders,
+        activo: template?.activo ?? true,
       };
 
       if (template) {

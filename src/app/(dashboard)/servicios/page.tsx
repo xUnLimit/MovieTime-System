@@ -17,7 +17,10 @@ function ServiciosPageContent() {
   const { categorias, fetchCategorias } = useCategoriasStore();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingServicio, setEditingServicio] = useState<Servicio | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [categoriaFilter, setCategoriaFilter] = useState<string>('todos');
+  const [tipoFilter, setTipoFilter] = useState<string>('todos');
+  const [estadoFilter, setEstadoFilter] = useState<string>('todos');
 
   useEffect(() => {
     fetchServicios();
@@ -66,9 +69,15 @@ function ServiciosPageContent() {
       <ServiciosMetrics servicios={servicios} />
 
       <ServiciosFilters
-        categorias={categorias}
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
         categoriaFilter={categoriaFilter}
-        onFilterChange={setCategoriaFilter}
+        setCategoriaFilter={setCategoriaFilter}
+        tipoFilter={tipoFilter}
+        setTipoFilter={setTipoFilter}
+        estadoFilter={estadoFilter}
+        setEstadoFilter={setEstadoFilter}
+        categorias={categorias}
       />
 
       <ServiciosTable servicios={filteredServicios} onEdit={handleEdit} />
