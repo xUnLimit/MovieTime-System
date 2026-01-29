@@ -226,7 +226,7 @@ export function TodosUsuariosTable({
 
   return (
     <>
-      <Card className="p-4">
+      <Card className="p-4 pb-2">
         <h3 className="text-xl font-semibold">{title}</h3>
         <div className="flex items-center gap-4 -mb-4">
           <div className="relative flex-1">
@@ -256,6 +256,8 @@ export function TodosUsuariosTable({
         <DataTable
             data={filteredUsuarios}
             columns={columns}
+            pagination={true}
+            itemsPerPageOptions={[10, 25, 50, 100]}
             actions={(item) => (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

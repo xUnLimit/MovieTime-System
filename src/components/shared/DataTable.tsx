@@ -10,6 +10,13 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { LoadingSpinner } from './LoadingSpinner';
 import { EmptyState } from './EmptyState';
@@ -19,6 +26,7 @@ export interface Column<T> {
   header: string;
   sortable?: boolean;
   render?: (item: T) => React.ReactNode;
+  headerRender?: () => React.ReactNode;
   width?: string;
   align?: 'left' | 'center' | 'right';
 }
@@ -30,6 +38,8 @@ export interface DataTableProps<T> {
   emptyMessage?: string;
   onRowClick?: (item: T) => void;
   actions?: (item: T) => React.ReactNode;
+  pagination?: boolean;
+  itemsPerPageOptions?: number[];
 }
 
 type SortDirection = 'asc' | 'desc' | null;
@@ -77,9 +87,13 @@ function DataTableComponent<T extends Record<string, any>>({
   emptyMessage = 'No hay datos disponibles',
   onRowClick,
   actions,
+  pagination = false,
+  itemsPerPageOptions = [10, 25, 50, 100],
 }: DataTableProps<T>) {
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(itemsPerPageOptions[0]);
 
   const handleSort = useCallback((key: string) => {
     if (sortKey === key) {
@@ -113,6 +127,32 @@ function DataTableComponent<T extends Record<string, any>>({
     });
   }, [data, sortKey, sortDirection]);
 
+  // Pagination logic
+  const totalPages = useMemo(() => {
+    if (!pagination) return 1;
+    return Math.ceil(sortedData.length / itemsPerPage);
+  }, [pagination, sortedData.length, itemsPerPage]);
+
+  const paginatedData = useMemo(() => {
+    if (!pagination) return sortedData;
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return sortedData.slice(startIndex, endIndex);
+  }, [pagination, sortedData, currentPage, itemsPerPage]);
+
+  const handlePreviousPage = useCallback(() => {
+    setCurrentPage((prev) => Math.max(1, prev - 1));
+  }, []);
+
+  const handleNextPage = useCallback(() => {
+    setCurrentPage((prev) => Math.min(totalPages, prev + 1));
+  }, [totalPages]);
+
+  const handleItemsPerPageChange = useCallback((value: string) => {
+    setItemsPerPage(Number(value));
+    setCurrentPage(1);
+  }, []);
+
   const getSortIcon = useCallback((columnKey: string) => {
     if (sortKey !== columnKey) {
       return <ArrowUpDown className="ml-2 h-4 w-4" />;
@@ -135,47 +175,97 @@ function DataTableComponent<T extends Record<string, any>>({
     return <EmptyState message={emptyMessage} />;
   }
 
+  const displayData = paginatedData;
+
   return (
-    <div className="rounded-md border bg-background overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {columns.map((column, colIndex) => (
-              <TableHead
-                key={column.key}
-                style={{ width: column.width }}
-                className={`${colIndex === 0 ? 'pl-6' : ''} ${column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : ''}`}
-              >
-                {column.sortable ? (
-                  <Button
-                    variant="ghost"
-                    onClick={() => handleSort(column.key)}
-                    className={`h-8 -ml-3 ${column.align === 'center' ? 'w-full justify-center ml-0' : ''} ${sortKey === column.key ? 'text-primary hover:text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-                  >
-                    {column.header}
-                    {getSortIcon(column.key)}
-                  </Button>
-                ) : (
-                  <span className="text-muted-foreground">{column.header}</span>
-                )}
-              </TableHead>
+    <div>
+      <div className="rounded-md border bg-background overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {columns.map((column, colIndex) => (
+                <TableHead
+                  key={column.key}
+                  style={{ width: column.width }}
+                  className={`${colIndex === 0 ? 'pl-6' : ''} ${column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : ''}`}
+                >
+                  {column.headerRender ? (
+                    column.headerRender()
+                  ) : column.sortable ? (
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort(column.key)}
+                      className={`h-8 -ml-3 ${column.align === 'center' ? 'w-full justify-center ml-0' : ''} ${sortKey === column.key ? 'text-primary hover:text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                    >
+                      {column.header}
+                      {getSortIcon(column.key)}
+                    </Button>
+                  ) : (
+                    <span className="text-muted-foreground">{column.header}</span>
+                  )}
+                </TableHead>
+              ))}
+              {actions && <TableHead className="text-center pr-6 text-muted-foreground">Acciones</TableHead>}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {displayData.map((item, index) => (
+              <MemoizedTableRow
+                key={item.id || index}
+                item={item}
+                columns={columns as Column<Record<string, any>>[]}
+                actions={actions as ((item: Record<string, any>) => React.ReactNode) | undefined}
+                onRowClick={onRowClick as ((item: Record<string, any>) => void) | undefined}
+                index={index}
+              />
             ))}
-            {actions && <TableHead className="text-center pr-6 text-muted-foreground">Acciones</TableHead>}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {sortedData.map((item, index) => (
-            <MemoizedTableRow
-              key={item.id || index}
-              item={item}
-              columns={columns as Column<Record<string, any>>[]}
-              actions={actions as ((item: Record<string, any>) => React.ReactNode) | undefined}
-              onRowClick={onRowClick as ((item: Record<string, any>) => void) | undefined}
-              index={index}
-            />
-          ))}
-        </TableBody>
-      </Table>
+          </TableBody>
+        </Table>
+      </div>
+
+      {pagination && (
+        <div className="flex items-center justify-between px-2 py-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Mostrar</span>
+            <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
+              <SelectTrigger className="w-[70px] h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {itemsPerPageOptions.map((option) => (
+                  <SelectItem key={option} value={option.toString()}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-muted-foreground">
+              Página {currentPage} de {totalPages}
+            </span>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePreviousPage}
+                disabled={currentPage === 1}
+              >
+                Anterior
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNextPage}
+                disabled={currentPage === totalPages}
+              >
+                Siguiente
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

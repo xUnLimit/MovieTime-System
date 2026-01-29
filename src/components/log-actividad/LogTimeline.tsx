@@ -1,61 +1,48 @@
 'use client';
 
 import { ActivityLog } from '@/types';
-import { Card } from '@/components/ui/card';
+import { DataTable, Column } from '@/components/shared/DataTable';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import {
-  FileEdit,
-  FilePlus,
-  Trash2,
-  RefreshCw,
-  User,
-  Server,
-  ShoppingCart,
-  Tag,
-  CreditCard,
-  DollarSign,
-} from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Card } from '@/components/ui/card';
+import { LogFilters } from './LogFilters';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useState } from 'react';
 
 interface LogTimelineProps {
   logs: ActivityLog[];
+  searchTerm: string;
+  setSearchTerm: (value: string) => void;
+  accionFilter: string;
+  setAccionFilter: (value: string) => void;
+  entidadFilter: string;
+  setEntidadFilter: (value: string) => void;
+  usuarioFilter: string;
+  setUsuarioFilter: (value: string) => void;
 }
 
-export function LogTimeline({ logs }: LogTimelineProps) {
-  const getActionIcon = (accion: ActivityLog['accion']) => {
-    const icons = {
-      creacion: FilePlus,
-      actualizacion: FileEdit,
-      eliminacion: Trash2,
-      renovacion: RefreshCw,
-    };
-    return icons[accion];
-  };
+export function LogTimeline({
+  logs,
+  searchTerm,
+  setSearchTerm,
+  accionFilter,
+  setAccionFilter,
+  entidadFilter,
+  setEntidadFilter,
+  usuarioFilter,
+  setUsuarioFilter,
+}: LogTimelineProps) {
+  const [selectedLogs, setSelectedLogs] = useState<Set<string>>(new Set());
 
-  const getEntityIcon = (entidad: ActivityLog['entidad']) => {
-    const icons = {
-      venta: ShoppingCart,
-      cliente: User,
-      revendedor: User,
-      servicio: Server,
-      usuario: User,
-      categoria: Tag,
-      metodo_pago: CreditCard,
-      gasto: DollarSign,
+  const getActionBadgeStyle = (accion: ActivityLog['accion']) => {
+    const styles = {
+      creacion: 'bg-green-500/20 text-green-400 border-green-500/30',
+      actualizacion: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+      eliminacion: 'bg-red-500/20 text-red-400 border-red-500/30',
+      renovacion: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
     };
-    return icons[entidad];
-  };
-
-  const getActionColor = (accion: ActivityLog['accion']) => {
-    const colors = {
-      creacion: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-      actualizacion: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-      eliminacion: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
-      renovacion: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
-    };
-    return colors[accion];
+    return styles[accion];
   };
 
   const getActionLabel = (accion: ActivityLog['accion']) => {
@@ -76,21 +63,101 @@ export function LogTimeline({ logs }: LogTimelineProps) {
       servicio: 'Servicio',
       usuario: 'Usuario',
       categoria: 'Categoría',
-      metodo_pago: 'Método de Pago',
+      metodo_pago: 'Pago de Venta',
       gasto: 'Gasto',
     };
     return labels[entidad];
   };
 
-  const getUserInitials = (email: string) => {
-    return email
-      .split('@')[0]
-      .split('.')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
+  const toggleSelection = (logId: string) => {
+    const newSelection = new Set(selectedLogs);
+    if (newSelection.has(logId)) {
+      newSelection.delete(logId);
+    } else {
+      newSelection.add(logId);
+    }
+    setSelectedLogs(newSelection);
   };
+
+  const toggleSelectAll = () => {
+    if (selectedLogs.size === logs.length) {
+      setSelectedLogs(new Set());
+    } else {
+      const allLogIds = new Set(logs.map(log => log.id));
+      setSelectedLogs(allLogIds);
+    }
+  };
+
+  const isAllSelected = logs.length > 0 && selectedLogs.size === logs.length;
+
+  const columns: Column<ActivityLog>[] = [
+    {
+      key: 'checkbox',
+      header: '',
+      width: '40px',
+      headerRender: () => (
+        <Checkbox
+          checked={isAllSelected}
+          onCheckedChange={toggleSelectAll}
+          className="border-purple-500 data-[state=checked]:bg-purple-500 data-[state=checked]:border-purple-500"
+        />
+      ),
+      render: (item) => (
+        <Checkbox
+          checked={selectedLogs.has(item.id)}
+          onCheckedChange={() => toggleSelection(item.id)}
+          className="border-purple-500 data-[state=checked]:bg-purple-500 data-[state=checked]:border-purple-500"
+        />
+      ),
+    },
+    {
+      key: 'timestamp',
+      header: 'Fecha',
+      sortable: true,
+      width: '18%',
+      render: (item) => (
+        <div className="text-sm">
+          {format(new Date(item.timestamp), 'dd MMM yyyy, hh:mm:ss a', { locale: es })}
+        </div>
+      ),
+    },
+    {
+      key: 'usuarioEmail',
+      header: 'Usuario',
+      sortable: true,
+      align: 'center',
+      width: '18%',
+      render: (item) => <div className="text-sm">{item.usuarioEmail}</div>,
+    },
+    {
+      key: 'accion',
+      header: 'Acción',
+      sortable: true,
+      align: 'center',
+      width: '18%',
+      render: (item) => (
+        <Badge variant="outline" className={getActionBadgeStyle(item.accion)}>
+          {getActionLabel(item.accion)}
+        </Badge>
+      ),
+    },
+    {
+      key: 'entidad',
+      header: 'Entidad',
+      sortable: true,
+      align: 'center',
+      width: '18%',
+      render: (item) => <div className="text-sm">{getEntityLabel(item.entidad)}</div>,
+    },
+    {
+      key: 'detalles',
+      header: 'Detalles',
+      align: 'center',
+      render: (item) => (
+        <div className="text-sm text-center">{item.detalles}</div>
+      ),
+    },
+  ];
 
   if (logs.length === 0) {
     return (
@@ -100,54 +167,41 @@ export function LogTimeline({ logs }: LogTimelineProps) {
     );
   }
 
+  const handleDeleteSelected = () => {
+    // Aquí se implementará la lógica de eliminación
+    console.log('Eliminar logs seleccionados:', Array.from(selectedLogs));
+    setSelectedLogs(new Set());
+  };
+
+  const handleDeleteByDays = (days: number) => {
+    // Aquí se implementará la lógica de eliminación por días
+    console.log(`Eliminar logs de +${days} días`);
+  };
+
   return (
-    <div className="space-y-4">
-      {logs.map((log, index) => {
-        const ActionIcon = getActionIcon(log.accion);
-        const EntityIcon = getEntityIcon(log.entidad);
+    <Card className="p-4 pb-2">
+      <LogFilters
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        accionFilter={accionFilter}
+        setAccionFilter={setAccionFilter}
+        entidadFilter={entidadFilter}
+        setEntidadFilter={setEntidadFilter}
+        usuarioFilter={usuarioFilter}
+        setUsuarioFilter={setUsuarioFilter}
+        selectedCount={selectedLogs.size}
+        onDeleteSelected={handleDeleteSelected}
+        onDeleteByDays={handleDeleteByDays}
+      />
 
-        return (
-          <div key={log.id} className="flex gap-4">
-            <div className="flex flex-col items-center">
-              <Avatar className="h-10 w-10">
-                <AvatarFallback className="bg-primary text-primary-foreground">
-                  {getUserInitials(log.usuarioEmail)}
-                </AvatarFallback>
-              </Avatar>
-              {index < logs.length - 1 && (
-                <div className="w-px h-full bg-border mt-2" />
-              )}
-            </div>
-
-            <Card className="flex-1 p-4">
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <EntityIcon className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium">{log.usuarioEmail}</span>
-                  <Badge className={getActionColor(log.accion)}>
-                    <ActionIcon className="mr-1 h-3 w-3" />
-                    {getActionLabel(log.accion)}
-                  </Badge>
-                  <Badge variant="outline">{getEntityLabel(log.entidad)}</Badge>
-                </div>
-                <span className="text-sm text-muted-foreground">
-                  {format(new Date(log.timestamp), "dd MMM yyyy 'a las' HH:mm", {
-                    locale: es,
-                  })}
-                </span>
-              </div>
-
-              <p className="text-sm mb-2">
-                <span className="font-medium">{log.entidadNombre}</span>
-              </p>
-
-              {log.detalles && (
-                <p className="text-sm text-muted-foreground">{log.detalles}</p>
-              )}
-            </Card>
-          </div>
-        );
-      })}
-    </div>
+      <div className="-mb-4">
+        <DataTable
+          data={logs}
+          columns={columns}
+          pagination={true}
+          itemsPerPageOptions={[20, 50, 100]}
+        />
+      </div>
+    </Card>
   );
 }

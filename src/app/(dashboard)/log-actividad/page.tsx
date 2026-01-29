@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
+import Link from 'next/link';
 import { LogTimeline } from '@/components/log-actividad/LogTimeline';
-import { LogFilters } from '@/components/log-actividad/LogFilters';
 import { useActivityLogStore } from '@/store/activityLogStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 
@@ -38,15 +38,16 @@ function LogActividadPageContent() {
   }, [logs, searchTerm, accionFilter, entidadFilter, usuarioFilter]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Log de Actividad</h1>
-        <p className="text-muted-foreground">
-          Historial completo de todas las acciones realizadas en el sistema
+        <p className="text-sm text-muted-foreground">
+          <Link href="/dashboard" className="hover:text-foreground transition-colors">Dashboard</Link> / <span className="text-foreground">Log de Actividad</span>
         </p>
       </div>
 
-      <LogFilters
+      <LogTimeline
+        logs={filteredLogs}
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
         accionFilter={accionFilter}
@@ -56,8 +57,6 @@ function LogActividadPageContent() {
         usuarioFilter={usuarioFilter}
         setUsuarioFilter={setUsuarioFilter}
       />
-
-      <LogTimeline logs={filteredLogs} />
     </div>
   );
 }
