@@ -126,6 +126,7 @@ function VentasPageContent() {
         revendedores={revendedores}
         servicios={servicios}
         metodosPago={metodosPago}
+        categorias={categorias}
       />
     </div>
   );

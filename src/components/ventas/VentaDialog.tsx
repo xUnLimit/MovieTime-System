@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Venta, Cliente, Revendedor, Servicio, MetodoPago } from '@/types';
+import { Venta, Cliente, Revendedor, Servicio, MetodoPago, Categoria } from '@/types';
 import { useVentasStore } from '@/store/ventasStore';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -59,6 +59,7 @@ interface VentaDialogProps {
   revendedores: Revendedor[];
   servicios: Servicio[];
   metodosPago: MetodoPago[];
+  categorias: Categoria[];
 }
 
 export function VentaDialog({
@@ -69,6 +70,7 @@ export function VentaDialog({
   revendedores,
   servicios,
   metodosPago,
+  categorias,
 }: VentaDialogProps) {
   const { createVenta, updateVenta } = useVentasStore();
   const {
@@ -146,11 +148,30 @@ export function VentaDialog({
 
   const onSubmit = async (data: VentaFormData) => {
     try {
+      const servicio = servicios.find((s) => s.id === data.servicioId);
+      const categoria = categorias.find((c) => c.id === servicio?.categoriaId);
+      const metodoPago = metodosPago.find((m) => m.id === data.metodoPagoId);
+      const cliente = data.tipo === 'cliente' ? clientes.find((c) => c.id === data.clienteId) : null;
+      const revendedor = data.tipo === 'revendedor' ? revendedores.find((r) => r.id === data.revendedorId) : null;
+
+      const ventaData = {
+        ...data,
+        createdBy: venta?.createdBy || 'current-user',
+        categoriaId: servicio?.categoriaId || '',
+        correo: servicio?.correo || '',
+        contrasena: servicio?.contrasena || '',
+        servicioNombre: servicio?.nombre || '',
+        categoriaNombre: categoria?.nombre || '',
+        metodoPagoNombre: metodoPago?.nombre || '',
+        clienteNombre: cliente?.nombre,
+        revendedorNombre: revendedor?.nombre,
+      };
+
       if (venta) {
-        await updateVenta(venta.id, data);
+        await updateVenta(venta.id, ventaData);
         toast.success('Venta actualizada');
       } else {
-        await createVenta(data);
+        await createVenta(ventaData);
         toast.success('Venta creada');
       }
       onOpenChange(false);

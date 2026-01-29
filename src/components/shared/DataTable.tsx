@@ -168,9 +168,9 @@ function DataTableComponent<T extends Record<string, any>>({
             <MemoizedTableRow
               key={item.id || index}
               item={item}
-              columns={columns}
-              actions={actions}
-              onRowClick={onRowClick}
+              columns={columns as Column<Record<string, any>>[]}
+              actions={actions as ((item: Record<string, any>) => React.ReactNode) | undefined}
+              onRowClick={onRowClick as ((item: Record<string, any>) => void) | undefined}
               index={index}
             />
           ))}

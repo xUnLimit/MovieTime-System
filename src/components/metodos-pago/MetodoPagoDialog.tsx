@@ -27,10 +27,10 @@ import { toast } from 'sonner';
 
 const metodoPagoSchema = z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  tipo: z.enum(['banco', 'yappy', 'binance']),
+  tipo: z.enum(['banco', 'yappy', 'paypal', 'binance', 'efectivo']),
   titular: z.string().min(2, 'El titular es requerido'),
   identificador: z.string().min(4, 'El identificador debe tener al menos 4 caracteres'),
-  tipoCuenta: z.enum(['ahorros', 'corriente', 'telefono', 'wallet']).optional(),
+  tipoCuenta: z.enum(['ahorro', 'corriente', 'telefono', 'wallet']).optional(),
   banco: z.string().optional(),
   pais: z.string().optional(),
 });
@@ -63,7 +63,7 @@ export function MetodoPagoDialog({
       tipo: 'banco',
       titular: '',
       identificador: '',
-      tipoCuenta: 'ahorros',
+      tipoCuenta: 'ahorro',
       banco: '',
       pais: 'Panamá',
     },
@@ -89,7 +89,7 @@ export function MetodoPagoDialog({
         tipo: 'banco',
         titular: '',
         identificador: '',
-        tipoCuenta: 'ahorros',
+        tipoCuenta: 'ahorro',
         banco: '',
         pais: 'Panamá',
       });
@@ -103,7 +103,7 @@ export function MetodoPagoDialog({
     } else if (tipoValue === 'binance') {
       setValue('tipoCuenta', 'wallet');
     } else if (tipoValue === 'banco' && !tipoCuentaValue) {
-      setValue('tipoCuenta', 'ahorros');
+      setValue('tipoCuenta', 'ahorro');
     }
   }, [tipoValue, tipoCuentaValue, setValue]);
 
@@ -111,8 +111,8 @@ export function MetodoPagoDialog({
     try {
       const metodoPagoData = {
         ...data,
-        clientesIds: metodoPago?.clientesIds || [],
-        revendedoresIds: metodoPago?.revendedoresIds || [],
+        pais: data.pais || 'Panamá',
+        activo: metodoPago?.activo ?? true,
       };
 
       if (metodoPago) {
@@ -190,7 +190,7 @@ export function MetodoPagoDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ahorros">Ahorros</SelectItem>
+                    <SelectItem value="ahorro">Ahorros</SelectItem>
                     <SelectItem value="corriente">Corriente</SelectItem>
                   </SelectContent>
                 </Select>

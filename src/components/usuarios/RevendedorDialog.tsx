@@ -91,11 +91,19 @@ export function RevendedorDialog({
 
   const onSubmit = async (data: RevendedorFormData) => {
     try {
+      const metodoPago = metodosPago.find((m) => m.id === data.metodoPagoId);
+      const revendedorData = {
+        ...data,
+        active: revendedor?.active ?? true,
+        createdBy: revendedor?.createdBy || 'current-user',
+        metodoPagoNombre: metodoPago?.nombre || '',
+      };
+
       if (revendedor) {
-        await updateRevendedor(revendedor.id, data);
+        await updateRevendedor(revendedor.id, revendedorData);
         toast.success('Revendedor actualizado');
       } else {
-        await createRevendedor(data);
+        await createRevendedor(revendedorData);
         toast.success('Revendedor creado');
       }
       onOpenChange(false);

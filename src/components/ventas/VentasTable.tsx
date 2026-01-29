@@ -25,7 +25,7 @@ interface VentasTableProps {
 }
 
 export function VentasTable({ ventas, onEdit }: VentasTableProps) {
-  const { deleteVenta, renovarVenta, suspenderVenta, activarVenta } = useVentasStore();
+  const { deleteVenta, renovarVenta, suspenderVenta, reactivarVenta } = useVentasStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [ventaToDelete, setVentaToDelete] = useState<Venta | null>(null);
 
@@ -65,7 +65,7 @@ export function VentasTable({ ventas, onEdit }: VentasTableProps) {
 
   const handleActivar = async (venta: Venta) => {
     try {
-      await activarVenta(venta.id);
+      await reactivarVenta(venta.id);
       toast.success('Venta activada');
     } catch (error) {
       toast.error('Error al activar venta');

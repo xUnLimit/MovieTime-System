@@ -98,8 +98,7 @@ export function MetodosPagoTable({ metodosPago, onEdit }: MetodosPagoTableProps)
       key: 'asociaciones',
       header: 'Asociaciones',
       render: (item) => {
-        const count =
-          (item.clientesIds?.length || 0) + (item.revendedoresIds?.length || 0);
+        const count = item.asociadoUsuarios + item.asociadoServicios;
         return <span className="text-sm text-muted-foreground">{count}</span>;
       },
     },

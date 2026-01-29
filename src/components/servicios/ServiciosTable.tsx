@@ -119,7 +119,7 @@ export function ServiciosTable({ servicios, onEdit }: ServiciosTableProps) {
       key: 'activo',
       header: 'Estado',
       render: (item) => (
-        <Badge variant={item.activo ? 'success' : 'secondary'}>
+        <Badge variant={item.activo ? 'default' : 'secondary'}>
           {item.activo ? 'Activo' : 'Inactivo'}
         </Badge>
       ),

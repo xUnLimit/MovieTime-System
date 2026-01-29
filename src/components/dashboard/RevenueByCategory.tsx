@@ -90,7 +90,7 @@ export function RevenueByCategory({ ventas }: RevenueByCategoryProps) {
                 border: '1px solid hsl(var(--border))',
                 borderRadius: '6px',
               }}
-              formatter={(value: number) => [`$${value.toFixed(2)}`, 'Rentabilidad']}
+              formatter={(value: number | undefined) => [`$${(value ?? 0).toFixed(2)}`, 'Rentabilidad']}
               cursor={{ fill: 'hsl(var(--muted))', opacity: 0.2 }}
             />
             <Bar
@@ -106,7 +106,7 @@ export function RevenueByCategory({ ventas }: RevenueByCategoryProps) {
               <LabelList
                 dataKey="rentabilidad"
                 position="right"
-                formatter={(value: number) => `$${value}`}
+                formatter={(value: any) => `$${value ?? 0}`}
                 fill="#ffffff"
                 fontSize={11}
               />

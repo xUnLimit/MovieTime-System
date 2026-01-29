@@ -155,10 +155,12 @@ export function CrecimientoUsuarios({ clientes, revendedores }: CrecimientoUsuar
                 border: '1px solid #3f3f46',
                 borderRadius: '8px',
               }}
-              formatter={(value: number, name: string) => {
-                if (name === 'clientes') return [value, 'Clientes'];
-                if (name === 'revendedores') return [value, 'Revendedores'];
-                return [value, name];
+              formatter={(value: number | undefined, name: string | undefined) => {
+                const displayValue = value ?? 0;
+                const displayName = name ?? '';
+                if (name === 'clientes') return [displayValue, 'Clientes'];
+                if (name === 'revendedores') return [displayValue, 'Revendedores'];
+                return [displayValue, displayName];
               }}
               labelStyle={{ color: '#ffffff' }}
               animationDuration={0}

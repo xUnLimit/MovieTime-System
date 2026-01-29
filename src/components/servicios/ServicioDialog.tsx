@@ -122,11 +122,19 @@ export function ServicioDialog({
 
   const onSubmit = async (data: ServicioFormData) => {
     try {
+      const categoria = categorias.find((c) => c.id === data.categoriaId);
+      const servicioData = {
+        ...data,
+        activo: servicio?.activo ?? true,
+        createdBy: servicio?.createdBy || 'current-user',
+        categoriaNombre: categoria?.nombre || '',
+      };
+
       if (servicio) {
-        await updateServicio(servicio.id, data);
+        await updateServicio(servicio.id, servicioData);
         toast.success('Servicio actualizado');
       } else {
-        await createServicio(data);
+        await createServicio(servicioData);
         toast.success('Servicio creado');
       }
       onOpenChange(false);

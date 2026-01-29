@@ -87,11 +87,19 @@ export function ClienteDialog({
 
   const onSubmit = async (data: ClienteFormData) => {
     try {
+      const metodoPago = metodosPago.find((m) => m.id === data.metodoPagoId);
+      const clienteData = {
+        ...data,
+        active: cliente?.active ?? true,
+        createdBy: cliente?.createdBy || 'current-user',
+        metodoPagoNombre: metodoPago?.nombre || '',
+      };
+
       if (cliente) {
-        await updateCliente(cliente.id, data);
+        await updateCliente(cliente.id, clienteData);
         toast.success('Cliente actualizado');
       } else {
-        await createCliente(data);
+        await createCliente(clienteData);
         toast.success('Cliente creado');
       }
       onOpenChange(false);
