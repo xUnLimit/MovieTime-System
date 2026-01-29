@@ -1,19 +1,19 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+/**
+ * Next.js 16 Proxy (Edge Runtime)
+ *
+ * Acts as network boundary layer. Authentication is handled client-side
+ * in src/app/(dashboard)/layout.tsx using Zustand authStore.
+ *
+ * In production, this will verify JWT tokens or session cookies.
+ */
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Check if user is authenticated by checking localStorage (handled client-side)
-  // For now, this is a simple proxy that allows navigation
-  // In production with Firebase, this would check for valid session
-
-  // Allow access to auth pages
-  if (pathname.startsWith('/login')) {
-    return NextResponse.next();
-  }
-
-  // For dashboard routes, we'll handle auth check client-side
+  // Allow all routes - auth is handled client-side
+  // This allows Zustand to hydrate from localStorage before redirecting
   return NextResponse.next();
 }
 

@@ -26,7 +26,7 @@ Password: 123456 (any 6+ characters works)
 
 The app uses **Zustand** stores (not Redux) with a specific pattern:
 
-- Stores are in `src/store/` (primary) and `src/stores/` (legacy)
+- All stores are in `src/store/` directory
 - Each store simulates API calls with 300-500ms delays for realistic UX
 - Stores are NOT persisted except `authStore` and `templatesStore` (uses localStorage)
 - All CRUD operations return promises and update state immutably
@@ -41,11 +41,12 @@ fetchItems: async () => {
 }
 ```
 
-### Dual Store Directories
+### Store Directory
 
-- `src/store/` - Main stores (ventasStore, authStore, etc.)
-- `src/stores/` - Legacy stores (some modules still reference these)
-- When adding features, check which directory the module uses
+- `src/store/` - All Zustand stores (ventasStore, authStore, etc.)
+- ~~`src/stores/`~~ - **REMOVED** (was duplicate/legacy, consolidated Jan 2026)
+- All stores are in a single directory for consistency
+- Some stores use re-exports for convenience (clientesStore, revendedoresStore)
 
 ### Type System
 
@@ -185,7 +186,18 @@ Mock authentication (`authStore`):
 - Accepts any email with 6+ character password
 - Email with `admin@` = admin role, others = operador
 - State persisted to localStorage
-- Middleware in `src/middleware.ts` protects dashboard routes
+
+**Route Protection (Dual Layer):**
+1. **Client-Side (Primary):** `src/app/(dashboard)/layout.tsx` (lines 18-41)
+   - Checks `isAuthenticated` from authStore with Zustand hydration
+   - Redirects to `/login` if not authenticated
+   - Shows loading spinner while hydrating state from localStorage
+
+2. **Server-Side (Proxy):** `src/proxy.ts`
+   - Next.js 16 Edge Runtime proxy
+   - Exports `function proxy()` (Next.js 16 convention)
+   - Currently allows all navigation (auth is client-side)
+   - Placeholder for future JWT/cookie validation in production
 
 ## Data Flow
 
@@ -235,11 +247,9 @@ Standard layout for metrics:
 
 ## Common Pitfalls
 
-1. **Don't mix store directories**: Some modules use `src/store/`, others use `src/stores/`. Check imports carefully.
+1. **Recalculate sale fields**: When updating `fechaInicio` or `fechaVencimiento`, you must recalculate `consumoPorcentaje`, `montoRestante`, and `estado` using the calculation utilities.
 
-2. **Recalculate sale fields**: When updating `fechaInicio` or `fechaVencimiento`, you must recalculate `consumoPorcentaje`, `montoRestante`, and `estado` using the calculation utilities.
-
-3. **Form default values**: Always use `useEffect` to reset form when item changes:
+2. **Form default values**: Always use `useEffect` to reset form when item changes:
 ```typescript
 useEffect(() => {
   if (item) {
@@ -250,11 +260,11 @@ useEffect(() => {
 }, [item, reset]);
 ```
 
-4. **WhatsApp placeholders**: Must match exactly: `{cliente}` not `{Cliente}` or `{{cliente}}`
+3. **WhatsApp placeholders**: Must match exactly: `{cliente}` not `{Cliente}` or `{{cliente}}`
 
-5. **Date handling**: Use `date-fns` functions, not native Date methods. All dates stored as Date objects, not strings.
+4. **Date handling**: Use `date-fns` functions, not native Date methods. All dates stored as Date objects, not strings.
 
-6. **Zustand updates**: Always return new objects/arrays, never mutate:
+5. **Zustand updates**: Always return new objects/arrays, never mutate:
 ```typescript
 // ✅ Correct
 set((state) => ({ items: [...state.items, newItem] }))
