@@ -159,14 +159,6 @@ export function LogTimeline({
     },
   ];
 
-  if (logs.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">No hay actividad registrada</p>
-      </div>
-    );
-  }
-
   const handleDeleteSelected = () => {
     // Aquí se implementará la lógica de eliminación
     console.log('Eliminar logs seleccionados:', Array.from(selectedLogs));
@@ -179,28 +171,36 @@ export function LogTimeline({
   };
 
   return (
-    <Card className="p-4 pb-2">
-      <LogFilters
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
-        accionFilter={accionFilter}
-        setAccionFilter={setAccionFilter}
-        entidadFilter={entidadFilter}
-        setEntidadFilter={setEntidadFilter}
-        usuarioFilter={usuarioFilter}
-        setUsuarioFilter={setUsuarioFilter}
-        selectedCount={selectedLogs.size}
-        onDeleteSelected={handleDeleteSelected}
-        onDeleteByDays={handleDeleteByDays}
-      />
-
-      <div className="-mb-4">
-        <DataTable
-          data={logs}
-          columns={columns}
-          pagination={true}
-          itemsPerPageOptions={[20, 50, 100]}
+    <Card className="p-4">
+      <div className="mb-4">
+        <LogFilters
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          accionFilter={accionFilter}
+          setAccionFilter={setAccionFilter}
+          entidadFilter={entidadFilter}
+          setEntidadFilter={setEntidadFilter}
+          usuarioFilter={usuarioFilter}
+          setUsuarioFilter={setUsuarioFilter}
+          selectedCount={selectedLogs.size}
+          onDeleteSelected={handleDeleteSelected}
+          onDeleteByDays={handleDeleteByDays}
         />
+      </div>
+
+      <div>
+        {logs.length === 0 ? (
+          <div className="border border-border rounded-md p-12 text-center">
+            <p className="text-sm text-muted-foreground">No hay actividad registrada</p>
+          </div>
+        ) : (
+          <DataTable
+            data={logs}
+            columns={columns}
+            pagination={true}
+            itemsPerPageOptions={[20, 50, 100]}
+          />
+        )}
       </div>
     </Card>
   );

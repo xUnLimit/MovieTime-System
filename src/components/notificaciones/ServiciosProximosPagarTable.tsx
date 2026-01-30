@@ -31,7 +31,6 @@ interface ServicioProximoPagarRow {
   id: string;
   servicioNombre: string;
   email: string;
-  contrasena: string;
   fechaVencimiento: string;
   monto: number;
   diasRestantes: number;
@@ -80,7 +79,6 @@ export const ServiciosProximosPagarTable = memo(function ServiciosProximosPagarT
           id: suscripcion.id,
           servicioNombre: servicio?.nombre || 'N/A',
           email: cliente?.email || 'N/A',
-          contrasena: suscripcion.contrasena || '••••••••',
           fechaVencimiento: suscripcion.fechaVencimiento.toLocaleDateString('es-ES', {
             year: 'numeric',
             month: 'long',

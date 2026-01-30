@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
@@ -8,25 +9,19 @@ import Link from 'next/link';
 import { ClientesTable } from '@/components/usuarios/ClientesTable';
 import { RevendedoresTable } from '@/components/usuarios/RevendedoresTable';
 import { TodosUsuariosTable } from '@/components/usuarios/TodosUsuariosTable';
-import { ClienteDialog } from '@/components/usuarios/ClienteDialog';
-import { RevendedorDialog } from '@/components/usuarios/RevendedorDialog';
 import { UsuariosMetrics } from '@/components/usuarios/UsuariosMetrics';
 import { useClientesStore } from '@/store/clientesStore';
 import { useRevendedoresStore } from '@/store/revendedoresStore';
 import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
-import { Cliente, Revendedor } from '@/types';
 
 function UsuariosPageContent() {
+  const router = useRouter();
   const { clientes, fetchClientes } = useClientesStore();
   const { revendedores, fetchRevendedores } = useRevendedoresStore();
   const { metodosPago, fetchMetodosPago } = useMetodosPagoStore();
 
   const [activeTab, setActiveTab] = useState('todos');
-  const [clienteDialogOpen, setClienteDialogOpen] = useState(false);
-  const [revendedorDialogOpen, setRevendedorDialogOpen] = useState(false);
-  const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
-  const [selectedRevendedor, setSelectedRevendedor] = useState<Revendedor | null>(null);
 
   useEffect(() => {
     fetchClientes();
@@ -34,33 +29,13 @@ function UsuariosPageContent() {
     fetchMetodosPago();
   }, [fetchClientes, fetchRevendedores, fetchMetodosPago]);
 
-  const handleCreateCliente = useCallback(() => {
-    setSelectedCliente(null);
-    setClienteDialogOpen(true);
-  }, []);
+  const handleEditCliente = (id: string) => {
+    router.push(`/usuarios/editar/${id}`);
+  };
 
-  const handleEditCliente = useCallback((cliente: Cliente) => {
-    setSelectedCliente(cliente);
-    setClienteDialogOpen(true);
-  }, []);
-
-  const handleCreateRevendedor = useCallback(() => {
-    setSelectedRevendedor(null);
-    setRevendedorDialogOpen(true);
-  }, []);
-
-  const handleEditRevendedor = useCallback((revendedor: Revendedor) => {
-    setSelectedRevendedor(revendedor);
-    setRevendedorDialogOpen(true);
-  }, []);
-
-  const handleNewUser = useCallback(() => {
-    if (activeTab === 'revendedores') {
-      handleCreateRevendedor();
-    } else {
-      handleCreateCliente();
-    }
-  }, [activeTab, handleCreateCliente, handleCreateRevendedor]);
+  const handleEditRevendedor = (id: string) => {
+    router.push(`/usuarios/editar/${id}`);
+  };
 
   return (
     <div className="space-y-4">
@@ -71,10 +46,12 @@ function UsuariosPageContent() {
             <Link href="/" className="hover:text-foreground transition-colors">Dashboard</Link> / <span className="text-foreground">Usuarios</span>
           </p>
         </div>
-        <Button onClick={handleNewUser}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nuevo Usuario
-        </Button>
+        <Link href="/usuarios/crear">
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Nuevo Usuario
+          </Button>
+        </Link>
       </div>
 
       <UsuariosMetrics clientes={clientes} revendedores={revendedores} />
@@ -107,20 +84,6 @@ function UsuariosPageContent() {
           />
         </TabsContent>
       </Tabs>
-
-      <ClienteDialog
-        open={clienteDialogOpen}
-        onOpenChange={setClienteDialogOpen}
-        cliente={selectedCliente}
-        metodosPago={metodosPago}
-      />
-
-      <RevendedorDialog
-        open={revendedorDialogOpen}
-        onOpenChange={setRevendedorDialogOpen}
-        revendedor={selectedRevendedor}
-        metodosPago={metodosPago}
-      />
     </div>
   );
 }

@@ -1,10 +1,11 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import { Configuracion, TasasCambio } from '@/types';
-import { MOCK_CONFIGURACION } from '@/lib/mock-data';
+import { getById, update, COLLECTIONS, timestampToDate } from '@/lib/firebase/firestore';
+import { Timestamp } from 'firebase/firestore';
 
 interface ConfigState {
-  config: Configuracion;
+  config: Configuracion | null;
   isLoading: boolean;
 
   // Actions
@@ -15,96 +16,148 @@ interface ConfigState {
   updatePrefijoWhatsApp: (prefijo: string) => Promise<void>;
 }
 
+const CONFIG_DOC_ID = 'global';
+
 export const useConfigStore = create<ConfigState>()(
   devtools(
     persist(
       (set, get) => ({
-        config: MOCK_CONFIGURACION,
+        config: null,
         isLoading: false,
 
         fetchConfig: async () => {
           set({ isLoading: true });
-          await new Promise(resolve => setTimeout(resolve, 300));
+          try {
+            const data = await getById<any>(COLLECTIONS.CONFIG, CONFIG_DOC_ID);
 
-          const storedConfig = get().config;
+            if (data) {
+              const config: Configuracion = {
+                ...data,
+                tasasCambio: {
+                  ...data.tasasCambio,
+                  ultimaActualizacion: timestampToDate(data.tasasCambio.ultimaActualizacion)
+                },
+                updatedAt: timestampToDate(data.updatedAt)
+              };
 
-          // Si no hay config guardada, usar mock
-          if (!storedConfig || storedConfig.id !== 'global') {
-            set({
-              config: MOCK_CONFIGURACION,
-              isLoading: false
-            });
-          } else {
+              set({ config, isLoading: false });
+            } else {
+              set({ isLoading: false });
+            }
+          } catch (error) {
+            console.error('Error fetching config:', error);
             set({ isLoading: false });
           }
         },
 
         updateTasasCambio: async (tasasUpdates) => {
-          set({ isLoading: true });
-          await new Promise(resolve => setTimeout(resolve, 500));
+          try {
+            const config = get().config;
+            if (!config) throw new Error('Config not loaded');
 
-          set((state) => ({
-            config: {
-              ...state.config,
-              tasasCambio: {
-                ...state.config.tasasCambio,
-                ...tasasUpdates,
-                ultimaActualizacion: new Date()
-              },
-              updatedAt: new Date()
-            },
-            isLoading: false
-          }));
+            const updatedTasas = {
+              ...config.tasasCambio,
+              ...tasasUpdates,
+              ultimaActualizacion: Timestamp.now()
+            };
+
+            await update(COLLECTIONS.CONFIG, CONFIG_DOC_ID, {
+              tasasCambio: updatedTasas,
+              updatedAt: Timestamp.now()
+            });
+
+            set((state) => ({
+              config: state.config ? {
+                ...state.config,
+                tasasCambio: {
+                  ...state.config.tasasCambio,
+                  ...tasasUpdates,
+                  ultimaActualizacion: new Date()
+                },
+                updatedAt: new Date()
+              } : null
+            }));
+          } catch (error) {
+            console.error('Error updating tasas cambio:', error);
+            throw error;
+          }
         },
 
         updateDiasNotificacion: async (dias) => {
-          set({ isLoading: true });
-          await new Promise(resolve => setTimeout(resolve, 500));
+          try {
+            const config = get().config;
+            if (!config) throw new Error('Config not loaded');
 
-          set((state) => ({
-            config: {
-              ...state.config,
-              notificaciones: {
-                ...state.config.notificaciones,
-                diasAntes: dias
-              },
-              updatedAt: new Date()
-            },
-            isLoading: false
-          }));
+            await update(COLLECTIONS.CONFIG, CONFIG_DOC_ID, {
+              'notificaciones.diasAntes': dias,
+              updatedAt: Timestamp.now()
+            });
+
+            set((state) => ({
+              config: state.config ? {
+                ...state.config,
+                notificaciones: {
+                  ...state.config.notificaciones,
+                  diasAntes: dias
+                },
+                updatedAt: new Date()
+              } : null
+            }));
+          } catch (error) {
+            console.error('Error updating dias notificacion:', error);
+            throw error;
+          }
         },
 
         updateHoraEnvio: async (hora) => {
-          set({ isLoading: true });
-          await new Promise(resolve => setTimeout(resolve, 500));
+          try {
+            const config = get().config;
+            if (!config) throw new Error('Config not loaded');
 
-          set((state) => ({
-            config: {
-              ...state.config,
-              notificaciones: {
-                ...state.config.notificaciones,
-                horaEnvio: hora
-              },
-              updatedAt: new Date()
-            },
-            isLoading: false
-          }));
+            await update(COLLECTIONS.CONFIG, CONFIG_DOC_ID, {
+              'notificaciones.horaEnvio': hora,
+              updatedAt: Timestamp.now()
+            });
+
+            set((state) => ({
+              config: state.config ? {
+                ...state.config,
+                notificaciones: {
+                  ...state.config.notificaciones,
+                  horaEnvio: hora
+                },
+                updatedAt: new Date()
+              } : null
+            }));
+          } catch (error) {
+            console.error('Error updating hora envio:', error);
+            throw error;
+          }
         },
 
         updatePrefijoWhatsApp: async (prefijo) => {
-          set({ isLoading: true });
-          await new Promise(resolve => setTimeout(resolve, 500));
+          try {
+            const config = get().config;
+            if (!config) throw new Error('Config not loaded');
 
-          set((state) => ({
-            config: {
-              ...state.config,
-              whatsapp: {
-                prefijoTelefono: prefijo
-              },
-              updatedAt: new Date()
-            },
-            isLoading: false
-          }));
+            await update(COLLECTIONS.CONFIG, CONFIG_DOC_ID, {
+              'whatsapp.prefijoTelefono': prefijo,
+              updatedAt: Timestamp.now()
+            });
+
+            set((state) => ({
+              config: state.config ? {
+                ...state.config,
+                whatsapp: {
+                  prefijoTelefono: prefijo
+                },
+                updatedAt: new Date()
+              } : null
+            }));
+          } catch (error) {
+            console.error('Error updating prefijo whatsapp:', error);
+            throw error;
+          }
         }
       }),
       {

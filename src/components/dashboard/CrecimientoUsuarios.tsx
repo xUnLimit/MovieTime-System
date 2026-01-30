@@ -33,6 +33,7 @@ export function CrecimientoUsuarios({ clientes, revendedores }: CrecimientoUsuar
   const [selectedPeriod, setSelectedPeriod] = useState('actual');
 
   const currentDate = new Date();
+  const hasData = clientes.length > 0 || revendedores.length > 0;
 
   const data = useMemo(() => {
     if (selectedPeriod === 'actual') {
@@ -91,6 +92,35 @@ export function CrecimientoUsuarios({ clientes, revendedores }: CrecimientoUsuar
       });
     }
   }, [selectedPeriod, clientes, revendedores, currentDate]);
+
+  if (!hasData) {
+    return (
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <div>
+            <CardTitle className="text-base">Crecimiento de Usuarios</CardTitle>
+            <CardDescription className="text-sm">
+              Nuevos clientes y revendedores adquiridos por mes.
+            </CardDescription>
+          </div>
+          <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+            <SelectTrigger className="w-[140px] h-7 text-xs">
+              <SelectValue placeholder="Período" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="actual">Mes actual</SelectItem>
+              <SelectItem value="3meses">Últimos 3 meses</SelectItem>
+              <SelectItem value="6meses">Últimos 6 meses</SelectItem>
+              <SelectItem value="12meses">Últimos 12 meses</SelectItem>
+            </SelectContent>
+          </Select>
+        </CardHeader>
+        <CardContent className="pt-1 h-[220px] flex items-center justify-center">
+          <p className="text-sm text-muted-foreground">No hay datos disponibles</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>

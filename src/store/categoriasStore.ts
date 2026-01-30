@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { Categoria } from '@/types';
-import { MOCK_CATEGORIAS } from '@/lib/mock-data';
+import { getAll, create as createDoc, update, remove, COLLECTIONS, timestampToDate } from '@/lib/firebase/firestore';
+import { Timestamp } from 'firebase/firestore';
 
 interface CategoriasState {
   categorias: Categoria[];
@@ -27,58 +28,76 @@ export const useCategoriasStore = create<CategoriasState>()(
 
       fetchCategorias: async () => {
         set({ isLoading: true });
+        try {
+          const data = await getAll<any>(COLLECTIONS.CATEGORIAS);
+          const categorias: Categoria[] = data.map(item => ({
+            ...item,
+            createdAt: timestampToDate(item.createdAt),
+            updatedAt: timestampToDate(item.updatedAt)
+          }));
 
-        // Simular delay de red
-        await new Promise(resolve => setTimeout(resolve, 300));
-
-        set({
-          categorias: MOCK_CATEGORIAS,
-          isLoading: false
-        });
+          set({ categorias, isLoading: false });
+        } catch (error) {
+          console.error('Error fetching categorias:', error);
+          set({ categorias: [], isLoading: false });
+        }
       },
 
       createCategoria: async (categoriaData) => {
-        set({ isLoading: true });
+        try {
+          const id = await createDoc(COLLECTIONS.CATEGORIAS, {
+            ...categoriaData,
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now()
+          });
 
-        await new Promise(resolve => setTimeout(resolve, 500));
+          const newCategoria: Categoria = {
+            ...categoriaData,
+            id,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
 
-        const newCategoria: Categoria = {
-          ...categoriaData,
-          id: `cat-${Date.now()}`,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        };
-
-        set((state) => ({
-          categorias: [...state.categorias, newCategoria],
-          isLoading: false
-        }));
+          set((state) => ({
+            categorias: [...state.categorias, newCategoria]
+          }));
+        } catch (error) {
+          console.error('Error creating categoria:', error);
+          throw error;
+        }
       },
 
       updateCategoria: async (id, updates) => {
-        set({ isLoading: true });
+        try {
+          await update(COLLECTIONS.CATEGORIAS, id, {
+            ...updates,
+            updatedAt: Timestamp.now()
+          });
 
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        set((state) => ({
-          categorias: state.categorias.map((cat) =>
-            cat.id === id
-              ? { ...cat, ...updates, updatedAt: new Date() }
-              : cat
-          ),
-          isLoading: false
-        }));
+          set((state) => ({
+            categorias: state.categorias.map((cat) =>
+              cat.id === id
+                ? { ...cat, ...updates, updatedAt: new Date() }
+                : cat
+            )
+          }));
+        } catch (error) {
+          console.error('Error updating categoria:', error);
+          throw error;
+        }
       },
 
       deleteCategoria: async (id) => {
-        set({ isLoading: true });
+        try {
+          await remove(COLLECTIONS.CATEGORIAS, id);
 
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        set((state) => ({
-          categorias: state.categorias.filter((cat) => cat.id !== id),
-          isLoading: false
-        }));
+          set((state) => ({
+            categorias: state.categorias.filter((cat) => cat.id !== id)
+          }));
+        } catch (error) {
+          console.error('Error deleting categoria:', error);
+          throw error;
+        }
       },
 
       setSelectedCategoria: (categoria) => {

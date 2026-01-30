@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { Cliente, Revendedor } from '@/types';
-import { MOCK_CLIENTES, MOCK_REVENDEDORES } from '@/lib/mock-data';
+import { getAll, create as createDoc, update, remove, COLLECTIONS, timestampToDate } from '@/lib/firebase/firestore';
+import { Timestamp } from 'firebase/firestore';
 
 interface UsuariosState {
   clientes: Cliente[];
@@ -39,55 +40,82 @@ export const useUsuariosStore = create<UsuariosState>()(
       // Cliente Actions
       fetchClientes: async () => {
         set({ isLoading: true });
-        await new Promise(resolve => setTimeout(resolve, 300));
-        set({
-          clientes: MOCK_CLIENTES,
-          isLoading: false
-        });
+        try {
+          const data = await getAll<any>(COLLECTIONS.CLIENTES);
+          const clientes: Cliente[] = data.map(item => ({
+            ...item,
+            createdAt: timestampToDate(item.createdAt),
+            updatedAt: timestampToDate(item.updatedAt)
+          }));
+
+          set({ clientes, isLoading: false });
+        } catch (error) {
+          console.error('Error fetching clientes:', error);
+          set({ clientes: [], isLoading: false });
+        }
       },
 
       createCliente: async (clienteData) => {
-        set({ isLoading: true });
-        await new Promise(resolve => setTimeout(resolve, 500));
+        try {
+          const id = await createDoc(COLLECTIONS.CLIENTES, {
+            ...clienteData,
+            montoSinConsumir: 0,
+            serviciosActivos: 0,
+            active: true,
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now()
+          });
 
-        const newCliente: Cliente = {
-          ...clienteData,
-          id: `cliente-${Date.now()}`,
-          montoSinConsumir: 0,
-          serviciosActivos: 0,
-          active: true,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        };
+          const newCliente: Cliente = {
+            ...clienteData,
+            id,
+            montoSinConsumir: 0,
+            serviciosActivos: 0,
+            active: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
 
-        set((state) => ({
-          clientes: [...state.clientes, newCliente],
-          isLoading: false
-        }));
+          set((state) => ({
+            clientes: [...state.clientes, newCliente]
+          }));
+        } catch (error) {
+          console.error('Error creating cliente:', error);
+          throw error;
+        }
       },
 
       updateCliente: async (id, updates) => {
-        set({ isLoading: true });
-        await new Promise(resolve => setTimeout(resolve, 500));
+        try {
+          await update(COLLECTIONS.CLIENTES, id, {
+            ...updates,
+            updatedAt: Timestamp.now()
+          });
 
-        set((state) => ({
-          clientes: state.clientes.map((cliente) =>
-            cliente.id === id
-              ? { ...cliente, ...updates, updatedAt: new Date() }
-              : cliente
-          ),
-          isLoading: false
-        }));
+          set((state) => ({
+            clientes: state.clientes.map((cliente) =>
+              cliente.id === id
+                ? { ...cliente, ...updates, updatedAt: new Date() }
+                : cliente
+            )
+          }));
+        } catch (error) {
+          console.error('Error updating cliente:', error);
+          throw error;
+        }
       },
 
       deleteCliente: async (id) => {
-        set({ isLoading: true });
-        await new Promise(resolve => setTimeout(resolve, 500));
+        try {
+          await remove(COLLECTIONS.CLIENTES, id);
 
-        set((state) => ({
-          clientes: state.clientes.filter((cliente) => cliente.id !== id),
-          isLoading: false
-        }));
+          set((state) => ({
+            clientes: state.clientes.filter((cliente) => cliente.id !== id)
+          }));
+        } catch (error) {
+          console.error('Error deleting cliente:', error);
+          throw error;
+        }
       },
 
       setSelectedCliente: (cliente) => {
@@ -101,55 +129,82 @@ export const useUsuariosStore = create<UsuariosState>()(
       // Revendedor Actions
       fetchRevendedores: async () => {
         set({ isLoading: true });
-        await new Promise(resolve => setTimeout(resolve, 300));
-        set({
-          revendedores: MOCK_REVENDEDORES,
-          isLoading: false
-        });
+        try {
+          const data = await getAll<any>(COLLECTIONS.REVENDEDORES);
+          const revendedores: Revendedor[] = data.map(item => ({
+            ...item,
+            createdAt: timestampToDate(item.createdAt),
+            updatedAt: timestampToDate(item.updatedAt)
+          }));
+
+          set({ revendedores, isLoading: false });
+        } catch (error) {
+          console.error('Error fetching revendedores:', error);
+          set({ revendedores: [], isLoading: false });
+        }
       },
 
       createRevendedor: async (revendedorData) => {
-        set({ isLoading: true });
-        await new Promise(resolve => setTimeout(resolve, 500));
+        try {
+          const id = await createDoc(COLLECTIONS.REVENDEDORES, {
+            ...revendedorData,
+            suscripcionesTotales: 0,
+            montoTotal: 0,
+            active: true,
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now()
+          });
 
-        const newRevendedor: Revendedor = {
-          ...revendedorData,
-          id: `revendedor-${Date.now()}`,
-          suscripcionesTotales: 0,
-          montoTotal: 0,
-          active: true,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        };
+          const newRevendedor: Revendedor = {
+            ...revendedorData,
+            id,
+            suscripcionesTotales: 0,
+            montoTotal: 0,
+            active: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
 
-        set((state) => ({
-          revendedores: [...state.revendedores, newRevendedor],
-          isLoading: false
-        }));
+          set((state) => ({
+            revendedores: [...state.revendedores, newRevendedor]
+          }));
+        } catch (error) {
+          console.error('Error creating revendedor:', error);
+          throw error;
+        }
       },
 
       updateRevendedor: async (id, updates) => {
-        set({ isLoading: true });
-        await new Promise(resolve => setTimeout(resolve, 500));
+        try {
+          await update(COLLECTIONS.REVENDEDORES, id, {
+            ...updates,
+            updatedAt: Timestamp.now()
+          });
 
-        set((state) => ({
-          revendedores: state.revendedores.map((revendedor) =>
-            revendedor.id === id
-              ? { ...revendedor, ...updates, updatedAt: new Date() }
-              : revendedor
-          ),
-          isLoading: false
-        }));
+          set((state) => ({
+            revendedores: state.revendedores.map((revendedor) =>
+              revendedor.id === id
+                ? { ...revendedor, ...updates, updatedAt: new Date() }
+                : revendedor
+            )
+          }));
+        } catch (error) {
+          console.error('Error updating revendedor:', error);
+          throw error;
+        }
       },
 
       deleteRevendedor: async (id) => {
-        set({ isLoading: true });
-        await new Promise(resolve => setTimeout(resolve, 500));
+        try {
+          await remove(COLLECTIONS.REVENDEDORES, id);
 
-        set((state) => ({
-          revendedores: state.revendedores.filter((revendedor) => revendedor.id !== id),
-          isLoading: false
-        }));
+          set((state) => ({
+            revendedores: state.revendedores.filter((revendedor) => revendedor.id !== id)
+          }));
+        } catch (error) {
+          console.error('Error deleting revendedor:', error);
+          throw error;
+        }
       },
 
       setSelectedRevendedor: (revendedor) => {

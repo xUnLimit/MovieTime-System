@@ -48,13 +48,14 @@ export function RecentActivity({ logs }: RecentActivityProps) {
         </div>
       </CardHeader>
       <CardContent className="pt-1 flex-1 flex flex-col">
-        <div className="space-y-2.5 flex-1">
+        <div className="space-y-2.5 flex-1 flex items-center justify-center pt-4">
           {recentLogs.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">
+            <p className="text-sm text-muted-foreground text-center">
               No hay actividad reciente
             </p>
           ) : (
-            recentLogs.map((log) => {
+            <div className="w-full space-y-2.5">
+            {recentLogs.map((log) => {
               const Icon = actionIcons[log.accion as keyof typeof actionIcons] || Plus;
               const colorClass = actionColors[log.accion as keyof typeof actionColors] || 'bg-purple-500/10 text-purple-500';
 
@@ -80,6 +81,8 @@ export function RecentActivity({ logs }: RecentActivityProps) {
                 </div>
               );
             })
+            }
+            </div>
           )}
         </div>
         <div className="pt-3 mt-auto">

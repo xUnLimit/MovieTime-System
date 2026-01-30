@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { ActivityLog, AccionLog, EntidadLog } from '@/types';
-import { MOCK_ACTIVITY_LOGS } from '@/lib/mock-data';
+import { getAll, create as createDoc, remove, COLLECTIONS, timestampToDate } from '@/lib/firebase/firestore';
+import { Timestamp } from 'firebase/firestore';
 
 interface ActivityLogState {
   logs: ActivityLog[];
@@ -9,7 +10,7 @@ interface ActivityLogState {
 
   // Actions
   fetchLogs: () => Promise<void>;
-  addLog: (log: Omit<ActivityLog, 'id' | 'timestamp'>) => void;
+  addLog: (log: Omit<ActivityLog, 'id' | 'timestamp'>) => Promise<void>;
   clearLogs: () => Promise<void>;
   getLogsByEntidad: (entidad: EntidadLog) => ActivityLog[];
   getLogsByAccion: (accion: AccionLog) => ActivityLog[];
@@ -24,38 +25,53 @@ export const useActivityLogStore = create<ActivityLogState>()(
 
       fetchLogs: async () => {
         set({ isLoading: true });
-        await new Promise(resolve => setTimeout(resolve, 300));
+        try {
+          const data = await getAll<any>(COLLECTIONS.ACTIVITY_LOG);
+          const logs: ActivityLog[] = data.map(item => ({
+            ...item,
+            timestamp: timestampToDate(item.timestamp)
+          })).sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
-        const logs = MOCK_ACTIVITY_LOGS.sort(
-          (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
-        );
-
-        set({
-          logs,
-          isLoading: false
-        });
+          set({ logs, isLoading: false });
+        } catch (error) {
+          console.error('Error fetching activity logs:', error);
+          set({ logs: [], isLoading: false });
+        }
       },
 
-      addLog: (logData) => {
-        const newLog: ActivityLog = {
-          ...logData,
-          id: `log-${Date.now()}`,
-          timestamp: new Date()
-        };
+      addLog: async (logData) => {
+        try {
+          const id = await createDoc(COLLECTIONS.ACTIVITY_LOG, {
+            ...logData,
+            timestamp: Timestamp.now()
+          });
 
-        set((state) => ({
-          logs: [newLog, ...state.logs]
-        }));
+          const newLog: ActivityLog = {
+            ...logData,
+            id,
+            timestamp: new Date()
+          };
+
+          set((state) => ({
+            logs: [newLog, ...state.logs]
+          }));
+        } catch (error) {
+          console.error('Error adding activity log:', error);
+          throw error;
+        }
       },
 
       clearLogs: async () => {
         set({ isLoading: true });
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        set({
-          logs: [],
-          isLoading: false
-        });
+        try {
+          const logs = get().logs;
+          await Promise.all(logs.map(log => remove(COLLECTIONS.ACTIVITY_LOG, log.id)));
+          set({ logs: [], isLoading: false });
+        } catch (error) {
+          console.error('Error clearing logs:', error);
+          set({ isLoading: false });
+          throw error;
+        }
       },
 
       getLogsByEntidad: (entidad) => {

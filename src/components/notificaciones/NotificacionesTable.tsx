@@ -31,7 +31,6 @@ interface NotificacionesTableProps {
 
 interface NotificacionRow {
   id: string;
-  tipo: string;
   clienteNombre: string;
   categoriaNombre: string;
   fechaInicio: string;
@@ -52,12 +51,9 @@ export const NotificacionesTable = memo(function NotificacionesTable({
   const rows: NotificacionRow[] = useMemo(() => {
     return notificaciones.map(notif => {
       const fechaVencimiento = new Date(notif.fechaEvento || new Date());
-      const hoy = new Date();
-      const diasRestantes = Math.ceil((fechaVencimiento.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
 
       return {
         id: notif.id,
-        tipo: notif.tipo === 'suscripcion_vencimiento' ? 'Suscripción' : 'Pago',
         clienteNombre: notif.clienteNombre || 'N/A',
         categoriaNombre: notif.titulo,
         fechaInicio: new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }),
@@ -216,13 +212,7 @@ export const NotificacionesTable = memo(function NotificacionesTable({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todos los estados</SelectItem>
-            <SelectItem value="100_dias">100 días</SelectItem>
-            <SelectItem value="11_dias">11 días</SelectItem>
-            <SelectItem value="8_dias">8 días</SelectItem>
-            <SelectItem value="7_dias">7 días</SelectItem>
-            <SelectItem value="3_dias">3 días</SelectItem>
-            <SelectItem value="2_dias">2 días</SelectItem>
-            <SelectItem value="1_dia">1 día</SelectItem>
+            <SelectItem value="7_dias">1-7 días</SelectItem>
             <SelectItem value="vencido">Vencido</SelectItem>
           </SelectContent>
         </Select>

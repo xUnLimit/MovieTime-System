@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import { User } from '@/types';
+import { signIn, signOut as firebaseSignOut, onAuthStateChange, convertFirebaseUser } from '@/lib/firebase/auth';
 
 interface AuthState {
   user: User | null;
@@ -10,10 +11,11 @@ interface AuthState {
 
   // Actions
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
-  setUser: (user: User) => void;
+  logout: () => Promise<void>;
+  setUser: (user: User | null) => void;
   checkAuth: () => void;
   setHydrated: (hydrated: boolean) => void;
+  initAuth: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -29,46 +31,36 @@ export const useAuthStore = create<AuthState>()(
           set({ isLoading: true });
 
           try {
-            // Simular delay de red
-            await new Promise(resolve => setTimeout(resolve, 800));
+            const firebaseUser = await signIn(email, password);
+            const user = convertFirebaseUser(firebaseUser);
 
-            // Mock login - validación simple
-            if (email && password.length >= 6) {
-              const mockUser: User = {
-                id: '1',
-                email,
-                displayName: 'Allan Ordoñez',
-                role: email.includes('admin') ? 'admin' : 'operador',
-                active: true,
-                createdAt: new Date(),
-                updatedAt: new Date()
-              };
-
-              set({
-                user: mockUser,
-                isAuthenticated: true,
-                isLoading: false
-              });
-            } else {
-              set({ isLoading: false });
-              throw new Error('Credenciales inválidas');
-            }
-          } catch (error) {
+            set({
+              user,
+              isAuthenticated: true,
+              isLoading: false
+            });
+          } catch (error: any) {
             set({ isLoading: false });
-            throw error;
+            throw new Error(error.message || 'Error al iniciar sesión');
           }
         },
 
-        logout: () => {
-          set({
-            user: null,
-            isAuthenticated: false,
-            isLoading: false
-          });
+        logout: async () => {
+          try {
+            await firebaseSignOut();
+            set({
+              user: null,
+              isAuthenticated: false,
+              isLoading: false
+            });
+          } catch (error: any) {
+            console.error('Error logging out:', error);
+            throw new Error(error.message || 'Error al cerrar sesión');
+          }
         },
 
-        setUser: (user: User) => {
-          set({ user, isAuthenticated: true });
+        setUser: (user: User | null) => {
+          set({ user, isAuthenticated: !!user });
         },
 
         checkAuth: () => {
@@ -80,6 +72,18 @@ export const useAuthStore = create<AuthState>()(
 
         setHydrated: (hydrated: boolean) => {
           set({ isHydrated: hydrated });
+        },
+
+        initAuth: () => {
+          // Listen to Firebase auth state changes
+          onAuthStateChange((firebaseUser) => {
+            if (firebaseUser) {
+              const user = convertFirebaseUser(firebaseUser);
+              set({ user, isAuthenticated: true, isLoading: false });
+            } else {
+              set({ user: null, isAuthenticated: false, isLoading: false });
+            }
+          });
         }
       }),
       {

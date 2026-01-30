@@ -109,6 +109,45 @@ export function IngresosVsGastosChart({
     };
   });
 
+  const hasData = suscripciones.length > 0 || servicios.length > 0;
+
+  if (!hasData) {
+    return (
+      <div className="grid gap-3 grid-cols-1 lg:grid-cols-[3fr_1fr]">
+        <Card className="py-3 gap-0">
+          <CardHeader className="flex flex-row items-center justify-between p-0 px-4 pb-2">
+            <CardTitle className="text-base">Ingresos vs Gastos</CardTitle>
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="w-[140px] h-8 text-xs">
+                <SelectValue placeholder="Seleccionar mes" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="actual">Mes actual</SelectItem>
+                <SelectItem value="3meses">Últimos 3 meses</SelectItem>
+                <SelectItem value="6meses">Últimos 6 meses</SelectItem>
+                <SelectItem value="12meses">Últimos 12 meses</SelectItem>
+              </SelectContent>
+            </Select>
+          </CardHeader>
+          <CardContent className="px-4 pt-0 pb-1 h-[320px] flex items-center justify-center">
+            <p className="text-sm text-muted-foreground">No hay datos disponibles</p>
+          </CardContent>
+        </Card>
+        <Card className="py-3 gap-0">
+          <CardHeader className="p-0 px-4 pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Lightbulb className="h-4 w-4 text-yellow-500" />
+              Pronóstico Financiero
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pt-0 pb-2 flex items-center justify-center h-[300px]">
+            <p className="text-sm text-muted-foreground">No hay datos disponibles</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-3 grid-cols-1 lg:grid-cols-[3fr_1fr]">
       {/* Main Chart */}

@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { Servicio } from '@/types';
-import { MOCK_SERVICIOS } from '@/lib/mock-data';
+import { getAll, create as createDoc, update, remove, COLLECTIONS, timestampToDate } from '@/lib/firebase/firestore';
+import { Timestamp } from 'firebase/firestore';
 
 interface ServiciosState {
   servicios: Servicio[];
@@ -29,65 +30,95 @@ export const useServiciosStore = create<ServiciosState>()(
 
       fetchServicios: async () => {
         set({ isLoading: true });
-        await new Promise(resolve => setTimeout(resolve, 300));
-        set({
-          servicios: MOCK_SERVICIOS,
-          isLoading: false
-        });
+        try {
+          const data = await getAll<any>(COLLECTIONS.SERVICIOS);
+          const servicios: Servicio[] = data.map(item => ({
+            ...item,
+            createdAt: timestampToDate(item.createdAt),
+            updatedAt: timestampToDate(item.updatedAt)
+          }));
+
+          set({ servicios, isLoading: false });
+        } catch (error) {
+          console.error('Error fetching servicios:', error);
+          set({ servicios: [], isLoading: false });
+        }
       },
 
       createServicio: async (servicioData) => {
-        set({ isLoading: true });
-        await new Promise(resolve => setTimeout(resolve, 500));
+        try {
+          const costoTotal = servicioData.perfilesDisponibles * servicioData.costoPorPerfil;
 
-        const costoTotal = servicioData.perfilesDisponibles * servicioData.costoPorPerfil;
+          const id = await createDoc(COLLECTIONS.SERVICIOS, {
+            ...servicioData,
+            perfilesOcupados: 0,
+            costoTotal,
+            activo: true,
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now()
+          });
 
-        const newServicio: Servicio = {
-          ...servicioData,
-          id: `servicio-${Date.now()}`,
-          perfilesOcupados: 0,
-          costoTotal,
-          activo: true,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        };
+          const newServicio: Servicio = {
+            ...servicioData,
+            id,
+            perfilesOcupados: 0,
+            costoTotal,
+            activo: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
 
-        set((state) => ({
-          servicios: [...state.servicios, newServicio],
-          isLoading: false
-        }));
+          set((state) => ({
+            servicios: [...state.servicios, newServicio]
+          }));
+        } catch (error) {
+          console.error('Error creating servicio:', error);
+          throw error;
+        }
       },
 
       updateServicio: async (id, updates) => {
-        set({ isLoading: true });
-        await new Promise(resolve => setTimeout(resolve, 500));
+        try {
+          const servicio = get().servicios.find((s) => s.id === id);
+          if (!servicio) throw new Error('Servicio not found');
 
-        set((state) => ({
-          servicios: state.servicios.map((servicio) => {
-            if (servicio.id === id) {
-              const updated = { ...servicio, ...updates, updatedAt: new Date() };
+          const updated = { ...servicio, ...updates };
 
-              // Recalcular costo total si cambiaron perfiles o costo por perfil
-              if (updates.perfilesDisponibles !== undefined || updates.costoPorPerfil !== undefined) {
-                updated.costoTotal = updated.perfilesDisponibles * updated.costoPorPerfil;
-              }
+          // Recalcular costo total si cambiaron perfiles o costo por perfil
+          if (updates.perfilesDisponibles !== undefined || updates.costoPorPerfil !== undefined) {
+            updated.costoTotal = updated.perfilesDisponibles * updated.costoPorPerfil;
+          }
 
-              return updated;
-            }
-            return servicio;
-          }),
-          isLoading: false
-        }));
+          await update(COLLECTIONS.SERVICIOS, id, {
+            ...updates,
+            costoTotal: updated.costoTotal,
+            updatedAt: Timestamp.now()
+          });
+
+          set((state) => ({
+            servicios: state.servicios.map((s) =>
+              s.id === id
+                ? { ...updated, updatedAt: new Date() }
+                : s
+            )
+          }));
+        } catch (error) {
+          console.error('Error updating servicio:', error);
+          throw error;
+        }
       },
 
       deleteServicio: async (id) => {
-        set({ isLoading: true });
-        await new Promise(resolve => setTimeout(resolve, 500));
+        try {
+          await remove(COLLECTIONS.SERVICIOS, id);
 
-        set((state) => ({
-          servicios: state.servicios.filter((servicio) => servicio.id !== id),
-          isLoading: false
-        }));
+          set((state) => ({
+            servicios: state.servicios.filter((servicio) => servicio.id !== id)
+          }));
+        } catch (error) {
+          console.error('Error deleting servicio:', error);
+          throw error;
+        }
       },
 
       setSelectedServicio: (servicio) => {
@@ -113,20 +144,28 @@ export const useServiciosStore = create<ServiciosState>()(
       },
 
       updatePerfilOcupado: (id, increment) => {
-        set((state) => ({
-          servicios: state.servicios.map((servicio) => {
-            if (servicio.id === id) {
-              const newOcupados = increment
-                ? Math.min(servicio.perfilesOcupados + 1, servicio.perfilesDisponibles)
-                : Math.max(servicio.perfilesOcupados - 1, 0);
+        const servicio = get().servicios.find((s) => s.id === id);
+        if (!servicio) return;
 
+        const newOcupados = increment
+          ? Math.min(servicio.perfilesOcupados + 1, servicio.perfilesDisponibles)
+          : Math.max(servicio.perfilesOcupados - 1, 0);
+
+        update(COLLECTIONS.SERVICIOS, id, {
+          perfilesOcupados: newOcupados,
+          updatedAt: Timestamp.now()
+        }).catch(error => console.error('Error updating perfil ocupado:', error));
+
+        set((state) => ({
+          servicios: state.servicios.map((s) => {
+            if (s.id === id) {
               return {
-                ...servicio,
+                ...s,
                 perfilesOcupados: newOcupados,
                 updatedAt: new Date()
               };
             }
-            return servicio;
+            return s;
           })
         }));
       }

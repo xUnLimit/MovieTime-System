@@ -19,8 +19,7 @@ export default function DashboardPage() {
   const { logs, fetchLogs } = useActivityLogStore();
   const [progress, setProgress] = useState(0);
 
-  const chartsReady = !isLoadingSuscripciones && !isLoadingServicios && !isLoadingUsuarios
-    && (suscripciones.length > 0 || servicios.length > 0);
+  const chartsReady = !isLoadingSuscripciones && !isLoadingServicios && !isLoadingUsuarios;
 
   useEffect(() => {
     fetchSuscripciones();

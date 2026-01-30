@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import { TemplateMensaje, TipoTemplate } from '@/types';
-import { MOCK_TEMPLATES } from '@/lib/mock-data';
+import { getAll, create as createDoc, update, remove, COLLECTIONS, timestampToDate } from '@/lib/firebase/firestore';
+import { Timestamp } from 'firebase/firestore';
 
 interface TemplatesState {
   templates: TemplateMensaje[];
@@ -27,60 +28,76 @@ export const useTemplatesStore = create<TemplatesState>()(
 
         fetchTemplates: async () => {
           set({ isLoading: true });
-          await new Promise(resolve => setTimeout(resolve, 300));
+          try {
+            const data = await getAll<any>(COLLECTIONS.TEMPLATES);
+            const templates: TemplateMensaje[] = data.map(item => ({
+              ...item,
+              createdAt: timestampToDate(item.createdAt),
+              updatedAt: timestampToDate(item.updatedAt)
+            }));
 
-          const storedTemplates = get().templates;
-
-          // Si no hay templates guardados, usar los mock
-          if (storedTemplates.length === 0) {
-            set({
-              templates: MOCK_TEMPLATES,
-              isLoading: false
-            });
-          } else {
+            set({ templates, isLoading: false });
+          } catch (error) {
+            console.error('Error fetching templates:', error);
             set({ isLoading: false });
           }
         },
 
         createTemplate: async (templateData) => {
-          set({ isLoading: true });
-          await new Promise(resolve => setTimeout(resolve, 500));
+          try {
+            const id = await createDoc(COLLECTIONS.TEMPLATES, {
+              ...templateData,
+              createdAt: Timestamp.now(),
+              updatedAt: Timestamp.now()
+            });
 
-          const newTemplate: TemplateMensaje = {
-            ...templateData,
-            id: `template-${Date.now()}`,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          };
+            const newTemplate: TemplateMensaje = {
+              ...templateData,
+              id,
+              createdAt: new Date(),
+              updatedAt: new Date()
+            };
 
-          set((state) => ({
-            templates: [...state.templates, newTemplate],
-            isLoading: false
-          }));
+            set((state) => ({
+              templates: [...state.templates, newTemplate]
+            }));
+          } catch (error) {
+            console.error('Error creating template:', error);
+            throw error;
+          }
         },
 
         updateTemplate: async (id, updates) => {
-          set({ isLoading: true });
-          await new Promise(resolve => setTimeout(resolve, 500));
+          try {
+            await update(COLLECTIONS.TEMPLATES, id, {
+              ...updates,
+              updatedAt: Timestamp.now()
+            });
 
-          set((state) => ({
-            templates: state.templates.map((template) =>
-              template.id === id
-                ? { ...template, ...updates, updatedAt: new Date() }
-                : template
-            ),
-            isLoading: false
-          }));
+            set((state) => ({
+              templates: state.templates.map((template) =>
+                template.id === id
+                  ? { ...template, ...updates, updatedAt: new Date() }
+                  : template
+              )
+            }));
+          } catch (error) {
+            console.error('Error updating template:', error);
+            throw error;
+          }
         },
 
         deleteTemplate: async (id) => {
-          set({ isLoading: true });
-          await new Promise(resolve => setTimeout(resolve, 500));
+          try {
+            await remove(COLLECTIONS.TEMPLATES, id);
 
-          set((state) => ({
-            templates: state.templates.filter((template) => template.id !== id),
-            isLoading: false
-          }));
+            set((state) => ({
+              templates: state.templates.filter((template) => template.id !== id)
+            }));
+          } catch (error) {
+            console.error('Error deleting template:', error);
+            throw error;
+          }
         },
 
         setSelectedTemplate: (template) => {

@@ -79,6 +79,24 @@ export function RevenueByCategory({ suscripciones }: RevenueByCategoryProps) {
     }))
     .sort((a, b) => b.rentabilidad - a.rentabilidad); // Ordenar por rentabilidad descendente
 
+  if (data.length === 0) {
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <div>
+            <CardTitle className="text-base">Rentabilidad por Categoría</CardTitle>
+            <CardDescription className="text-sm">
+              Ganancia neta generada por cada categoría de servicio.
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-1 h-[220px] flex items-center justify-center">
+          <p className="text-sm text-muted-foreground">No hay datos disponibles</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader className="pb-2">

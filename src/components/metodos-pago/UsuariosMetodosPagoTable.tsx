@@ -120,9 +120,9 @@ export function UsuariosMetodosPagoTable({ metodosPago, onEdit, title = 'Método
 
   return (
     <>
-      <Card className="p-4 pb-2">
-        <h3 className="text-xl font-semibold">{title}</h3>
-        <div className="flex items-center gap-4 -mb-4">
+      <Card className="p-4">
+        <h3 className="text-xl font-semibold mb-4">{title}</h3>
+        <div className="flex items-center gap-4 mb-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -147,12 +147,17 @@ export function UsuariosMetodosPagoTable({ metodosPago, onEdit, title = 'Método
           </Select>
         </div>
 
-        <DataTable
-          data={filteredMetodos}
-          columns={columns}
-          pagination={true}
-          itemsPerPageOptions={[10, 25, 50, 100]}
-          actions={(item) => (
+        {filteredMetodos.length === 0 ? (
+          <div className="border border-border rounded-md p-12 text-center">
+            <p className="text-sm text-muted-foreground">No se encontraron métodos de pago</p>
+          </div>
+        ) : (
+          <DataTable
+            data={filteredMetodos}
+            columns={columns}
+            pagination={true}
+            itemsPerPageOptions={[10, 25, 50, 100]}
+            actions={(item) => (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -174,7 +179,8 @@ export function UsuariosMetodosPagoTable({ metodosPago, onEdit, title = 'Método
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-        />
+          />
+        )}
       </Card>
 
       <ConfirmDialog

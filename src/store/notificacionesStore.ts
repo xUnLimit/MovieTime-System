@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { Notificacion, EstadoNotificacion } from '@/types';
-import { MOCK_NOTIFICACIONES } from '@/lib/mock-data';
+import { getAll, create as createDoc, update, remove, COLLECTIONS, timestampToDate } from '@/lib/firebase/firestore';
+import { Timestamp } from 'firebase/firestore';
 
 interface NotificacionesState {
   notificaciones: Notificacion[];
@@ -27,80 +28,108 @@ export const useNotificacionesStore = create<NotificacionesState>()(
 
       fetchNotificaciones: async () => {
         set({ isLoading: true });
-        await new Promise(resolve => setTimeout(resolve, 300));
+        try {
+          const data = await getAll<any>(COLLECTIONS.NOTIFICACIONES);
+          const notificaciones: Notificacion[] = data.map(item => ({
+            ...item,
+            createdAt: timestampToDate(item.createdAt)
+          })).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
-        const notificaciones = MOCK_NOTIFICACIONES.sort(
-          (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
-        );
-
-        set({
-          notificaciones,
-          unreadCount: notificaciones.filter((n) => !n.leida).length,
-          isLoading: false
-        });
+          set({
+            notificaciones,
+            unreadCount: notificaciones.filter((n) => !n.leida).length,
+            isLoading: false
+          });
+        } catch (error) {
+          console.error('Error fetching notificaciones:', error);
+          set({ notificaciones: [], unreadCount: 0, isLoading: false });
+        }
       },
 
       markAsRead: async (id) => {
-        set({ isLoading: true });
-        await new Promise(resolve => setTimeout(resolve, 300));
+        try {
+          await update(COLLECTIONS.NOTIFICACIONES, id, {
+            leida: true
+          });
 
-        set((state) => {
-          const notificacion = state.notificaciones.find((n) => n.id === id);
-          const wasUnread = notificacion && !notificacion.leida;
+          set((state) => {
+            const notificacion = state.notificaciones.find((n) => n.id === id);
+            const wasUnread = notificacion && !notificacion.leida;
 
-          return {
-            notificaciones: state.notificaciones.map((n) =>
-              n.id === id ? { ...n, leida: true } : n
-            ),
-            unreadCount: wasUnread ? state.unreadCount - 1 : state.unreadCount,
-            isLoading: false
-          };
-        });
+            return {
+              notificaciones: state.notificaciones.map((n) =>
+                n.id === id ? { ...n, leida: true } : n
+              ),
+              unreadCount: wasUnread ? state.unreadCount - 1 : state.unreadCount
+            };
+          });
+        } catch (error) {
+          console.error('Error marking notificacion as read:', error);
+          throw error;
+        }
       },
 
       markAllAsRead: async () => {
-        set({ isLoading: true });
-        await new Promise(resolve => setTimeout(resolve, 500));
+        try {
+          const notificaciones = get().notificaciones;
+          await Promise.all(
+            notificaciones.filter(n => !n.leida).map(n =>
+              update(COLLECTIONS.NOTIFICACIONES, n.id, { leida: true })
+            )
+          );
 
-        set((state) => ({
-          notificaciones: state.notificaciones.map((n) => ({ ...n, leida: true })),
-          unreadCount: 0,
-          isLoading: false
-        }));
+          set((state) => ({
+            notificaciones: state.notificaciones.map((n) => ({ ...n, leida: true })),
+            unreadCount: 0
+          }));
+        } catch (error) {
+          console.error('Error marking all notificaciones as read:', error);
+          throw error;
+        }
       },
 
       deleteNotificacion: async (id) => {
-        set({ isLoading: true });
-        await new Promise(resolve => setTimeout(resolve, 300));
+        try {
+          await remove(COLLECTIONS.NOTIFICACIONES, id);
 
-        set((state) => {
-          const notificacion = state.notificaciones.find((n) => n.id === id);
-          const wasUnread = notificacion && !notificacion.leida;
+          set((state) => {
+            const notificacion = state.notificaciones.find((n) => n.id === id);
+            const wasUnread = notificacion && !notificacion.leida;
 
-          return {
-            notificaciones: state.notificaciones.filter((n) => n.id !== id),
-            unreadCount: wasUnread ? state.unreadCount - 1 : state.unreadCount,
-            isLoading: false
-          };
-        });
+            return {
+              notificaciones: state.notificaciones.filter((n) => n.id !== id),
+              unreadCount: wasUnread ? state.unreadCount - 1 : state.unreadCount
+            };
+          });
+        } catch (error) {
+          console.error('Error deleting notificacion:', error);
+          throw error;
+        }
       },
 
       createNotificacion: async (notificacionData) => {
-        set({ isLoading: true });
-        await new Promise(resolve => setTimeout(resolve, 300));
+        try {
+          const id = await createDoc(COLLECTIONS.NOTIFICACIONES, {
+            ...notificacionData,
+            leida: false,
+            createdAt: Timestamp.now()
+          });
 
-        const newNotificacion: Notificacion = {
-          ...notificacionData,
-          id: `notif-${Date.now()}`,
-          leida: false,
-          createdAt: new Date()
-        };
+          const newNotificacion: Notificacion = {
+            ...notificacionData,
+            id,
+            leida: false,
+            createdAt: new Date()
+          };
 
-        set((state) => ({
-          notificaciones: [newNotificacion, ...state.notificaciones],
-          unreadCount: state.unreadCount + 1,
-          isLoading: false
-        }));
+          set((state) => ({
+            notificaciones: [newNotificacion, ...state.notificaciones],
+            unreadCount: state.unreadCount + 1
+          }));
+        } catch (error) {
+          console.error('Error creating notificacion:', error);
+          throw error;
+        }
       },
 
       getNotificacionesByEstado: (estado) => {

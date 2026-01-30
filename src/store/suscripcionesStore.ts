@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { Suscripcion, CicloPago } from '@/types';
-import { MOCK_SUSCRIPCIONES } from '@/lib/mock-data';
+import { getAll, create as createDoc, update, remove, COLLECTIONS, timestampToDate } from '@/lib/firebase/firestore';
+import { Timestamp } from 'firebase/firestore';
 import { addMonths, differenceInDays } from 'date-fns';
 
 interface SuscripcionesState {
@@ -54,96 +55,140 @@ export const useSuscripcionesStore = create<SuscripcionesState>()(
 
       fetchSuscripciones: async () => {
         set({ isLoading: true });
-        await new Promise(resolve => setTimeout(resolve, 300));
+        try {
+          const data = await getAll<any>(COLLECTIONS.SUSCRIPCIONES);
 
-        // Actualizar estados de suscripciones basado en fechas
-        const suscripcionesActualizadas = MOCK_SUSCRIPCIONES.map(suscripcion => {
-          const consumoPorcentaje = calculateConsumo(suscripcion.fechaInicio, suscripcion.fechaVencimiento);
-          const estado = calculateEstado(suscripcion.fechaVencimiento);
-          const montoRestante = suscripcion.monto * (1 - consumoPorcentaje / 100);
-          const hoy = new Date();
-          const diasRetraso = estado === 'vencida'
-            ? differenceInDays(hoy, suscripcion.fechaVencimiento)
-            : undefined;
+          // Convertir timestamps y actualizar estados basado en fechas
+          const suscripcionesActualizadas = data.map(item => {
+            const fechaInicio = timestampToDate(item.fechaInicio);
+            const fechaVencimiento = timestampToDate(item.fechaVencimiento);
+            const createdAt = timestampToDate(item.createdAt);
+            const updatedAt = timestampToDate(item.updatedAt);
 
-          return {
-            ...suscripcion,
-            consumoPorcentaje,
-            estado,
-            montoRestante,
-            diasRetraso
-          };
-        });
+            const consumoPorcentaje = calculateConsumo(fechaInicio, fechaVencimiento);
+            const estado = calculateEstado(fechaVencimiento);
+            const montoRestante = item.monto * (1 - consumoPorcentaje / 100);
+            const hoy = new Date();
+            const diasRetraso = estado === 'vencida'
+              ? differenceInDays(hoy, fechaVencimiento)
+              : undefined;
 
-        set({
-          suscripciones: suscripcionesActualizadas,
-          isLoading: false
-        });
+            return {
+              ...item,
+              fechaInicio,
+              fechaVencimiento,
+              createdAt,
+              updatedAt,
+              consumoPorcentaje,
+              estado,
+              montoRestante,
+              diasRetraso
+            };
+          });
+
+          set({ suscripciones: suscripcionesActualizadas, isLoading: false });
+        } catch (error) {
+          console.error('Error fetching suscripciones:', error);
+          set({ suscripciones: [], isLoading: false });
+        }
       },
 
       createSuscripcion: async (suscripcionData) => {
-        set({ isLoading: true });
-        await new Promise(resolve => setTimeout(resolve, 500));
+        try {
+          const fechaVencimiento = calculateFechaVencimiento(
+            suscripcionData.fechaInicio,
+            suscripcionData.cicloPago
+          );
 
-        const fechaVencimiento = calculateFechaVencimiento(
-          suscripcionData.fechaInicio,
-          suscripcionData.cicloPago
-        );
+          const id = await createDoc(COLLECTIONS.SUSCRIPCIONES, {
+            ...suscripcionData,
+            fechaInicio: Timestamp.fromDate(suscripcionData.fechaInicio),
+            fechaVencimiento: Timestamp.fromDate(fechaVencimiento),
+            renovaciones: 0,
+            consumoPorcentaje: 0,
+            montoRestante: suscripcionData.monto,
+            estado: 'activa',
+            notificado: false,
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now()
+          });
 
-        const newSuscripcion: Suscripcion = {
-          ...suscripcionData,
-          id: `suscripcion-${Date.now()}`,
-          fechaVencimiento,
-          renovaciones: 0,
-          consumoPorcentaje: 0,
-          montoRestante: suscripcionData.monto,
-          estado: 'activa',
-          notificado: false,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        };
+          const newSuscripcion: Suscripcion = {
+            ...suscripcionData,
+            id,
+            fechaVencimiento,
+            renovaciones: 0,
+            consumoPorcentaje: 0,
+            montoRestante: suscripcionData.monto,
+            estado: 'activa',
+            notificado: false,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
 
-        set((state) => ({
-          suscripciones: [...state.suscripciones, newSuscripcion],
-          isLoading: false
-        }));
+          set((state) => ({
+            suscripciones: [...state.suscripciones, newSuscripcion]
+          }));
+        } catch (error) {
+          console.error('Error creating suscripcion:', error);
+          throw error;
+        }
       },
 
       updateSuscripcion: async (id, updates) => {
-        set({ isLoading: true });
-        await new Promise(resolve => setTimeout(resolve, 500));
+        try {
+          const suscripcion = get().suscripciones.find((s) => s.id === id);
+          if (!suscripcion) throw new Error('Suscripcion not found');
 
-        set((state) => ({
-          suscripciones: state.suscripciones.map((suscripcion) => {
-            if (suscripcion.id === id) {
-              const updated = { ...suscripcion, ...updates, updatedAt: new Date() };
+          const updated = { ...suscripcion, ...updates };
 
-              // Recalcular consumo si cambió fecha de vencimiento
-              if (updates.fechaVencimiento || updates.fechaInicio) {
-                updated.consumoPorcentaje = calculateConsumo(
-                  updated.fechaInicio,
-                  updated.fechaVencimiento
-                );
-                updated.montoRestante = updated.monto * (1 - updated.consumoPorcentaje / 100);
-                updated.estado = calculateEstado(updated.fechaVencimiento);
-              }
+          // Recalcular consumo si cambió fecha de vencimiento
+          if (updates.fechaVencimiento || updates.fechaInicio) {
+            updated.consumoPorcentaje = calculateConsumo(
+              updated.fechaInicio,
+              updated.fechaVencimiento
+            );
+            updated.montoRestante = updated.monto * (1 - updated.consumoPorcentaje / 100);
+            updated.estado = calculateEstado(updated.fechaVencimiento);
+          }
 
-              return updated;
-            }
-            return suscripcion;
-          }),
-          isLoading: false
-        }));
+          // Preparar datos para Firebase (convertir fechas a Timestamps si existen)
+          const firebaseUpdates: any = { ...updates, updatedAt: Timestamp.now() };
+          if (updates.fechaInicio) {
+            firebaseUpdates.fechaInicio = Timestamp.fromDate(updates.fechaInicio);
+          }
+          if (updates.fechaVencimiento) {
+            firebaseUpdates.fechaVencimiento = Timestamp.fromDate(updates.fechaVencimiento);
+          }
+          // Incluir campos recalculados
+          firebaseUpdates.consumoPorcentaje = updated.consumoPorcentaje;
+          firebaseUpdates.montoRestante = updated.montoRestante;
+          firebaseUpdates.estado = updated.estado;
+
+          await update(COLLECTIONS.SUSCRIPCIONES, id, firebaseUpdates);
+
+          set((state) => ({
+            suscripciones: state.suscripciones.map((s) =>
+              s.id === id ? { ...updated, updatedAt: new Date() } : s
+            )
+          }));
+        } catch (error) {
+          console.error('Error updating suscripcion:', error);
+          throw error;
+        }
       },
 
       deleteSuscripcion: async (id) => {
-        set({ isLoading: true });
-        await new Promise(resolve => setTimeout(resolve, 500));
+        try {
+          await remove(COLLECTIONS.SUSCRIPCIONES, id);
 
-        set((state) => ({
-          suscripciones: state.suscripciones.filter((suscripcion) => suscripcion.id !== id),
-          isLoading: false
-        }));
+          set((state) => ({
+            suscripciones: state.suscripciones.filter((suscripcion) => suscripcion.id !== id)
+          }));
+        } catch (error) {
+          console.error('Error deleting suscripcion:', error);
+          throw error;
+        }
       },
 
       setSelectedSuscripcion: (suscripcion) => {
@@ -151,35 +196,51 @@ export const useSuscripcionesStore = create<SuscripcionesState>()(
       },
 
       renovarSuscripcion: async (id) => {
-        set({ isLoading: true });
-        await new Promise(resolve => setTimeout(resolve, 500));
+        try {
+          const suscripcion = get().suscripciones.find((s) => s.id === id);
+          if (!suscripcion) throw new Error('Suscripcion not found');
 
-        set((state) => ({
-          suscripciones: state.suscripciones.map((suscripcion) => {
-            if (suscripcion.id === id) {
-              const nuevaFechaInicio = new Date();
-              const nuevaFechaVencimiento = calculateFechaVencimiento(
-                nuevaFechaInicio,
-                suscripcion.cicloPago
-              );
+          const nuevaFechaInicio = new Date();
+          const nuevaFechaVencimiento = calculateFechaVencimiento(
+            nuevaFechaInicio,
+            suscripcion.cicloPago
+          );
 
-              return {
-                ...suscripcion,
-                fechaInicio: nuevaFechaInicio,
-                fechaVencimiento: nuevaFechaVencimiento,
-                renovaciones: suscripcion.renovaciones + 1,
-                consumoPorcentaje: 0,
-                montoRestante: suscripcion.monto,
-                estado: 'activa' as const,
-                notificado: false,
-                diasRetraso: undefined,
-                updatedAt: new Date()
-              };
-            }
-            return suscripcion;
-          }),
-          isLoading: false
-        }));
+          await update(COLLECTIONS.SUSCRIPCIONES, id, {
+            fechaInicio: Timestamp.fromDate(nuevaFechaInicio),
+            fechaVencimiento: Timestamp.fromDate(nuevaFechaVencimiento),
+            renovaciones: suscripcion.renovaciones + 1,
+            consumoPorcentaje: 0,
+            montoRestante: suscripcion.monto,
+            estado: 'activa',
+            notificado: false,
+            diasRetraso: null,
+            updatedAt: Timestamp.now()
+          });
+
+          set((state) => ({
+            suscripciones: state.suscripciones.map((s) => {
+              if (s.id === id) {
+                return {
+                  ...s,
+                  fechaInicio: nuevaFechaInicio,
+                  fechaVencimiento: nuevaFechaVencimiento,
+                  renovaciones: s.renovaciones + 1,
+                  consumoPorcentaje: 0,
+                  montoRestante: s.monto,
+                  estado: 'activa' as const,
+                  notificado: false,
+                  diasRetraso: undefined,
+                  updatedAt: new Date()
+                };
+              }
+              return s;
+            })
+          }));
+        } catch (error) {
+          console.error('Error renovating suscripcion:', error);
+          throw error;
+        }
       },
 
       suspenderSuscripcion: async (id) => {
