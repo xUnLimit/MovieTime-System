@@ -13,6 +13,33 @@ import {
 } from 'recharts';
 import { Suscripcion } from '@/types';
 
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    value: number;
+    name: string;
+    payload: {
+      categoria: string;
+      rentabilidad: number;
+    };
+  }>;
+}
+
+const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-zinc-950 border border-zinc-800 rounded px-3 py-2">
+        <p className="text-xs text-zinc-400 uppercase tracking-wide">CATEGORÍA GANANCIA</p>
+        <p className="text-white text-sm font-medium">
+          {data.categoria} <span className="text-green-400">${data.rentabilidad.toFixed(2)}</span>
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
+
 interface RevenueByCategoryProps {
   suscripciones: Suscripcion[];
 }
@@ -84,15 +111,7 @@ export function RevenueByCategory({ suscripciones }: RevenueByCategoryProps) {
               width={90}
               tick={{ fill: '#ffffff' }}
             />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: 'hsl(var(--background))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '6px',
-              }}
-              formatter={(value: number | undefined) => [`$${(value ?? 0).toFixed(2)}`, 'Rentabilidad']}
-              cursor={{ fill: 'hsl(var(--muted))', opacity: 0.2 }}
-            />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted))', opacity: 0.2 }} />
             <Bar
               dataKey="rentabilidad"
               radius={[0, 12, 12, 0]}

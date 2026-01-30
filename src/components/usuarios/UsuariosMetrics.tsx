@@ -37,7 +37,7 @@ export const UsuariosMetrics = memo(function UsuariosMetrics({ clientes, revende
   }, [clientes, revendedores]);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <MetricCard
         title="Total Clientes"
         value={metrics.totalClientes}

@@ -18,7 +18,8 @@ import {
   Sun,
   ChevronLeft,
   Settings,
-  LogOut
+  LogOut,
+  TrendingUp
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useAuthStore } from '@/store/authStore';
@@ -52,6 +53,11 @@ const navigationSections = [
         name: 'Suscripciones',
         href: '/suscripciones',
         icon: ShoppingCart
+      },
+      {
+        name: 'Ventas',
+        href: '/ventas',
+        icon: TrendingUp
       }
     ]
   },

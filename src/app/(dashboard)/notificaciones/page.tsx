@@ -1,70 +1,42 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
-import { NotificacionesList } from '@/components/notificaciones/NotificacionesList';
-import { NotificacionesFilters } from '@/components/notificaciones/NotificacionesFilters';
+import { useEffect } from 'react';
+import Link from 'next/link';
+import { NotificacionesTable } from '@/components/notificaciones/NotificacionesTable';
+import { ServiciosProximosPagarTable } from '@/components/notificaciones/ServiciosProximosPagarTable';
 import { useNotificacionesStore } from '@/store/notificacionesStore';
+import { useSuscripcionesStore } from '@/store/suscripcionesStore';
+import { useClientesStore } from '@/store/clientesStore';
+import { useServiciosStore } from '@/store/serviciosStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
-import { toast } from 'sonner';
 
 function NotificacionesPageContent() {
-  const { notificaciones, fetchNotificaciones, markAllAsRead } =
+  const { notificaciones, fetchNotificaciones } =
     useNotificacionesStore();
-
-  const [tipoFilter, setTipoFilter] = useState('all');
-  const [prioridadFilter, setPrioridadFilter] = useState('all');
-  const [estadoFilter, setEstadoFilter] = useState('all');
+  const { fetchSuscripciones } = useSuscripcionesStore();
+  const { fetchClientes } = useClientesStore();
+  const { fetchServicios } = useServiciosStore();
 
   useEffect(() => {
     fetchNotificaciones();
-  }, [fetchNotificaciones]);
-
-  const filteredNotificaciones = useMemo(() => {
-    return notificaciones.filter((notificacion) => {
-      const matchesTipo =
-        tipoFilter === 'all' || notificacion.tipo === tipoFilter;
-
-      const matchesPrioridad =
-        prioridadFilter === 'all' || notificacion.prioridad === prioridadFilter;
-
-      const matchesEstado =
-        estadoFilter === 'all' ||
-        (estadoFilter === 'leida' && notificacion.leida) ||
-        (estadoFilter === 'no_leida' && !notificacion.leida);
-
-      return matchesTipo && matchesPrioridad && matchesEstado;
-    });
-  }, [notificaciones, tipoFilter, prioridadFilter, estadoFilter]);
-
-  const handleMarkAllRead = useCallback(async () => {
-    try {
-      await markAllAsRead();
-      toast.success('Todas las notificaciones marcadas como leídas');
-    } catch (error) {
-      toast.error('Error al marcar notificaciones');
-    }
-  }, [markAllAsRead]);
+    fetchSuscripciones();
+    fetchClientes();
+    fetchServicios();
+  }, [fetchNotificaciones, fetchSuscripciones, fetchClientes, fetchServicios]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Notificaciones</h1>
-        <p className="text-muted-foreground">
-          Revisa las notificaciones y alertas del sistema
-        </p>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight">Notificaciones</h1>
+          <p className="text-sm text-muted-foreground">
+            <Link href="/" className="hover:text-foreground transition-colors">Dashboard</Link> / <span className="text-foreground">Notificaciones</span>
+          </p>
+        </div>
       </div>
 
-      <NotificacionesFilters
-        tipoFilter={tipoFilter}
-        setTipoFilter={setTipoFilter}
-        prioridadFilter={prioridadFilter}
-        setPrioridadFilter={setPrioridadFilter}
-        estadoFilter={estadoFilter}
-        setEstadoFilter={setEstadoFilter}
-        onMarkAllRead={handleMarkAllRead}
-      />
-
-      <NotificacionesList notificaciones={filteredNotificaciones} />
+      <NotificacionesTable notificaciones={notificaciones} />
+      <ServiciosProximosPagarTable />
     </div>
   );
 }

@@ -1,80 +1,63 @@
 'use client';
 
 import { memo, useMemo } from 'react';
-import { Servicio } from '@/types';
+import { Servicio, Suscripcion } from '@/types';
 import { MetricCard } from '@/components/shared/MetricCard';
-import { Server, DollarSign, Users, AlertCircle } from 'lucide-react';
+import { Tag, Monitor, CheckCircle, ShoppingBag } from 'lucide-react';
 
 interface ServiciosMetricsProps {
   servicios: Servicio[];
+  suscripciones: Suscripcion[];
+  totalCategorias: number;
 }
 
-export const ServiciosMetrics = memo(function ServiciosMetrics({ servicios }: ServiciosMetricsProps) {
+export const ServiciosMetrics = memo(function ServiciosMetrics({
+  servicios,
+  suscripciones,
+  totalCategorias
+}: ServiciosMetricsProps) {
   const metrics = useMemo(() => {
-    let serviciosActivos = 0;
-    let serviciosInactivos = 0;
-    let costoTotalMensual = 0;
-    let perfilesDisponibles = 0;
-    let perfilesOcupados = 0;
-
-    servicios.forEach((s) => {
-      if (s.activo) {
-        serviciosActivos++;
-        costoTotalMensual += s.costoTotal;
-        perfilesDisponibles += s.perfilesDisponibles;
-        perfilesOcupados += s.perfilesOcupados;
-      } else {
-        serviciosInactivos++;
-      }
-    });
-
-    const ocupacionPorcentaje = perfilesDisponibles > 0
-      ? Math.round((perfilesOcupados / perfilesDisponibles) * 100)
-      : 0;
+    const totalServicios = servicios.length;
+    const serviciosActivos = servicios.filter(s => s.activo).length;
+    const totalSuscripciones = suscripciones.length;
 
     return {
+      totalCategorias,
+      totalServicios,
       serviciosActivos,
-      serviciosInactivos,
-      costoTotalMensual,
-      perfilesDisponibles,
-      perfilesOcupados,
-      ocupacionPorcentaje,
+      totalSuscripciones,
     };
-  }, [servicios]);
+  }, [servicios, suscripciones, totalCategorias]);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <MetricCard
+        title="Categorías"
+        value={metrics.totalCategorias}
+        icon={Tag}
+        underlineColor="bg-red-500"
+        iconColor="text-red-500"
+      />
+      <MetricCard
+        title="Total Servicios"
+        value={metrics.totalServicios}
+        icon={Monitor}
+        underlineColor="bg-blue-500"
+        iconColor="text-blue-500"
+      />
+      <MetricCard
         title="Servicios Activos"
-        value={metrics.serviciosActivos}
-        icon={Server}
-        description={`${metrics.serviciosInactivos} inactivos`}
-        borderColor="border-l-purple-500"
-        iconColor="text-purple-500"
-      />
-      <MetricCard
-        title="Costo Mensual"
-        value={`$${metrics.costoTotalMensual.toFixed(2)}`}
-        icon={DollarSign}
-        description="Total mensual"
-        borderColor="border-l-orange-500"
-        iconColor="text-orange-500"
-      />
-      <MetricCard
-        title="Perfiles Disponibles"
-        value={metrics.perfilesDisponibles}
-        icon={Users}
-        description={`${metrics.perfilesOcupados} ocupados`}
-        borderColor="border-l-green-500"
+        value={`${metrics.serviciosActivos}/${metrics.totalServicios}`}
+        icon={CheckCircle}
+        underlineColor="bg-green-500"
         iconColor="text-green-500"
       />
       <MetricCard
-        title="Ocupación"
-        value={`${metrics.ocupacionPorcentaje}%`}
-        icon={AlertCircle}
-        description="Tasa de uso"
-        borderColor="border-l-blue-500"
-        iconColor="text-blue-500"
+        title="Suscripciones Totales"
+        value={metrics.totalSuscripciones}
+        icon={ShoppingBag}
+        underlineColor="bg-purple-500"
+        iconColor="text-purple-500"
       />
     </div>
   );

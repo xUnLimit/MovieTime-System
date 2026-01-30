@@ -15,15 +15,11 @@ function EditorMensajesPageContent() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="space-y-1">
         <h1 className="text-3xl font-bold tracking-tight">Editor de Mensajes de WhatsApp</h1>
-        <div className="flex items-center gap-2 text-sm mt-1">
-          <Link href="/" className="text-muted-foreground hover:text-foreground transition-colors">
-            Dashboard
-          </Link>
-          <span className="text-muted-foreground">/</span>
-          <span className="text-foreground">Editor de Mensajes</span>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          <Link href="/dashboard" className="hover:text-foreground transition-colors">Dashboard</Link> / <span className="text-foreground">Editor de Mensajes</span>
+        </p>
       </div>
 
       <TemplateEditor templates={templates} />
