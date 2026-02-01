@@ -5,6 +5,7 @@
 export interface Cliente {
   id: string;
   nombre: string;
+  apellido: string;
   telefono: string;
   email?: string;
   metodoPagoId: string;
@@ -20,13 +21,13 @@ export interface Cliente {
 export interface Revendedor {
   id: string;
   nombre: string;
+  apellido: string;
   telefono: string;
   email?: string;
   metodoPagoId: string;
   metodoPagoNombre: string;
-  comisionPorcentaje: number;
   suscripcionesTotales: number;
-  montoTotal: number;
+  montoSinConsumir: number;
   active: boolean;
   createdAt: Date;
   updatedAt: Date;

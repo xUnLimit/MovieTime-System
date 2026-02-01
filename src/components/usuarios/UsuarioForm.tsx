@@ -109,11 +109,10 @@ export function UsuarioForm({
 
   useEffect(() => {
     if (usuario) {
-      const [nombre, apellido] = usuario.nombre.split(' ');
       const tipo = 'comisionPorcentaje' in usuario ? 'revendedor' : 'cliente';
       reset({
-        nombre: nombre || '',
-        apellido: apellido || '',
+        nombre: usuario.nombre || '',
+        apellido: usuario.apellido || '',
         tipoUsuario: tipo,
         telefono: usuario.telefono,
         metodoPagoId: usuario.metodoPagoId,
@@ -147,16 +146,13 @@ export function UsuarioForm({
   const onSubmit = async (data: UsuarioFormData) => {
     try {
       const metodoPago = metodosPago.find((m) => m.id === data.metodoPagoId);
-      const nombreCompleto = `${data.nombre} ${data.apellido}`;
 
       if (data.tipoUsuario === 'cliente') {
         const clienteData = {
-          nombre: nombreCompleto,
+          nombre: data.nombre,
+          apellido: data.apellido,
           telefono: data.telefono,
-          email: '',
           metodoPagoId: data.metodoPagoId,
-          active: usuario?.active ?? true,
-          createdBy: usuario?.createdBy || 'current-user',
           metodoPagoNombre: metodoPago?.nombre || '',
         };
 
@@ -169,13 +165,10 @@ export function UsuarioForm({
         }
       } else {
         const revendedorData = {
-          nombre: nombreCompleto,
+          nombre: data.nombre,
+          apellido: data.apellido,
           telefono: data.telefono,
-          email: '',
           metodoPagoId: data.metodoPagoId,
-          comisionPorcentaje: usuario && 'comisionPorcentaje' in usuario ? usuario.comisionPorcentaje : 0,
-          active: usuario?.active ?? true,
-          createdBy: usuario?.createdBy || 'current-user',
           metodoPagoNombre: metodoPago?.nombre || '',
         };
 
@@ -339,20 +332,22 @@ export function UsuarioForm({
                     type="button"
                   >
                     {metodoPagoIdValue
-                      ? metodosPago.find((m) => m.id === metodoPagoIdValue)?.nombre + ' (' + metodosPago.find((m) => m.id === metodoPagoIdValue)?.tipo + ')'
+                      ? metodosPago.find((m) => m.id === metodoPagoIdValue)?.nombre
                       : 'Seleccionar método de pago...'}
                     <ChevronDown className="h-4 w-4 opacity-50" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                  {metodosPago.map((metodo) => (
-                    <DropdownMenuItem
-                      key={metodo.id}
-                      onClick={() => setValue('metodoPagoId', metodo.id)}
-                    >
-                      {metodo.nombre} ({metodo.tipo})
-                    </DropdownMenuItem>
-                  ))}
+                  {metodosPago
+                    .filter((metodo) => metodo.asociadoA === 'usuario' || !metodo.asociadoA)
+                    .map((metodo) => (
+                      <DropdownMenuItem
+                        key={metodo.id}
+                        onClick={() => setValue('metodoPagoId', metodo.id)}
+                      >
+                        {metodo.nombre}
+                      </DropdownMenuItem>
+                    ))}
                 </DropdownMenuContent>
               </DropdownMenu>
               {errors.metodoPagoId && (

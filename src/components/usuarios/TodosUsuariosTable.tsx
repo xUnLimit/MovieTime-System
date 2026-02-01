@@ -29,6 +29,7 @@ import { toast } from 'sonner';
 interface UsuarioUnificado {
   id: string;
   nombre: string;
+  apellido: string;
   telefono: string;
   metodoPagoNombre: string;
   tipo: 'Cliente' | 'Revendedor';
@@ -64,6 +65,7 @@ export function TodosUsuariosTable({
     const clientesMapped: UsuarioUnificado[] = clientes.map((c) => ({
       id: `cliente-${c.id}`,
       nombre: c.nombre,
+      apellido: c.apellido,
       telefono: c.telefono,
       metodoPagoNombre: c.metodoPagoNombre,
       tipo: 'Cliente' as const,
@@ -75,11 +77,12 @@ export function TodosUsuariosTable({
     const revendedoresMapped: UsuarioUnificado[] = revendedores.map((r) => ({
       id: `revendedor-${r.id}`,
       nombre: r.nombre,
+      apellido: r.apellido,
       telefono: r.telefono,
       metodoPagoNombre: r.metodoPagoNombre,
       tipo: 'Revendedor' as const,
-      serviciosActivos: 0,
-      montoSinConsumir: 0,
+      serviciosActivos: r.suscripcionesTotales,
+      montoSinConsumir: r.montoSinConsumir,
       original: r,
     }));
 
@@ -145,7 +148,7 @@ export function TodosUsuariosTable({
       header: 'Nombre',
       sortable: true,
       width: '14%',
-      render: (item) => <div className="font-medium">{item.nombre}</div>,
+      render: (item) => <div className="font-medium">{item.nombre} {item.apellido}</div>,
     },
     {
       key: 'tipo',

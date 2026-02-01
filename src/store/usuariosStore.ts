@@ -21,7 +21,7 @@ interface UsuariosState {
 
   // Revendedor Actions
   fetchRevendedores: () => Promise<void>;
-  createRevendedor: (revendedor: Omit<Revendedor, 'id' | 'createdAt' | 'updatedAt' | 'suscripcionesTotales' | 'montoTotal'>) => Promise<void>;
+  createRevendedor: (revendedor: Omit<Revendedor, 'id' | 'createdAt' | 'updatedAt' | 'suscripcionesTotales' | 'montoSinConsumir'>) => Promise<void>;
   updateRevendedor: (id: string, updates: Partial<Revendedor>) => Promise<void>;
   deleteRevendedor: (id: string) => Promise<void>;
   setSelectedRevendedor: (revendedor: Revendedor | null) => void;
@@ -73,7 +73,8 @@ export const useUsuariosStore = create<UsuariosState>()(
             serviciosActivos: 0,
             active: true,
             createdAt: new Date(),
-            updatedAt: new Date()
+            updatedAt: new Date(),
+            createdBy: ''
           };
 
           set((state) => ({
@@ -149,7 +150,7 @@ export const useUsuariosStore = create<UsuariosState>()(
           const id = await createDoc(COLLECTIONS.REVENDEDORES, {
             ...revendedorData,
             suscripcionesTotales: 0,
-            montoTotal: 0,
+            montoSinConsumir: 0,
             active: true,
             createdAt: Timestamp.now(),
             updatedAt: Timestamp.now()
@@ -159,10 +160,11 @@ export const useUsuariosStore = create<UsuariosState>()(
             ...revendedorData,
             id,
             suscripcionesTotales: 0,
-            montoTotal: 0,
+            montoSinConsumir: 0,
             active: true,
             createdAt: new Date(),
-            updatedAt: new Date()
+            updatedAt: new Date(),
+            createdBy: ''
           };
 
           set((state) => ({

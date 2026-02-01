@@ -305,7 +305,7 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
     : '$';
 
   const categoriasActivas = categorias.filter(c => c.activo);
-  const metodosPagoActivos = metodosPago.filter(m => m.activo && m.asociadoA === 'servicio');
+  const metodosPagoActivos = metodosPago.filter(m => m.activo && (!m.asociadoA || m.asociadoA === 'servicio'));
 
   return (
     <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-6" noValidate>

@@ -4,16 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-MovieTime PTY is a subscription management system for streaming services in Panama. It manages clients, resellers, services (Netflix, Disney+, etc.), subscriptions with payment cycles, and automatic notifications. The frontend is fully implemented with mock data using Zustand for state management, ready for backend integration.
+MovieTime PTY is a subscription management system for streaming services in Panama. It manages clients, resellers, services (Netflix, Disney+, etc.), categories, payment methods, and automatic notifications. The system is integrated with **Firebase** (Authentication + Firestore) for data persistence.
 
-## Project Structure (Reorganized Jan 2026)
+**Note**: The Subscriptions (Suscripciones) and Service Payments (Pagos de Servicios) modules were removed in January 2026 (commit db25141). The dashboard UI has been restored with placeholder components.
+
+## Project Structure (Updated Feb 2026)
 
 ```
 MovieTime System/
 ├── proxy.ts                   # Next.js 16 Edge Runtime proxy (root level)
 ├── vitest.config.ts          # Test configuration
+├── .env.local                # Firebase credentials (not in repo)
 ├── docs/                      # Documentation
-├── public/                    # Static assets (cleaned)
+├── public/                    # Static assets
 ├── tests/                     # Test files
 │   ├── unit/                 # Unit tests
 │   ├── integration/          # Integration tests
@@ -21,16 +24,34 @@ MovieTime System/
 └── src/
     ├── app/                  # Next.js App Router
     ├── components/           # React components by feature
+    │   ├── layout/          # Sidebar, Header, NotificationBell
+    │   ├── dashboard/       # Dashboard metrics & charts
+    │   ├── servicios/       # Services components
+    │   ├── usuarios/        # Clients & Resellers components
+    │   ├── categorias/      # Categories components
+    │   ├── metodos-pago/    # Payment methods components
+    │   ├── notificaciones/  # Notifications components
+    │   ├── editor-mensajes/ # WhatsApp template editor
+    │   ├── log-actividad/   # Activity log components
+    │   ├── shared/          # Shared components
+    │   └── ui/              # shadcn/ui components
     ├── config/               # Configuration files
     │   ├── constants.ts      # App constants
     │   ├── env.ts           # Environment config
     │   └── site.ts          # Site metadata
     ├── hooks/                # Custom React hooks
     ├── lib/                  # Utilities and helpers
-    │   ├── constants/       # (Original location, re-exported from config)
-    │   ├── mock-data/       # Mock data (separated by entity)
-    │   └── utils/           # Utility functions
-    ├── store/                # Zustand stores
+    │   ├── firebase/        # Firebase integration
+    │   │   ├── auth.ts     # Authentication functions
+    │   │   ├── config.ts   # Firebase initialization
+    │   │   └── firestore.ts # Generic CRUD + COLLECTIONS
+    │   ├── utils/           # Utility functions
+    │   │   ├── calculations.ts # Business logic
+    │   │   ├── whatsapp.ts    # WhatsApp utilities
+    │   │   ├── cn.ts          # Class utilities
+    │   │   └── index.ts       # Exports
+    │   └── config/          # (Re-exported from config/)
+    ├── store/                # Zustand stores (Firebase-integrated)
     ├── test/                 # Test utilities
     │   ├── setup.ts         # Test setup
     │   └── utils.ts         # Test helpers
@@ -44,7 +65,6 @@ MovieTime System/
         ├── metodos-pago.ts  # Payment method types
         ├── notificaciones.ts # Notification types
         ├── servicios.ts     # Service types
-        ├── suscripciones.ts # Subscription types
         └── whatsapp.ts      # WhatsApp types
 ```
 
@@ -57,60 +77,119 @@ npm run build        # Build for production
 npm start            # Start production server
 npm run lint         # Run ESLint
 
-# Test Credentials
-Email: admin@movietime.com
-Password: 123456 (any 6+ characters works)
+# Testing
+npm test             # Run Vitest tests
+npm run test:ui      # Run Vitest with UI
+npm run test:watch   # Run tests in watch mode
+npm run test:coverage # Run tests with coverage
+
+# Firebase Authentication
+# Configure test credentials in Firebase Console
+# Default: admin@movietime.com / any 6+ character password
 ```
 
 ## Architecture Overview
 
+### Firebase Integration
+
+The app uses **Firebase** for authentication and data persistence:
+
+**Firestore Collections** (defined in `src/lib/firebase/firestore.ts`):
+```typescript
+export const COLLECTIONS = {
+  CLIENTES: 'clientes',
+  REVENDEDORES: 'revendedores',
+  SERVICIOS: 'servicios',
+  CATEGORIAS: 'categorias',
+  SUSCRIPCIONES: 'suscripciones',  // Defined but not used in UI
+  NOTIFICACIONES: 'notificaciones',
+  METODOS_PAGO: 'metodosPago',
+  ACTIVITY_LOG: 'activityLog',
+  CONFIG: 'config',
+  GASTOS: 'gastos',
+  TEMPLATES: 'templates',
+}
+```
+
+**Firebase Configuration** (`.env.local` - not in repo):
+```bash
+NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_auth_domain
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_storage_bucket
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+```
+
+**Firebase Functions:**
+- `src/lib/firebase/auth.ts` - `signInUser()`, `signOutUser()`, `onAuthChange()`
+- `src/lib/firebase/config.ts` - Firebase app initialization
+- `src/lib/firebase/firestore.ts` - Generic CRUD: `getAll()`, `getById()`, `create()`, `update()`, `deleteDoc()`
+
 ### State Management with Zustand
 
-The app uses **Zustand** stores (not Redux) with a specific pattern:
+The app uses **Zustand** stores (not Redux) with **Firebase integration**:
 
 - All stores are in `src/store/` directory
-- Each store simulates API calls with 300-500ms delays for realistic UX
-- Stores are NOT persisted except `authStore` and `templatesStore` (uses localStorage)
-- All CRUD operations return promises and update state immutably
+- Each store uses Firebase Firestore for data persistence
+- Stores handle loading states during async Firebase operations
+- Only `authStore` and `templatesStore` persist to localStorage
+- All CRUD operations are async and update Firestore
 
 **Critical Store Pattern:**
 ```typescript
 // Always use this pattern in stores
 fetchItems: async () => {
-  set({ isLoading: true });
-  await new Promise(resolve => setTimeout(resolve, 300)); // Simulated delay
-  set({ items: MOCK_DATA, isLoading: false });
+  set({ isLoading: true, error: null });
+  try {
+    const items = await getAll<Item>(COLLECTIONS.ITEMS);
+    set({ items, isLoading: false });
+  } catch (error) {
+    set({ error: error.message, isLoading: false });
+  }
 }
 ```
 
-### Store Directory
+### Store Directory (12 stores)
 
-- `src/store/` - All Zustand stores (suscripcionesStore, authStore, etc.)
-- ~~`src/stores/`~~ - **REMOVED** (was duplicate/legacy, consolidated Jan 2026)
-- All stores are in a single directory for consistency
-- Some stores use re-exports for convenience (clientesStore, revendedoresStore)
+All stores in `src/store/` are Firebase-integrated:
+
+1. **authStore.ts** - Firebase authentication + localStorage persistence
+2. **usuariosStore.ts** - Manages both clients and resellers (Firebase)
+3. **clientesStore.ts** - Re-export from usuariosStore for convenience
+4. **revendedoresStore.ts** - Re-export from usuariosStore for convenience
+5. **serviciosStore.ts** - Services management (Firebase)
+6. **categoriasStore.ts** - Categories (Firebase)
+7. **metodosPagoStore.ts** - Payment methods (Firebase)
+8. **notificacionesStore.ts** - Notifications (Firebase)
+9. **activityLogStore.ts** - Activity logs (Firebase)
+10. **configStore.ts** - Configuration settings (Firebase)
+11. **templatesStore.ts** - Message templates (localStorage persistence)
+12. **templatesMensajesStore.ts** - Additional template management
+
+**Note**: ~~`suscripcionesStore.ts`~~ was removed in commit db25141 (Subscriptions module removed).
 
 ### Type System
 
 Types are **organized by domain** in `src/types/` directory:
-- `auth.ts` - User, authentication
+- `auth.ts` - User, authentication, role-based access
 - `categorias.ts` - Categories
-- `clientes.ts` - Clients, Resellers
-- `common.ts` - Shared types (Activity logs, Config, Gastos, Templates)
-- `dashboard.ts` - Dashboard metrics
+- `clientes.ts` - Clients, Resellers (contains legacy `suscripcionesTotales` field)
+- `common.ts` - Shared types (ActivityLog, Configuracion, Gasto, TemplateMensaje)
+- `dashboard.ts` - Dashboard metrics (contains legacy `suscripcionesActivas` field)
 - `metodos-pago.ts` - Payment methods
 - `notificaciones.ts` - Notifications
-- `servicios.ts` - Services
-- `suscripciones.ts` - Subscriptions
+- `servicios.ts` - Services (individual/familiar)
 - `whatsapp.ts` - WhatsApp integration
 - `index.ts` - Barrel export (imports work from `@/types`)
 
+**Note**: ~~`suscripciones.ts`~~ was removed. Some subscription references remain in other types for historical data compatibility.
+
 Key concepts:
 
-- **Suscripción (Subscription)**: Has calculated fields (`consumoPorcentaje`, `montoRestante`, `estado`) that must be recomputed when dates change
 - **Payment Cycles**: `mensual` (1 month), `trimestral` (3 months), `anual` (12 months)
-- **Subscription States**: `activa`, `suspendida`, `inactiva`, `vencida` (auto-calculated based on dates)
-- **Notification Days**: [100, 11, 8, 7, 3, 2, 1] - subscriptions are notified at these intervals before expiration
+- **Notification Days**: [100, 11, 8, 7, 3, 2, 1] - notifications sent at these intervals before expiration
+- **User Roles**: `admin` (full access), `operador` (limited access)
 
 ### Calculation Utilities
 
@@ -122,7 +201,7 @@ All business logic calculations are in `src/lib/utils/calculations.ts`:
 - `calcularEstadoSuscripcion()` - Determines if subscription is `activa` or `vencida`
 - `formatearMoneda()` - Formats numbers as USD currency
 
-**Important**: When updating subscription dates, always recalculate these fields using the utility functions.
+**Note**: These utilities remain for potential future subscription features or historical data calculations.
 
 ### WhatsApp Integration
 
@@ -144,27 +223,46 @@ src/app/
 ├── (auth)/          # Auth layout with centered form
 │   └── login/
 ├── (dashboard)/     # Main app layout with sidebar + header
-│   ├── dashboard/   # Home dashboard
+│   ├── dashboard/   # Home dashboard (placeholder UI)
 │   ├── servicios/   # Streaming service management
+│   │   ├── crear/   # Create service
+│   │   └── [id]/editar/  # Edit service
 │   ├── usuarios/    # Clients & Resellers (tabs)
-│   ├── suscripciones/  # Subscriptions with cycle tracking
 │   ├── notificaciones/
 │   ├── editor-mensajes/  # WhatsApp template editor
 │   ├── log-actividad/
 │   ├── categorias/
-│   ├── metodos-pago/
-│   └── pagos-servicios/
+│   │   ├── crear/   # Create category
+│   │   └── [id]/editar/  # Edit category
+│   └── metodos-pago/
+│       ├── crear/   # Create payment method
+│       └── [id]/editar/  # Edit payment method
 ```
+
+**REMOVED ROUTES** (commit db25141):
+- ❌ `/suscripciones` - Subscriptions module completely removed
+- ❌ `/pagos-servicios` - Service payments module removed
+
+**KNOWN ISSUES**:
+- ⚠️ `/configuracion` - Link exists in sidebar but route doesn't exist (will cause 404)
 
 ### Component Patterns
 
 Every module follows this structure:
 
 1. **Page** (`page.tsx`): Main component with filtering logic and state
-2. **Metrics** (`*Metrics.tsx`): 4 cards displaying key stats
+2. **Metrics** (`*Metrics.tsx`): Cards displaying key stats (some modules)
 3. **Filters** (`*Filters.tsx`): Search + dropdowns for filtering
 4. **Table** (`*Table.tsx`): Data table with actions
 5. **Dialog** (`*Dialog.tsx`): Form for create/edit with React Hook Form + Zod
+
+**Dashboard Components** (Restored UI, placeholder data):
+- `DashboardMetrics.tsx` - 4 metric cards (placeholder values)
+- `IngresosVsGastosChart.tsx` - Income vs expenses chart
+- `RevenueByCategory.tsx` - Revenue by category chart
+- `CrecimientoUsuarios.tsx` - User growth chart
+- `RecentActivity.tsx` - Recent activity timeline
+- `UrgentNotifications.tsx` - Urgent notifications list
 
 ### Form Handling
 
@@ -189,38 +287,16 @@ const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
 
 const onSubmit = async (data: FormData) => {
   try {
-    await createItem(data);
+    await createItem(data); // Calls Firebase
     toast.success('Created successfully');
     onOpenChange(false);
   } catch (error) {
-    toast.error('Error');
+    toast.error('Error creating item');
   }
 };
 ```
 
 ## Critical Implementation Details
-
-### Suscripciones Complexity
-
-Subscriptions are the most complex entity:
-
-1. **Auto-calculated fields** - Never set these manually in forms:
-   - `fechaVencimiento` (computed from `fechaInicio` + `cicloPago`)
-   - `consumoPorcentaje` (based on days elapsed)
-   - `montoRestante` (monto × remaining percentage)
-   - `estado` (active if before expiration, vencida after)
-
-2. **Renovation Logic** (`renovarSuscripcion`):
-   - Sets new `fechaInicio` to today
-   - Recalculates `fechaVencimiento` based on cycle
-   - Increments `renovaciones` counter
-   - Resets `consumoPorcentaje` to 0
-   - Sets `estado` to 'activa'
-
-3. **Type Switching**:
-   - Subscriptions can be for `cliente` or `revendedor`
-   - When type changes in form, clear the selected user ID
-   - Auto-populate payment method from selected user
 
 ### Services (Servicios)
 
@@ -228,19 +304,22 @@ Subscriptions are the most complex entity:
 - **Familiar**: Multiple profiles, cost = `costoPorPerfil × perfilesDisponibles`
 - Track `perfilesOcupados` vs `perfilesDisponibles`
 - Show progress bar for occupancy percentage
+- Managed in Firebase `servicios` collection
 
 ### Notifications
 
-- Generated automatically based on subscription expiration dates
+- Generated automatically based on expiration dates
 - Priority increases as expiration approaches (100 days = baja, 1 day = crítica)
 - `estado` field maps to notification thresholds: '100_dias', '11_dias', '8_dias', '7_dias', '3_dias', '2_dias', '1_dia', 'vencido'
+- Stored in Firebase `notificaciones` collection
 
 ### Authentication
 
-Mock authentication (`authStore`):
-- Accepts any email with 6+ character password
+**Firebase Authentication** (`authStore`):
+- Uses Firebase Auth for user login/logout
 - Email with `admin@` = admin role, others = operador
-- State persisted to localStorage
+- State persisted to localStorage for hydration
+- Token management handled by Firebase SDK
 
 **Route Protection (Dual Layer):**
 1. **Client-Side (Primary):** `src/app/(dashboard)/layout.tsx` (lines 18-41)
@@ -254,12 +333,33 @@ Mock authentication (`authStore`):
    - Currently allows all navigation (auth is client-side)
    - Placeholder for future JWT/cookie validation in production
 
+### Usuarios (Clients & Resellers)
+
+- Single `usuariosStore` manages both types
+- Separate re-export stores (`clientesStore`, `revendedoresStore`) for convenience
+- Single page with tabs to switch between views
+- Both types stored in separate Firebase collections: `clientes` and `revendedores`
+- Dialogs: `ClienteDialog`, `RevendedorDialog`
+- Tables: `ClientesTable`, `RevendedoresTable`, `TodosUsuariosTable`
+
 ## Data Flow
 
 1. **On mount**: Pages call `fetchItems()` from store
-2. **Local filtering**: Use `useMemo` to filter store data locally (no server calls)
-3. **CRUD operations**: Call store methods, which update state + show toast
-4. **No persistence**: Changes lost on reload (except auth & templates)
+2. **Firebase fetch**: Store calls Firebase `getAll()` function
+3. **Local filtering**: Use `useMemo` to filter store data locally (no server calls)
+4. **CRUD operations**: Call store methods, which update Firebase + local state + show toast
+5. **Persistence**: All changes saved to Firebase (except auth & templates use localStorage)
+
+**Error Handling Pattern:**
+```typescript
+try {
+  await deleteItem(id); // Firebase operation
+  toast.success('Deleted successfully');
+} catch (error) {
+  console.error('Error deleting item:', error);
+  toast.error('Error deleting item');
+}
+```
 
 ## Typography and Fonts
 
@@ -289,7 +389,7 @@ Mock authentication (`authStore`):
 
 ### Color Coding
 
-- **Subscription Status**:
+- **Subscription Status** (legacy, for historical data):
   - Activa: green
   - Suspendida: yellow
   - Inactiva: gray
@@ -314,6 +414,9 @@ Mock authentication (`authStore`):
 - WhatsApp: `MessageCircle` (text-green-600)
 - Actions menu: `MoreVertical`
 - Status: `AlertCircle` / `CheckCircle`
+- Add: `Plus`
+- Search: `Search`
+- Filter: `Filter`
 
 ### Responsive Grid
 
@@ -326,7 +429,7 @@ Standard layout for metrics:
 
 ## Common Pitfalls
 
-1. **Recalculate subscription fields**: When updating `fechaInicio` or `fechaVencimiento`, you must recalculate `consumoPorcentaje`, `montoRestante`, and `estado` using the calculation utilities.
+1. **Firebase async operations**: Always handle loading states and errors when calling Firebase functions.
 
 2. **Form default values**: Always use `useEffect` to reset form when item changes:
 ```typescript
@@ -341,7 +444,7 @@ useEffect(() => {
 
 3. **WhatsApp placeholders**: Must match exactly: `{cliente}` not `{Cliente}` or `{{cliente}}`
 
-4. **Date handling**: Use `date-fns` functions, not native Date methods. All dates stored as Date objects, not strings.
+4. **Date handling**: Use `date-fns` functions, not native Date methods. Store dates as Firestore Timestamps or Date objects.
 
 5. **Zustand updates**: Always return new objects/arrays, never mutate:
 ```typescript
@@ -352,17 +455,28 @@ set((state) => ({ items: [...state.items, newItem] }))
 state.items.push(newItem)
 ```
 
-## Future Backend Integration
+6. **Firebase errors**: Always wrap Firebase calls in try-catch blocks:
+```typescript
+try {
+  await create(COLLECTIONS.ITEMS, data);
+} catch (error) {
+  console.error('Firebase error:', error);
+  toast.error('Error creating item');
+}
+```
 
-The codebase is designed for easy migration:
+7. **Environment variables**: Ensure `.env.local` exists with Firebase credentials before running the app.
 
-1. Replace store fetch delays with actual `fetch()` or API client calls
-2. Add error handling for network failures
-3. Remove mock data imports
-4. Implement server-side validation
-5. Add authentication token management
+8. **Removed modules**: Do not reference `/suscripciones` or `/pagos-servicios` routes - they were permanently removed.
 
-All business logic (calculations, validation schemas) can be reused on the backend.
+## Firebase Best Practices
+
+1. **Use COLLECTIONS enum**: Always use `COLLECTIONS.ITEMS` instead of hardcoded strings
+2. **Generic CRUD functions**: Use `getAll()`, `getById()`, `create()`, `update()`, `deleteDoc()` from `src/lib/firebase/firestore.ts`
+3. **Type safety**: Pass type parameter to generic functions: `getAll<Servicio>(COLLECTIONS.SERVICIOS)`
+4. **Error handling**: Firebase operations can fail - always handle errors gracefully
+5. **Loading states**: Show loading indicators while Firebase operations are in progress
+6. **Optimistic updates**: Update local state immediately, then sync with Firebase
 
 ## shadcn/ui Components
 
@@ -372,6 +486,7 @@ Installed components:
 - Table, Tabs, Badge, Progress, Avatar, Separator
 - Dropdown Menu, Popover
 - Calendar (react-day-picker)
+- Card, Form, Textarea
 
 Add new components: Check shadcn/ui docs, copy to `src/components/ui/`
 
@@ -379,10 +494,59 @@ Add new components: Check shadcn/ui docs, copy to `src/components/ui/`
 
 When adding features:
 
-1. Update type in `src/types/index.ts`
-2. Update store (fetch, create, update, delete)
-3. Update form schema in Dialog component
-4. Add form fields to Dialog UI
-5. Update table columns
-6. Add filtering logic if needed
-7. Test CRUD operations and filters
+1. Update type in `src/types/[domain].ts`
+2. Add Firestore collection to `COLLECTIONS` enum (if new entity)
+3. Create store in `src/store/` using Firebase CRUD functions
+4. Create page in `src/app/(dashboard)/`
+5. Create components (Dialog, Table, Filters, etc.)
+6. Update form schema in Dialog component with Zod
+7. Add form fields to Dialog UI
+8. Update table columns
+9. Add filtering logic if needed
+10. Test CRUD operations with Firebase
+11. Test error handling and loading states
+
+## Testing
+
+- **Framework**: Vitest 4
+- **Test files**: `tests/unit/`, `tests/integration/`, `tests/e2e/`
+- **Test utilities**: `src/test/setup.ts`, `src/test/utils.ts`
+- **Commands**: `npm test`, `npm run test:ui`, `npm run test:watch`, `npm run test:coverage`
+
+## Known Issues & Technical Debt
+
+1. **Configuracion Route**: Link exists in sidebar (`src/components/layout/Sidebar.tsx`) but route doesn't exist - will cause 404
+2. **Subscription References**: Some types (`dashboard.ts`, `clientes.ts`) contain subscription-related fields for historical data compatibility
+3. **Dashboard Placeholder Data**: Dashboard UI restored but contains placeholder/static data (not connected to backend logic)
+4. **SUSCRIPCIONES Collection**: Defined in Firestore COLLECTIONS enum but not used in UI (reserved for future use)
+
+## Deployment Considerations
+
+When deploying to production:
+
+1. **Firebase Configuration**: Ensure production Firebase credentials are in environment variables
+2. **Firebase Security Rules**: Configure Firestore security rules for production
+3. **Authentication**: Implement proper user management (not just admin@ email check)
+4. **Server-Side Proxy**: Implement JWT/cookie validation in `proxy.ts` for server-side auth
+5. **Error Tracking**: Add error monitoring service (Sentry, etc.)
+6. **Performance**: Enable Firebase caching and optimize queries
+7. **Backup**: Implement Firestore backup strategy
+
+## Migration from Mock Data (Completed)
+
+The system has been fully migrated from mock data to Firebase:
+
+- ✅ All stores use Firebase Firestore
+- ✅ Authentication uses Firebase Auth
+- ✅ No more simulated delays (real async operations)
+- ✅ Data persists across sessions
+- ✅ Templates use localStorage (templatesStore)
+- ✅ Auth state uses localStorage (authStore)
+- ✅ All CRUD operations update Firebase
+
+## Recent Changes (Feb 2026)
+
+- **Removed** (commit db25141): Suscripciones module, Pagos de Servicios module
+- **Restored** (commit 8b4072d): Dashboard UI components with placeholder data
+- **Fixed** (commit 9feb52b, d99fae7): Cleaned up imports and references to removed modules
+- **Status**: System is stable with core features (services, users, categories, payment methods, notifications, activity log, message templates)

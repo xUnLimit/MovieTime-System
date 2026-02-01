@@ -83,7 +83,7 @@ export function RevendedoresTable({ revendedores, onEdit, title = 'Revendedores'
       sortable: true,
       width: '14%',
       render: (item) => (
-        <div className="font-medium">{item.nombre}</div>
+        <div className="font-medium">{item.nombre} {item.apellido}</div>
       ),
     },
     {
@@ -118,17 +118,17 @@ export function RevendedoresTable({ revendedores, onEdit, title = 'Revendedores'
       },
     },
     {
-      key: 'montoTotal',
+      key: 'montoSinConsumir',
       header: 'Monto Sin Consumir',
       sortable: true,
       align: 'center',
       width: '16%',
       render: (item) => {
-        const isActive = item.montoTotal > 0;
+        const isActive = item.montoSinConsumir > 0;
         return (
           <div className="flex items-center justify-center gap-1">
             <span className={isActive ? 'text-green-500 font-medium' : 'text-muted-foreground'}>$</span>
-            <span className={isActive ? 'font-medium' : 'text-muted-foreground'}>{item.montoTotal.toFixed(2)}</span>
+            <span className={isActive ? 'font-medium' : 'text-muted-foreground'}>{item.montoSinConsumir.toFixed(2)}</span>
           </div>
         );
       },

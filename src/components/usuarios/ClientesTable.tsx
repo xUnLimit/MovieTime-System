@@ -83,7 +83,7 @@ export function ClientesTable({ clientes, onEdit, title = 'Clientes' }: Clientes
       sortable: true,
       width: '14%',
       render: (item) => (
-        <div className="font-medium">{item.nombre}</div>
+        <div className="font-medium">{item.nombre} {item.apellido}</div>
       ),
     },
     {

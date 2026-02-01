@@ -277,6 +277,9 @@ export function CategoriaForm() {
                 <DropdownMenuItem onClick={() => setValue('tipo', 'revendedor')}>
                   Revendedor
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setValue('tipo', 'ambos')}>
+                  Ambos
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             {errors.tipo && (
