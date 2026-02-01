@@ -2,28 +2,21 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ActivityLog } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { RefreshCw, Edit, Trash2, Plus } from 'lucide-react';
+import { Edit, Trash2, Plus } from 'lucide-react';
 import Link from 'next/link';
-
-interface RecentActivityProps {
-  logs: ActivityLog[];
-}
 
 const actionIcons = {
   creacion: Plus,
   actualizacion: Edit,
   eliminacion: Trash2,
-  renovacion: RefreshCw,
 };
 
 const actionLabels = {
   creacion: 'Creó',
   actualizacion: 'Actualizó',
   eliminacion: 'Eliminó',
-  renovacion: 'Renovó',
 };
 
 // Mapeo de acciones a colores específicos
@@ -31,10 +24,10 @@ const actionColors = {
   creacion: 'bg-green-500/10 text-green-500',
   actualizacion: 'bg-blue-500/10 text-blue-500',
   eliminacion: 'bg-red-500/10 text-red-500',
-  renovacion: 'bg-purple-500/10 text-purple-500',
 };
 
-export function RecentActivity({ logs }: RecentActivityProps) {
+export function RecentActivity() {
+  const logs: any[] = [];
   const recentLogs = logs.slice(0, 6);
 
   return (

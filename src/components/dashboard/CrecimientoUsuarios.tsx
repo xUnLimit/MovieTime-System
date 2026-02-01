@@ -19,21 +19,17 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import { Cliente, Revendedor } from '@/types';
 import { useMemo } from 'react';
 import { subMonths, format, eachDayOfInterval, eachMonthOfInterval, startOfMonth, endOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-interface CrecimientoUsuariosProps {
-  clientes: Cliente[];
-  revendedores: Revendedor[];
-}
-
-export function CrecimientoUsuarios({ clientes, revendedores }: CrecimientoUsuariosProps) {
+export function CrecimientoUsuarios() {
   const [selectedPeriod, setSelectedPeriod] = useState('actual');
 
   const currentDate = new Date();
-  const hasData = clientes.length > 0 || revendedores.length > 0;
+  const clientes: any[] = [];
+  const revendedores: any[] = [];
+  const hasData = false;
 
   const data = useMemo(() => {
     if (selectedPeriod === 'actual') {
