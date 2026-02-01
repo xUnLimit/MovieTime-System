@@ -4,25 +4,18 @@ import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import Link from 'next/link';
-import { CategoriasTable } from '@/components/servicios/CategoriasTable';
-import { ServiciosMetrics } from '@/components/servicios/ServiciosMetrics';
 import { useServiciosStore } from '@/store/serviciosStore';
 import { useCategoriasStore } from '@/store/categoriasStore';
-import { useSuscripcionesStore } from '@/store/suscripcionesStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 
 function ServiciosPageContent() {
   const { servicios, fetchServicios } = useServiciosStore();
   const { categorias, fetchCategorias } = useCategoriasStore();
-  const { suscripciones, fetchSuscripciones } = useSuscripcionesStore();
 
   useEffect(() => {
     fetchServicios();
     fetchCategorias();
-    fetchSuscripciones();
-  }, [fetchServicios, fetchCategorias, fetchSuscripciones]);
-
-  const categoriasActivas = categorias.filter(c => c.activo);
+  }, [fetchServicios, fetchCategorias]);
 
   return (
     <div className="space-y-4">
@@ -41,18 +34,9 @@ function ServiciosPageContent() {
         </Link>
       </div>
 
-      <ServiciosMetrics
-        servicios={servicios}
-        suscripciones={suscripciones}
-        totalCategorias={categoriasActivas.length}
-      />
-
-      <CategoriasTable
-        categorias={categoriasActivas}
-        servicios={servicios}
-        suscripciones={suscripciones}
-        title="Todas las categorías"
-      />
+      <div className="text-center py-12">
+        <p className="text-muted-foreground">Servicios y categorías</p>
+      </div>
     </div>
   );
 }
