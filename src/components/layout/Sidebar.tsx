@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   Users,
   Server,
-  ShoppingCart,
   Bell,
   CreditCard,
   Folder,
@@ -18,8 +17,7 @@ import {
   Sun,
   ChevronLeft,
   Settings,
-  LogOut,
-  TrendingUp
+  LogOut
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useAuthStore } from '@/store/authStore';
@@ -49,16 +47,6 @@ const navigationSections = [
         href: '/servicios',
         icon: Server
       },
-      {
-        name: 'Suscripciones',
-        href: '/suscripciones',
-        icon: ShoppingCart
-      },
-      {
-        name: 'Ventas',
-        href: '/ventas',
-        icon: TrendingUp
-      }
     ]
   },
   {
@@ -68,11 +56,6 @@ const navigationSections = [
         name: 'Notificaciones',
         href: '/notificaciones',
         icon: Bell
-      },
-      {
-        name: 'Pagos de Servicios',
-        href: '/pagos-servicios',
-        icon: CreditCard
       },
       {
         name: 'Categorías',

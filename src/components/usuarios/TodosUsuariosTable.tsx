@@ -78,8 +78,8 @@ export function TodosUsuariosTable({
       telefono: r.telefono,
       metodoPagoNombre: r.metodoPagoNombre,
       tipo: 'Revendedor' as const,
-      serviciosActivos: r.suscripcionesTotales,
-      montoSinConsumir: r.montoTotal,
+      serviciosActivos: 0,
+      montoSinConsumir: 0,
       original: r,
     }));
 

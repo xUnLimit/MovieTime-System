@@ -3,8 +3,8 @@
 // ===========================
 
 // Activity Log Types
-export type AccionLog = 'creacion' | 'actualizacion' | 'eliminacion' | 'renovacion';
-export type EntidadLog = 'suscripcion' | 'cliente' | 'revendedor' | 'servicio' | 'usuario' | 'categoria' | 'metodo_pago' | 'gasto';
+export type AccionLog = 'creacion' | 'actualizacion' | 'eliminacion';
+export type EntidadLog = 'cliente' | 'revendedor' | 'servicio' | 'usuario' | 'categoria' | 'metodo_pago' | 'gasto';
 
 export interface ActivityLog {
   id: string;
@@ -81,7 +81,7 @@ export interface GastoFormData {
 }
 
 // Template Mensaje Types
-export type TipoTemplate = 'notificacion_regular' | 'dia_pago' | 'renovacion' | 'suscripcion' | 'cancelacion';
+export type TipoTemplate = 'notificacion_regular' | 'informacion';
 
 export interface TemplateMensaje {
   id: string;

@@ -9,7 +9,6 @@ export * from './common';
 export * from './categorias';
 export * from './clientes';
 export * from './servicios';
-export * from './suscripciones';
 export * from './metodos-pago';
 export * from './notificaciones';
 export * from './whatsapp';

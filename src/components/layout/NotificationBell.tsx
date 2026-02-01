@@ -36,12 +36,9 @@ export function NotificationBell() {
     router.push('/notificaciones');
   };
 
-  const handleNotificationClick = (notificationId: string, suscripcionId?: string) => {
+  const handleNotificationClick = (notificationId: string) => {
     handleMarkAsRead(notificationId);
     setOpen(false);
-    if (suscripcionId) {
-      router.push(`/suscripciones?highlight=${suscripcionId}`);
-    }
   };
 
   const getPriorityColor = (prioridad: string) => {
@@ -101,7 +98,7 @@ export function NotificationBell() {
                   !notificacion.leida ? 'bg-primary/5' : ''
                 }`}
                 onClick={() =>
-                  handleNotificationClick(notificacion.id, notificacion.suscripcionId)
+                  handleNotificationClick(notificacion.id)
                 }
               >
                 <div className="flex items-start gap-3">

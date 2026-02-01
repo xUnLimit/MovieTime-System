@@ -40,7 +40,6 @@ export function LogTimeline({
       creacion: 'bg-green-500/20 text-green-400 border-green-500/30',
       actualizacion: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
       eliminacion: 'bg-red-500/20 text-red-400 border-red-500/30',
-      renovacion: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
     };
     return styles[accion];
   };
@@ -50,20 +49,18 @@ export function LogTimeline({
       creacion: 'Creación',
       actualizacion: 'Actualización',
       eliminacion: 'Eliminación',
-      renovacion: 'Renovación',
     };
     return labels[accion];
   };
 
   const getEntityLabel = (entidad: ActivityLog['entidad']) => {
     const labels = {
-      suscripcion: 'Suscripción',
       cliente: 'Cliente',
       revendedor: 'Revendedor',
       servicio: 'Servicio',
       usuario: 'Usuario',
       categoria: 'Categoría',
-      metodo_pago: 'Pago de Suscripción',
+      metodo_pago: 'Método de Pago',
       gasto: 'Gasto',
     };
     return labels[entidad];
