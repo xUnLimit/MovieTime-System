@@ -267,11 +267,9 @@ export function MetodoPagoForm() {
     try {
       const metodoPagoData: any = {
         nombre: data.nombre,
-        tipo: 'banco' as TipoMetodoPago,
         pais: data.pais,
         moneda: data.moneda,
         titular: data.titular,
-        identificador: data.asociadoA === 'usuario' ? (data.identificador || '') : (data.email || ''),
         activo: true,
         asociadoA: data.asociadoA,
       };
@@ -279,9 +277,9 @@ export function MetodoPagoForm() {
       // Agregar campos opcionales si tienen valor
       if (data.alias) metodoPagoData.alias = data.alias;
       if (data.notas) metodoPagoData.notas = data.notas;
-
       if (data.asociadoA === 'usuario' && data.tipoCuenta) {
         // Campos para usuario
+        metodoPagoData.identificador = data.identificador,
         metodoPagoData.tipoCuenta = data.tipoCuenta;
       } else if (data.asociadoA === 'servicio') {
         // Campos para servicio
