@@ -417,7 +417,11 @@ export function MetodoPagoForm() {
             {/* País */}
             <div className="space-y-2">
               <Label htmlFor="pais">País</Label>
-              <DropdownMenu>
+              <DropdownMenu onOpenChange={(open) => {
+                if (!open) {
+                  setTimeout(() => setPaisSearch(''), 200);
+                }
+              }}>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
@@ -429,7 +433,7 @@ export function MetodoPagoForm() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                  <div className="p-2 border-b">
+                  <div className="p-2 border-b" onKeyDown={(e) => e.stopPropagation()}>
                     <div className="relative">
                       <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
@@ -437,7 +441,8 @@ export function MetodoPagoForm() {
                         value={paisSearch}
                         onChange={(e) => setPaisSearch(e.target.value)}
                         className="h-8 pl-8"
-                        onClick={(e) => e.stopPropagation()}
+                        autoFocus
+                        onKeyDown={(e) => e.stopPropagation()}
                       />
                     </div>
                   </div>
@@ -449,7 +454,6 @@ export function MetodoPagoForm() {
                         key={pm.pais}
                         onClick={() => {
                           setValue('pais', pm.pais);
-                          setPaisSearch('');
                         }}
                       >
                         {pm.pais}

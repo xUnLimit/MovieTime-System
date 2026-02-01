@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -51,7 +51,7 @@ const servicioSchema = z.object({
   cicloPago: z.enum(['mensual', 'trimestral', 'semestral', 'anual']),
   fechaInicio: z.date(),
   fechaVencimiento: z.date(),
-  estado: z.enum(['activo', 'suspendido', 'inactivo']),
+  estado: z.enum(['activo', 'inactivo']),
   notas: z.string().optional(),
 });
 
@@ -119,6 +119,66 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
   const fechaInicioValue = watch('fechaInicio');
   const fechaVencimientoValue = watch('fechaVencimiento');
   const estadoValue = watch('estado');
+  const notasValue = watch('notas');
+
+  // Detectar si hay cambios en el formulario
+  const hasChanges = useMemo(() => {
+    if (!servicio?.id) return true; // Si es nuevo, siempre permitir guardar
+
+    return (
+      nombreValue !== servicio.nombre ||
+      correoValue !== servicio.correo ||
+      contrasenaValue !== servicio.contrasena ||
+      categoriaIdValue !== servicio.categoriaId ||
+      tipoPlanValue !== servicio.tipo ||
+      metodoPagoIdValue !== (servicio.metodoPagoId || '') ||
+      String(costoServicioValue) !== String(servicio.costoServicio || 0) ||
+      String(perfilesDisponiblesValue) !== String(servicio.perfilesDisponibles || 1) ||
+      cicloPagoValue !== (servicio.cicloPago || 'mensual') ||
+      estadoValue !== (servicio.activo ? 'activo' : 'inactivo') ||
+      notasValue !== (servicio.notas || '') ||
+      fechaInicioValue?.getTime() !== servicio.fechaInicio?.getTime() ||
+      fechaVencimientoValue?.getTime() !== servicio.fechaVencimiento?.getTime()
+    );
+  }, [
+    servicio,
+    nombreValue,
+    correoValue,
+    contrasenaValue,
+    categoriaIdValue,
+    tipoPlanValue,
+    metodoPagoIdValue,
+    costoServicioValue,
+    perfilesDisponiblesValue,
+    cicloPagoValue,
+    estadoValue,
+    notasValue,
+    fechaInicioValue,
+    fechaVencimientoValue,
+  ]);
+
+  // Pre-llenar el formulario cuando se edita un servicio existente
+  useEffect(() => {
+    if (servicio?.id) {
+      setValue('nombre', servicio.nombre);
+      setValue('categoriaId', servicio.categoriaId);
+      setValue('tipoPlan', servicio.tipo);
+      setValue('correo', servicio.correo);
+      setValue('contrasena', servicio.contrasena);
+      setValue('metodoPagoId', servicio.metodoPagoId || '');
+      setValue('costoServicio', String(servicio.costoServicio || 0));
+      setValue('perfilesDisponibles', String(servicio.perfilesDisponibles || 1));
+      setValue('cicloPago', servicio.cicloPago || 'mensual');
+      if (servicio.fechaInicio) {
+        setValue('fechaInicio', new Date(servicio.fechaInicio));
+      }
+      if (servicio.fechaVencimiento) {
+        setValue('fechaVencimiento', new Date(servicio.fechaVencimiento));
+      }
+      setValue('estado', servicio.activo ? 'activo' : 'inactivo');
+      setValue('notas', servicio.notas || '');
+    }
+  }, [servicio?.id, setValue]);
 
   // Auto-limpiar errores solo para campos que no necesitan validación compleja
   useEffect(() => {
@@ -194,13 +254,15 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
         categoriaNombre: categoria?.nombre || '',
         correo: data.correo,
         contrasena: data.contrasena,
-        tipo: data.tipoPlan === 'cuenta_completa' ? 'individual' as const : 'familiar' as const,
-        costoPorPerfil: data.costoServicio / data.perfilesDisponibles,
+        tipo: data.tipoPlan,
+        costoServicio: data.costoServicio,
         perfilesDisponibles: data.perfilesDisponibles,
+        metodoPagoId: data.metodoPagoId,
+        cicloPago: data.cicloPago,
         fechaInicio: data.fechaInicio,
         fechaVencimiento: data.fechaVencimiento,
-        activo: true,
-        renovacionAutomatica: false,
+        notas: data.notas,
+        activo: data.estado === 'activo',
         createdBy: 'admin',
       };
 
@@ -259,8 +321,6 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
     switch (estado) {
       case 'activo':
         return 'Activo';
-      case 'suspendido':
-        return 'Suspendido';
       case 'inactivo':
         return 'Inactivo';
       default:
@@ -396,26 +456,12 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
 
             <div className="space-y-2">
               <Label htmlFor="contrasena">Contraseña</Label>
-              <div className="relative">
-                <Input
-                  id="contrasena"
-                  type={showPassword ? 'text' : 'password'}
-                  {...register('contrasena')}
-                  placeholder="Ingrese la contraseña"
-                  className="pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                </button>
-              </div>
+              <Input
+                id="contrasena"
+                type="text"
+                {...register('contrasena')}
+                placeholder="Ingrese la contraseña"
+              />
               {errors.contrasena && (
                 <p className="text-sm text-red-500">{errors.contrasena.message}</p>
               )}
@@ -690,9 +736,6 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
                   <DropdownMenuItem onClick={() => setValue('estado', 'activo')}>
                     Activo
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setValue('estado', 'suspendido')}>
-                    Suspendido
-                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setValue('estado', 'inactivo')}>
                     Inactivo
                   </DropdownMenuItem>
@@ -840,7 +883,7 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
             <Button type="button" variant="outline" onClick={handlePrevious}>
               Anterior
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting || !hasChanges}>
               {isSubmitting ? (servicio?.id ? 'Actualizando...' : 'Creando...') : (servicio?.id ? 'Guardar Cambios' : 'Crear Servicio')}
             </Button>
           </div>

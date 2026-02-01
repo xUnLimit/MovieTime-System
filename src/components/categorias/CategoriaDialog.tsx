@@ -28,7 +28,7 @@ import { toast } from 'sonner';
 
 const categoriaSchema = z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  tipo: z.enum(['cliente', 'revendedor', 'ambos']),
+  tipo: z.enum(['cliente', 'revendedor']),
   iconUrl: z.string().optional(),
   color: z.string().optional(),
   activo: z.boolean(),
@@ -59,7 +59,7 @@ export function CategoriaDialog({
     resolver: zodResolver(categoriaSchema),
     defaultValues: {
       nombre: '',
-      tipo: 'ambos',
+      tipo: 'cliente',
       iconUrl: '',
       color: '#000000',
       activo: true,
@@ -81,7 +81,7 @@ export function CategoriaDialog({
     } else {
       reset({
         nombre: '',
-        tipo: 'ambos',
+        tipo: 'cliente',
         iconUrl: '',
         color: '#000000',
         activo: true,
@@ -135,7 +135,6 @@ export function CategoriaDialog({
               <SelectContent>
                 <SelectItem value="cliente">Cliente</SelectItem>
                 <SelectItem value="revendedor">Revendedor</SelectItem>
-                <SelectItem value="ambos">Ambos</SelectItem>
               </SelectContent>
             </Select>
             {errors.tipo && (

@@ -22,12 +22,6 @@ export const ServiciosCategoriaFilters = memo(function ServiciosCategoriaFilters
           Activo
         </TabsTrigger>
         <TabsTrigger
-          value="suspendido"
-          className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2 text-sm"
-        >
-          Suspendido
-        </TabsTrigger>
-        <TabsTrigger
           value="inactivo"
           className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2 text-sm"
         >

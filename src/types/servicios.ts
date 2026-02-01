@@ -7,15 +7,17 @@ export interface Servicio {
   categoriaId: string;
   categoriaNombre: string;
   nombre: string;
-  tipo: 'individual' | 'familiar';
+  tipo: 'cuenta_completa' | 'perfiles';
   correo: string;
   contrasena: string;
   perfilesDisponibles: number;
   perfilesOcupados: number;
-  costoPorPerfil: number;
-  costoTotal: number;
+  costoServicio: number;
+  metodoPagoId?: string;
+  cicloPago?: 'mensual' | 'trimestral' | 'semestral' | 'anual';
   fechaInicio?: Date;
   fechaVencimiento?: Date;
+  notas?: string;
   activo: boolean;
   renovacionAutomatica: boolean;
   fechaRenovacion?: Date;
@@ -28,7 +30,7 @@ export interface Servicio {
 export interface ServicioFormData {
   categoriaId: string;
   nombre: string;
-  tipo: 'individual' | 'familiar';
+  tipo: 'cuenta_completa' | 'perfiles';
   correo: string;
   contrasena: string;
   perfilesDisponibles: number;

@@ -58,7 +58,6 @@ function ServiciosCategoriaPageContent() {
       const matchEstado =
         estadoFilter === 'todos' ||
         (estadoFilter === 'activo' && servicio.activo) ||
-        (estadoFilter === 'suspendido' && !servicio.activo) ||
         (estadoFilter === 'inactivo' && !servicio.activo);
 
       return matchSearch && matchCiclo && matchPerfil && matchEstado;

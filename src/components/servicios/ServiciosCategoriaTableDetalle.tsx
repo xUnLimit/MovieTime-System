@@ -22,6 +22,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useServiciosStore } from '@/store/serviciosStore';
+import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -51,8 +52,31 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
   onPerfilChange,
 }: ServiciosCategoriaTableDetalleProps) {
   const { deleteServicio } = useServiciosStore();
+  const { metodosPago } = useMetodosPagoStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [servicioToDelete, setServicioToDelete] = useState<Servicio | null>(null);
+
+  const getCurrencySymbol = (metodoPagoId?: string) => {
+    if (!metodoPagoId) return '$';
+    const metodoPago = metodosPago.find(m => m.id === metodoPagoId);
+    if (!metodoPago?.moneda) return '$';
+
+    const currencySymbols: Record<string, string> = {
+      USD: '$',
+      EUR: '€',
+      COP: '$',
+      MXN: '$',
+      CRC: '₡',
+      VES: 'Bs',
+      ARS: '$',
+      CLP: '$',
+      PEN: 'S/',
+      NGN: '₦',
+      TRY: '₺',
+    };
+
+    return currencySymbols[metodoPago.moneda] || '$';
+  };
 
   const handleDelete = (servicio: Servicio) => {
     setServicioToDelete(servicio);
@@ -138,8 +162,8 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
       width: '7%',
       render: (item) => (
         <div className="flex items-center justify-center gap-1">
-          <span className="font-medium">$</span>
-          <span className="font-medium">{((item.costoPorPerfil || 0) * (item.perfilesDisponibles || 0)).toFixed(2)}</span>
+          <span className="font-medium">{getCurrencySymbol(item.metodoPagoId)}</span>
+          <span className="font-medium">{(item.costoServicio || 0).toFixed(2)}</span>
         </div>
       ),
     },

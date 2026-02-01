@@ -63,9 +63,10 @@ export function ServiciosMetodosPagoTable({ metodosPago, onEdit, title = 'Métod
   const filteredMetodos = useMemo(() => {
     const filtered = metodosConServicios.filter((metodo) => {
       const matchesSearch =
-        metodo.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        metodo.titular.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        metodo.identificador.toLowerCase().includes(searchQuery.toLowerCase());
+        metodo.nombre?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        metodo.titular?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        metodo.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        metodo.numeroTarjeta?.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesPais = paisFilter === 'todos' || metodo.pais === paisFilter;
       return matchesSearch && matchesPais;
     });

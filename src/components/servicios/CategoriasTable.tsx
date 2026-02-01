@@ -68,7 +68,7 @@ export const CategoriasTable = memo(function CategoriasTable({
         // Calcular totales
         const totalServicios = serviciosCategoria.length;
         const serviciosActivosCount = serviciosActivos.length;
-        const perfilesDisponibles = serviciosCategoria.reduce(
+        const perfilesDisponibles = serviciosActivos.reduce(
           (sum, s) => sum + (s.perfilesDisponibles || 0),
           0
         );
@@ -310,8 +310,8 @@ export const CategoriasTable = memo(function CategoriasTable({
                     <TableCell className="text-center py-2">
                       <div className="space-y-0.5">
                         <div className="flex items-center justify-center gap-1">
-                          <TrendingUp className="h-3 w-3 text-green-500" />
-                          <span className="font-medium text-sm">{row.serviciosActivos} / {row.totalServicios}</span>
+                          <TrendingUp className={`h-3 w-3 ${row.serviciosActivos > 0 ? 'text-green-500' : 'text-muted-foreground'}`} />
+                          <span className={`font-medium text-sm ${row.serviciosActivos > 0 ? '' : 'text-muted-foreground'}`}>{row.serviciosActivos} / {row.totalServicios}</span>
                         </div>
                         <div className="bg-neutral-700 rounded-full h-1.5 overflow-hidden">
                           <div

@@ -49,12 +49,9 @@ export const useServiciosStore = create<ServiciosState>()(
 
       createServicio: async (servicioData) => {
         try {
-          const costoTotal = servicioData.perfilesDisponibles * servicioData.costoPorPerfil;
-
           const id = await createDoc(COLLECTIONS.SERVICIOS, {
             ...servicioData,
             perfilesOcupados: 0,
-            costoTotal,
             activo: true,
             createdAt: Timestamp.now(),
             updatedAt: Timestamp.now()
@@ -64,11 +61,10 @@ export const useServiciosStore = create<ServiciosState>()(
             ...servicioData,
             id,
             perfilesOcupados: 0,
-            costoTotal,
             activo: true,
             createdAt: new Date(),
             updatedAt: new Date()
-          };
+          } as Servicio;
 
           set((state) => ({
             servicios: [...state.servicios, newServicio]
