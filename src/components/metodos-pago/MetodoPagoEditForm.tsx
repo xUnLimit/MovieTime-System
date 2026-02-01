@@ -33,7 +33,7 @@ const metodoPagoSchemaComplete = z.object({
   titular: z.string().min(2, 'El titular es requerido'),
   notas: z.string().optional(),
   // Campos para usuario
-  tipoCuenta: z.enum(['ahorro', 'corriente', 'wallet', 'telefono'] as const).optional(),
+  tipoCuenta: z.enum(['ahorro', 'corriente', 'wallet', 'telefono', 'email'] as const).optional(),
   identificador: z.string().optional(),
   // Campos para servicio
   email: z.string().optional(),
@@ -138,7 +138,7 @@ export function MetodoPagoEditForm({ metodoPago }: MetodoPagoEditFormProps) {
       moneda: 'USD',
       alias: '',
       titular: metodoPago.titular,
-      tipoCuenta: (metodoPago.tipoCuenta && ['ahorro', 'corriente', 'wallet', 'telefono'].includes(metodoPago.tipoCuenta)) ? metodoPago.tipoCuenta as any : undefined,
+      tipoCuenta: (metodoPago.tipoCuenta && ['ahorro', 'corriente', 'wallet', 'telefono', 'email'].includes(metodoPago.tipoCuenta)) ? metodoPago.tipoCuenta as any : undefined,
       identificador: metodoPago.identificador,
       email: metodoPago.email || '',
       contrasena: metodoPago.contrasena || '',
@@ -347,6 +347,8 @@ export function MetodoPagoEditForm({ metodoPago }: MetodoPagoEditFormProps) {
         return 'Corriente';
       case 'wallet':
         return 'Wallet';
+      case 'email':
+        return 'Email';
       case 'telefono':
         return 'Teléfono';
       default:
@@ -561,11 +563,14 @@ export function MetodoPagoEditForm({ metodoPago }: MetodoPagoEditFormProps) {
                       <DropdownMenuItem onClick={() => setValue('tipoCuenta', 'corriente')}>
                         Corriente
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setValue('tipoCuenta', 'wallet')}>
-                        Wallet
+                      <DropdownMenuItem onClick={() => setValue('tipoCuenta', 'email')}>
+                        Email
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setValue('tipoCuenta', 'telefono')}>
                         Teléfono
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setValue('tipoCuenta', 'wallet')}>
+                        Wallet
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
