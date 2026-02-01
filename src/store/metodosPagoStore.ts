@@ -13,6 +13,7 @@ interface MetodosPagoState {
   fetchMetodosPago: () => Promise<void>;
   createMetodoPago: (metodo: Omit<MetodoPago, 'id' | 'createdAt' | 'updatedAt' | 'asociadoUsuarios' | 'asociadoServicios'>) => Promise<void>;
   updateMetodoPago: (id: string, updates: Partial<MetodoPago>) => Promise<void>;
+  toggleActivo: (id: string) => Promise<void>;
   deleteMetodoPago: (id: string) => Promise<void>;
   setSelectedMetodo: (metodo: MetodoPago | null) => void;
   getMetodoPago: (id: string) => MetodoPago | undefined;
@@ -86,6 +87,30 @@ export const useMetodosPagoStore = create<MetodosPagoState>()(
           }));
         } catch (error) {
           console.error('Error updating metodo pago:', error);
+          throw error;
+        }
+      },
+
+      toggleActivo: async (id) => {
+        try {
+          const metodo = get().metodosPago.find((m) => m.id === id);
+          if (!metodo) throw new Error('Método de pago no encontrado');
+
+          const newActivo = !metodo.activo;
+          await update(COLLECTIONS.METODOS_PAGO, id, {
+            activo: newActivo,
+            updatedAt: Timestamp.now()
+          });
+
+          set((state) => ({
+            metodosPago: state.metodosPago.map((m) =>
+              m.id === id
+                ? { ...m, activo: newActivo, updatedAt: new Date() }
+                : m
+            )
+          }));
+        } catch (error) {
+          console.error('Error toggling activo:', error);
           throw error;
         }
       },

@@ -1,38 +1,24 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
 import Link from 'next/link';
+import { Plus } from 'lucide-react';
 import { TodasCategoriasTable } from '@/components/categorias/TodasCategoriasTable';
 import { ClientesCategoriasTable } from '@/components/categorias/ClientesCategoriasTable';
 import { RevendedoresCategoriasTable } from '@/components/categorias/RevendedoresCategoriasTable';
-import { CategoriaDialog } from '@/components/categorias/CategoriaDialog';
 import { CategoriasMetrics } from '@/components/categorias/CategoriasMetrics';
 import { useCategoriasStore } from '@/store/categoriasStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
-import { Categoria } from '@/types';
 
 function CategoriasPageContent() {
   const { categorias, fetchCategorias } = useCategoriasStore();
   const [activeTab, setActiveTab] = useState('todos');
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedCategoria, setSelectedCategoria] = useState<Categoria | null>(null);
 
   useEffect(() => {
     fetchCategorias();
   }, [fetchCategorias]);
-
-  const handleCreate = useCallback(() => {
-    setSelectedCategoria(null);
-    setDialogOpen(true);
-  }, []);
-
-  const handleEdit = useCallback((categoria: Categoria) => {
-    setSelectedCategoria(categoria);
-    setDialogOpen(true);
-  }, []);
 
   return (
     <div className="space-y-4">
@@ -43,25 +29,41 @@ function CategoriasPageContent() {
             <Link href="/" className="hover:text-foreground transition-colors">Dashboard</Link> / <span className="text-foreground">Categorías</span>
           </p>
         </div>
-        <Button onClick={handleCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nueva Categoría
-        </Button>
+        <Link href="/categorias/crear">
+          <Button>
+            <Plus className="h-4 w-4 mr-2" />
+            Crear Categoría
+          </Button>
+        </Link>
       </div>
 
       <CategoriasMetrics categorias={categorias} />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="todos">Todos</TabsTrigger>
-          <TabsTrigger value="clientes">Clientes</TabsTrigger>
-          <TabsTrigger value="revendedores">Revendedores</TabsTrigger>
+        <TabsList className="bg-transparent rounded-none p-0 h-auto inline-flex border-b border-border">
+          <TabsTrigger
+            value="todos"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2 text-sm"
+          >
+            Todos
+          </TabsTrigger>
+          <TabsTrigger
+            value="clientes"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2 text-sm"
+          >
+            Clientes
+          </TabsTrigger>
+          <TabsTrigger
+            value="revendedores"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2 text-sm"
+          >
+            Revendedores
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="todos" className="space-y-4">
           <TodasCategoriasTable
             categorias={categorias}
-            onEdit={handleEdit}
             title="Todas las categorías"
           />
         </TabsContent>
@@ -69,7 +71,6 @@ function CategoriasPageContent() {
         <TabsContent value="clientes" className="space-y-4">
           <ClientesCategoriasTable
             categorias={categorias}
-            onEdit={handleEdit}
             title="Categorías de Clientes"
           />
         </TabsContent>
@@ -77,17 +78,10 @@ function CategoriasPageContent() {
         <TabsContent value="revendedores" className="space-y-4">
           <RevendedoresCategoriasTable
             categorias={categorias}
-            onEdit={handleEdit}
             title="Categorías de Revendedores"
           />
         </TabsContent>
       </Tabs>
-
-      <CategoriaDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        categoria={selectedCategoria}
-      />
     </div>
   );
 }

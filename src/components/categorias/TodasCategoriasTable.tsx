@@ -6,7 +6,6 @@ import { DataTable, Column } from '@/components/shared/DataTable';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -20,31 +19,35 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
+import { Search, MoreHorizontal, Eye, Edit, Trash2, Power } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { useCategoriasStore } from '@/store/categoriasStore';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 
 interface TodasCategoriasTableProps {
   categorias: Categoria[];
-  onEdit: (categoria: Categoria) => void;
   title?: string;
 }
 
-export function TodasCategoriasTable({ categorias, onEdit, title = 'Todas las categorías' }: TodasCategoriasTableProps) {
-  const { deleteCategoria } = useCategoriasStore();
+export function TodasCategoriasTable({ categorias, title = 'Todas las categorías' }: TodasCategoriasTableProps) {
+  const router = useRouter();
+  const { deleteCategoria, updateCategoria } = useCategoriasStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [categoriaToDelete, setCategoriaToDelete] = useState<Categoria | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [tipoFilter, setTipoFilter] = useState('todos');
 
-  // Filtrar categorías
+  // Filtrar y ordenar categorías
   const filteredCategorias = useMemo(() => {
-    return categorias.filter((categoria) => {
+    const filtered = categorias.filter((categoria) => {
       const matchesSearch = categoria.nombre.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesTipo = tipoFilter === 'todos' || categoria.tipo === tipoFilter || categoria.tipo === 'ambos';
       return matchesSearch && matchesTipo;
     });
+    // Ordenar alfabéticamente por nombre
+    return filtered.sort((a, b) => a.nombre.localeCompare(b.nombre));
   }, [categorias, searchQuery, tipoFilter]);
 
   const handleDelete = (categoria: Categoria) => {
@@ -63,6 +66,18 @@ export function TodasCategoriasTable({ categorias, onEdit, title = 'Todas las ca
     }
   };
 
+  const handleToggleStatus = async (categoria: Categoria) => {
+    try {
+      await updateCategoria(categoria.id, {
+        ...categoria,
+        activo: !categoria.activo,
+      });
+      toast.success(categoria.activo ? 'Categoría desactivada' : 'Categoría activada');
+    } catch (error) {
+      toast.error('Error al actualizar estado');
+    }
+  };
+
   const tipoLabels: Record<string, string> = {
     cliente: 'Cliente',
     revendedor: 'Revendedor',
@@ -74,7 +89,7 @@ export function TodasCategoriasTable({ categorias, onEdit, title = 'Todas las ca
       key: 'nombre',
       header: 'Nombre',
       sortable: true,
-      width: '25%',
+      width: '35%',
       render: (item) => (
         <span className="font-medium">{item.nombre}</span>
       ),
@@ -84,7 +99,7 @@ export function TodasCategoriasTable({ categorias, onEdit, title = 'Todas las ca
       header: 'Asociado a',
       sortable: true,
       align: 'center',
-      width: '20%',
+      width: '25%',
       render: (item) => {
         // Para "ambos", mostrar ambos tipos
         if (item.tipo === 'ambos') {
@@ -98,18 +113,18 @@ export function TodasCategoriasTable({ categorias, onEdit, title = 'Todas las ca
       header: 'Tipo de Categoría',
       sortable: false,
       align: 'center',
-      width: '25%',
+      width: '20%',
       render: () => <span>Plataforma de Streaming</span>,
     },
     {
-      key: 'activo',
+      key: 'estado',
       header: 'Estado',
-      sortable: false,
+      sortable: true,
       align: 'center',
       width: '15%',
       render: (item) => (
-        <Badge variant={item.activo ? 'default' : 'secondary'}>
-          {item.activo ? 'Activa' : 'Inactiva'}
+        <Badge variant="outline" className={item.activo ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-gray-500/20 text-gray-400 border-gray-500/30'}>
+          {item.activo ? 'Activo' : 'Inactivo'}
         </Badge>
       ),
     },
@@ -155,9 +170,17 @@ export function TodasCategoriasTable({ categorias, onEdit, title = 'Todas las ca
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onEdit(item)}>
+                <DropdownMenuItem onClick={() => router.push(`/categorias/${item.id}`)}>
+                  <Eye className="h-4 w-4 mr-2" />
+                  Ver detalles
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push(`/categorias/${item.id}/editar`)}>
                   <Edit className="h-4 w-4 mr-2" />
                   Editar
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleToggleStatus(item)}>
+                  <Power className="h-4 w-4 mr-2" />
+                  {item.activo ? 'Desactivar' : 'Activar'}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => handleDelete(item)}

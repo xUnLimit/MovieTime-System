@@ -1,6 +1,7 @@
 'use client';
 
 import { memo, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Table,
   TableBody,
@@ -47,6 +48,7 @@ export const CategoriasTable = memo(function CategoriasTable({
   suscripciones,
   title = 'Todas las categorías',
 }: CategoriasTableProps) {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -285,7 +287,7 @@ export const CategoriasTable = memo(function CategoriasTable({
                   {getSortIcon('montoSinConsumir')}
                 </Button>
               </TableHead>
-              <TableHead className="text-center pr-6">Acciones</TableHead>
+              <TableHead className="text-center pr-6 text-muted-foreground">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -341,14 +343,14 @@ export const CategoriasTable = memo(function CategoriasTable({
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <span className="font-medium text-blue-500">$</span>
-                        <span className="font-medium text-white">{row.ingresoTotal.toFixed(2)}</span>
+                        <span className={`font-medium ${row.ingresoTotal === 0 ? 'text-muted-foreground' : 'text-blue-500'}`}>$</span>
+                        <span className={`font-medium ${row.ingresoTotal === 0 ? 'text-muted-foreground' : 'text-white'}`}>{row.ingresoTotal.toFixed(2)}</span>
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <span className="font-medium text-red-500">$</span>
-                        <span className="font-medium text-white">{row.gastosTotal.toFixed(2)}</span>
+                        <span className={`font-medium ${row.gastosTotal === 0 ? 'text-muted-foreground' : 'text-red-500'}`}>$</span>
+                        <span className={`font-medium ${row.gastosTotal === 0 ? 'text-muted-foreground' : 'text-white'}`}>{row.gastosTotal.toFixed(2)}</span>
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
@@ -359,8 +361,8 @@ export const CategoriasTable = memo(function CategoriasTable({
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <span className={`font-medium ${row.montoSinConsumir < 0 ? 'text-red-500' : row.montoSinConsumir === 0 ? 'text-muted-foreground' : 'text-red-500'}`}>$</span>
-                        <span className={`font-medium ${row.montoSinConsumir < 0 ? 'text-red-500' : row.montoSinConsumir === 0 ? 'text-muted-foreground' : 'text-white'}`}>{row.montoSinConsumir.toFixed(2)}</span>
+                        <span className={`font-medium ${row.montoSinConsumir === 0 ? 'text-muted-foreground' : row.montoSinConsumir < 0 ? 'text-red-500' : 'text-red-500'}`}>$</span>
+                        <span className={`font-medium ${row.montoSinConsumir === 0 ? 'text-muted-foreground' : row.montoSinConsumir < 0 ? 'text-red-500' : 'text-white'}`}>{row.montoSinConsumir.toFixed(2)}</span>
                       </div>
                     </TableCell>
                     <TableCell className="text-center pr-6">
@@ -369,6 +371,12 @@ export const CategoriasTable = memo(function CategoriasTable({
                         size="icon"
                         className="h-8 w-8"
                         title="Ver detalles"
+                        onClick={() => {
+                          const servicioCategoria = servicios.find(s => s.categoriaId === row.categoria.id);
+                          if (servicioCategoria) {
+                            router.push(`/servicios/${servicioCategoria.id}`);
+                          }
+                        }}
                       >
                         <Eye className="h-4 w-4" />
                       </Button>

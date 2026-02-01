@@ -32,7 +32,8 @@ const metodoPagoSchema = z.object({
   identificador: z.string().min(4, 'El identificador debe tener al menos 4 caracteres'),
   tipoCuenta: z.enum(['ahorro', 'corriente', 'telefono', 'wallet']).optional(),
   banco: z.string().optional(),
-  pais: z.string().optional(),
+  pais: z.string(),
+  moneda: z.string(),
 });
 
 type MetodoPagoFormData = z.infer<typeof metodoPagoSchema>;
@@ -66,6 +67,7 @@ export function MetodoPagoDialog({
       tipoCuenta: 'ahorro',
       banco: '',
       pais: 'Panamá',
+      moneda: 'USD',
     },
   });
 
@@ -79,9 +81,10 @@ export function MetodoPagoDialog({
         tipo: metodoPago.tipo,
         titular: metodoPago.titular,
         identificador: metodoPago.identificador,
-        tipoCuenta: metodoPago.tipoCuenta,
+        tipoCuenta: (metodoPago.tipoCuenta && ['ahorro', 'corriente', 'wallet', 'telefono'].includes(metodoPago.tipoCuenta)) ? metodoPago.tipoCuenta as any : 'ahorro',
         banco: metodoPago.banco || '',
         pais: metodoPago.pais || 'Panamá',
+        moneda: metodoPago.moneda || 'USD',
       });
     } else {
       reset({
@@ -92,6 +95,7 @@ export function MetodoPagoDialog({
         tipoCuenta: 'ahorro',
         banco: '',
         pais: 'Panamá',
+        moneda: 'USD',
       });
     }
   }, [metodoPago, reset]);

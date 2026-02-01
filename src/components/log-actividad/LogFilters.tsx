@@ -3,13 +3,7 @@
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { ChevronDown } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
@@ -96,39 +90,87 @@ export function LogFilters({
         </PopoverContent>
       </Popover>
 
-      <Select value={entidadFilter} onValueChange={setEntidadFilter}>
-        <SelectTrigger className="w-[200px]">
-          <SelectValue placeholder="Todas las entidades" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Todas las entidades</SelectItem>
-          <SelectItem value="venta">Venta</SelectItem>
-          <SelectItem value="cliente">Cliente</SelectItem>
-          <SelectItem value="revendedor">Revendedor</SelectItem>
-          <SelectItem value="servicio">Servicio</SelectItem>
-          <SelectItem value="usuario">Usuario</SelectItem>
-          <SelectItem value="categoria">Categoría</SelectItem>
-          <SelectItem value="metodo_pago">Pago de Venta</SelectItem>
-          <SelectItem value="gasto">Gasto</SelectItem>
-        </SelectContent>
-      </Select>
-
-      <Select value={accionFilter} onValueChange={setAccionFilter}>
-        <SelectTrigger className="w-[200px]">
-          <SelectValue placeholder="Todas las acciones" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Todas las acciones</SelectItem>
-          <SelectItem value="creacion">Creación</SelectItem>
-          <SelectItem value="actualizacion">Actualización</SelectItem>
-          <SelectItem value="eliminacion">Eliminación</SelectItem>
-          <SelectItem value="renovacion">Renovación</SelectItem>
-        </SelectContent>
-      </Select>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" className="gap-2 justify-between w-[200px]">
+            {entidadFilter === 'all' ? 'Todas las entidades' : {
+              venta: 'Venta',
+              cliente: 'Cliente',
+              revendedor: 'Revendedor',
+              servicio: 'Servicio',
+              usuario: 'Usuario',
+              categoria: 'Categoría',
+              metodo_pago: 'Pago de Venta',
+              gasto: 'Gasto',
+            }[entidadFilter] || 'Todas las entidades'}
+            <ChevronDown className="h-4 w-4 opacity-50" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-[200px]">
+          <DropdownMenuItem onClick={() => setEntidadFilter('all')}>
+            Todas las entidades
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setEntidadFilter('venta')}>
+            Venta
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setEntidadFilter('cliente')}>
+            Cliente
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setEntidadFilter('revendedor')}>
+            Revendedor
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setEntidadFilter('servicio')}>
+            Servicio
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setEntidadFilter('usuario')}>
+            Usuario
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setEntidadFilter('categoria')}>
+            Categoría
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setEntidadFilter('metodo_pago')}>
+            Pago de Venta
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setEntidadFilter('gasto')}>
+            Gasto
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button className="gap-2 bg-[#ef4444] hover:bg-[#dc2626] text-white whitespace-nowrap">
+          <Button variant="outline" className="gap-2 justify-between w-[200px]">
+            {accionFilter === 'all' ? 'Todas las acciones' : {
+              creacion: 'Creación',
+              actualizacion: 'Actualización',
+              eliminacion: 'Eliminación',
+              renovacion: 'Renovación',
+            }[accionFilter] || 'Todas las acciones'}
+            <ChevronDown className="h-4 w-4 opacity-50" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-[200px]">
+          <DropdownMenuItem onClick={() => setAccionFilter('all')}>
+            Todas las acciones
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setAccionFilter('creacion')}>
+            Creación
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setAccionFilter('actualizacion')}>
+            Actualización
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setAccionFilter('eliminacion')}>
+            Eliminación
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setAccionFilter('renovacion')}>
+            Renovación
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button className="gap-2 bg-[#ff0000] hover:bg-[#e00000] text-white whitespace-nowrap shadow-lg shadow-red-600/50">
             <Trash2 className="h-4 w-4" />
             Limpiar Logs
           </Button>

@@ -33,10 +33,12 @@ function ServiciosPageContent() {
             <Link href="/" className="hover:text-foreground transition-colors">Dashboard</Link> / <span className="text-foreground">Servicios</span>
           </p>
         </div>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Nuevo Servicio
-        </Button>
+        <Link href="/servicios/crear">
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Nuevo Servicio
+          </Button>
+        </Link>
       </div>
 
       <ServiciosMetrics

@@ -6,51 +6,44 @@ import { DataTable, Column } from '@/components/shared/DataTable';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
+import { Search, MoreHorizontal, Eye, Edit, Trash2, Power } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { useCategoriasStore } from '@/store/categoriasStore';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 
 interface RevendedoresCategoriasTableProps {
   categorias: Categoria[];
-  onEdit: (categoria: Categoria) => void;
   title?: string;
 }
 
-export function RevendedoresCategoriasTable({ categorias, onEdit, title = 'Categorías de Revendedores' }: RevendedoresCategoriasTableProps) {
-  const { deleteCategoria } = useCategoriasStore();
+export function RevendedoresCategoriasTable({ categorias, title = 'Categorías de Revendedores' }: RevendedoresCategoriasTableProps) {
+  const router = useRouter();
+  const { deleteCategoria, updateCategoria } = useCategoriasStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [categoriaToDelete, setCategoriaToDelete] = useState<Categoria | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [estadoFilter, setEstadoFilter] = useState('todos');
 
   // Filtrar solo categorías de revendedores
   const categoriasRevendedores = useMemo(() => {
     return categorias.filter((c) => c.tipo === 'revendedor' || c.tipo === 'ambos');
   }, [categorias]);
 
-  // Aplicar filtros adicionales
+  // Aplicar filtros y ordenar alfabéticamente
   const filteredCategorias = useMemo(() => {
-    return categoriasRevendedores.filter((categoria) => {
-      const matchesSearch = categoria.nombre.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesEstado = estadoFilter === 'todos' || (estadoFilter === 'activa' ? categoria.activo : !categoria.activo);
-      return matchesSearch && matchesEstado;
+    const filtered = categoriasRevendedores.filter((categoria) => {
+      return categoria.nombre.toLowerCase().includes(searchQuery.toLowerCase());
     });
-  }, [categoriasRevendedores, searchQuery, estadoFilter]);
+    // Ordenar alfabéticamente por nombre
+    return filtered.sort((a, b) => a.nombre.localeCompare(b.nombre));
+  }, [categoriasRevendedores, searchQuery]);
 
   const handleDelete = (categoria: Categoria) => {
     setCategoriaToDelete(categoria);
@@ -68,12 +61,24 @@ export function RevendedoresCategoriasTable({ categorias, onEdit, title = 'Categ
     }
   };
 
+  const handleToggleStatus = async (categoria: Categoria) => {
+    try {
+      await updateCategoria(categoria.id, {
+        ...categoria,
+        activo: !categoria.activo,
+      });
+      toast.success(categoria.activo ? 'Categoría desactivada' : 'Categoría activada');
+    } catch (error) {
+      toast.error('Error al actualizar estado');
+    }
+  };
+
   const columns: Column<Categoria>[] = [
     {
       key: 'nombre',
       header: 'Nombre',
       sortable: true,
-      width: '30%',
+      width: '35%',
       render: (item) => (
         <span className="font-medium">{item.nombre}</span>
       ),
@@ -83,18 +88,18 @@ export function RevendedoresCategoriasTable({ categorias, onEdit, title = 'Categ
       header: 'Tipo de Categoría',
       sortable: false,
       align: 'center',
-      width: '30%',
+      width: '35%',
       render: () => <span>Plataforma de Streaming</span>,
     },
     {
-      key: 'activo',
+      key: 'estado',
       header: 'Estado',
-      sortable: false,
+      sortable: true,
       align: 'center',
       width: '20%',
       render: (item) => (
-        <Badge variant={item.activo ? 'default' : 'secondary'}>
-          {item.activo ? 'Activa' : 'Inactiva'}
+        <Badge variant="outline" className={item.activo ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-gray-500/20 text-gray-400 border-gray-500/30'}>
+          {item.activo ? 'Activo' : 'Inactivo'}
         </Badge>
       ),
     },
@@ -114,16 +119,6 @@ export function RevendedoresCategoriasTable({ categorias, onEdit, title = 'Categ
               className="pl-9"
             />
           </div>
-          <Select value={estadoFilter} onValueChange={setEstadoFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Todos los estados" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos los estados</SelectItem>
-              <SelectItem value="activa">Activas</SelectItem>
-              <SelectItem value="inactiva">Inactivas</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
 
         <DataTable
@@ -139,9 +134,17 @@ export function RevendedoresCategoriasTable({ categorias, onEdit, title = 'Categ
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onEdit(item)}>
+                <DropdownMenuItem onClick={() => router.push(`/categorias/${item.id}`)}>
+                  <Eye className="h-4 w-4 mr-2" />
+                  Ver detalles
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push(`/categorias/${item.id}/editar`)}>
                   <Edit className="h-4 w-4 mr-2" />
                   Editar
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleToggleStatus(item)}>
+                  <Power className="h-4 w-4 mr-2" />
+                  {item.activo ? 'Desactivar' : 'Activar'}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => handleDelete(item)}

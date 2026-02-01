@@ -29,12 +29,12 @@ function UsuariosPageContent() {
     fetchMetodosPago();
   }, [fetchClientes, fetchRevendedores, fetchMetodosPago]);
 
-  const handleEditCliente = (id: string) => {
-    router.push(`/usuarios/editar/${id}`);
+  const handleEditCliente = (cliente: any) => {
+    router.push(`/usuarios/editar/${cliente.id}`);
   };
 
-  const handleEditRevendedor = (id: string) => {
-    router.push(`/usuarios/editar/${id}`);
+  const handleEditRevendedor = (revendedor: any) => {
+    router.push(`/usuarios/editar/${revendedor.id}`);
   };
 
   return (
@@ -57,10 +57,25 @@ function UsuariosPageContent() {
       <UsuariosMetrics clientes={clientes} revendedores={revendedores} />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="todos">Todos</TabsTrigger>
-          <TabsTrigger value="clientes">Clientes</TabsTrigger>
-          <TabsTrigger value="revendedores">Revendedores</TabsTrigger>
+        <TabsList className="bg-transparent rounded-none p-0 h-auto inline-flex border-b border-border">
+          <TabsTrigger
+            value="todos"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2 text-sm"
+          >
+            Todos
+          </TabsTrigger>
+          <TabsTrigger
+            value="clientes"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2 text-sm"
+          >
+            Clientes
+          </TabsTrigger>
+          <TabsTrigger
+            value="revendedores"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2 text-sm"
+          >
+            Revendedores
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="todos" className="space-y-4">

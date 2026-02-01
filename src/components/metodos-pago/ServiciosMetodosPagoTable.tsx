@@ -19,10 +19,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
+import { Search, MoreHorizontal, Edit, Trash2, Eye, Power } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 
 interface ServiciosMetodosPagoTableProps {
   metodosPago: MetodoPago[];
@@ -31,15 +33,24 @@ interface ServiciosMetodosPagoTableProps {
 }
 
 export function ServiciosMetodosPagoTable({ metodosPago, onEdit, title = 'Métodos de pago de Servicios' }: ServiciosMetodosPagoTableProps) {
-  const { deleteMetodoPago } = useMetodosPagoStore();
+  const router = useRouter();
+  const { deleteMetodoPago, toggleActivo } = useMetodosPagoStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [metodoToDelete, setMetodoToDelete] = useState<MetodoPago | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [paisFilter, setPaisFilter] = useState('todos');
 
-  // Filtrar solo métodos con servicios asociados
+  // Filtrar solo métodos de servicio
   const metodosConServicios = useMemo(() => {
-    return metodosPago.filter((m) => m.asociadoServicios > 0);
+    return metodosPago.filter((m) => {
+      // Si tiene asociadoA, usarlo directamente
+      if (m.asociadoA) {
+        return m.asociadoA === 'servicio';
+      }
+      // Si no tiene asociadoA, inferir por tipoCuenta (legacy)
+      // Si NO tiene tipoCuenta, es servicio. Si tiene, es usuario.
+      return !m.tipoCuenta;
+    });
   }, [metodosPago]);
 
   // Obtener países únicos
@@ -48,9 +59,9 @@ export function ServiciosMetodosPagoTable({ metodosPago, onEdit, title = 'Métod
     return Array.from(paises).filter(Boolean);
   }, [metodosConServicios]);
 
-  // Filtrar métodos de pago
+  // Filtrar y ordenar métodos de pago
   const filteredMetodos = useMemo(() => {
-    return metodosConServicios.filter((metodo) => {
+    const filtered = metodosConServicios.filter((metodo) => {
       const matchesSearch =
         metodo.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
         metodo.titular.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -58,7 +69,22 @@ export function ServiciosMetodosPagoTable({ metodosPago, onEdit, title = 'Métod
       const matchesPais = paisFilter === 'todos' || metodo.pais === paisFilter;
       return matchesSearch && matchesPais;
     });
+    // Ordenar alfabéticamente por nombre
+    return filtered.sort((a, b) => a.nombre.localeCompare(b.nombre));
   }, [metodosConServicios, searchQuery, paisFilter]);
+
+  const handleViewDetails = (metodo: MetodoPago) => {
+    router.push(`/metodos-pago/${metodo.id}`);
+  };
+
+  const handleToggleActivo = async (metodo: MetodoPago) => {
+    try {
+      await toggleActivo(metodo.id);
+      toast.success(metodo.activo ? 'Método de pago desactivado' : 'Método de pago activado');
+    } catch (error) {
+      toast.error('Error al cambiar estado del método de pago');
+    }
+  };
 
   const handleDelete = (metodo: MetodoPago) => {
     setMetodoToDelete(metodo);
@@ -88,7 +114,7 @@ export function ServiciosMetodosPagoTable({ metodosPago, onEdit, title = 'Métod
       key: 'nombre',
       header: 'Método',
       sortable: true,
-      width: '20%',
+      width: '18%',
       render: (item) => <span className="font-medium">{item.banco || item.nombre}</span>,
     },
     {
@@ -103,35 +129,54 @@ export function ServiciosMetodosPagoTable({ metodosPago, onEdit, title = 'Métod
       header: 'Titular',
       sortable: true,
       align: 'center',
-      width: '25%',
+      width: '20%',
     },
     {
-      key: 'tipoCuenta',
-      header: 'Tipo Cuenta',
+      key: 'email',
+      header: 'Email',
       sortable: false,
       align: 'center',
-      width: '15%',
-      render: (item) => <span>{item.tipoCuenta ? tipoCuentaLabels[item.tipoCuenta] : '-'}</span>,
+      width: '22%',
+      render: (item) => <span className="text-sm">{item.email || item.identificador || 'N/A'}</span>,
     },
     {
-      key: 'identificador',
-      header: 'Identificador',
+      key: 'numeroTarjeta',
+      header: 'Últimos Dígitos',
       sortable: false,
       align: 'center',
-      width: '18%',
-      render: (item) => <span className="text-sm">{item.identificador}</span>,
+      width: '13%',
+      render: (item) => {
+        if (item.numeroTarjeta) {
+          // Extraer últimos 4 dígitos del número de tarjeta
+          const digitos = item.numeroTarjeta.replace(/\D/g, '').slice(-4);
+          return <span className="text-sm">{digitos}</span>;
+        }
+        return <span className="text-sm text-muted-foreground">N/A</span>;
+      },
+    },
+    {
+      key: 'activo',
+      header: 'Estado',
+      sortable: true,
+      align: 'center',
+      width: '10%',
+      render: (item) => (
+        <Badge variant={item.activo ? 'default' : 'secondary'} className="text-xs">
+          {item.activo ? 'Activo' : 'Inactivo'}
+        </Badge>
+      ),
     },
   ];
 
   return (
     <>
-      <Card className="p-4">
-        <h3 className="text-xl font-semibold mb-4">{title}</h3>
-        <div className="flex items-center gap-4 mb-4">
+      <Card className="p-4 pb-2">
+        <h3 className="text-xl font-semibold">{title}</h3>
+        <div className="flex items-center gap-4 -mb-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar por método, titular, alias..."
+              placeholder="Buscar por método, titular, email..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"
@@ -170,9 +215,17 @@ export function ServiciosMetodosPagoTable({ metodosPago, onEdit, title = 'Métod
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleViewDetails(item)}>
+                  <Eye className="h-4 w-4 mr-2" />
+                  Ver detalles
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => onEdit(item)}>
                   <Edit className="h-4 w-4 mr-2" />
                   Editar
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleToggleActivo(item)}>
+                  <Power className="h-4 w-4 mr-2" />
+                  {item.activo ? 'Desactivar' : 'Activar'}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => handleDelete(item)}

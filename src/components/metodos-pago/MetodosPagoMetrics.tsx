@@ -12,8 +12,19 @@ interface MetodosPagoMetricsProps {
 export const MetodosPagoMetrics = memo(function MetodosPagoMetrics({ metodosPago }: MetodosPagoMetricsProps) {
   const metrics = useMemo(() => {
     const total = metodosPago.length;
-    const asociadosUsuarios = metodosPago.reduce((sum, m) => sum + m.asociadoUsuarios, 0);
-    const asociadosServicios = metodosPago.reduce((sum, m) => sum + m.asociadoServicios, 0);
+
+    // Contar métodos por tipo
+    const asociadosUsuarios = metodosPago.filter(m => {
+      if (m.asociadoA) return m.asociadoA === 'usuario';
+      // Legacy: si tiene tipoCuenta es usuario, si no tiene es servicio
+      return !!m.tipoCuenta;
+    }).length;
+
+    const asociadosServicios = metodosPago.filter(m => {
+      if (m.asociadoA) return m.asociadoA === 'servicio';
+      // Legacy: si NO tiene tipoCuenta es servicio
+      return !m.tipoCuenta;
+    }).length;
 
     return { total, asociadosUsuarios, asociadosServicios };
   }, [metodosPago]);

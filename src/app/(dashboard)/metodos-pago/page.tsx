@@ -1,37 +1,30 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
 import Link from 'next/link';
+import { Plus } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { UsuariosMetodosPagoTable } from '@/components/metodos-pago/UsuariosMetodosPagoTable';
 import { ServiciosMetodosPagoTable } from '@/components/metodos-pago/ServiciosMetodosPagoTable';
-import { MetodoPagoDialog } from '@/components/metodos-pago/MetodoPagoDialog';
 import { MetodosPagoMetrics } from '@/components/metodos-pago/MetodosPagoMetrics';
 import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 import { MetodoPago } from '@/types';
 
 function MetodosPagoPageContent() {
+  const router = useRouter();
   const { metodosPago, fetchMetodosPago } = useMetodosPagoStore();
   const [activeTab, setActiveTab] = useState('usuarios');
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedMetodo, setSelectedMetodo] = useState<MetodoPago | null>(null);
 
   useEffect(() => {
     fetchMetodosPago();
   }, [fetchMetodosPago]);
 
-  const handleCreate = useCallback(() => {
-    setSelectedMetodo(null);
-    setDialogOpen(true);
-  }, []);
-
-  const handleEdit = useCallback((metodo: MetodoPago) => {
-    setSelectedMetodo(metodo);
-    setDialogOpen(true);
-  }, []);
+  const handleEdit = (metodo: MetodoPago) => {
+    router.push(`/metodos-pago/${metodo.id}/editar`);
+  };
 
   return (
     <div className="space-y-4">
@@ -42,42 +35,48 @@ function MetodosPagoPageContent() {
             <Link href="/" className="hover:text-foreground transition-colors">Dashboard</Link> / <span className="text-foreground">Métodos de Pago</span>
           </p>
         </div>
-        <Button onClick={handleCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nuevo Método
-        </Button>
+        <Link href="/metodos-pago/crear">
+          <Button>
+            <Plus className="h-4 w-4 mr-2" />
+            Nuevo Método
+          </Button>
+        </Link>
       </div>
 
       <MetodosPagoMetrics metodosPago={metodosPago} />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="usuarios">Usuarios</TabsTrigger>
-          <TabsTrigger value="servicios">Servicios</TabsTrigger>
+        <TabsList className="bg-transparent rounded-none p-0 h-auto inline-flex border-b border-border">
+          <TabsTrigger
+            value="usuarios"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2 text-sm"
+          >
+            Usuarios
+          </TabsTrigger>
+          <TabsTrigger
+            value="servicios"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2 text-sm"
+          >
+            Servicios
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="usuarios" className="space-y-4">
           <UsuariosMetodosPagoTable
             metodosPago={metodosPago}
-            onEdit={handleEdit}
             title="Métodos de pago de Usuarios"
+            onEdit={handleEdit}
           />
         </TabsContent>
 
         <TabsContent value="servicios" className="space-y-4">
           <ServiciosMetodosPagoTable
             metodosPago={metodosPago}
-            onEdit={handleEdit}
             title="Métodos de pago de Servicios"
+            onEdit={handleEdit}
           />
         </TabsContent>
       </Tabs>
-
-      <MetodoPagoDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        metodoPago={selectedMetodo}
-      />
     </div>
   );
 }
