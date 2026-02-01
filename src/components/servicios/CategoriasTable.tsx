@@ -1,6 +1,7 @@
 'use client';
 
 import { memo, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Table,
   TableBody,
@@ -45,11 +46,16 @@ export const CategoriasTable = memo(function CategoriasTable({
   servicios,
   title = 'Todas las categorías',
 }: CategoriasTableProps) {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
+
+  const handleViewCategoria = (categoriaId: string) => {
+    router.push(`/servicios/${categoriaId}`);
+  };
 
   const rows = useMemo(() => {
     const categoriaData: CategoriaRow[] = categorias
@@ -356,6 +362,7 @@ export const CategoriasTable = memo(function CategoriasTable({
                         variant="ghost"
                         size="sm"
                         className="h-8 w-8 p-0"
+                        onClick={() => handleViewCategoria(row.categoria.id)}
                       >
                         <Eye className="h-4 w-4" />
                       </Button>

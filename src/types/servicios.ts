@@ -14,6 +14,8 @@ export interface Servicio {
   perfilesOcupados: number;
   costoPorPerfil: number;
   costoTotal: number;
+  fechaInicio?: Date;
+  fechaVencimiento?: Date;
   activo: boolean;
   renovacionAutomatica: boolean;
   fechaRenovacion?: Date;

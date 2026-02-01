@@ -34,6 +34,8 @@ export const useServiciosStore = create<ServiciosState>()(
           const data = await getAll<any>(COLLECTIONS.SERVICIOS);
           const servicios: Servicio[] = data.map(item => ({
             ...item,
+            fechaInicio: item.fechaInicio ? timestampToDate(item.fechaInicio) : undefined,
+            fechaVencimiento: item.fechaVencimiento ? timestampToDate(item.fechaVencimiento) : undefined,
             createdAt: timestampToDate(item.createdAt),
             updatedAt: timestampToDate(item.updatedAt)
           }));

@@ -197,6 +197,8 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
         tipo: data.tipoPlan === 'cuenta_completa' ? 'individual' as const : 'familiar' as const,
         costoPorPerfil: data.costoServicio / data.perfilesDisponibles,
         perfilesDisponibles: data.perfilesDisponibles,
+        fechaInicio: data.fechaInicio,
+        fechaVencimiento: data.fechaVencimiento,
         activo: true,
         renovacionAutomatica: false,
         createdBy: 'admin',
