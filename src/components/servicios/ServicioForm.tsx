@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -74,6 +74,7 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
   const [manualFechaVencimiento, setManualFechaVencimiento] = useState(false);
   const [openFechaInicio, setOpenFechaInicio] = useState(false);
   const [openFechaVencimiento, setOpenFechaVencimiento] = useState(false);
+  const prevCicloPagoRef = useRef(servicio?.cicloPago ?? 'mensual');
 
   // Cargar métodos de pago al montar
   useEffect(() => {
@@ -169,6 +170,7 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
       setValue('costoServicio', String(servicio.costoServicio || 0));
       setValue('perfilesDisponibles', String(servicio.perfilesDisponibles || 1));
       setValue('cicloPago', servicio.cicloPago || 'mensual');
+      prevCicloPagoRef.current = servicio.cicloPago || 'mensual';
       if (servicio.fechaInicio) {
         setValue('fechaInicio', new Date(servicio.fechaInicio));
       }
@@ -177,6 +179,7 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
       }
       setValue('estado', servicio.activo ? 'activo' : 'inactivo');
       setValue('notas', servicio.notas || '');
+      setManualFechaVencimiento(true);
     }
   }, [servicio?.id, setValue]);
 
@@ -213,12 +216,20 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
 
   // Auto-calcular fecha de vencimiento cuando cambia el ciclo de pago o la fecha de inicio
   useEffect(() => {
-    if (!manualFechaVencimiento && fechaInicioValue) {
+    if (!fechaInicioValue) return;
+    const cicloChanged = prevCicloPagoRef.current !== cicloPagoValue;
+    if (cicloChanged) {
+      prevCicloPagoRef.current = cicloPagoValue;
+      setManualFechaVencimiento(false);
+    }
+    // Al editar, solo recalcular cuando el usuario cambie el ciclo (así no se pisa la fecha guardada al cargar)
+    const shouldRecalc = servicio?.id ? cicloChanged : (cicloChanged || !manualFechaVencimiento);
+    if (shouldRecalc) {
       const meses = cicloPagoValue === 'mensual' ? 1 : cicloPagoValue === 'trimestral' ? 3 : cicloPagoValue === 'semestral' ? 6 : 12;
       const nuevaFechaVencimiento = addMonths(fechaInicioValue, meses);
       setValue('fechaVencimiento', nuevaFechaVencimiento);
     }
-  }, [cicloPagoValue, fechaInicioValue, manualFechaVencimiento, setValue]);
+  }, [cicloPagoValue, fechaInicioValue, manualFechaVencimiento, setValue, servicio?.id]);
 
   const handleTabChange = async (value: string) => {
     if (value === 'perfil' && !isDatosTabComplete) {

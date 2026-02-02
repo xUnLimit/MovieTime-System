@@ -99,6 +99,7 @@ export function ServiciosCategoriaTable({ servicios, categoriaNombre }: Servicio
                 const diasRestantes = calcularDiasRestantes(servicio.fechaVencimiento);
                 const badgeColor = getBadgeColor(diasRestantes);
                 const perfilesOcupados = servicio.perfilesOcupados || 0;
+                const perfilesLibres = servicio.perfilesDisponibles - perfilesOcupados;
 
                 return (
                   <TableRow key={servicio.id}>
@@ -144,7 +145,7 @@ export function ServiciosCategoriaTable({ servicios, categoriaNombre }: Servicio
                           })}
                         </div>
                         <span className="text-xs text-muted-foreground">
-                          {perfilesOcupados}/{servicio.perfilesDisponibles} disponibles
+                          <span className={perfilesLibres === 0 ? 'text-red-600 font-medium' : 'text-green-600 font-medium'}>{perfilesLibres}</span>/{servicio.perfilesDisponibles} disponibles
                         </span>
                       </div>
                     </TableCell>

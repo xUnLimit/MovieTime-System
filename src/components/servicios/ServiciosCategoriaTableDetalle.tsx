@@ -207,6 +207,7 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
       render: (item) => {
         const ocupados = item.perfilesOcupados || 0;
         const disponibles = item.perfilesDisponibles || 0;
+        const libres = disponibles - ocupados;
         const icons = [];
         for (let i = 0; i < disponibles; i++) {
           icons.push(
@@ -221,7 +222,9 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
             <div className="flex items-center gap-0.5">
               {icons}
             </div>
-            <span className="text-xs text-muted-foreground">{ocupados}/{disponibles} disponibles</span>
+            <span className="text-xs text-muted-foreground">
+              <span className={libres === 0 ? 'text-red-600 font-medium' : 'text-green-600 font-medium'}>{libres}</span>/{disponibles} disponibles
+            </span>
           </div>
         );
       },

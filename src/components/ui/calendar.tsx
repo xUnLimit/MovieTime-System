@@ -34,7 +34,7 @@ function Calendar({
     <DayPicker
       showOutsideDays={showOutsideDays}
       className={cn(
-        "bg-black group/calendar p-3 [--cell-size:--spacing(8)] [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
+        "bg-sidebar group/calendar p-3 [--cell-size:--spacing(8)] [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
         String.raw`rtl:**:[.rdp-button\_next>svg]:rotate-180`,
         String.raw`rtl:**:[.rdp-button\_previous>svg]:rotate-180`,
         className
@@ -71,12 +71,12 @@ function Calendar({
         ),
         button_previous: cn(
           buttonVariants({ variant: buttonVariant }),
-          "size-(--cell-size) aria-disabled:opacity-50 p-0 select-none rounded-md border border-gray-600 bg-transparent hover:bg-gray-700 text-white transition-colors",
+          "size-(--cell-size) aria-disabled:opacity-50 p-0 select-none rounded-md border border-sidebar-border bg-transparent hover:bg-sidebar-accent text-sidebar-foreground transition-colors",
           defaultClassNames.button_previous
         ),
         button_next: cn(
           buttonVariants({ variant: buttonVariant }),
-          "size-(--cell-size) aria-disabled:opacity-50 p-0 select-none rounded-md border border-gray-600 bg-transparent hover:bg-gray-700 text-white transition-colors",
+          "size-(--cell-size) aria-disabled:opacity-50 p-0 select-none rounded-md border border-sidebar-border bg-transparent hover:bg-sidebar-accent text-sidebar-foreground transition-colors",
           defaultClassNames.button_next
         ),
         month_caption: cn(
@@ -96,16 +96,16 @@ function Calendar({
           defaultClassNames.dropdown
         ),
         caption_label: cn(
-          "select-none font-medium text-white",
+          "select-none font-medium text-sidebar-foreground",
           captionLayout === "label"
             ? "text-sm"
-            : "rounded-md pl-2 pr-1 flex items-center gap-1 text-sm h-8 [&>svg]:text-white [&>svg]:size-3.5",
+            : "rounded-md pl-2 pr-1 flex items-center gap-1 text-sm h-8 [&>svg]:text-sidebar-foreground [&>svg]:size-3.5",
           defaultClassNames.caption_label
         ),
         table: "w-full border-collapse",
         weekdays: cn("flex", defaultClassNames.weekdays),
         weekday: cn(
-          "text-gray-400 rounded-md flex-1 font-normal text-[0.8rem] select-none",
+          "text-sidebar-foreground rounded-md flex-1 font-normal text-[0.8rem] select-none",
           defaultClassNames.weekday
         ),
         week: cn("flex w-full mt-2", defaultClassNames.week),
@@ -125,21 +125,21 @@ function Calendar({
           defaultClassNames.day
         ),
         range_start: cn(
-          "rounded-l-md bg-purple-600",
+          "rounded-l-md bg-[#8A2BE2]",
           defaultClassNames.range_start
         ),
-        range_middle: cn("rounded-none bg-purple-600", defaultClassNames.range_middle),
-        range_end: cn("rounded-r-md bg-purple-600", defaultClassNames.range_end),
+        range_middle: cn("rounded-none bg-[#8A2BE2]", defaultClassNames.range_middle),
+        range_end: cn("rounded-r-md bg-[#8A2BE2]", defaultClassNames.range_end),
         today: cn(
-          "bg-gray-600 text-white rounded-md shadow-sm shadow-gray-600 data-[selected=true]:rounded-none",
+          "rounded-md [&_button:not([data-selected-single=true])]:bg-sidebar-accent [&_button:not([data-selected-single=true])]:shadow-inner",
           defaultClassNames.today
         ),
         outside: cn(
-          "text-gray-500 aria-selected:text-gray-500",
+          "text-sidebar-foreground/70 aria-selected:text-sidebar-foreground/70",
           defaultClassNames.outside
         ),
         disabled: cn(
-          "text-gray-600 opacity-50",
+          "text-sidebar-foreground/50 opacity-50",
           defaultClassNames.disabled
         ),
         hidden: cn("invisible", defaultClassNames.hidden),
@@ -225,20 +225,22 @@ function CalendarDayButton({
       className={cn(
         "dark:hover:text-white flex aspect-square size-auto w-full min-w-(--cell-size) flex-col gap-1 leading-none font-normal [&>span]:text-xs [&>span]:opacity-70",
         // Estilos para días seleccionados del mes actual
-        "data-[selected-single=true]:data-[disabled=false]:bg-purple-600 data-[selected-single=true]:data-[disabled=false]:text-white data-[selected-single=true]:data-[disabled=false]:hover:bg-purple-600",
+        "data-[selected-single=true]:data-[disabled=false]:bg-[#8A2BE2] data-[selected-single=true]:data-[disabled=false]:text-white data-[selected-single=true]:data-[disabled=false]:hover:bg-[#8A2BE2]",
         // Estilos para rangos
-        "data-[range-middle=true]:bg-purple-600 data-[range-middle=true]:text-white data-[range-start=true]:bg-purple-600 data-[range-start=true]:text-white data-[range-end=true]:bg-purple-600 data-[range-end=true]:text-white",
+        "data-[range-middle=true]:bg-[#8A2BE2] data-[range-middle=true]:text-white data-[range-start=true]:bg-[#8A2BE2] data-[range-start=true]:text-white data-[range-end=true]:bg-[#8A2BE2] data-[range-end=true]:text-white",
         // Estilos para días del mes anterior/siguiente
-        "data-[disabled=true]:text-gray-600",
+        "data-[disabled=true]:text-sidebar-foreground/50",
         // Estilos base para días normales
-        "text-white",
+        "text-sidebar-foreground",
         // Bordes redondeados para rangos
         "data-[range-end=true]:rounded-md data-[range-end=true]:rounded-r-md data-[range-middle=true]:rounded-none data-[range-start=true]:rounded-md data-[range-start=true]:rounded-l-md",
         defaultClassNames.day,
         className
       )}
       {...props}
-    />
+    >
+      {props.children}
+    </Button>
   )
 }
 
