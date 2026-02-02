@@ -19,7 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, MoreHorizontal, Edit, Trash2, MessageCircle, Monitor } from 'lucide-react';
+import { Search, MoreHorizontal, Edit, Trash2, MessageCircle, Monitor, Eye } from 'lucide-react';
 import { useClientesStore } from '@/store/clientesStore';
 import { useRevendedoresStore } from '@/store/revendedoresStore';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -43,6 +43,8 @@ interface TodosUsuariosTableProps {
   revendedores: Revendedor[];
   onEditCliente: (cliente: Cliente) => void;
   onEditRevendedor: (revendedor: Revendedor) => void;
+  onViewCliente?: (cliente: Cliente) => void;
+  onViewRevendedor?: (revendedor: Revendedor) => void;
   title?: string;
 }
 
@@ -51,6 +53,8 @@ export function TodosUsuariosTable({
   revendedores,
   onEditCliente,
   onEditRevendedor,
+  onViewCliente,
+  onViewRevendedor,
   title = 'Todos los usuarios',
 }: TodosUsuariosTableProps) {
   const { deleteCliente } = useClientesStore();
@@ -134,6 +138,14 @@ export function TodosUsuariosTable({
       onEditCliente(usuario.original as Cliente);
     } else {
       onEditRevendedor(usuario.original as Revendedor);
+    }
+  };
+
+  const handleView = (usuario: UsuarioUnificado) => {
+    if (usuario.tipo === 'Cliente' && onViewCliente) {
+      onViewCliente(usuario.original as Cliente);
+    } else if (usuario.tipo === 'Revendedor' && onViewRevendedor) {
+      onViewRevendedor(usuario.original as Revendedor);
     }
   };
 
@@ -269,6 +281,12 @@ export function TodosUsuariosTable({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  {(onViewCliente || onViewRevendedor) && (
+                    <DropdownMenuItem onClick={() => handleView(item)}>
+                      <Eye className="h-4 w-4 mr-2" />
+                      Ver detalles
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem onClick={() => handleEdit(item)}>
                     <Edit className="h-4 w-4 mr-2" />
                     Editar

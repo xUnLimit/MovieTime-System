@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { MoreHorizontal, Pencil, Trash2, User, Search, RefreshCw } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, User, Search, RefreshCw, Eye } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +31,7 @@ import { es } from 'date-fns/locale';
 interface ServiciosCategoriaTableDetalleProps {
   servicios: Servicio[];
   onEdit: (id: string) => void;
+  onView?: (id: string) => void;
   title?: string;
   searchTerm: string;
   onSearchChange: (value: string) => void;
@@ -43,6 +44,7 @@ interface ServiciosCategoriaTableDetalleProps {
 export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTableDetalle({
   servicios,
   onEdit,
+  onView,
   title = 'Todos los servicios',
   searchTerm,
   onSearchChange,
@@ -295,6 +297,12 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {onView && (
+                  <DropdownMenuItem onClick={() => onView(item.id)}>
+                    <Eye className="h-4 w-4 mr-2" />
+                    Ver detalles
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={() => onEdit(item.id)}>
                   <Pencil className="h-4 w-4 mr-2" />
                   Editar

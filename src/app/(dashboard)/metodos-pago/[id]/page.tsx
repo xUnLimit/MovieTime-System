@@ -94,7 +94,7 @@ function VerMetodoPagoPageContent() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link href="/metodos-pago">
-            <Button variant="ghost" size="icon" className="h-8 w-8">
+            <Button variant="outline" size="icon" className="h-8 w-8">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
@@ -105,7 +105,7 @@ function VerMetodoPagoPageContent() {
                 {metodo.activo ? 'Activo' : 'Inactivo'}
               </Badge>
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
+            <p className="text-sm text-muted-foreground">
               <Link href="/" className="hover:text-foreground transition-colors">Dashboard</Link>
               {' / '}
               <Link href="/metodos-pago" className="hover:text-foreground transition-colors">Métodos de Pago</Link>

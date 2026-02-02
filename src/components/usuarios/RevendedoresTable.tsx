@@ -19,7 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, MoreHorizontal, Edit, Trash2, MessageCircle, Monitor } from 'lucide-react';
+import { Search, MoreHorizontal, Edit, Trash2, MessageCircle, Monitor, Eye } from 'lucide-react';
 import { useRevendedoresStore } from '@/store/revendedoresStore';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { toast } from 'sonner';
@@ -27,10 +27,11 @@ import { toast } from 'sonner';
 interface RevendedoresTableProps {
   revendedores: Revendedor[];
   onEdit: (revendedor: Revendedor) => void;
+  onView?: (revendedor: Revendedor) => void;
   title?: string;
 }
 
-export function RevendedoresTable({ revendedores, onEdit, title = 'Revendedores' }: RevendedoresTableProps) {
+export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Revendedores' }: RevendedoresTableProps) {
   const { deleteRevendedor } = useRevendedoresStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [revendedorToDelete, setRevendedorToDelete] = useState<Revendedor | null>(null);
@@ -197,6 +198,12 @@ export function RevendedoresTable({ revendedores, onEdit, title = 'Revendedores'
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  {onView && (
+                    <DropdownMenuItem onClick={() => onView(item)}>
+                      <Eye className="h-4 w-4 mr-2" />
+                      Ver detalles
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem onClick={() => onEdit(item)}>
                     <Edit className="h-4 w-4 mr-2" />
                     Editar

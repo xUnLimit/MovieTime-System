@@ -98,13 +98,13 @@ function VerCategoriaPageContent() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link href="/categorias">
-            <Button variant="ghost" size="icon" className="h-8 w-8">
+            <Button variant="outline" size="icon" className="h-8 w-8">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">{categoria.nombre}</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">
+            <p className="text-sm text-muted-foreground">
               <Link href="/" className="hover:text-foreground transition-colors">Dashboard</Link>
               {' / '}
               <Link href="/categorias" className="hover:text-foreground transition-colors">Categorías</Link>
@@ -131,31 +131,31 @@ function VerCategoriaPageContent() {
         {/* Información de la Categoría (2/3) */}
         <div className="lg:col-span-2 rounded-lg border bg-card p-6">
           <div className="mb-5">
-            <h2 className="text-base font-semibold">Información de la Categoría</h2>
+            <h2 className="text-lg font-semibold">Información de la Categoría</h2>
             <p className="text-xs text-muted-foreground mt-0.5">Datos básicos de la categoría</p>
           </div>
 
           <div className="space-y-3.5">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Nombre:</span>
+              <span className="text-sm text-muted-foreground">Nombre:</span>
               <span className="text-sm font-medium">{categoria.nombre}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Asociado a:</span>
+              <span className="text-sm text-muted-foreground">Asociado a:</span>
               <span className="text-sm font-medium">{getTipoLabel(categoria.tipo)}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Tipo de Categoría:</span>
+              <span className="text-sm text-muted-foreground">Tipo de Categoría:</span>
               <Badge variant="outline" className="text-xs">{getTipoCategoriaLabel(categoria.tipoCategoria || '')}</Badge>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Fecha de creación:</span>
+              <span className="text-sm text-muted-foreground">Fecha de creación:</span>
               <span className="text-sm font-medium">
                 {new Date(categoria.createdAt).toLocaleDateString('es-PA', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Última actualización:</span>
+              <span className="text-sm text-muted-foreground">Última actualización:</span>
               <span className="text-sm font-medium">
                 {new Date(categoria.updatedAt).toLocaleDateString('es-PA', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
               </span>
@@ -166,7 +166,7 @@ function VerCategoriaPageContent() {
         {/* Notas (1/3) */}
         <div className="rounded-lg border bg-card p-6 flex flex-col">
           <div className="mb-4">
-            <h2 className="text-base font-semibold">Notas</h2>
+            <h2 className="text-lg font-semibold">Notas</h2>
             <p className="text-xs text-muted-foreground mt-0.5">Información adicional</p>
           </div>
           <div className="flex-1 flex items-start">

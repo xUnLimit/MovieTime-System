@@ -68,6 +68,10 @@ function ServiciosCategoriaPageContent() {
     router.push(`/servicios/${id}/editar`);
   };
 
+  const handleView = (id: string) => {
+    router.push(`/servicios/detalle/${id}`);
+  };
+
   if (!categoria) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -113,6 +117,7 @@ function ServiciosCategoriaPageContent() {
       <ServiciosCategoriaTableDetalle
         servicios={serviciosFiltrados}
         onEdit={handleEdit}
+        onView={handleView}
         title="Todos los servicios"
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -81,6 +81,21 @@ export function UsuarioForm({
   const nombreValue = watch('nombre');
   const apellidoValue = watch('apellido');
   const telefonoValue = watch('telefono');
+
+  // Detectar si hay cambios en el formulario (solo en modo edición)
+  const hasChanges = useMemo(() => {
+    if (!usuario) return true; // En modo creación, siempre permitir guardar
+    
+    const tipoActual = 'comisionPorcentaje' in usuario ? 'revendedor' : 'cliente';
+    
+    return (
+      nombreValue !== (usuario.nombre || '') ||
+      apellidoValue !== (usuario.apellido || '') ||
+      tipoUsuarioValue !== tipoActual ||
+      telefonoValue !== usuario.telefono ||
+      metodoPagoIdValue !== usuario.metodoPagoId
+    );
+  }, [usuario, nombreValue, apellidoValue, tipoUsuarioValue, telefonoValue, metodoPagoIdValue]);
 
   // Limpiar errores cuando los campos se corrijan
   useEffect(() => {
@@ -374,8 +389,8 @@ export function UsuarioForm({
             >
               Anterior
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Creando...' : 'Crear Usuario'}
+            <Button type="submit" disabled={isSubmitting || !hasChanges}>
+              {isSubmitting ? (usuario ? 'Guardando...' : 'Creando...') : (usuario ? 'Guardar Cambios' : 'Crear Usuario')}
             </Button>
           </div>
         </TabsContent>

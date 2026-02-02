@@ -19,7 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, MoreHorizontal, Edit, Trash2, MessageCircle, Monitor } from 'lucide-react';
+import { Search, MoreHorizontal, Edit, Trash2, MessageCircle, Monitor, Eye } from 'lucide-react';
 import { useClientesStore } from '@/store/clientesStore';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { toast } from 'sonner';
@@ -27,10 +27,11 @@ import { toast } from 'sonner';
 interface ClientesTableProps {
   clientes: Cliente[];
   onEdit: (cliente: Cliente) => void;
+  onView?: (cliente: Cliente) => void;
   title?: string;
 }
 
-export function ClientesTable({ clientes, onEdit, title = 'Clientes' }: ClientesTableProps) {
+export function ClientesTable({ clientes, onEdit, onView, title = 'Clientes' }: ClientesTableProps) {
   const { deleteCliente } = useClientesStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clienteToDelete, setClienteToDelete] = useState<Cliente | null>(null);
@@ -197,6 +198,12 @@ export function ClientesTable({ clientes, onEdit, title = 'Clientes' }: Clientes
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  {onView && (
+                    <DropdownMenuItem onClick={() => onView(item)}>
+                      <Eye className="h-4 w-4 mr-2" />
+                      Ver detalles
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem onClick={() => onEdit(item)}>
                     <Edit className="h-4 w-4 mr-2" />
                     Editar

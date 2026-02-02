@@ -173,4 +173,5 @@ export const COLLECTIONS = {
   CONFIG: 'config',
   GASTOS: 'gastos',
   TEMPLATES: 'templates',
+  PAGOS_SERVICIO: 'pagosServicio',
 } as const;

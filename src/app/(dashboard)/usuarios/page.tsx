@@ -37,6 +37,14 @@ function UsuariosPageContent() {
     router.push(`/usuarios/editar/${revendedor.id}`);
   };
 
+  const handleViewCliente = (cliente: any) => {
+    router.push(`/usuarios/${cliente.id}`);
+  };
+
+  const handleViewRevendedor = (revendedor: any) => {
+    router.push(`/usuarios/${revendedor.id}`);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -84,18 +92,26 @@ function UsuariosPageContent() {
             revendedores={revendedores}
             onEditCliente={handleEditCliente}
             onEditRevendedor={handleEditRevendedor}
+            onViewCliente={handleViewCliente}
+            onViewRevendedor={handleViewRevendedor}
             title="Todos los usuarios"
           />
         </TabsContent>
 
         <TabsContent value="clientes" className="space-y-4">
-          <ClientesTable clientes={clientes} onEdit={handleEditCliente} title="Clientes" />
+          <ClientesTable
+            clientes={clientes}
+            onEdit={handleEditCliente}
+            onView={handleViewCliente}
+            title="Clientes"
+          />
         </TabsContent>
 
         <TabsContent value="revendedores" className="space-y-4">
           <RevendedoresTable
             revendedores={revendedores}
             onEdit={handleEditRevendedor}
+            onView={handleViewRevendedor}
           />
         </TabsContent>
       </Tabs>

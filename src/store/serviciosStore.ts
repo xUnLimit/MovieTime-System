@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { Servicio } from '@/types';
-import { getAll, create as createDoc, update, remove, COLLECTIONS, timestampToDate } from '@/lib/firebase/firestore';
+import { getAll, create as createDoc, update, remove, COLLECTIONS, timestampToDate, dateToTimestamp } from '@/lib/firebase/firestore';
 import { Timestamp } from 'firebase/firestore';
 
 interface ServiciosState {
@@ -32,13 +32,26 @@ export const useServiciosStore = create<ServiciosState>()(
         set({ isLoading: true });
         try {
           const data = await getAll<any>(COLLECTIONS.SERVICIOS);
-          const servicios: Servicio[] = data.map(item => ({
-            ...item,
-            fechaInicio: item.fechaInicio ? timestampToDate(item.fechaInicio) : undefined,
-            fechaVencimiento: item.fechaVencimiento ? timestampToDate(item.fechaVencimiento) : undefined,
-            createdAt: timestampToDate(item.createdAt),
-            updatedAt: timestampToDate(item.updatedAt)
-          }));
+          const servicios: Servicio[] = data.map(item => {
+            const pagoInicialFechaInicio = item.pagoInicialFechaInicio ?? item.fechaInicioInicial;
+            const pagoInicialFechaVencimiento = item.pagoInicialFechaVencimiento ?? item.fechaVencimientoInicial;
+            const pagoInicialMonto = item.pagoInicialMonto ?? item.costoServicioInicial;
+            const pagoInicialCicloPago = item.pagoInicialCicloPago as Servicio['pagoInicialCicloPago'];
+            return {
+              ...item,
+              fechaInicio: item.fechaInicio ? timestampToDate(item.fechaInicio) : undefined,
+              fechaVencimiento: item.fechaVencimiento ? timestampToDate(item.fechaVencimiento) : undefined,
+              pagoInicialFechaInicio: pagoInicialFechaInicio ? timestampToDate(pagoInicialFechaInicio) : undefined,
+              pagoInicialFechaVencimiento: pagoInicialFechaVencimiento ? timestampToDate(pagoInicialFechaVencimiento) : undefined,
+              pagoInicialMonto: typeof pagoInicialMonto === 'number' ? pagoInicialMonto : undefined,
+              pagoInicialCicloPago: pagoInicialCicloPago ?? undefined,
+              fechaInicioInicial: item.fechaInicioInicial ? timestampToDate(item.fechaInicioInicial) : undefined,
+              fechaVencimientoInicial: item.fechaVencimientoInicial ? timestampToDate(item.fechaVencimientoInicial) : undefined,
+              costoServicioInicial: item.costoServicioInicial,
+              createdAt: timestampToDate(item.createdAt),
+              updatedAt: timestampToDate(item.updatedAt)
+            };
+          });
 
           set({ servicios, isLoading: false });
         } catch (error) {
@@ -49,8 +62,16 @@ export const useServiciosStore = create<ServiciosState>()(
 
       createServicio: async (servicioData) => {
         try {
+          const pagoInicialFechaInicio = servicioData.fechaInicio;
+          const pagoInicialFechaVencimiento = servicioData.fechaVencimiento;
+          const pagoInicialMonto = servicioData.costoServicio;
+          const pagoInicialCicloPago = servicioData.cicloPago;
           const id = await createDoc(COLLECTIONS.SERVICIOS, {
             ...servicioData,
+            pagoInicialFechaInicio: pagoInicialFechaInicio ? dateToTimestamp(pagoInicialFechaInicio) : undefined,
+            pagoInicialFechaVencimiento: pagoInicialFechaVencimiento ? dateToTimestamp(pagoInicialFechaVencimiento) : undefined,
+            pagoInicialMonto,
+            pagoInicialCicloPago: pagoInicialCicloPago ?? undefined,
             perfilesOcupados: 0,
             activo: true,
             createdAt: Timestamp.now(),
@@ -59,6 +80,10 @@ export const useServiciosStore = create<ServiciosState>()(
 
           const newServicio: Servicio = {
             ...servicioData,
+            pagoInicialFechaInicio,
+            pagoInicialFechaVencimiento,
+            pagoInicialMonto,
+            pagoInicialCicloPago: pagoInicialCicloPago ?? undefined,
             id,
             perfilesOcupados: 0,
             activo: true,
@@ -80,24 +105,32 @@ export const useServiciosStore = create<ServiciosState>()(
           const servicio = get().servicios.find((s) => s.id === id);
           if (!servicio) throw new Error('Servicio not found');
 
-          const updated = { ...servicio, ...updates };
+          const { pagoInicialFechaInicio, pagoInicialFechaVencimiento, pagoInicialMonto, pagoInicialCicloPago: _pagoInicialCicloPago, ...restUpdates } = updates as Partial<Servicio>;
 
-          // Recalcular costo total si cambiaron perfiles o costo por perfil
-          if (updates.perfilesDisponibles !== undefined || updates.costoPorPerfil !== undefined) {
-            updated.costoTotal = updated.perfilesDisponibles * updated.costoPorPerfil;
-          }
+          // Estado: aplicar updates pero mantener siempre las variables propias del pago inicial
+          const updated: Servicio = {
+            ...servicio,
+            ...restUpdates,
+            updatedAt: new Date(),
+            pagoInicialFechaInicio: servicio.pagoInicialFechaInicio,
+            pagoInicialFechaVencimiento: servicio.pagoInicialFechaVencimiento,
+            pagoInicialMonto: servicio.pagoInicialMonto,
+            pagoInicialCicloPago: servicio.pagoInicialCicloPago,
+          };
 
-          await update(COLLECTIONS.SERVICIOS, id, {
-            ...updates,
-            costoTotal: updated.costoTotal,
-            updatedAt: Timestamp.now()
-          });
+          // Payload a Firestore: nunca enviar pagoInicial* (solo se escriben al crear)
+          const payload: Record<string, unknown> = { ...restUpdates, updatedAt: Timestamp.now() };
+          delete payload.pagoInicialFechaInicio;
+          delete payload.pagoInicialFechaVencimiento;
+          delete payload.pagoInicialMonto;
+          delete payload.pagoInicialCicloPago;
+          if (updated.costoTotal !== undefined) payload.costoTotal = updated.costoTotal;
+
+          await update(COLLECTIONS.SERVICIOS, id, payload);
 
           set((state) => ({
             servicios: state.servicios.map((s) =>
-              s.id === id
-                ? { ...updated, updatedAt: new Date() }
-                : s
+              s.id === id ? updated : s
             )
           }));
         } catch (error) {

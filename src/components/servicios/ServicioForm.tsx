@@ -18,7 +18,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
-import { ChevronDown, Eye, EyeOff, Users, Calendar as CalendarIcon } from 'lucide-react';
+import { ChevronDown, Users, Calendar as CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useServiciosStore } from '@/store/serviciosStore';
@@ -70,7 +70,6 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
   const [activeTab, setActiveTab] = useState('datos');
   const [isDatosTabComplete, setIsDatosTabComplete] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showPasswordPreview, setShowPasswordPreview] = useState(false);
   const [manualFechaVencimiento, setManualFechaVencimiento] = useState(false);
   const [openFechaInicio, setOpenFechaInicio] = useState(false);
   const [openFechaVencimiento, setOpenFechaVencimiento] = useState(false);
@@ -87,6 +86,7 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
     formState: { errors, isSubmitting },
     setValue,
     watch,
+    getValues,
     clearErrors,
     trigger,
   } = useForm<FormData>({
@@ -214,22 +214,32 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
     }
   }, [metodoPagoIdValue, errors.metodoPagoId, clearErrors]);
 
-  // Auto-calcular fecha de vencimiento cuando cambia el ciclo de pago o la fecha de inicio
+  // Al editar: nunca recalcular por efecto (respeta la fecha de vencimiento guardada o manual)
+  // Al crear: auto-calcular fecha de vencimiento cuando cambia el ciclo o la fecha de inicio
   useEffect(() => {
+    if (servicio?.id) return;
     if (!fechaInicioValue) return;
     const cicloChanged = prevCicloPagoRef.current !== cicloPagoValue;
     if (cicloChanged) {
       prevCicloPagoRef.current = cicloPagoValue;
       setManualFechaVencimiento(false);
     }
-    // Al editar, solo recalcular cuando el usuario cambie el ciclo (así no se pisa la fecha guardada al cargar)
-    const shouldRecalc = servicio?.id ? cicloChanged : (cicloChanged || !manualFechaVencimiento);
-    if (shouldRecalc) {
+    if (cicloChanged || !manualFechaVencimiento) {
       const meses = cicloPagoValue === 'mensual' ? 1 : cicloPagoValue === 'trimestral' ? 3 : cicloPagoValue === 'semestral' ? 6 : 12;
-      const nuevaFechaVencimiento = addMonths(fechaInicioValue, meses);
-      setValue('fechaVencimiento', nuevaFechaVencimiento);
+      setValue('fechaVencimiento', addMonths(fechaInicioValue, meses));
     }
   }, [cicloPagoValue, fechaInicioValue, manualFechaVencimiento, setValue, servicio?.id]);
+
+  const handleCicloPagoChange = (ciclo: 'mensual' | 'trimestral' | 'semestral' | 'anual') => {
+    setValue('cicloPago', ciclo);
+    prevCicloPagoRef.current = ciclo;
+    setManualFechaVencimiento(false);
+    const fechaInicio = getValues('fechaInicio');
+    if (fechaInicio) {
+      const meses = ciclo === 'mensual' ? 1 : ciclo === 'trimestral' ? 3 : ciclo === 'semestral' ? 6 : 12;
+      setValue('fechaVencimiento', addMonths(fechaInicio, meses));
+    }
+  };
 
   const handleTabChange = async (value: string) => {
     if (value === 'perfil' && !isDatosTabComplete) {
@@ -594,16 +604,16 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                  <DropdownMenuItem onClick={() => setValue('cicloPago', 'mensual')}>
+                  <DropdownMenuItem onClick={() => handleCicloPagoChange('mensual')}>
                     Mensual
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setValue('cicloPago', 'trimestral')}>
+                  <DropdownMenuItem onClick={() => handleCicloPagoChange('trimestral')}>
                     Trimestral
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setValue('cicloPago', 'semestral')}>
+                  <DropdownMenuItem onClick={() => handleCicloPagoChange('semestral')}>
                     Semestral
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setValue('cicloPago', 'anual')}>
+                  <DropdownMenuItem onClick={() => handleCicloPagoChange('anual')}>
                     Anual
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -644,6 +654,7 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
                         setValue('fechaInicio', date);
                       }
                     }}
+                    defaultMonth={fechaInicioValue ?? new Date()}
                     disabled={false}
                   />
                 </PopoverContent>
@@ -682,6 +693,7 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
                         setManualFechaVencimiento(true);
                       }
                     }}
+                    defaultMonth={fechaVencimientoValue ?? new Date()}
                     disabled={false}
                   />
                 </PopoverContent>
@@ -840,20 +852,9 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
                   </div>
                   <div>
                     <span className="text-xs text-muted-foreground block mb-1">Contraseña</span>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm">
-                        {contrasenaValue ? (showPasswordPreview ? contrasenaValue : '••••••••') : 'Sin especificar'}
-                      </span>
-                      {contrasenaValue && (
-                        <button
-                          type="button"
-                          onClick={() => setShowPasswordPreview(!showPasswordPreview)}
-                          className="text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          {showPasswordPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      )}
-                    </div>
+                    <span className="font-medium text-sm">
+                      {contrasenaValue || 'Sin especificar'}
+                    </span>
                   </div>
                 </div>
 
