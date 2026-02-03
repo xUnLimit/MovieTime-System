@@ -1,166 +1,126 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import { Cliente, Revendedor } from '@/types';
-import { getAll, create as createDoc, update, remove, COLLECTIONS, timestampToDate } from '@/lib/firebase/firestore';
+import { Usuario } from '@/types';
+import { getAll, create as createDoc, update, remove, COLLECTIONS, timestampToDate, queryDocuments } from '@/lib/firebase/firestore';
 import { Timestamp } from 'firebase/firestore';
 
 interface UsuariosState {
-  clientes: Cliente[];
-  revendedores: Revendedor[];
+  usuarios: Usuario[];
   isLoading: boolean;
-  selectedCliente: Cliente | null;
-  selectedRevendedor: Revendedor | null;
+  selectedUsuario: Usuario | null;
 
-  // Cliente Actions
+  // Actions
+  fetchUsuarios: () => Promise<void>;
   fetchClientes: () => Promise<void>;
-  createCliente: (cliente: Omit<Cliente, 'id' | 'createdAt' | 'updatedAt' | 'montoSinConsumir' | 'serviciosActivos'>) => Promise<void>;
-  updateCliente: (id: string, updates: Partial<Cliente>) => Promise<void>;
-  deleteCliente: (id: string) => Promise<void>;
-  setSelectedCliente: (cliente: Cliente | null) => void;
-  getCliente: (id: string) => Cliente | undefined;
-
-  // Revendedor Actions
   fetchRevendedores: () => Promise<void>;
-  createRevendedor: (revendedor: Omit<Revendedor, 'id' | 'createdAt' | 'updatedAt' | 'suscripcionesTotales' | 'montoSinConsumir'>) => Promise<void>;
-  updateRevendedor: (id: string, updates: Partial<Revendedor>) => Promise<void>;
-  deleteRevendedor: (id: string) => Promise<void>;
-  setSelectedRevendedor: (revendedor: Revendedor | null) => void;
-  getRevendedor: (id: string) => Revendedor | undefined;
+  createUsuario: (usuario: Omit<Usuario, 'id' | 'createdAt' | 'updatedAt' | 'montoSinConsumir' | 'serviciosActivos' | 'suscripcionesTotales'>) => Promise<void>;
+  updateUsuario: (id: string, updates: Partial<Usuario>) => Promise<void>;
+  deleteUsuario: (id: string) => Promise<void>;
+  setSelectedUsuario: (usuario: Usuario | null) => void;
+  getUsuario: (id: string) => Usuario | undefined;
+  getClientes: () => Usuario[];
+  getRevendedores: () => Usuario[];
 }
 
 export const useUsuariosStore = create<UsuariosState>()(
   devtools(
     (set, get) => ({
-      clientes: [],
-      revendedores: [],
+      usuarios: [],
       isLoading: false,
-      selectedCliente: null,
-      selectedRevendedor: null,
+      selectedUsuario: null,
 
-      // Cliente Actions
+      // Fetch all usuarios
+      fetchUsuarios: async () => {
+        set({ isLoading: true });
+        try {
+          const data = await getAll<any>(COLLECTIONS.USUARIOS);
+          const usuarios: Usuario[] = data.map(item => ({
+            ...item,
+            createdAt: timestampToDate(item.createdAt),
+            updatedAt: timestampToDate(item.updatedAt)
+          }));
+
+          set({ usuarios, isLoading: false });
+        } catch (error) {
+          console.error('Error fetching usuarios:', error);
+          set({ usuarios: [], isLoading: false });
+        }
+      },
+
+      // Fetch solo clientes (por compatibilidad)
       fetchClientes: async () => {
         set({ isLoading: true });
         try {
-          const data = await getAll<any>(COLLECTIONS.CLIENTES);
-          const clientes: Cliente[] = data.map(item => ({
+          const docs = await queryDocuments<any>(COLLECTIONS.USUARIOS, [
+            { field: 'tipo', operator: '==', value: 'cliente' }
+          ]);
+          const clientes: Usuario[] = docs.map(item => ({
             ...item,
             createdAt: timestampToDate(item.createdAt),
             updatedAt: timestampToDate(item.updatedAt)
           }));
 
-          set({ clientes, isLoading: false });
+          // Actualizar solo clientes en el estado, mantener revendedores
+          set(state => ({
+            usuarios: [
+              ...clientes,
+              ...state.usuarios.filter(u => u.tipo === 'revendedor')
+            ],
+            isLoading: false
+          }));
         } catch (error) {
           console.error('Error fetching clientes:', error);
-          set({ clientes: [], isLoading: false });
+          set({ isLoading: false });
         }
       },
 
-      createCliente: async (clienteData) => {
-        try {
-          const id = await createDoc(COLLECTIONS.CLIENTES, {
-            ...clienteData,
-            montoSinConsumir: 0,
-            serviciosActivos: 0,
-            active: true,
-            createdAt: Timestamp.now(),
-            updatedAt: Timestamp.now()
-          });
-
-          const newCliente: Cliente = {
-            ...clienteData,
-            id,
-            montoSinConsumir: 0,
-            serviciosActivos: 0,
-            active: true,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            createdBy: ''
-          };
-
-          set((state) => ({
-            clientes: [...state.clientes, newCliente]
-          }));
-        } catch (error) {
-          console.error('Error creating cliente:', error);
-          throw error;
-        }
-      },
-
-      updateCliente: async (id, updates) => {
-        try {
-          await update(COLLECTIONS.CLIENTES, id, {
-            ...updates,
-            updatedAt: Timestamp.now()
-          });
-
-          set((state) => ({
-            clientes: state.clientes.map((cliente) =>
-              cliente.id === id
-                ? { ...cliente, ...updates, updatedAt: new Date() }
-                : cliente
-            )
-          }));
-        } catch (error) {
-          console.error('Error updating cliente:', error);
-          throw error;
-        }
-      },
-
-      deleteCliente: async (id) => {
-        try {
-          await remove(COLLECTIONS.CLIENTES, id);
-
-          set((state) => ({
-            clientes: state.clientes.filter((cliente) => cliente.id !== id)
-          }));
-        } catch (error) {
-          console.error('Error deleting cliente:', error);
-          throw error;
-        }
-      },
-
-      setSelectedCliente: (cliente) => {
-        set({ selectedCliente: cliente });
-      },
-
-      getCliente: (id) => {
-        return get().clientes.find((cliente) => cliente.id === id);
-      },
-
-      // Revendedor Actions
+      // Fetch solo revendedores (por compatibilidad)
       fetchRevendedores: async () => {
         set({ isLoading: true });
         try {
-          const data = await getAll<any>(COLLECTIONS.REVENDEDORES);
-          const revendedores: Revendedor[] = data.map(item => ({
+          const docs = await queryDocuments<any>(COLLECTIONS.USUARIOS, [
+            { field: 'tipo', operator: '==', value: 'revendedor' }
+          ]);
+          const revendedores: Usuario[] = docs.map(item => ({
             ...item,
             createdAt: timestampToDate(item.createdAt),
             updatedAt: timestampToDate(item.updatedAt)
           }));
 
-          set({ revendedores, isLoading: false });
+          // Actualizar solo revendedores en el estado, mantener clientes
+          set(state => ({
+            usuarios: [
+              ...state.usuarios.filter(u => u.tipo === 'cliente'),
+              ...revendedores
+            ],
+            isLoading: false
+          }));
         } catch (error) {
           console.error('Error fetching revendedores:', error);
-          set({ revendedores: [], isLoading: false });
+          set({ isLoading: false });
         }
       },
 
-      createRevendedor: async (revendedorData) => {
+      createUsuario: async (usuarioData) => {
         try {
-          const id = await createDoc(COLLECTIONS.REVENDEDORES, {
-            ...revendedorData,
-            suscripcionesTotales: 0,
+          const tipoFields =
+            usuarioData.tipo === 'cliente'
+              ? { serviciosActivos: 0 }
+              : { suscripcionesTotales: 0 };
+          const id = await createDoc(COLLECTIONS.USUARIOS, {
+            ...usuarioData,
             montoSinConsumir: 0,
+            ...tipoFields,
             active: true,
             createdAt: Timestamp.now(),
             updatedAt: Timestamp.now()
           });
 
-          const newRevendedor: Revendedor = {
-            ...revendedorData,
+          const newUsuario: Usuario = {
+            ...usuarioData,
             id,
-            suscripcionesTotales: 0,
             montoSinConsumir: 0,
+            ...tipoFields,
             active: true,
             createdAt: new Date(),
             updatedAt: new Date(),
@@ -168,53 +128,62 @@ export const useUsuariosStore = create<UsuariosState>()(
           };
 
           set((state) => ({
-            revendedores: [...state.revendedores, newRevendedor]
+            usuarios: [...state.usuarios, newUsuario]
           }));
         } catch (error) {
-          console.error('Error creating revendedor:', error);
+          console.error('Error creating usuario:', error);
           throw error;
         }
       },
 
-      updateRevendedor: async (id, updates) => {
+      updateUsuario: async (id, updates) => {
         try {
-          await update(COLLECTIONS.REVENDEDORES, id, {
+          await update(COLLECTIONS.USUARIOS, id, {
             ...updates,
             updatedAt: Timestamp.now()
           });
 
           set((state) => ({
-            revendedores: state.revendedores.map((revendedor) =>
-              revendedor.id === id
-                ? { ...revendedor, ...updates, updatedAt: new Date() }
-                : revendedor
+            usuarios: state.usuarios.map((usuario) =>
+              usuario.id === id
+                ? { ...usuario, ...updates, updatedAt: new Date() }
+                : usuario
             )
           }));
         } catch (error) {
-          console.error('Error updating revendedor:', error);
+          console.error('Error updating usuario:', error);
           throw error;
         }
       },
 
-      deleteRevendedor: async (id) => {
+      deleteUsuario: async (id) => {
         try {
-          await remove(COLLECTIONS.REVENDEDORES, id);
+          await remove(COLLECTIONS.USUARIOS, id);
 
           set((state) => ({
-            revendedores: state.revendedores.filter((revendedor) => revendedor.id !== id)
+            usuarios: state.usuarios.filter((usuario) => usuario.id !== id)
           }));
         } catch (error) {
-          console.error('Error deleting revendedor:', error);
+          console.error('Error deleting usuario:', error);
           throw error;
         }
       },
 
-      setSelectedRevendedor: (revendedor) => {
-        set({ selectedRevendedor: revendedor });
+      setSelectedUsuario: (usuario) => {
+        set({ selectedUsuario: usuario });
       },
 
-      getRevendedor: (id) => {
-        return get().revendedores.find((revendedor) => revendedor.id === id);
+      getUsuario: (id) => {
+        return get().usuarios.find((usuario) => usuario.id === id);
+      },
+
+      // Helpers para filtrar por tipo
+      getClientes: () => {
+        return get().usuarios.filter(u => u.tipo === 'cliente');
+      },
+
+      getRevendedores: () => {
+        return get().usuarios.filter(u => u.tipo === 'revendedor');
       }
     }),
     { name: 'usuarios-store' }

@@ -17,16 +17,6 @@ export interface Servicio {
   cicloPago?: 'mensual' | 'trimestral' | 'semestral' | 'anual';
   fechaInicio?: Date;
   fechaVencimiento?: Date;
-  /** Variables exclusivas del pago inicial (nunca se envían en actualizaciones) */
-  pagoInicialFechaInicio?: Date;
-  pagoInicialFechaVencimiento?: Date;
-  pagoInicialMonto?: number;
-  /** Ciclo de facturación del pago inicial (guardado al crear el servicio) */
-  pagoInicialCicloPago?: 'mensual' | 'trimestral' | 'semestral' | 'anual';
-  /** @deprecated Usar pagoInicial*; se mantiene para compatibilidad al leer de Firestore */
-  fechaInicioInicial?: Date;
-  fechaVencimientoInicial?: Date;
-  costoServicioInicial?: number;
   notas?: string;
   activo: boolean;
   renovacionAutomatica: boolean;
@@ -40,6 +30,9 @@ export interface Servicio {
 export interface PagoServicio {
   id: string;
   servicioId: string;
+  metodoPagoId?: string;
+  moneda?: string;
+  isPagoInicial?: boolean;
   /** Fecha en que se registró el pago */
   fecha: Date;
   /** "Pago inicial" o "Renovación #1", "Renovación #2", etc. */

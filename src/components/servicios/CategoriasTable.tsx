@@ -68,10 +68,11 @@ export const CategoriasTable = memo(function CategoriasTable({
         // Calcular totales
         const totalServicios = serviciosCategoria.length;
         const serviciosActivosCount = serviciosActivos.length;
-        const perfilesDisponibles = serviciosActivos.reduce(
-          (sum, s) => sum + (s.perfilesDisponibles || 0),
-          0
-        );
+        const perfilesDisponibles = serviciosActivos.reduce((sum, s) => {
+          const total = s.perfilesDisponibles || 0;
+          const ocupados = s.perfilesOcupados || 0;
+          return sum + Math.max(total - ocupados, 0);
+        }, 0);
         const suscripcionesTotales = 0; // Sin suscripciones
 
         // Ingresos: 0 sin suscripciones

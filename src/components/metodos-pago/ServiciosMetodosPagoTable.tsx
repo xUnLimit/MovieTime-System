@@ -224,10 +224,6 @@ export function ServiciosMetodosPagoTable({ metodosPago, onEdit, title = 'Métod
                   <Edit className="h-4 w-4 mr-2" />
                   Editar
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleToggleActivo(item)}>
-                  <Power className="h-4 w-4 mr-2" />
-                  {item.activo ? 'Desactivar' : 'Activar'}
-                </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => handleDelete(item)}
                   className="text-red-500 focus:text-red-500"

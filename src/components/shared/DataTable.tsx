@@ -171,10 +171,6 @@ function DataTableComponent<T extends Record<string, any>>({
     );
   }
 
-  if (data.length === 0) {
-    return <EmptyState message={emptyMessage} />;
-  }
-
   const displayData = paginatedData;
 
   return (
@@ -209,16 +205,27 @@ function DataTableComponent<T extends Record<string, any>>({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {displayData.map((item, index) => (
-              <MemoizedTableRow
-                key={item.id || index}
-                item={item}
-                columns={columns as Column<Record<string, any>>[]}
-                actions={actions as ((item: Record<string, any>) => React.ReactNode) | undefined}
-                onRowClick={onRowClick as ((item: Record<string, any>) => void) | undefined}
-                index={index}
-              />
-            ))}
+            {displayData.length > 0 ? (
+              displayData.map((item, index) => (
+                <MemoizedTableRow
+                  key={item.id || index}
+                  item={item}
+                  columns={columns as Column<Record<string, any>>[]}
+                  actions={actions as ((item: Record<string, any>) => React.ReactNode) | undefined}
+                  onRowClick={onRowClick as ((item: Record<string, any>) => void) | undefined}
+                  index={index}
+                />
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length + (actions ? 1 : 0)}
+                  className="py-10"
+                >
+                  <EmptyState message={emptyMessage} />
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </div>

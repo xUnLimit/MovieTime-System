@@ -142,10 +142,6 @@ export function RevendedoresCategoriasTable({ categorias, title = 'Categorías d
                   <Edit className="h-4 w-4 mr-2" />
                   Editar
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleToggleStatus(item)}>
-                  <Power className="h-4 w-4 mr-2" />
-                  {item.activo ? 'Desactivar' : 'Activar'}
-                </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => handleDelete(item)}
                   className="text-red-500 focus:text-red-500"

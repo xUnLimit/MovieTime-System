@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { Cliente, Revendedor } from '@/types';
+import { useEffect, useMemo, useState } from 'react';
+import { Usuario } from '@/types';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -20,13 +20,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Search, MoreHorizontal, Edit, Trash2, MessageCircle, Monitor, Eye } from 'lucide-react';
-import { useClientesStore } from '@/store/clientesStore';
-import { useRevendedoresStore } from '@/store/revendedoresStore';
+import { useUsuariosStore } from '@/store/usuariosStore';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { toast } from 'sonner';
+import { COLLECTIONS, getAll, timestampToDate } from '@/lib/firebase/firestore';
+import { differenceInCalendarDays } from 'date-fns';
 
-// Tipo unificado para mostrar ambos tipos de usuarios
-interface UsuarioUnificado {
+// Tipo para display en la tabla
+interface UsuarioDisplay {
   id: string;
   nombre: string;
   apellido: string;
@@ -35,73 +36,95 @@ interface UsuarioUnificado {
   tipo: 'Cliente' | 'Revendedor';
   serviciosActivos: number;
   montoSinConsumir: number;
-  original: Cliente | Revendedor;
+  original: Usuario;
 }
 
 interface TodosUsuariosTableProps {
-  clientes: Cliente[];
-  revendedores: Revendedor[];
-  onEditCliente: (cliente: Cliente) => void;
-  onEditRevendedor: (revendedor: Revendedor) => void;
-  onViewCliente?: (cliente: Cliente) => void;
-  onViewRevendedor?: (revendedor: Revendedor) => void;
+  usuarios: Usuario[];
+  onEdit: (usuario: Usuario) => void;
+  onView?: (usuario: Usuario) => void;
   title?: string;
 }
 
 export function TodosUsuariosTable({
-  clientes,
-  revendedores,
-  onEditCliente,
-  onEditRevendedor,
-  onViewCliente,
-  onViewRevendedor,
+  usuarios,
+  onEdit,
+  onView,
   title = 'Todos los usuarios',
 }: TodosUsuariosTableProps) {
-  const { deleteCliente } = useClientesStore();
-  const { deleteRevendedor } = useRevendedoresStore();
+  const { deleteUsuario } = useUsuariosStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [usuarioToDelete, setUsuarioToDelete] = useState<UsuarioUnificado | null>(null);
+  const [usuarioToDelete, setUsuarioToDelete] = useState<UsuarioDisplay | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [metodoPagoFilter, setMetodoPagoFilter] = useState('todos');
+  const [ventas, setVentas] = useState<Array<Record<string, unknown>>>([]);
 
-  // Combinar clientes y revendedores en un formato unificado
-  const usuariosUnificados: UsuarioUnificado[] = useMemo(() => {
-    const clientesMapped: UsuarioUnificado[] = clientes.map((c) => ({
-      id: `cliente-${c.id}`,
-      nombre: c.nombre,
-      apellido: c.apellido,
-      telefono: c.telefono,
-      metodoPagoNombre: c.metodoPagoNombre,
-      tipo: 'Cliente' as const,
-      serviciosActivos: c.serviciosActivos,
-      montoSinConsumir: c.montoSinConsumir,
-      original: c,
+  useEffect(() => {
+    const loadVentas = async () => {
+      try {
+        const docs = await getAll<Record<string, unknown>>(COLLECTIONS.VENTAS);
+        setVentas(docs);
+      } catch (error) {
+        console.error('Error cargando ventas:', error);
+        setVentas([]);
+      }
+    };
+
+    loadVentas();
+  }, []);
+
+  const ventasPorUsuario = useMemo(() => {
+    const now = new Date();
+    return ventas.reduce<Record<string, { serviciosActivos: number; montoSinConsumir: number; serviciosActivosSet: Set<string> }>>((acc, venta) => {
+      const clienteId = venta.clienteId as string | undefined;
+      if (!clienteId) return acc;
+      const servicioId = (venta.servicioId as string) || '';
+
+      const fechaInicio = venta.fechaInicio ? timestampToDate(venta.fechaInicio) : null;
+      const fechaFin = venta.fechaFin ? timestampToDate(venta.fechaFin) : null;
+      const precioFinal = (venta.precioFinal as number) ?? (venta.precio as number) ?? 0;
+      const totalDias = fechaInicio && fechaFin ? Math.max(differenceInCalendarDays(fechaFin, fechaInicio), 0) : 0;
+      const diasRestantes = fechaFin ? Math.max(differenceInCalendarDays(fechaFin, now), 0) : 0;
+      const ratioRestante = totalDias > 0 ? Math.min(diasRestantes / totalDias, 1) : 0;
+      const montoSinConsumir = totalDias > 0 ? Math.max(precioFinal * ratioRestante, 0) : 0;
+      const isActivo = fechaFin ? fechaFin >= now : false;
+
+      if (!acc[clienteId]) {
+        acc[clienteId] = { serviciosActivos: 0, montoSinConsumir: 0, serviciosActivosSet: new Set() };
+      }
+
+      if (isActivo && servicioId) {
+        acc[clienteId].serviciosActivosSet.add(servicioId);
+      }
+      acc[clienteId].montoSinConsumir += montoSinConsumir;
+      return acc;
+    }, {});
+  }, [ventas]);
+
+  // Mapear usuarios a formato display
+  const usuariosDisplay: UsuarioDisplay[] = useMemo(() => {
+    return usuarios.map((u) => ({
+      id: u.id,
+      nombre: u.nombre,
+      apellido: u.apellido,
+      telefono: u.telefono,
+      metodoPagoNombre: u.metodoPagoNombre,
+      tipo: u.tipo === 'cliente' ? 'Cliente' : 'Revendedor',
+      serviciosActivos: u.tipo === 'cliente' ? (ventasPorUsuario[u.id]?.serviciosActivosSet?.size ?? 0) : 0,
+      montoSinConsumir: u.tipo === 'cliente' ? (ventasPorUsuario[u.id]?.montoSinConsumir ?? 0) : 0,
+      original: u,
     }));
-
-    const revendedoresMapped: UsuarioUnificado[] = revendedores.map((r) => ({
-      id: `revendedor-${r.id}`,
-      nombre: r.nombre,
-      apellido: r.apellido,
-      telefono: r.telefono,
-      metodoPagoNombre: r.metodoPagoNombre,
-      tipo: 'Revendedor' as const,
-      serviciosActivos: r.suscripcionesTotales,
-      montoSinConsumir: r.montoSinConsumir,
-      original: r,
-    }));
-
-    return [...clientesMapped, ...revendedoresMapped];
-  }, [clientes, revendedores]);
+  }, [usuarios, ventasPorUsuario]);
 
   // Obtener métodos de pago únicos
   const metodosPagoUnicos = useMemo(() => {
-    const metodos = new Set(usuariosUnificados.map((u) => u.metodoPagoNombre));
+    const metodos = new Set(usuariosDisplay.map((u) => u.metodoPagoNombre));
     return Array.from(metodos).filter(Boolean);
-  }, [usuariosUnificados]);
+  }, [usuariosDisplay]);
 
   // Filtrar usuarios
   const filteredUsuarios = useMemo(() => {
-    return usuariosUnificados.filter((usuario) => {
+    return usuariosDisplay.filter((usuario) => {
       const matchesSearch =
         usuario.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
         usuario.telefono.includes(searchQuery);
@@ -109,7 +132,7 @@ export function TodosUsuariosTable({
         metodoPagoFilter === 'todos' || usuario.metodoPagoNombre === metodoPagoFilter;
       return matchesSearch && matchesMetodo;
     });
-  }, [usuariosUnificados, searchQuery, metodoPagoFilter]);
+  }, [usuariosDisplay, searchQuery, metodoPagoFilter]);
 
   const handleDelete = (usuario: UsuarioUnificado) => {
     setUsuarioToDelete(usuario);
@@ -119,42 +142,30 @@ export function TodosUsuariosTable({
   const handleConfirmDelete = async () => {
     if (usuarioToDelete) {
       try {
-        const realId = (usuarioToDelete.original as Cliente | Revendedor).id;
-        if (usuarioToDelete.tipo === 'Cliente') {
-          await deleteCliente(realId);
-          toast.success('Cliente eliminado');
-        } else {
-          await deleteRevendedor(realId);
-          toast.success('Revendedor eliminado');
-        }
+        await deleteUsuario(usuarioToDelete.original.id);
+        toast.success(`${usuarioToDelete.tipo} eliminado`);
       } catch (error) {
         toast.error(`Error al eliminar ${usuarioToDelete.tipo.toLowerCase()}`);
       }
     }
   };
 
-  const handleEdit = (usuario: UsuarioUnificado) => {
-    if (usuario.tipo === 'Cliente') {
-      onEditCliente(usuario.original as Cliente);
-    } else {
-      onEditRevendedor(usuario.original as Revendedor);
+  const handleEdit = (usuario: UsuarioDisplay) => {
+    onEdit(usuario.original);
+  };
+
+  const handleView = (usuario: UsuarioDisplay) => {
+    if (onView) {
+      onView(usuario.original);
     }
   };
 
-  const handleView = (usuario: UsuarioUnificado) => {
-    if (usuario.tipo === 'Cliente' && onViewCliente) {
-      onViewCliente(usuario.original as Cliente);
-    } else if (usuario.tipo === 'Revendedor' && onViewRevendedor) {
-      onViewRevendedor(usuario.original as Revendedor);
-    }
-  };
-
-  const handleWhatsApp = (usuario: UsuarioUnificado) => {
+  const handleWhatsApp = (usuario: UsuarioDisplay) => {
     const phone = usuario.telefono.replace(/\D/g, '');
-    window.open(`https://wa.me/${phone}`, '_blank');
+    window.open(`https://web.whatsapp.com/send?phone=${phone}`, '_blank');
   };
 
-  const columns: Column<UsuarioUnificado>[] = [
+  const columns: Column<UsuarioDisplay>[] = [
     {
       key: 'nombre',
       header: 'Nombre',
@@ -281,7 +292,7 @@ export function TodosUsuariosTable({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  {(onViewCliente || onViewRevendedor) && (
+                  {onView && (
                     <DropdownMenuItem onClick={() => handleView(item)}>
                       <Eye className="h-4 w-4 mr-2" />
                       Ver detalles

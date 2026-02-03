@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { ArrowLeft, Pencil, Trash2, RefreshCw, User, ChevronDown, DollarSign, Monitor } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2, RefreshCw, User, ChevronDown, DollarSign, Monitor, Calendar, Tag } from 'lucide-react';
 import { useServiciosStore } from '@/store/serviciosStore';
 import { useCategoriasStore } from '@/store/categoriasStore';
 import { useMetodosPagoStore } from '@/store/metodosPagoStore';
@@ -41,8 +41,9 @@ function ServicioDetallePageContent() {
   const [editarPagoDialogOpen, setEditarPagoDialogOpen] = useState(false);
   const [pagoToEdit, setPagoToEdit] = useState<PagoServicio | null>(null);
   const [renovarDialogOpen, setRenovarDialogOpen] = useState(false);
-  const [expandedProfiles, setExpandedProfiles] = useState<Record<number, boolean>>({});
   const [pagosServicio, setPagosServicio] = useState<PagoServicio[]>([]);
+  const [ventasServicio, setVentasServicio] = useState<Array<{ perfilNumero?: number | null; clienteNombre?: string; createdAt?: Date }>>([]);
+  const [expandedProfileIndex, setExpandedProfileIndex] = useState<number | null>(null);
   const [pagosHistorialLoading, setPagosHistorialLoading] = useState(true);
 
   useEffect(() => {
@@ -61,6 +62,9 @@ function ServicioDetallePageContent() {
       const pagos: PagoServicio[] = docs.map((d) => ({
         id: d.id as string,
         servicioId: d.servicioId as string,
+        metodoPagoId: d.metodoPagoId as string | undefined,
+        moneda: d.moneda as string | undefined,
+        isPagoInicial: d.isPagoInicial as boolean | undefined,
         fecha: timestampToDate(d.fecha),
         descripcion: d.descripcion as string,
         cicloPago: d.cicloPago as PagoServicio['cicloPago'],
@@ -84,6 +88,36 @@ function ServicioDetallePageContent() {
 
   useEffect(() => {
     loadPagos();
+  }, [id]);
+
+  useEffect(() => {
+    const loadVentas = async () => {
+      if (!id) return;
+      try {
+        const docs = await queryDocuments<Record<string, unknown>>(COLLECTIONS.VENTAS, [
+          { field: 'servicioId', operator: '==', value: id },
+        ]);
+        const ventas = docs.map((doc) => ({
+          perfilNumero: (doc.perfilNumero as number | null | undefined) ?? null,
+          clienteNombre: (doc.clienteNombre as string) || undefined,
+          createdAt: timestampToDate(doc.createdAt),
+          precioFinal: (doc.precioFinal as number) ?? (doc.precio as number) ?? 0,
+          descuento: (doc.descuento as number) ?? 0,
+          fechaInicio: timestampToDate(doc.fechaInicio),
+          fechaFin: timestampToDate(doc.fechaFin),
+          notas: (doc.notas as string) || '',
+          servicioNombre: (doc.servicioNombre as string) || '',
+          servicioCorreo: (doc.servicioCorreo as string) || '',
+          moneda: (doc.moneda as string) || undefined,
+        }));
+        setVentasServicio(ventas);
+      } catch (error) {
+        console.error('Error cargando ventas del servicio:', error);
+        setVentasServicio([]);
+      }
+    };
+
+    loadVentas();
   }, [id]);
 
   const servicio = servicios.find((s) => s.id === id);
@@ -132,11 +166,15 @@ function ServicioDetallePageContent() {
   }) => {
     if (!pagoToEdit) return;
     try {
+      const metodoPagoSeleccionado = metodosPago.find((m) => m.id === data.metodoPagoId);
       await update(COLLECTIONS.PAGOS_SERVICIO, pagoToEdit.id, {
         fechaInicio: dateToTimestamp(data.fechaInicio),
         fechaVencimiento: dateToTimestamp(data.fechaVencimiento),
         monto: data.costo,
         cicloPago: data.periodoRenovacion as 'mensual' | 'trimestral' | 'semestral' | 'anual',
+        metodoPagoId: data.metodoPagoId,
+        moneda: metodoPagoSeleccionado?.moneda,
+        isPagoInicial: false,
       });
       const esUltimoPago = pagosOrdenados[0]?.id === pagoToEdit.id;
       if (esUltimoPago) {
@@ -172,12 +210,6 @@ function ServicioDetallePageContent() {
             fechaVencimiento: anterior.fechaVencimiento,
             costoServicio: anterior.monto,
           });
-        } else {
-          await updateServicio(id, {
-            fechaInicio: servicio.pagoInicialFechaInicio ?? servicio.fechaInicioInicial,
-            fechaVencimiento: servicio.pagoInicialFechaVencimiento ?? servicio.fechaVencimientoInicial,
-            costoServicio: servicio.pagoInicialMonto ?? servicio.costoServicioInicial ?? servicio.costoServicio,
-          });
         }
       }
       toast.success('Renovación eliminada');
@@ -197,7 +229,8 @@ function ServicioDetallePageContent() {
     notas?: string;
   }) => {
     try {
-      const numeroRenovacion = pagosServicio.length + 1;
+      const metodoPagoSeleccionado = metodosPago.find((m) => m.id === data.metodoPagoId);
+      const numeroRenovacion = pagosServicio.filter((p) => !p.isPagoInicial && p.descripcion !== 'Pago inicial').length + 1;
       const descripcion = `Renovación #${numeroRenovacion}`;
       const fechaRegistro = new Date();
 
@@ -209,6 +242,9 @@ function ServicioDetallePageContent() {
         fechaInicio: data.fechaInicio,
         fechaVencimiento: data.fechaVencimiento,
         monto: data.costo,
+        metodoPagoId: data.metodoPagoId,
+        moneda: metodoPagoSeleccionado?.moneda,
+        isPagoInicial: false,
       });
 
       await updateServicio(id, {
@@ -225,6 +261,9 @@ function ServicioDetallePageContent() {
       const pagos: PagoServicio[] = docs.map((d) => ({
         id: d.id as string,
         servicioId: d.servicioId as string,
+        metodoPagoId: d.metodoPagoId as string | undefined,
+        moneda: d.moneda as string | undefined,
+        isPagoInicial: d.isPagoInicial as boolean | undefined,
         fecha: timestampToDate(d.fecha),
         descripcion: d.descripcion as string,
         cicloPago: d.cicloPago as PagoServicio['cicloPago'],
@@ -243,13 +282,6 @@ function ServicioDetallePageContent() {
       console.error('Error al registrar la renovación:', error);
       toast.error('Error al registrar la renovación');
     }
-  };
-
-  const toggleProfile = (index: number) => {
-    setExpandedProfiles((prev) => ({
-      ...prev,
-      [index]: !prev[index],
-    }));
   };
 
   const getCicloPagoLabel = (ciclo: string) => {
@@ -284,10 +316,8 @@ function ServicioDetallePageContent() {
   const currencySymbol = getCurrencySymbol(metodoPago?.moneda);
 
   const totalGastado = useMemo(() => {
-    const inicial = servicio?.pagoInicialMonto ?? servicio?.costoServicioInicial ?? servicio?.costoServicio ?? 0;
-    const renovaciones = pagosServicio.reduce((sum, p) => sum + p.monto, 0);
-    return inicial + renovaciones;
-  }, [servicio?.pagoInicialMonto, servicio?.costoServicioInicial, servicio?.costoServicio, pagosServicio]);
+    return pagosServicio.reduce((sum, p) => sum + p.monto, 0);
+  }, [pagosServicio]);
 
   const pagosOrdenados = useMemo(() => {
     return [...pagosServicio].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
@@ -319,16 +349,75 @@ function ServicioDetallePageContent() {
     );
   }
 
-  // Generar perfiles dinámicamente
-  const perfilesArray = Array.from({ length: servicio.perfilesDisponibles }, (_, i) => ({
-    nombre: `Perfil ${i + 1}`,
-    estado: i < (servicio.perfilesOcupados || 0) ? 'ocupado' : 'disponible',
-    clienteId: i < (servicio.perfilesOcupados || 0) ? `cliente-${i}` : undefined,
-    clienteNombre: i < (servicio.perfilesOcupados || 0) ? `Usuario ${i + 1}` : undefined,
-  }));
-  
+  const ventasPorPerfil = useMemo(() => {
+    const map = new Map<number, {
+      clienteNombre?: string;
+      createdAt?: Date;
+      precioFinal?: number;
+      descuento?: number;
+      fechaInicio?: Date;
+      fechaFin?: Date;
+      notas?: string;
+      servicioNombre?: string;
+      servicioCorreo?: string;
+      moneda?: string;
+    }>();
+    ventasServicio.forEach((venta) => {
+      if (!venta.perfilNumero) return;
+      const existing = map.get(venta.perfilNumero);
+      if (!existing) {
+        map.set(venta.perfilNumero, {
+          clienteNombre: venta.clienteNombre,
+          createdAt: venta.createdAt,
+          precioFinal: venta.precioFinal,
+          descuento: venta.descuento,
+          fechaInicio: venta.fechaInicio,
+          fechaFin: venta.fechaFin,
+          notas: venta.notas,
+          servicioNombre: venta.servicioNombre,
+          servicioCorreo: venta.servicioCorreo,
+          moneda: venta.moneda,
+        });
+        return;
+      }
+      const existingDate = existing.createdAt?.getTime() ?? 0;
+      const nextDate = venta.createdAt?.getTime() ?? 0;
+      if (nextDate >= existingDate) {
+        map.set(venta.perfilNumero, {
+          clienteNombre: venta.clienteNombre,
+          createdAt: venta.createdAt,
+          precioFinal: venta.precioFinal,
+          descuento: venta.descuento,
+          fechaInicio: venta.fechaInicio,
+          fechaFin: venta.fechaFin,
+          notas: venta.notas,
+          servicioNombre: venta.servicioNombre,
+          servicioCorreo: venta.servicioCorreo,
+          moneda: venta.moneda,
+        });
+      }
+    });
+    return map;
+  }, [ventasServicio]);
+
+  // Generar perfiles dinamicamente
+  const perfilesArray = Array.from({ length: servicio.perfilesDisponibles }, (_, i) => {
+    const numero = i + 1;
+    const venta = ventasPorPerfil.get(numero);
+    return {
+      nombre: `Perfil ${numero}`,
+      estado: venta ? 'ocupado' : 'disponible',
+      clienteNombre: venta?.clienteNombre,
+      venta,
+    };
+  });
+
   const perfilesEnUso = perfilesArray.filter((p: { estado: string }) => p.estado === 'ocupado').length;
   const perfilesDisponibles = servicio.perfilesDisponibles - perfilesEnUso;
+
+  const toggleProfile = (index: number) => {
+    setExpandedProfileIndex((prev) => (prev === index ? null : index));
+  };
 
   return (
     <>
@@ -484,51 +573,107 @@ function ServicioDetallePageContent() {
               </div>
 
               <div className="space-y-2">
-                {perfilesArray.map((perfil: { nombre: string; estado: string; clienteId?: string; clienteNombre?: string }, index: number) => (
+                {perfilesArray.map((perfil: { nombre: string; estado: string; clienteNombre?: string; venta?: any }, index: number) => {
+                  const venta = perfil.venta as {
+                    clienteNombre?: string;
+                    precioFinal?: number;
+                    descuento?: number;
+                    fechaInicio?: Date;
+                    fechaFin?: Date;
+                    notas?: string;
+                    servicioNombre?: string;
+                    servicioCorreo?: string;
+                    moneda?: string;
+                  } | undefined;
+                  const ventaCurrency = getCurrencySymbol(venta?.moneda || metodoPago?.moneda);
+                  const diasRestantes =
+                    venta?.fechaFin ? Math.max(Math.ceil((new Date(venta.fechaFin).getTime() - Date.now()) / (1000 * 60 * 60 * 24)), 0) : null;
+                  return (
                   <div
                     key={index}
-                    className={`rounded-lg border p-4 ${
+                    className={`rounded-lg border px-4 py-3 ${
                       perfil.estado === 'ocupado' ? 'bg-green-950/30 border-green-900/50' : 'bg-muted/50 border-border'
                     }`}
                   >
                     <button
-                      onClick={() => toggleProfile(index)}
+                      type="button"
+                      onClick={() => perfil.estado === 'ocupado' && toggleProfile(index)}
                       className="w-full flex items-center justify-between"
                     >
                       <div className="flex items-center gap-3">
-                        <User className="h-5 w-5" />
+                        <User className={`h-5 w-5 ${perfil.estado === 'ocupado' ? 'text-green-500' : 'text-blue-500'}`} />
                         <span className="font-medium">
-                          {perfil.estado === 'ocupado' && perfil.clienteNombre 
-                            ? perfil.clienteNombre 
+                          {perfil.estado === 'ocupado' && perfil.clienteNombre
+                            ? perfil.clienteNombre
                             : perfil.nombre}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        {perfil.estado === 'disponible' && (
+                        {perfil.estado === 'disponible' ? (
                           <Badge variant="secondary" className="bg-green-600 text-white hover:bg-green-700">
                             Disponible
                           </Badge>
+                        ) : (
+                          <ChevronDown className={`h-4 w-4 transition-transform ${expandedProfileIndex === index ? 'rotate-180' : ''}`} />
                         )}
-                        <ChevronDown className={`h-4 w-4 transition-transform ${expandedProfiles[index] ? 'rotate-180' : ''}`} />
                       </div>
                     </button>
 
-                    {expandedProfiles[index] && (
-                      <div className="mt-4 pt-4 border-t border-border space-y-2">
-                        {perfil.clienteId && (
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Cliente:</span>
-                            <span className="font-medium">{perfil.clienteNombre || 'Sin asignar'}</span>
+                    {perfil.estado === 'ocupado' && expandedProfileIndex === index && venta && (
+                      <div className="mt-4 space-y-3">
+                        <div className="pt-3 border-t border-border">
+                          <p className="text-sm text-muted-foreground mb-2">Detalles de la venta:</p>
+                          <div className="space-y-2 text-sm">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="flex items-center gap-2">
+                                <User className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-medium">{venta.clienteNombre || 'Sin cliente'}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-medium">
+                                  Inicio: {venta.fechaInicio ? format(new Date(venta.fechaInicio), 'd MMM yyyy', { locale: es }) : '—'}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="flex items-center gap-2">
+                                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-medium">{ventaCurrency} {(venta.precioFinal ?? 0).toFixed(2)}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-medium">
+                                  Vence: {venta.fechaFin ? format(new Date(venta.fechaFin), 'd MMM yyyy', { locale: es }) : '—'}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="flex items-center gap-2">
+                                <Tag className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-medium">Desc: {(venta.descuento ?? 0).toFixed(2)}%</span>
+                              </div>
+                              {diasRestantes !== null && (
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="secondary" className="bg-green-600/20 text-green-400 hover:bg-green-600/30">
+                                    {diasRestantes} dias restantes
+                                  </Badge>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        )}
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Estado:</span>
-                          <span className="font-medium">{perfil.estado === 'ocupado' ? 'Ocupado' : 'Disponible'}</span>
+                        </div>
+
+                        <div className="rounded-md border border-neutral-800 bg-black p-3">
+                          <p className="text-sm text-muted-foreground mb-2">Notas de la venta:</p>
+                          <div className="text-sm whitespace-pre-line">
+                            {venta.notas ? venta.notas : 'Sin notas'}
+                          </div>
                         </div>
                       </div>
                     )}
                   </div>
-                ))}
+                )})}
               </div>
 
               <div className="mt-4 flex items-center justify-between text-sm">
@@ -586,7 +731,9 @@ function ServicioDetallePageContent() {
                       </tr>
                     ) : (
                       <>
-                        {pagosOrdenados.map((pago) => (
+                      {pagosOrdenados.map((pago) => {
+                        const esInicial = pago.isPagoInicial || pago.descripcion === 'Pago inicial';
+                        return (
                           <tr key={pago.id} className="border-b text-sm">
                             <td className="py-3">
                               {format(new Date(pago.fecha), 'd MMM yyyy', { locale: es })}
@@ -605,7 +752,7 @@ function ServicioDetallePageContent() {
                               {currencySymbol} {pago.monto.toFixed(2)}
                             </td>
                             <td className="py-3 text-center">
-                              {pago.id === pagosOrdenados[0]?.id ? (
+                              {pago.id === pagosOrdenados[0]?.id && !esInicial ? (
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -631,30 +778,8 @@ function ServicioDetallePageContent() {
                               )}
                             </td>
                           </tr>
-                        ))}
-                        <tr className="border-b text-sm">
-                          <td className="py-3">
-                            {format(new Date(servicio.createdAt), 'd MMM yyyy', { locale: es })}
-                          </td>
-                          <td className="py-3">Pago inicial</td>
-                          <td className="py-3">
-                            {getCicloPagoLabel(servicio.pagoInicialCicloPago ?? '') || '—'}
-                          </td>
-                          <td className="py-3">
-                            {(servicio.pagoInicialFechaInicio ?? servicio.fechaInicioInicial ?? servicio.fechaInicio)
-                              ? format(new Date(servicio.pagoInicialFechaInicio ?? servicio.fechaInicioInicial ?? servicio.fechaInicio!), 'd MMM yyyy', { locale: es })
-                              : '-'}
-                          </td>
-                          <td className="py-3">
-                            {(servicio.pagoInicialFechaVencimiento ?? servicio.fechaVencimientoInicial ?? servicio.fechaVencimiento)
-                              ? format(new Date(servicio.pagoInicialFechaVencimiento ?? servicio.fechaVencimientoInicial ?? servicio.fechaVencimiento!), 'd MMM yyyy', { locale: es })
-                              : '-'}
-                          </td>
-                          <td className="py-3 text-left">
-                            {currencySymbol} {(servicio.pagoInicialMonto ?? servicio.costoServicioInicial ?? servicio.costoServicio ?? 0).toFixed(2)}
-                          </td>
-                          <td className="py-3 text-center text-muted-foreground">—</td>
-                        </tr>
+                        );
+                      })}
                       </>
                     )}
                   </tbody>

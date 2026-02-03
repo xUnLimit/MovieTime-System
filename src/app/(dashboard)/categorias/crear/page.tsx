@@ -18,7 +18,7 @@ function CrearCategoriaPageContent() {
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             </Link>
-            <h1 className="text-3xl font-bold tracking-tight">Crear Categoría</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Nueva Categoría</h1>
           </div>
           <p className="text-sm text-muted-foreground ml-10">
             <Link href="/" className="hover:text-foreground transition-colors">
@@ -43,7 +43,7 @@ function CrearCategoriaPageContent() {
 
 export default function CrearCategoriaPage() {
   return (
-    <ModuleErrorBoundary moduleName="Crear Categoría">
+    <ModuleErrorBoundary moduleName="Nueva Categoría">
       <CrearCategoriaPageContent />
     </ModuleErrorBoundary>
   );

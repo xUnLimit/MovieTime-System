@@ -47,6 +47,11 @@ const navigationSections = [
         href: '/servicios',
         icon: Server
       },
+      {
+        name: 'Ventas',
+        href: '/ventas',
+        icon: CreditCard
+      },
     ]
   },
   {

@@ -32,7 +32,7 @@ function CategoriasPageContent() {
         <Link href="/categorias/crear">
           <Button>
             <Plus className="h-4 w-4 mr-2" />
-            Crear Categoría
+            Nueva Categoría
           </Button>
         </Link>
       </div>

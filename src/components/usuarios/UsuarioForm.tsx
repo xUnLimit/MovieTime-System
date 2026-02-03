@@ -15,9 +15,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Cliente, Revendedor, MetodoPago } from '@/types';
-import { useClientesStore } from '@/store/clientesStore';
-import { useRevendedoresStore } from '@/store/revendedoresStore';
+import { Usuario, MetodoPago } from '@/types';
+import { useUsuariosStore } from '@/store/usuariosStore';
 import { toast } from 'sonner';
 import { ChevronDown } from 'lucide-react';
 
@@ -35,7 +34,7 @@ const usuarioSchema = z.object({
 type UsuarioFormData = z.infer<typeof usuarioSchema>;
 
 interface UsuarioFormProps {
-  usuario?: (Cliente | Revendedor) | null;
+  usuario?: Usuario | null;
   tipoInicial?: 'cliente' | 'revendedor';
   metodosPago: MetodoPago[];
   onSuccess?: () => void;
@@ -51,8 +50,7 @@ export function UsuarioForm({
   onCancel,
   isPage = false,
 }: UsuarioFormProps) {
-  const { createCliente, updateCliente } = useClientesStore();
-  const { createRevendedor, updateRevendedor } = useRevendedoresStore();
+  const { createUsuario, updateUsuario } = useUsuariosStore();
   const [activeTab, setActiveTab] = useState('personal');
   const [isPersonalTabComplete, setIsPersonalTabComplete] = useState(false);
   const {
@@ -86,12 +84,10 @@ export function UsuarioForm({
   const hasChanges = useMemo(() => {
     if (!usuario) return true; // En modo creación, siempre permitir guardar
     
-    const tipoActual = 'comisionPorcentaje' in usuario ? 'revendedor' : 'cliente';
-    
     return (
       nombreValue !== (usuario.nombre || '') ||
       apellidoValue !== (usuario.apellido || '') ||
-      tipoUsuarioValue !== tipoActual ||
+      tipoUsuarioValue !== usuario.tipo ||
       telefonoValue !== usuario.telefono ||
       metodoPagoIdValue !== usuario.metodoPagoId
     );
@@ -124,11 +120,10 @@ export function UsuarioForm({
 
   useEffect(() => {
     if (usuario) {
-      const tipo = 'comisionPorcentaje' in usuario ? 'revendedor' : 'cliente';
       reset({
         nombre: usuario.nombre || '',
         apellido: usuario.apellido || '',
-        tipoUsuario: tipo,
+        tipoUsuario: usuario.tipo,
         telefono: usuario.telefono,
         metodoPagoId: usuario.metodoPagoId,
         notas: '',
@@ -137,7 +132,7 @@ export function UsuarioForm({
       reset({
         nombre: '',
         apellido: '',
-        tipoUsuario: '' as any,
+        tipoUsuario: tipoInicial as any,
         telefono: '',
         metodoPagoId: '',
         notas: '',
@@ -161,39 +156,25 @@ export function UsuarioForm({
   const onSubmit = async (data: UsuarioFormData) => {
     try {
       const metodoPago = metodosPago.find((m) => m.id === data.metodoPagoId);
+      
+      const usuarioData = {
+        nombre: data.nombre,
+        apellido: data.apellido,
+        tipo: data.tipoUsuario,
+        telefono: data.telefono,
+        metodoPagoId: data.metodoPagoId,
+        metodoPagoNombre: metodoPago?.nombre || '',
+      };
 
-      if (data.tipoUsuario === 'cliente') {
-        const clienteData = {
-          nombre: data.nombre,
-          apellido: data.apellido,
-          telefono: data.telefono,
-          metodoPagoId: data.metodoPagoId,
-          metodoPagoNombre: metodoPago?.nombre || '',
-        };
-
-        if (usuario && !('comisionPorcentaje' in usuario)) {
-          await updateCliente(usuario.id, clienteData);
-          toast.success('Cliente actualizado');
-        } else {
-          await createCliente(clienteData);
-          toast.success('Cliente creado');
-        }
+      if (usuario) {
+        // Actualizar usuario existente (incluyendo cambio de tipo si es necesario)
+        await updateUsuario(usuario.id, usuarioData);
+        const cambioTipo = usuario.tipo !== data.tipoUsuario;
+        toast.success(cambioTipo ? `Usuario convertido a ${data.tipoUsuario}` : `${data.tipoUsuario === 'cliente' ? 'Cliente' : 'Revendedor'} actualizado`);
       } else {
-        const revendedorData = {
-          nombre: data.nombre,
-          apellido: data.apellido,
-          telefono: data.telefono,
-          metodoPagoId: data.metodoPagoId,
-          metodoPagoNombre: metodoPago?.nombre || '',
-        };
-
-        if (usuario && 'comisionPorcentaje' in usuario) {
-          await updateRevendedor(usuario.id, revendedorData);
-          toast.success('Revendedor actualizado');
-        } else {
-          await createRevendedor(revendedorData);
-          toast.success('Revendedor creado');
-        }
+        // Crear nuevo usuario
+        await createUsuario(usuarioData);
+        toast.success(`${data.tipoUsuario === 'cliente' ? 'Cliente' : 'Revendedor'} creado`);
       }
 
       onSuccess?.();

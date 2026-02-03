@@ -10,39 +10,33 @@ import { ClientesTable } from '@/components/usuarios/ClientesTable';
 import { RevendedoresTable } from '@/components/usuarios/RevendedoresTable';
 import { TodosUsuariosTable } from '@/components/usuarios/TodosUsuariosTable';
 import { UsuariosMetrics } from '@/components/usuarios/UsuariosMetrics';
-import { useClientesStore } from '@/store/clientesStore';
-import { useRevendedoresStore } from '@/store/revendedoresStore';
+import { useUsuariosStore } from '@/store/usuariosStore';
 import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
+import { useMemo } from 'react';
 
 function UsuariosPageContent() {
   const router = useRouter();
-  const { clientes, fetchClientes } = useClientesStore();
-  const { revendedores, fetchRevendedores } = useRevendedoresStore();
+  const { usuarios, fetchUsuarios } = useUsuariosStore();
   const { metodosPago, fetchMetodosPago } = useMetodosPagoStore();
 
   const [activeTab, setActiveTab] = useState('todos');
 
+  // Filtrar usuarios por tipo
+  const clientes = useMemo(() => usuarios.filter(u => u.tipo === 'cliente'), [usuarios]);
+  const revendedores = useMemo(() => usuarios.filter(u => u.tipo === 'revendedor'), [usuarios]);
+
   useEffect(() => {
-    fetchClientes();
-    fetchRevendedores();
+    fetchUsuarios();
     fetchMetodosPago();
-  }, [fetchClientes, fetchRevendedores, fetchMetodosPago]);
+  }, [fetchUsuarios, fetchMetodosPago]);
 
-  const handleEditCliente = (cliente: any) => {
-    router.push(`/usuarios/editar/${cliente.id}`);
+  const handleEdit = (usuario: any) => {
+    router.push(`/usuarios/editar/${usuario.id}`);
   };
 
-  const handleEditRevendedor = (revendedor: any) => {
-    router.push(`/usuarios/editar/${revendedor.id}`);
-  };
-
-  const handleViewCliente = (cliente: any) => {
-    router.push(`/usuarios/${cliente.id}`);
-  };
-
-  const handleViewRevendedor = (revendedor: any) => {
-    router.push(`/usuarios/${revendedor.id}`);
+  const handleView = (usuario: any) => {
+    router.push(`/usuarios/${usuario.id}`);
   };
 
   return (
@@ -62,7 +56,7 @@ function UsuariosPageContent() {
         </Link>
       </div>
 
-      <UsuariosMetrics clientes={clientes} revendedores={revendedores} />
+      <UsuariosMetrics usuarios={usuarios} />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-transparent rounded-none p-0 h-auto inline-flex border-b border-border">
@@ -88,12 +82,9 @@ function UsuariosPageContent() {
 
         <TabsContent value="todos" className="space-y-4">
           <TodosUsuariosTable
-            clientes={clientes}
-            revendedores={revendedores}
-            onEditCliente={handleEditCliente}
-            onEditRevendedor={handleEditRevendedor}
-            onViewCliente={handleViewCliente}
-            onViewRevendedor={handleViewRevendedor}
+            usuarios={usuarios}
+            onEdit={handleEdit}
+            onView={handleView}
             title="Todos los usuarios"
           />
         </TabsContent>
@@ -101,8 +92,8 @@ function UsuariosPageContent() {
         <TabsContent value="clientes" className="space-y-4">
           <ClientesTable
             clientes={clientes}
-            onEdit={handleEditCliente}
-            onView={handleViewCliente}
+            onEdit={handleEdit}
+            onView={handleView}
             title="Clientes"
           />
         </TabsContent>
@@ -110,8 +101,8 @@ function UsuariosPageContent() {
         <TabsContent value="revendedores" className="space-y-4">
           <RevendedoresTable
             revendedores={revendedores}
-            onEdit={handleEditRevendedor}
-            onView={handleViewRevendedor}
+            onEdit={handleEdit}
+            onView={handleView}
           />
         </TabsContent>
       </Tabs>

@@ -42,6 +42,11 @@ export const dateToTimestamp = (date: Date | string): Timestamp => {
   return Timestamp.fromDate(new Date(date));
 };
 
+const removeUndefinedFields = <T extends Record<string, any>>(data: T): T => {
+  const entries = Object.entries(data).filter(([, value]) => value !== undefined);
+  return Object.fromEntries(entries) as T;
+};
+
 /**
  * Get all documents from a collection
  */
@@ -113,8 +118,9 @@ export async function create<T extends DocumentData>(
 ): Promise<string> {
   try {
     const now = Timestamp.now();
+    const cleanedData = removeUndefinedFields(data as Record<string, any>);
     const docRef = await addDoc(collection(db, collectionName), {
-      ...data,
+      ...cleanedData,
       createdAt: now,
       updatedAt: now,
     });
@@ -135,8 +141,9 @@ export async function update<T extends DocumentData>(
 ): Promise<void> {
   try {
     const docRef = doc(db, collectionName, id);
+    const cleanedData = removeUndefinedFields(data as Record<string, any>);
     await updateDoc(docRef, {
-      ...data,
+      ...cleanedData,
       updatedAt: Timestamp.now(),
     });
   } catch (error) {
@@ -162,7 +169,10 @@ export async function remove(collectionName: string, id: string): Promise<void> 
  * Collection names constants
  */
 export const COLLECTIONS = {
+  USUARIOS: 'usuarios',
+  /** @deprecated Usar USUARIOS con filtro tipo='cliente' */
   CLIENTES: 'clientes',
+  /** @deprecated Usar USUARIOS con filtro tipo='revendedor' */
   REVENDEDORES: 'revendedores',
   SERVICIOS: 'servicios',
   CATEGORIAS: 'categorias',
@@ -174,4 +184,5 @@ export const COLLECTIONS = {
   GASTOS: 'gastos',
   TEMPLATES: 'templates',
   PAGOS_SERVICIO: 'pagosServicio',
+  VENTAS: 'Ventas',
 } as const;
