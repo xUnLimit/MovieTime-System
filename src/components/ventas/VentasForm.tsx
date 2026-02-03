@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -22,20 +22,24 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, ChevronDown, Plus, Trash2, User } from 'lucide-react';
+import { CalendarIcon, ChevronDown, MessageCircle, Plus, Trash2, User } from 'lucide-react';
 import { useCategoriasStore } from '@/store/categoriasStore';
 import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { useServiciosStore } from '@/store/serviciosStore';
 import { useUsuariosStore } from '@/store/usuariosStore';
+import { useTemplatesMensajesStore } from '@/store/templatesMensajesStore';
 import { toast } from 'sonner';
 import { COLLECTIONS, create, queryDocuments } from '@/lib/firebase/firestore';
+import { Switch } from '@/components/ui/switch';
+import { formatearFechaWhatsApp, getSaludo } from '@/lib/utils/whatsapp';
 
 const ventaSchema = z.object({
   clienteId: z.string().min(1, 'Seleccione un cliente'),
   metodoPagoId: z.string().min(1, 'Seleccione un metodo de pago'),
   fechaInicio: z.date(),
   fechaFin: z.date(),
-  notas: z.string().optional(),
+  codigo: z.string().optional(),
+  estado: z.enum(['activo', 'inactivo']).default('activo'),
 });
 
 type VentaFormData = z.infer<typeof ventaSchema>;
@@ -44,6 +48,7 @@ type TipoItem = 'cuenta' | 'perfil';
 
 interface VentaItem {
   id: string;
+  itemId: string;
   tipo: TipoItem;
   categoriaId: string;
   servicioId: string;
@@ -53,9 +58,12 @@ interface VentaItem {
   fechaInicio?: Date;
   fechaFin?: Date;
   perfilNumero?: number;
+  perfilNombre?: string;
   precio: number;
   descuento: number;
   precioFinal: number;
+  codigo?: string;
+  notas?: string;
 }
 
 interface ItemErrors {
@@ -98,22 +106,27 @@ export function VentasForm() {
   const { metodosPago, fetchMetodosPago } = useMetodosPagoStore();
   const { servicios, fetchServicios, updatePerfilOcupado } = useServiciosStore();
   const { usuarios, fetchUsuarios } = useUsuariosStore();
+  const fetchTemplates = useTemplatesMensajesStore((state) => state.fetchTemplates);
+  const templateNotificacion = useTemplatesMensajesStore((state) => state.getTemplateByTipo('suscripcion'));
 
   const [activeTab, setActiveTab] = useState<'datos' | 'preview'>('datos');
   const [isDatosTabComplete, setIsDatosTabComplete] = useState(false);
-  const [tipoItem, setTipoItem] = useState<TipoItem>('cuenta');
+  const [tipoItem, setTipoItem] = useState<TipoItem | null>(null);
   const [categoriaId, setCategoriaId] = useState('');
   const [servicioId, setServicioId] = useState('');
   const [planId, setPlanId] = useState('');
   const [precio, setPrecio] = useState('');
   const [descuento, setDescuento] = useState('');
   const [perfilNumero, setPerfilNumero] = useState('');
+  const [perfilNombre, setPerfilNombre] = useState('');
+  const [notasItem, setNotasItem] = useState('');
   const [itemErrors, setItemErrors] = useState<ItemErrors>({});
   const [saving, setSaving] = useState(false);
   const [items, setItems] = useState<VentaItem[]>([]);
   const [fechaInicioOpen, setFechaInicioOpen] = useState(false);
   const [fechaFinOpen, setFechaFinOpen] = useState(false);
   const [perfilesOcupadosVenta, setPerfilesOcupadosVenta] = useState<Record<string, Set<number>>>({});
+  const [notifyCliente, setNotifyCliente] = useState(false);
 
   const {
     register,
@@ -131,7 +144,8 @@ export function VentasForm() {
       metodoPagoId: '',
       fechaInicio: new Date(),
       fechaFin: addMonths(new Date(), 1),
-      notas: '',
+      codigo: '',
+      estado: 'activo',
     },
   });
 
@@ -139,19 +153,28 @@ export function VentasForm() {
   const metodoPagoIdValue = watch('metodoPagoId');
   const fechaInicioValue = watch('fechaInicio');
   const fechaFinValue = watch('fechaFin');
+  const estadoValue = watch('estado');
+  useEffect(() => {
+    if (estadoValue === 'inactivo' && notifyCliente) {
+      setNotifyCliente(false);
+    }
+  }, [estadoValue, notifyCliente]);
 
   useEffect(() => {
     fetchCategorias();
     fetchMetodosPago();
     fetchServicios();
     fetchUsuarios();
-  }, [fetchCategorias, fetchMetodosPago, fetchServicios, fetchUsuarios]);
+    fetchTemplates();
+  }, [fetchCategorias, fetchMetodosPago, fetchServicios, fetchUsuarios, fetchTemplates]);
 
   useEffect(() => {
     setPlanId('');
     setPrecio('');
     setDescuento('');
     setPerfilNumero('');
+    setPerfilNombre('');
+    setNotasItem('');
     setItemErrors({});
   }, [tipoItem]);
 
@@ -164,6 +187,8 @@ export function VentasForm() {
         ]);
         const ocupados = new Set<number>();
         docs.forEach((doc) => {
+          const estado = (doc.estado as string | undefined) ?? 'activo';
+          if (estado === 'inactivo') return;
           const perfil = (doc.perfilNumero as number | null | undefined) ?? null;
           if (perfil) ocupados.add(perfil);
         });
@@ -183,7 +208,7 @@ export function VentasForm() {
   );
 
   const planesDisponibles = useMemo(() => {
-    if (!categoriaSeleccionada?.planes) return [];
+    if (!categoriaSeleccionada?.planes || !tipoItem) return [];
     return categoriaSeleccionada.planes.filter((plan) =>
       tipoItem === 'cuenta' ? plan.tipoPlan === 'cuenta_completa' : plan.tipoPlan === 'perfiles'
     );
@@ -197,6 +222,11 @@ export function VentasForm() {
   useEffect(() => {
     if (!planSeleccionado) return;
     setPrecio(planSeleccionado.precio.toFixed(2));
+    setItemErrors((prev) => ({
+      ...prev,
+      plan: undefined,
+      precio: undefined,
+    }));
   }, [planSeleccionado]);
 
   useEffect(() => {
@@ -213,9 +243,14 @@ export function VentasForm() {
   const serviciosFiltrados = useMemo(() => {
     return servicios.filter((s) => {
       if (categoriaId && s.categoriaId !== categoriaId) return false;
+      if (tipoItem === 'perfil') {
+        const ocupados = s.perfilesOcupados || 0;
+        const disponibles = (s.perfilesDisponibles || 0) - ocupados;
+        if (disponibles <= 0) return false;
+      }
       return true;
     });
-  }, [servicios, categoriaId]);
+  }, [servicios, categoriaId, tipoItem]);
 
   const serviciosOrdenados = useMemo(() => {
     return [...serviciosFiltrados].sort((a, b) => {
@@ -248,6 +283,107 @@ export function VentasForm() {
   const precioFinalNumero = Math.max(precioBase * (1 - descuentoNumero / 100), 0);
 
   const subtotal = useMemo(() => items.reduce((sum, item) => sum + item.precio, 0), [items]);
+  const previewItem = items[0];
+  const previewServicio = previewItem
+    ? servicios.find((s) => s.id === previewItem.servicioId)
+    : servicioSeleccionado;
+  const previewCategoria = previewItem
+    ? categorias.find((c) => c.id === previewItem.categoriaId)
+    : categoriaSeleccionada;
+  const previewClienteNombre = clienteSeleccionado
+    ? `${clienteSeleccionado.nombre} ${clienteSeleccionado.apellido}`
+    : 'Sin cliente';
+  const previewNombreCliente = clienteSeleccionado?.nombre || previewClienteNombre.split(' ')[0] || 'Cliente';
+  const previewFechaVencimiento = previewItem?.fechaFin ?? fechaFinValue;
+  const previewMonto = previewItem?.precioFinal ?? subtotal;
+  const previewCodigo = previewItem?.codigo || watch('codigo')?.trim() || '—';
+  const previewPerfilNombre = previewItem?.perfilNombre?.trim() || '—';
+  const previewCorreo = previewServicio?.correo || previewItem?.servicioCorreo || '—';
+  const previewContrasena = previewServicio?.contrasena || '—';
+  const previewCategoriaNombre = previewCategoria?.nombre || previewItem?.servicioNombre || 'Servicio';
+  const previewServicioNombre = previewItem?.servicioNombre || previewServicio?.nombre || 'Servicio';
+  const formatItemsList = (names: string[]) => {
+    const cleaned = names.map((n) => n.trim()).filter(Boolean);
+    if (cleaned.length === 0) return '—';
+    if (cleaned.length === 1) return `*${cleaned[0]}*`;
+    if (cleaned.length === 2) return `*${cleaned[0]}* y *${cleaned[1]}*`;
+    const first = cleaned.slice(0, -1).map((n) => `*${n}*`).join(', ');
+    const last = `*${cleaned[cleaned.length - 1]}*`;
+    return `${first} y ${last}`;
+  };
+  const itemsList = formatItemsList(
+    Array.from(
+      new Set(
+        items.map((item) => categorias.find((c) => c.id === item.categoriaId)?.nombre || item.servicioNombre || 'Servicio')
+      )
+    )
+  );
+  const replaceAllPlaceholders = (text: string, values: Record<string, string>) => {
+    let next = text;
+    Object.entries(values).forEach(([key, value]) => {
+      const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      next = next.replace(new RegExp(escaped, 'g'), value);
+    });
+    return next;
+  };
+  const renderTemplateWithItems = (template: string, globals: Record<string, string>) => {
+    const blockMatch = template.match(/{{#items}}([\s\S]*?){{\/items}}/);
+    let content = template;
+    if (blockMatch) {
+      const block = blockMatch[1].replace(/^\s*\n/, '').replace(/\n\s*$/, '');
+      const renderedItems = items.map((item) => {
+        const servicio = servicios.find((s) => s.id === item.servicioId);
+        const categoria = categorias.find((c) => c.id === item.categoriaId);
+        const itemValues: Record<string, string> = {
+          '{servicio}': item.servicioNombre || servicio?.nombre || 'Servicio',
+          '{categoria}': categoria?.nombre || item.servicioNombre || 'Servicio',
+          '{correo}': servicio?.correo || item.servicioCorreo || '—',
+          '{contrasena}': servicio?.contrasena || '—',
+          '{perfil_nombre}': item.perfilNombre?.trim() || '—',
+          '{codigo}': item.codigo || '—',
+          '{vencimiento}': item.fechaFin ? formatearFechaWhatsApp(new Date(item.fechaFin)) : '—',
+          '{monto}': item.precioFinal?.toFixed(2) || '0.00',
+        };
+        return replaceAllPlaceholders(block, { ...globals, ...itemValues });
+      }).join('\n\n');
+      content = content.replace(blockMatch[0], renderedItems);
+    }
+    return replaceAllPlaceholders(content, globals);
+  };
+  const previewMessage = useMemo(() => {
+    const content = templateNotificacion?.contenido || 'No hay plantilla de Notificación de Suscripción configurada.';
+    const placeholders: Record<string, string> = {
+      '{saludo}': getSaludo(),
+      '{cliente}': previewClienteNombre,
+      '{nombre_cliente}': previewNombreCliente,
+      '{items}': itemsList,
+      '{servicio}': previewServicioNombre,
+      '{categoria}': previewCategoriaNombre,
+      '{perfil_nombre}': previewPerfilNombre,
+      '{correo}': previewCorreo,
+      '{contrasena}': previewContrasena,
+      '{vencimiento}': previewFechaVencimiento ? formatearFechaWhatsApp(new Date(previewFechaVencimiento)) : '—',
+      '{monto}': previewMonto.toFixed(2),
+      '{codigo}': previewCodigo,
+    };
+    return renderTemplateWithItems(content, placeholders);
+  }, [
+    templateNotificacion?.contenido,
+    previewClienteNombre,
+    previewNombreCliente,
+    previewCategoriaNombre,
+    previewPerfilNombre,
+    previewCorreo,
+    previewContrasena,
+    previewFechaVencimiento,
+    previewMonto,
+    previewCodigo,
+    previewServicioNombre,
+    itemsList,
+    items,
+    servicios,
+    categorias,
+  ]);
 
   const handleAddItem = () => {
     const categoria = categorias.find((c) => c.id === categoriaId);
@@ -258,6 +394,9 @@ export function VentasForm() {
     }
     if (!servicioId) {
       errors.servicio = 'Seleccione un servicio';
+    }
+    if (!tipoItem) {
+      errors.plan = 'Seleccione el tipo de plan';
     }
     if (!plan) {
       errors.plan = 'Seleccione un plan';
@@ -280,10 +419,15 @@ export function VentasForm() {
       return;
     }
     setItemErrors({});
-      const newItem: VentaItem = {
-        id: `${servicioId}-${plan.id}-${Date.now()}`,
-        tipo: tipoItem,
-        categoriaId: categoria.id,
+    const itemId =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const newItem: VentaItem = {
+      id: `${servicioId}-${plan.id}-${Date.now()}`,
+      itemId,
+      tipo: tipoItem,
+      categoriaId: categoria.id,
         servicioId,
         servicioNombre: servicioSeleccionado?.nombre || plan.nombre,
         servicioCorreo: servicioSeleccionado?.correo,
@@ -291,9 +435,12 @@ export function VentasForm() {
         fechaInicio: fechaInicioValue ? new Date(fechaInicioValue) : undefined,
         fechaFin: fechaFinValue ? new Date(fechaFinValue) : undefined,
         perfilNumero: perfilNumero ? Number(perfilNumero) : undefined,
+        perfilNombre: perfilNombre?.trim() || undefined,
         precio: Number(precio) || 0,
         descuento: Number(descuento) || 0,
         precioFinal: precioFinalNumero,
+        codigo: watch('codigo')?.trim() ? watch('codigo')?.trim() : undefined,
+        notas: notasItem?.trim() ? notasItem.trim() : undefined,
       };
 
     setItems((prev) => [...prev, newItem]);
@@ -303,6 +450,9 @@ export function VentasForm() {
     setPrecio('');
     setDescuento('');
     setPerfilNumero('');
+    setPerfilNombre('');
+    setValue('codigo', '');
+    setNotasItem('');
     setItemErrors({});
   };
 
@@ -361,6 +511,8 @@ export function VentasForm() {
       : 'Sin cliente';
     const metodoPagoNombre = metodoPagoSeleccionado?.nombre || 'Sin metodo';
     const moneda = metodoPagoSeleccionado?.moneda || 'USD';
+    const estadoVenta = watch('estado');
+    const ventaId = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : String(Date.now());
 
     try {
       setSaving(true);
@@ -373,7 +525,10 @@ export function VentasForm() {
           moneda,
           fechaInicio: item.fechaInicio ?? fechaInicioValue,
           fechaFin: item.fechaFin ?? fechaFinValue,
-          notas: watch('notas') || '',
+          codigo: item.codigo || '',
+          perfilNombre: item.perfilNombre || '',
+          estado: estadoVenta || 'activo',
+          notas: item.notas || '',
           categoriaId: item.categoriaId,
           servicioId: item.servicioId,
           servicioNombre: item.servicioNombre,
@@ -383,16 +538,61 @@ export function VentasForm() {
           precio: item.precio,
           descuento: item.descuento,
           precioFinal: item.precioFinal,
+          pagos: [
+            {
+              fecha: new Date(),
+              descripcion: 'Pago inicial',
+              precio: item.precio,
+              descuento: item.descuento,
+              total: item.precioFinal,
+              metodoPagoId: metodoPagoIdValue,
+              metodoPagoNombre,
+              moneda,
+              isPagoInicial: true,
+            },
+          ],
+          itemId: item.itemId,
+          ventaId,
           totalVenta: subtotal,
         })
       );
       await Promise.all(writes);
-      items.forEach((item) => {
-        if (item.perfilNumero) {
-          updatePerfilOcupado(item.servicioId, true);
-        }
-      });
+      if (estadoVenta !== 'inactivo') {
+        items.forEach((item) => {
+          if (item.perfilNumero) {
+            updatePerfilOcupado(item.servicioId, true);
+          }
+        });
+      }
       toast.success('Venta registrada');
+      if (notifyCliente && estadoVenta !== 'inactivo') {
+        const phoneRaw = clienteSeleccionado?.telefono || '';
+        const phone = phoneRaw.replace(/\D/g, '');
+        if (phone && previewMessage) {
+          const toastId = toast.custom(() => (
+            <div className="w-full max-w-md rounded-xl border border-border bg-card px-4 py-3 shadow-lg">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold">Venta Creada</p>
+                  <p className="text-xs text-muted-foreground">La venta se ha registrado exitosamente.</p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="bg-green-700 hover:bg-green-800 text-white"
+                  onClick={() => {
+                    const link = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(previewMessage)}`;
+                    window.open(link, '_blank', 'noopener,noreferrer');
+                    toast.dismiss(toastId);
+                  }}
+                >
+                  Enviar WhatsApp
+                </Button>
+              </div>
+            </div>
+          ), { duration: Infinity });
+        }
+      }
       router.push('/ventas');
     } catch (error) {
       console.error('Error guardando venta:', error);
@@ -412,8 +612,8 @@ export function VentasForm() {
 
   return (
     <form onSubmit={handleGuardarVenta} className="space-y-6" noValidate>
-      <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="bg-transparent rounded-none p-0 h-auto inline-flex border-b border-border">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <TabsList className="mb-8 bg-transparent rounded-none p-0 h-auto inline-flex border-b border-border">
           <TabsTrigger
             value="datos"
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2 text-sm"
@@ -431,11 +631,8 @@ export function VentasForm() {
         </TabsList>
 
         <TabsContent value="datos" className="space-y-6">
-          <Card className="p-6">
-            <div className="space-y-0">
-              <h2 className="text-lg font-semibold">Informacion de la Venta</h2>
-              <p className="text-sm text-muted-foreground -mt-1">Ingrese los datos de la nueva venta.</p>
-            </div>
+          <div className="space-y-6">
+
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-1">
               <div className="space-y-2">
@@ -598,11 +795,18 @@ export function VentasForm() {
                   <Label>Plan</Label>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="outline" type="button" className="w-full justify-between" disabled={!categoriaId}>
+                      <Button
+                        variant="outline"
+                        type="button"
+                        className="w-full justify-between"
+                        disabled={!categoriaId || !tipoItem}
+                      >
                         {planId
                           ? planSeleccionado?.nombre
                           : categoriaId
-                            ? 'Seleccionar plan'
+                            ? tipoItem
+                              ? 'Seleccionar plan'
+                              : 'Selecciona el tipo de plan'
                             : 'Primero selecciona categoria'}
                         <ChevronDown className="h-4 w-4 opacity-50" />
                       </Button>
@@ -632,13 +836,13 @@ export function VentasForm() {
                         variant="outline"
                         type="button"
                         className="w-full justify-between"
-                        disabled={getSlotsDisponibles(servicioId) <= 0}
+                        disabled={!servicioId || getSlotsDisponibles(servicioId) <= 0}
                       >
                         {perfilNumero
                           ? `Perfil ${perfilNumero}`
                           : getSlotsDisponibles(servicioId) > 0
-                            ? 'Seleccionar perfil'
-                            : 'No hay perfiles disponibles'}
+                          ? 'Seleccionar perfil'
+                          : 'No hay perfiles disponibles'}
                         <ChevronDown className="h-4 w-4 opacity-50" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -793,6 +997,42 @@ export function VentasForm() {
                 </div>
               </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label>Nombre del Perfil</Label>
+                <Input
+                  type="text"
+                  value={perfilNombre}
+                  onChange={(e) => setPerfilNombre(e.target.value)}
+                  placeholder="Ej: Perfil Kids"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Codigo</Label>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  {...register('codigo')}
+                  onKeyDown={(e) => {
+                    const char = e.key;
+                    if (
+                      ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(char)
+                    ) {
+                      return;
+                    }
+                    if (e.ctrlKey || e.metaKey) {
+                      return;
+                    }
+                    if (!/[0-9]/.test(char)) {
+                      e.preventDefault();
+                    }
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label>Precio Final</Label>
                 <div className="relative">
@@ -809,10 +1049,37 @@ export function VentasForm() {
                 </div>
               </div>
 
-              <Button type="button" variant="secondary" className="w-full" onClick={handleAddItem}>
-                <Plus className="h-4 w-4 mr-2" />
-                Agregar al carrito
-              </Button>
+              <div className="space-y-2">
+                <Label>Estado</Label>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" type="button" className="w-full justify-between">
+                      {estadoValue === 'inactivo' ? 'Inactivo' : 'Activo'}
+                      <ChevronDown className="h-4 w-4 opacity-50" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                    <DropdownMenuItem onClick={() => setValue('estado', 'activo')}>Activo</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setValue('estado', 'inactivo')}>Inactivo</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Notas</Label>
+              <Textarea
+                rows={3}
+                value={notasItem}
+                onChange={(e) => setNotasItem(e.target.value)}
+                placeholder="Notas adicionales"
+              />
+            </div>
+
+            <Button type="button" variant="secondary" className="w-full" onClick={handleAddItem}>
+              <Plus className="h-4 w-4 mr-2" />
+              Agregar al carrito
+            </Button>
 
               {items.length > 0 && (
                 <Card className="p-4">
@@ -833,16 +1100,21 @@ export function VentasForm() {
                             <User className="h-4 w-4" />
                           </div>
                           <div>
-                            <p className="font-medium">
-                              {categorias.find((c) => c.id === item.categoriaId)?.nombre || item.servicioNombre}
-                              {' - '}
-                              {item.servicioCorreo || 'Sin correo'}
-                            </p>
-                            {item.perfilNumero && (
-                              <span className="mt-1 inline-flex items-center rounded-full bg-purple-600/10 text-white px-2 py-0.5 text-xs">
-                                Perfil: Perfil {item.perfilNumero}
-                              </span>
-                            )}
+                          <p className="font-medium">
+                            {categorias.find((c) => c.id === item.categoriaId)?.nombre || item.servicioNombre}
+                            {' - '}
+                            {item.servicioCorreo || 'Sin correo'}
+                          </p>
+                          {item.perfilNumero && (
+                            <span className="mt-1 inline-flex items-center rounded-full bg-purple-600/10 text-white px-2 py-0.5 text-xs">
+                              {item.perfilNombre ? item.perfilNombre : `Perfil ${item.perfilNumero}`}
+                            </span>
+                          )}
+                          {item.codigo && (
+                            <span className="mt-1 block text-xs text-muted-foreground">
+                              Codigo: {item.codigo}
+                            </span>
+                          )}
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
@@ -863,65 +1135,140 @@ export function VentasForm() {
               )}
             </div>
 
-            <div className="space-y-2 mt-2">
-              <Label>Notas</Label>
-              <Textarea rows={4} {...register('notas')} placeholder="Notas adicionales" />
-            </div>
-          </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="preview" className="space-y-6">
-          <Card className="p-6">
-            <div className="space-y-1">
-              <h2 className="text-lg font-semibold">Vista previa</h2>
-              <p className="text-sm text-muted-foreground">Resumen de la venta antes de guardar.</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">Cliente</p>
-                <p className="font-medium">{clienteSeleccionado ? `${clienteSeleccionado.nombre} ${clienteSeleccionado.apellido}` : 'Sin seleccionar'}</p>
-              </div>
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">Metodo de pago</p>
-                <p className="font-medium">{metodoPagoSeleccionado?.nombre || 'Sin seleccionar'}</p>
-              </div>
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">Fecha de inicio</p>
-                <p className="font-medium">{fechaInicioValue ? format(fechaInicioValue, "d 'de' MMMM 'del' yyyy", { locale: es }) : '—'}</p>
-              </div>
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">Fecha de fin</p>
-                <p className="font-medium">{fechaFinValue ? format(fechaFinValue, "d 'de' MMMM 'del' yyyy", { locale: es }) : '—'}</p>
+          <div className="space-y-4">
+            <div className="flex items-start justify-between gap-6">
+              <div className="space-y-0">
+                <h2 className="text-lg font-semibold">Vista previa de la venta</h2>
+                <p className="-mt-1 text-sm text-muted-foreground">Resumen general antes de guardar.</p>
               </div>
             </div>
 
-            <div className="mt-6 space-y-3">
-              <h3 className="font-semibold">Items</h3>
+            <div className="mt-0 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="rounded-lg border bg-background/40 p-4">
+                <p className="text-xs text-muted-foreground">Cliente</p>
+                <p className="text-sm font-medium">{clienteSeleccionado ? `${clienteSeleccionado.nombre} ${clienteSeleccionado.apellido}` : 'Sin seleccionar'}</p>
+              </div>
+              <div className="rounded-lg border bg-background/40 p-4">
+                <p className="text-xs text-muted-foreground">Método de pago</p>
+                <p className="text-sm font-medium">{metodoPagoSeleccionado?.nombre || 'Sin seleccionar'}</p>
+              </div>
+            </div>
+
+
+            <div className="mt-0 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold">Items agregados</h3>
+                <span className="text-sm text-muted-foreground">{items.length} item{items.length !== 1 ? 's' : ''}</span>
+              </div>
+
               {items.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No hay items agregados.</p>
+                <div className="rounded-lg border bg-background/40 p-6 text-center text-sm text-muted-foreground">
+                  No hay items agregados.
+                </div>
               ) : (
-                <div className="space-y-2">
+                <div className="flex flex-wrap gap-4">
                   {items.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm">
-                      <div>
-                        <p className="font-medium">{item.servicioNombre}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {item.tipo === 'cuenta' ? 'Cuenta completa' : `Perfil ${item.perfilNumero}`}
-                        </p>
+                    <div
+                      key={item.id}
+                      className="rounded-lg border bg-background/40 p-4 w-full md:w-[280px] md:flex-[0_0_auto]"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">{item.servicioNombre}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {item.cicloPago ? `${item.cicloPago.charAt(0).toUpperCase()}${item.cicloPago.slice(1)}` : '—'}
+                          </p>
+                        </div>
+                        <span className="text-green-500 font-semibold">{simboloMoneda} {item.precioFinal.toFixed(2)}</span>
                       </div>
-                      <span className="text-green-500 font-medium">{simboloMoneda} {item.precioFinal.toFixed(2)}</span>
+                      <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-muted-foreground">
+                        <div>
+                          <p>Fecha de inicio</p>
+                          <p className="text-foreground font-medium">
+                            {item.fechaInicio ? format(item.fechaInicio, "d 'de' MMMM 'del' yyyy", { locale: es }) : '—'}
+                          </p>
+                        </div>
+                        <div>
+                          <p>Fecha de fin</p>
+                          <p className="text-foreground font-medium">
+                            {item.fechaFin ? format(item.fechaFin, "d 'de' MMMM 'del' yyyy", { locale: es }) : '—'}
+                          </p>
+                        </div>
+                        <div>
+                          <p>Precio</p>
+                          <p className="text-foreground font-medium">{simboloMoneda} {item.precio.toFixed(2)}</p>
+                        </div>
+                        <div>
+                          <p>Descuento</p>
+                          <p className="text-foreground font-medium">{item.descuento.toFixed(2)}%</p>
+                        </div>
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-muted-foreground">
+                        <div>
+                          <p>Nombre del perfil</p>
+                          <p className="text-foreground font-medium">
+                            {item.perfilNombre?.trim() ? item.perfilNombre : '—'}
+                          </p>
+                        </div>
+                        <div>
+                          <p>Codigo</p>
+                          <p className="text-foreground font-medium">{item.codigo || '—'}</p>
+                        </div>
+                      </div>
+                      <div className="mt-3 text-xs text-muted-foreground">
+                        <p>Precio final</p>
+                        <p className="text-foreground font-medium">{simboloMoneda} {item.precioFinal.toFixed(2)}</p>
+                      </div>
+                      <div className="mt-3 text-xs text-muted-foreground">
+                        <p>Notas</p>
+                        <p className="text-foreground font-medium">{item.notas ? item.notas : 'Sin notas'}</p>
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
             </div>
 
-            <div className="mt-6 border-t pt-4 flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Total</span>
-              <span className="text-lg font-semibold text-green-500">{simboloMoneda} {subtotal.toFixed(2)}</span>
+            <div className="mt-1 rounded-lg bg-muted/50 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-lg font-semibold text-foreground">Total de la venta</span>
+                <span className="text-xl font-semibold text-green-500">{simboloMoneda} {subtotal.toFixed(2)}</span>
+              </div>
+              <div className="mt-0 text-sm text-muted-foreground">
+                El total corresponde a la suma de todos los items agregados.
+              </div>
             </div>
-          </Card>
+
+            <div className="mt-4 rounded-lg border bg-background/40 p-3">
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={notifyCliente}
+                  onCheckedChange={setNotifyCliente}
+                  disabled={estadoValue === 'inactivo'}
+                />
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <MessageCircle className="h-4 w-4 text-green-500" />
+                  <span>Notificar al cliente por WhatsApp</span>
+                </div>
+              </div>
+
+              {notifyCliente && estadoValue !== 'inactivo' && (
+                <div className="mt-4 space-y-2">
+                  <p className="text-sm font-semibold">Editar Mensaje de Notificación</p>
+                  <Textarea
+                    value={previewMessage}
+                    readOnly
+                    rows={10}
+                    className="min-h-[220px] resize-none text-sm leading-relaxed bg-background/60"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
 

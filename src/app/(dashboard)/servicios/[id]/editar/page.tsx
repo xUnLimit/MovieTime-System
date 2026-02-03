@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Card } from '@/components/ui/card';
+import { ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { ServicioForm } from '@/components/servicios/ServicioForm';
 import { useServiciosStore } from '@/store/serviciosStore';
 import { Servicio } from '@/types';
@@ -24,17 +25,33 @@ export default function EditarServicioPage() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Editar Servicio</h1>
-        <p className="text-sm text-muted-foreground">
-          <Link href="/" className="hover:text-foreground transition-colors">Dashboard</Link> / <Link href="/servicios" className="hover:text-foreground transition-colors">Servicios</Link> / <span className="text-foreground">Editar</span>
-        </p>
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Link href="/servicios">
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </Link>
+            <h1 className="text-3xl font-bold tracking-tight">Editar Servicio</h1>
+          </div>
+          <p className="text-sm text-muted-foreground ml-10">
+            <Link href="/" className="hover:text-foreground transition-colors">
+              Dashboard
+            </Link>{' '}
+            /{' '}
+            <Link href="/servicios" className="hover:text-foreground transition-colors">
+              Servicios
+            </Link>{' '}
+            / <span className="text-foreground">Editar</span>
+          </p>
+        </div>
       </div>
 
       {servicio && (
-        <Card className="p-6">
+        <div className="bg-card border rounded-lg p-6">
           <ServicioForm servicio={servicio} />
-        </Card>
+        </div>
       )}
     </div>
   );

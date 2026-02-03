@@ -78,7 +78,10 @@ export function TodosUsuariosTable({
     return ventas.reduce<Record<string, { serviciosActivos: number; montoSinConsumir: number; serviciosActivosSet: Set<string> }>>((acc, venta) => {
       const clienteId = venta.clienteId as string | undefined;
       if (!clienteId) return acc;
+      const itemId = (venta.itemId as string) || '';
+      const ventaId = (venta.ventaId as string) || '';
       const servicioId = (venta.servicioId as string) || '';
+      const servicioKey = itemId || ventaId || servicioId;
 
       const fechaInicio = venta.fechaInicio ? timestampToDate(venta.fechaInicio) : null;
       const fechaFin = venta.fechaFin ? timestampToDate(venta.fechaFin) : null;
@@ -87,16 +90,17 @@ export function TodosUsuariosTable({
       const diasRestantes = fechaFin ? Math.max(differenceInCalendarDays(fechaFin, now), 0) : 0;
       const ratioRestante = totalDias > 0 ? Math.min(diasRestantes / totalDias, 1) : 0;
       const montoSinConsumir = totalDias > 0 ? Math.max(precioFinal * ratioRestante, 0) : 0;
-      const isActivo = fechaFin ? fechaFin >= now : false;
+      const estadoVenta = (venta.estado as string | undefined) ?? 'activo';
+      const isActivo = estadoVenta !== 'inactivo';
 
       if (!acc[clienteId]) {
         acc[clienteId] = { serviciosActivos: 0, montoSinConsumir: 0, serviciosActivosSet: new Set() };
       }
 
-      if (isActivo && servicioId) {
-        acc[clienteId].serviciosActivosSet.add(servicioId);
+      if (isActivo && servicioKey) {
+        acc[clienteId].serviciosActivosSet.add(servicioKey);
+        acc[clienteId].montoSinConsumir += montoSinConsumir;
       }
-      acc[clienteId].montoSinConsumir += montoSinConsumir;
       return acc;
     }, {});
   }, [ventas]);

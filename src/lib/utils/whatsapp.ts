@@ -23,11 +23,15 @@ export function replacePlaceholders(
   const placeholders: Record<string, string> = {
     '{saludo}': getSaludo(),
     '{cliente}': data.cliente,
+    '{servicio}': data.servicio,
+    '{perfil_nombre}': data.perfilNombre,
     '{categoria}': data.categoria,
     '{correo}': data.correo,
     '{contrasena}': data.contrasena,
     '{vencimiento}': data.vencimiento,
-    '{monto}': data.monto
+    '{monto}': data.monto,
+    '{codigo}': data.codigo,
+    '{items}': data.items
   };
 
   // Si hay días de retraso, agregar al mensaje
@@ -82,21 +86,29 @@ export function generarMensajeVenta(
   template: string,
   venta: {
     clienteNombre: string;
+    servicioNombre?: string;
     categoriaNombre: string;
+    perfilNombre?: string;
     correo: string;
     contrasena: string;
     fechaVencimiento: Date;
     monto: number;
+    codigo?: string;
+    items?: string;
     diasRetraso?: number;
   }
 ): string {
   const data: WhatsAppData = {
     cliente: venta.clienteNombre,
+    servicio: venta.servicioNombre ?? '',
+    perfilNombre: venta.perfilNombre ?? '',
     categoria: venta.categoriaNombre,
     correo: venta.correo,
     contrasena: venta.contrasena,
     vencimiento: formatearFechaWhatsApp(venta.fechaVencimiento),
     monto: venta.monto.toFixed(2),
+    codigo: venta.codigo ?? '',
+    items: venta.items ?? '',
     diasRetraso: venta.diasRetraso
   };
 

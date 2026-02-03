@@ -40,6 +40,7 @@ function VentasPageContent() {
           moneda: (doc.moneda as string) || 'USD',
           fechaInicio: timestampToDate(doc.fechaInicio),
           fechaFin: timestampToDate(doc.fechaFin),
+          estado: (doc.estado as VentaDoc['estado']) ?? 'activo',
           cicloPago: (doc.cicloPago as VentaDoc['cicloPago']) ?? undefined,
           categoriaId: (doc.categoriaId as string) || '',
           servicioId: (doc.servicioId as string) || '',

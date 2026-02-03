@@ -29,7 +29,7 @@ import { cn } from '@/lib/utils';
 interface VentasTableProps {
   ventas: VentaDoc[];
   categorias: Categoria[];
-  estadoFiltro: 'todas' | 'activas' | 'suspendidas' | 'inactivas';
+  estadoFiltro: 'todas' | 'activas' | 'inactivas';
   title: string;
   onDelete?: (ventaId: string, servicioId?: string, perfilNumero?: number | null) => void;
 }
@@ -109,13 +109,8 @@ export function VentasTable({
       const consumoPorcentaje = Math.round(ratio * 100);
       const monto = venta.precioFinal ?? 0;
       const montoRestante = Math.max(monto * (1 - ratio), 0);
-      const estaActiva = fechaVencimiento ? fechaVencimiento >= hoy : true;
-      const estaVencida = fechaVencimiento ? fechaVencimiento < hoy : false;
-      const estado: VentaRow['estado'] = !estaActiva
-        ? 'inactiva'
-        : estaVencida
-          ? 'suspendida'
-          : 'activa';
+      const inactivaPorEstado = venta.estado === 'inactivo';
+      const estado: VentaRow['estado'] = inactivaPorEstado ? 'inactiva' : 'activa';
 
       return {
         id: venta.id,
@@ -149,7 +144,6 @@ export function VentasTable({
       const matchesEstado =
         estadoFiltro === 'todas' ||
         (estadoFiltro === 'activas' && row.estado === 'activa') ||
-        (estadoFiltro === 'suspendidas' && row.estado === 'suspendida') ||
         (estadoFiltro === 'inactivas' && row.estado === 'inactiva');
 
       return matchesSearch && matchesCategoria && matchesEstado;
@@ -320,11 +314,11 @@ export function VentasTable({
               </Button>
             </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => router.push(`/ventas`)}>
+            <DropdownMenuItem onClick={() => router.push(`/ventas/${item.original.id}`)}>
               <Eye className="h-4 w-4 mr-2" />
               Ver detalles
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => {}}>
+            <DropdownMenuItem onClick={() => router.push(`/ventas/${item.original.id}/editar`)}>
               <Edit className="h-4 w-4 mr-2" />
               Editar
             </DropdownMenuItem>

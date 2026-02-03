@@ -11,6 +11,7 @@ export interface VentaDoc {
   moneda: string;
   fechaInicio: Date;
   fechaFin: Date;
+  estado?: 'activo' | 'inactivo';
   cicloPago?: 'mensual' | 'trimestral' | 'semestral' | 'anual';
   categoriaId: string;
   servicioId: string;
@@ -34,8 +35,8 @@ export const VentasMetrics = memo(function VentasMetrics({ ventas }: VentasMetri
     const ingresoMensualEsperado = 0;
     const montoSinConsumir = 0;
     const hoy = new Date();
-    const ventasActivas = ventas.filter((v) => v.fechaFin && new Date(v.fechaFin) >= hoy).length;
-    const ventasInactivas = 0;
+    const ventasActivas = ventas.filter((v) => v.estado !== 'inactivo').length;
+    const ventasInactivas = ventas.filter((v) => v.estado === 'inactivo').length;
 
     return {
       ventasTotales,

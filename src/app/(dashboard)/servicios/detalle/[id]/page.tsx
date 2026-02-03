@@ -97,7 +97,9 @@ function ServicioDetallePageContent() {
         const docs = await queryDocuments<Record<string, unknown>>(COLLECTIONS.VENTAS, [
           { field: 'servicioId', operator: '==', value: id },
         ]);
-        const ventas = docs.map((doc) => ({
+        const ventas = docs
+          .filter((doc) => ((doc.estado as string | undefined) ?? 'activo') !== 'inactivo')
+          .map((doc) => ({
           perfilNumero: (doc.perfilNumero as number | null | undefined) ?? null,
           clienteNombre: (doc.clienteNombre as string) || undefined,
           createdAt: timestampToDate(doc.createdAt),
@@ -209,6 +211,8 @@ function ServicioDetallePageContent() {
             fechaInicio: anterior.fechaInicio,
             fechaVencimiento: anterior.fechaVencimiento,
             costoServicio: anterior.monto,
+            metodoPagoId: anterior.metodoPagoId || undefined,
+            cicloPago: anterior.cicloPago,
           });
         }
       }
@@ -731,10 +735,14 @@ function ServicioDetallePageContent() {
                       </tr>
                     ) : (
                       <>
-                      {pagosOrdenados.map((pago) => {
-                        const esInicial = pago.isPagoInicial || pago.descripcion === 'Pago inicial';
-                        return (
-                          <tr key={pago.id} className="border-b text-sm">
+                    {pagosOrdenados.map((pago) => {
+                      const esInicial = pago.isPagoInicial || pago.descripcion === 'Pago inicial';
+                      const pagoMetodo = pago.metodoPagoId
+                        ? metodosPago.find((m) => m.id === pago.metodoPagoId)
+                        : undefined;
+                      const pagoCurrency = getCurrencySymbol(pago.moneda || pagoMetodo?.moneda || metodoPago?.moneda);
+                      return (
+                        <tr key={pago.id} className="border-b text-sm">
                             <td className="py-3">
                               {format(new Date(pago.fecha), 'd MMM yyyy', { locale: es })}
                             </td>
@@ -749,7 +757,7 @@ function ServicioDetallePageContent() {
                               {format(new Date(pago.fechaVencimiento), 'd MMM yyyy', { locale: es })}
                             </td>
                             <td className="py-3 text-left">
-                              {currencySymbol} {pago.monto.toFixed(2)}
+                              {pagoCurrency} {pago.monto.toFixed(2)}
                             </td>
                             <td className="py-3 text-center">
                               {pago.id === pagosOrdenados[0]?.id && !esInicial ? (

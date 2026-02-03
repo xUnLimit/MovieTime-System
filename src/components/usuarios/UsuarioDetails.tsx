@@ -163,7 +163,8 @@ export function UsuarioDetails({ usuario }: UsuarioDetailsProps) {
       const diasRestantes = fechaFin ? Math.max(differenceInCalendarDays(fechaFin, now), 0) : 0;
       const ratioRestante = totalDias > 0 ? Math.min(diasRestantes / totalDias, 1) : 0;
       const montoSinConsumir = totalDias > 0 ? Math.max(precioFinal * ratioRestante, 0) : 0;
-      const estado = fechaFin && fechaFin < now ? 'Inactiva' : 'Activa';
+      const estadoVenta = (venta.estado as string | undefined) ?? 'activo';
+      const estado = estadoVenta === 'inactivo' ? 'Inactiva' : 'Activa';
 
       return {
         id: venta.id as string,
