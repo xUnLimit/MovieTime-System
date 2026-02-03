@@ -17,7 +17,7 @@ import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { MetodoPago } from '@/types';
 
-const renovacionSchema = z.object({
+const editarPagoSchema = z.object({
   periodoRenovacion: z
     .string()
     .refine((v) => ['mensual', 'trimestral', 'semestral', 'anual'].includes(v), {
@@ -31,28 +31,34 @@ const renovacionSchema = z.object({
   notas: z.string().optional(),
 });
 
-type RenovacionVentaFormData = z.infer<typeof renovacionSchema>;
+type EditarPagoVentaFormData = z.infer<typeof editarPagoSchema>;
 
-interface RenovarVentaDialogProps {
+interface EditarPagoVentaDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   venta: {
-    clienteNombre: string;
     metodoPagoId?: string;
-    precioFinal: number;
-    fechaFin: Date;
   };
+  pago: {
+    metodoPagoId?: string | null;
+    cicloPago?: 'mensual' | 'trimestral' | 'semestral' | 'anual' | null;
+    precio: number;
+    fechaInicio?: Date | null;
+    fechaVencimiento?: Date | null;
+    notas?: string | null;
+  } | null;
   metodosPago: MetodoPago[];
-  onConfirm: (data: RenovacionVentaFormData) => void;
+  onConfirm: (data: EditarPagoVentaFormData) => void;
 }
 
-export function RenovarVentaDialog({
+export function EditarPagoVentaDialog({
   open,
   onOpenChange,
   venta,
+  pago,
   metodosPago,
   onConfirm,
-}: RenovarVentaDialogProps) {
+}: EditarPagoVentaDialogProps) {
   const [fechaInicioOpen, setFechaInicioOpen] = useState(false);
   const [fechaVencimientoOpen, setFechaVencimientoOpen] = useState(false);
 
@@ -64,12 +70,12 @@ export function RenovarVentaDialog({
     reset,
     clearErrors,
     formState: { errors, isSubmitting },
-  } = useForm<RenovacionVentaFormData>({
-    resolver: zodResolver(renovacionSchema),
+  } = useForm<EditarPagoVentaFormData>({
+    resolver: zodResolver(editarPagoSchema),
     defaultValues: {
       periodoRenovacion: '',
       metodoPagoId: venta.metodoPagoId || '',
-      costo: venta.precioFinal || 0,
+      costo: 0,
       descuento: 0,
       fechaInicio: new Date(),
       fechaVencimiento: new Date(),
@@ -108,20 +114,20 @@ export function RenovarVentaDialog({
   const precioFinal = Math.max((Number(costoValue) || 0) * (1 - descuentoNumero / 100), 0);
 
   useEffect(() => {
-    if (open && venta) {
-      const fechaVencimientoActual = venta.fechaFin ? new Date(venta.fechaFin) : new Date();
+    if (open && pago) {
       reset({
-        periodoRenovacion: '',
-        metodoPagoId: venta.metodoPagoId || '',
-        costo: venta.precioFinal || 0,
-        descuento: 0,
-        fechaInicio: fechaVencimientoActual,
-        fechaVencimiento: fechaVencimientoActual,
-        notas: '',
+        periodoRenovacion: pago.cicloPago || '',
+        metodoPagoId: (pago.metodoPagoId as string) || venta.metodoPagoId || '',
+        costo: pago.precio ?? 0,
+        descuento: (pago.descuento as number) ?? 0,
+        fechaInicio: pago.fechaInicio ? new Date(pago.fechaInicio) : new Date(),
+        fechaVencimiento: pago.fechaVencimiento ? new Date(pago.fechaVencimiento) : new Date(),
+        notas: pago.notas ?? '',
       });
     }
-  }, [open, venta, reset]);
+  }, [open, pago, venta.metodoPagoId, reset]);
 
+  // Auto-calcular fecha de vencimiento cuando se selecciona el ciclo (desde fecha de inicio)
   useEffect(() => {
     if (fechaInicioValue && periodoValue && periodoValue !== '') {
       const meses =
@@ -133,7 +139,7 @@ export function RenovarVentaDialog({
     }
   }, [periodoValue, fechaInicioValue, setValue]);
 
-  const onSubmit = async (data: RenovacionVentaFormData) => {
+  const onSubmit = async (data: EditarPagoVentaFormData) => {
     onConfirm(data);
     onOpenChange(false);
   };
@@ -147,9 +153,9 @@ export function RenovarVentaDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Renovar Venta: {venta.clienteNombre}</DialogTitle>
+          <DialogTitle>Editar Pago</DialogTitle>
           <p className="text-sm text-muted-foreground">
-            Registre un nuevo pago para esta venta para extender su fecha de vencimiento.
+            Actualiza la información del pago seleccionado.
           </p>
         </DialogHeader>
 
@@ -343,10 +349,7 @@ export function RenovarVentaDialog({
               Cancelar
             </Button>
             <Button type="submit" disabled={isSubmitting} className="bg-purple-600 hover:bg-purple-700">
-              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Confirmar Renovación
+              Guardar cambios
             </Button>
           </div>
         </form>
