@@ -4,27 +4,28 @@ import { memo, useMemo } from 'react';
 import { Usuario } from '@/types';
 import { MetricCard } from '@/components/shared/MetricCard';
 import { Users, Store, UserCheck, UserPlus } from 'lucide-react';
-import { subDays } from 'date-fns';
+import { startOfDay } from 'date-fns';
 
 interface UsuariosMetricsProps {
   usuarios: Usuario[];
+  clientesConVentasActivas: Set<string>;
 }
 
-export const UsuariosMetrics = memo(function UsuariosMetrics({ usuarios }: UsuariosMetricsProps) {
+export const UsuariosMetrics = memo(function UsuariosMetrics({ usuarios, clientesConVentasActivas }: UsuariosMetricsProps) {
   const metrics = useMemo(() => {
     const clientes = usuarios.filter(u => u.tipo === 'cliente');
     const revendedores = usuarios.filter(u => u.tipo === 'revendedor');
-    
+
     const totalClientes = clientes.length;
     const totalRevendedores = revendedores.length;
 
-    const clientesActivos = clientes.filter((c) => c.active && (c.serviciosActivos ?? 0) > 0).length;
+    const clientesActivos = clientes.filter((c) => clientesConVentasActivas.has(c.id)).length;
 
-    // Usuarios nuevos en los últimos 30 días
-    const thirtyDaysAgo = subDays(new Date(), 30);
+    // Usuarios nuevos hoy
+    const inicioHoy = startOfDay(new Date());
     const usuariosNuevos = usuarios.filter((u) => {
       const createdDate = u.createdAt ? new Date(u.createdAt) : new Date();
-      return createdDate >= thirtyDaysAgo;
+      return createdDate >= inicioHoy;
     }).length;
 
     return {
@@ -33,7 +34,7 @@ export const UsuariosMetrics = memo(function UsuariosMetrics({ usuarios }: Usuar
       clientesActivos,
       usuariosNuevos,
     };
-  }, [usuarios]);
+  }, [usuarios, clientesConVentasActivas]);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

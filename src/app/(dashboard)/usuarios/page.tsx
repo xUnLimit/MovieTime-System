@@ -15,6 +15,7 @@ import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 import { useMemo } from 'react';
 import { Usuario } from '@/types';
+import { COLLECTIONS, queryDocuments } from '@/lib/firebase/firestore';
 
 function UsuariosPageContent() {
   const router = useRouter();
@@ -22,6 +23,7 @@ function UsuariosPageContent() {
   const { metodosPago, fetchMetodosPago } = useMetodosPagoStore();
 
   const [activeTab, setActiveTab] = useState('todos');
+  const [clientesConVentasActivas, setClientesConVentasActivas] = useState<Set<string>>(new Set());
 
   // Filtrar usuarios por tipo
   const clientes = useMemo(() => usuarios.filter(u => u.tipo === 'cliente'), [usuarios]);
@@ -31,6 +33,24 @@ function UsuariosPageContent() {
     fetchUsuarios();
     fetchMetodosPago();
   }, [fetchUsuarios, fetchMetodosPago]);
+
+  useEffect(() => {
+    const loadClientesActivos = async () => {
+      try {
+        const docs = await queryDocuments<Record<string, unknown>>(COLLECTIONS.VENTAS, [
+          { field: 'estado', operator: '==', value: 'activo' },
+        ]);
+        const ids = new Set<string>();
+        docs.forEach((doc) => {
+          if (doc.clienteId) ids.add(doc.clienteId as string);
+        });
+        setClientesConVentasActivas(ids);
+      } catch (error) {
+        console.error('Error cargando ventas activas:', error);
+      }
+    };
+    loadClientesActivos();
+  }, []);
 
   const handleEdit = (usuario: Usuario) => {
     router.push(`/usuarios/editar/${usuario.id}`);
@@ -57,7 +77,7 @@ function UsuariosPageContent() {
         </Link>
       </div>
 
-      <UsuariosMetrics usuarios={usuarios} />
+      <UsuariosMetrics usuarios={usuarios} clientesConVentasActivas={clientesConVentasActivas} />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-transparent rounded-none p-0 h-auto inline-flex border-b border-border">
