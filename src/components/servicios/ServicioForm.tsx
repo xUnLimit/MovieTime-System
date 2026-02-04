@@ -364,7 +364,10 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
     ? getSimboloMoneda(metodoPagoSeleccionado.moneda, metodoPagoSeleccionado.pais)
     : '$';
 
-  const categoriasActivas = categorias.filter(c => c.activo);
+  const categoriasActivas = useMemo(
+    () => categorias.filter((c) => c.activo).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
+    [categorias]
+  );
   const metodosPagoActivos = metodosPago.filter(m => m.activo && (!m.asociadoA || m.asociadoA === 'servicio'));
 
   return (

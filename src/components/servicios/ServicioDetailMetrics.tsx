@@ -16,15 +16,17 @@ export function ServicioDetailMetrics({ servicios, categoria }: ServicioDetailMe
   const perfilesOcupados = servicios.reduce((sum, s) => sum + (s.perfilesOcupados || 0), 0);
   const perfilesDisponibles = totalPerfiles - perfilesOcupados;
 
-  // Calcular próximos pagos (servicios que vencen en los próximos 7 días)
+  // Calcular próximos pagos (servicios con 7 días restantes o menos)
   const hoy = new Date();
-  const en7Dias = new Date();
-  en7Dias.setDate(hoy.getDate() + 7);
+  hoy.setHours(0, 0, 0, 0);
+  const msDia = 1000 * 60 * 60 * 24;
 
   const proximosPagos = servicios.filter(s => {
     if (!s.fechaVencimiento) return false;
     const fechaVenc = new Date(s.fechaVencimiento);
-    return fechaVenc >= hoy && fechaVenc <= en7Dias;
+    fechaVenc.setHours(0, 0, 0, 0);
+    const diffDias = Math.ceil((fechaVenc.getTime() - hoy.getTime()) / msDia);
+    return diffDias >= 0 && diffDias <= 7;
   }).length;
 
   const metrics = [

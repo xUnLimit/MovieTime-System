@@ -816,6 +816,8 @@ function ServicioDetallePageContent() {
         onOpenChange={setRenovarDialogOpen}
         servicio={servicio}
         metodosPago={metodosPago}
+        categoriaPlanes={categoria?.planes}
+        tipoPlan={servicio?.tipo}
         onConfirm={handleConfirmRenovacion}
       />
 
@@ -830,6 +832,8 @@ function ServicioDetallePageContent() {
         pago={pagoToEdit}
         servicio={servicio}
         metodosPago={metodosPago}
+        categoriaPlanes={categoria?.planes}
+        tipoPlan={servicio?.tipo}
         onConfirm={handleConfirmEditarPago}
       />
     </>

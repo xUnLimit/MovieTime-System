@@ -824,6 +824,8 @@ function VentaDetallePageContent() {
         onOpenChange={setRenovarDialogOpen}
         venta={venta}
         metodosPago={metodosPago}
+        categoriaPlanes={categoria?.planes}
+        tipoPlan={servicio?.tipo}
         onConfirm={handleConfirmRenovacion}
       />
 
@@ -835,6 +837,8 @@ function VentaDetallePageContent() {
         venta={venta}
         pago={pagoToEdit}
         metodosPago={metodosPago}
+        categoriaPlanes={categoria?.planes}
+        tipoPlan={servicio?.tipo}
         onConfirm={handleConfirmEditarPago}
       />
 

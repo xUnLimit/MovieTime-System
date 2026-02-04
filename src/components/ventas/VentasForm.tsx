@@ -95,7 +95,6 @@ export function VentasForm() {
 
   const [activeTab, setActiveTab] = useState<'datos' | 'preview'>('datos');
   const [isDatosTabComplete, setIsDatosTabComplete] = useState(false);
-  const [tipoItem, setTipoItem] = useState<TipoItem | null>(null);
   const [categoriaId, setCategoriaId] = useState('');
   const [servicioId, setServicioId] = useState('');
   const [planId, setPlanId] = useState('');
@@ -160,7 +159,7 @@ export function VentasForm() {
     setPerfilNombre('');
     setNotasItem('');
     setItemErrors({});
-  }, [tipoItem]);
+  }, [servicioId]);
 
   useEffect(() => {
     const loadPerfilesOcupados = async () => {
@@ -191,12 +190,34 @@ export function VentasForm() {
     [categorias, categoriaId]
   );
 
+  const clientes = useMemo(() => usuarios.filter((u) => u.tipo === 'cliente'), [usuarios]);
+  const categoriasOrdenadas = useMemo(
+    () => [...categorias].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
+    [categorias]
+  );
+  const metodosPagoOrdenados = useMemo(
+    () => metodosPago
+      .filter((m) => m.activo && m.asociadoA === 'usuario')
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
+    [metodosPago]
+  );
+  const clienteSeleccionado = clientes.find((c) => c.id === clienteIdValue);
+  const metodoPagoSeleccionado = metodosPago.find((m) => m.id === metodoPagoIdValue);
+  const servicioSeleccionado = servicios.find((s) => s.id === servicioId);
+
+  const tipoItem = useMemo<TipoItem | null>(() => {
+    if (!servicioSeleccionado?.tipo) return null;
+    return servicioSeleccionado.tipo === 'cuenta_completa' ? 'cuenta' : 'perfil';
+  }, [servicioSeleccionado?.tipo]);
+
   const planesDisponibles = useMemo(() => {
-    if (!categoriaSeleccionada?.planes || !tipoItem) return [];
+    if (!categoriaSeleccionada?.planes || !servicioSeleccionado?.tipo) return [];
     return categoriaSeleccionada.planes.filter((plan) =>
-      tipoItem === 'cuenta' ? plan.tipoPlan === 'cuenta_completa' : plan.tipoPlan === 'perfiles'
+      servicioSeleccionado.tipo === 'cuenta_completa'
+        ? plan.tipoPlan === 'cuenta_completa'
+        : plan.tipoPlan === 'perfiles'
     );
-  }, [categoriaSeleccionada, tipoItem]);
+  }, [categoriaSeleccionada, servicioSeleccionado?.tipo]);
 
   const planSeleccionado = useMemo(
     () => planesDisponibles.find((plan) => plan.id === planId),
@@ -219,22 +240,12 @@ export function VentasForm() {
     setValue('fechaFin', addMonths(new Date(fechaInicioValue), meses));
   }, [planSeleccionado, fechaInicioValue, setValue]);
 
-  const clientes = useMemo(() => usuarios.filter((u) => u.tipo === 'cliente'), [usuarios]);
-  const clienteSeleccionado = clientes.find((c) => c.id === clienteIdValue);
-  const metodoPagoSeleccionado = metodosPago.find((m) => m.id === metodoPagoIdValue);
-  const servicioSeleccionado = servicios.find((s) => s.id === servicioId);
-
   const serviciosFiltrados = useMemo(() => {
     return servicios.filter((s) => {
       if (categoriaId && s.categoriaId !== categoriaId) return false;
-      if (tipoItem === 'perfil') {
-        const ocupados = s.perfilesOcupados || 0;
-        const disponibles = (s.perfilesDisponibles || 0) - ocupados;
-        if (disponibles <= 0) return false;
-      }
       return true;
     });
-  }, [servicios, categoriaId, tipoItem]);
+  }, [servicios, categoriaId]);
 
   const serviciosOrdenados = useMemo(() => {
     return [...serviciosFiltrados].sort((a, b) => {
@@ -378,9 +389,6 @@ export function VentasForm() {
     }
     if (!servicioId) {
       errors.servicio = 'Seleccione un servicio';
-    }
-    if (!tipoItem) {
-      errors.plan = 'Seleccione el tipo de plan';
     }
     if (!plan) {
       errors.plan = 'Seleccione un plan';
@@ -534,6 +542,9 @@ export function VentasForm() {
               metodoPagoNombre,
               moneda,
               isPagoInicial: true,
+              cicloPago: item.cicloPago ?? undefined,
+              fechaInicio: item.fechaInicio ?? fechaInicioValue,
+              fechaVencimiento: item.fechaFin ?? fechaFinValue,
             },
           ],
           itemId: item.itemId,
@@ -660,9 +671,7 @@ export function VentasForm() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                    {metodosPago
-                      .filter((m) => m.activo && m.asociadoA === 'usuario')
-                      .map((metodo) => (
+                    {metodosPagoOrdenados.map((metodo) => (
                         <DropdownMenuItem
                           key={metodo.id}
                           onClick={() => {
@@ -685,32 +694,6 @@ export function VentasForm() {
                 <span className="text-sm text-muted-foreground">{items.length} items</span>
               </div>
 
-              <div className="grid w-full grid-cols-2 gap-2 rounded-2xl border border-border bg-muted/20 p-2">
-                <button
-                  type="button"
-                  onClick={() => setTipoItem('cuenta')}
-                  className={cn(
-                    'h-8 w-full rounded-xl border text-sm font-medium transition-colors',
-                    tipoItem === 'cuenta'
-                      ? 'border-purple-600 bg-purple-600 text-white'
-                      : 'border-border bg-background text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  Cuentas completas
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTipoItem('perfil')}
-                  className={cn(
-                    'h-8 w-full rounded-xl border text-sm font-medium transition-colors',
-                    tipoItem === 'perfil'
-                      ? 'border-purple-600 bg-purple-600 text-white'
-                      : 'border-border bg-background text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  Perfiles
-                </button>
-              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label>Categoria</Label>
@@ -722,7 +705,7 @@ export function VentasForm() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                      {categorias.map((categoria) => (
+                      {categoriasOrdenadas.map((categoria) => (
                         <DropdownMenuItem
                           key={categoria.id}
                           onClick={() => {
@@ -780,18 +763,18 @@ export function VentasForm() {
                   <Label>Plan</Label>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        type="button"
-                        className="w-full justify-between"
-                        disabled={!categoriaId || !tipoItem}
+                  <Button
+                    variant="outline"
+                    type="button"
+                    className="w-full justify-between"
+                        disabled={!categoriaId || !servicioId}
                       >
                         {planId
                           ? planSeleccionado?.nombre
                           : categoriaId
-                            ? tipoItem
+                            ? servicioId
                               ? 'Seleccionar plan'
-                              : 'Selecciona el tipo de plan'
+                              : 'Primero selecciona servicio'
                             : 'Primero selecciona categoria'}
                         <ChevronDown className="h-4 w-4 opacity-50" />
                       </Button>

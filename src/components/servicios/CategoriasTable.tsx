@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Table,
@@ -21,7 +21,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Monitor, Users, ShoppingCart, Eye, Search, ArrowUpDown, TrendingUp } from 'lucide-react';
-import { Categoria, Servicio } from '@/types';
+import { Categoria, PagoServicio, Servicio } from '@/types';
+import { COLLECTIONS, getAll, timestampToDate } from '@/lib/firebase/firestore';
 
 interface CategoriasTableProps {
   categorias: Categoria[];
@@ -52,10 +53,52 @@ export const CategoriasTable = memo(function CategoriasTable({
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [sortKey, setSortKey] = useState<keyof CategoriaRow | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
+  const [pagosServicio, setPagosServicio] = useState<PagoServicio[]>([]);
 
   const handleViewCategoria = (categoriaId: string) => {
     router.push(`/servicios/${categoriaId}`);
   };
+
+  useEffect(() => {
+    let active = true;
+    const loadPagos = async () => {
+      try {
+        const docs = await getAll<Record<string, unknown>>(COLLECTIONS.PAGOS_SERVICIO);
+        const pagos: PagoServicio[] = docs.map((d) => ({
+          id: d.id as string,
+          servicioId: d.servicioId as string,
+          metodoPagoId: d.metodoPagoId as string | undefined,
+          moneda: d.moneda as string | undefined,
+          isPagoInicial: d.isPagoInicial as boolean | undefined,
+          fecha: timestampToDate(d.fecha),
+          descripcion: d.descripcion as string,
+          cicloPago: d.cicloPago as PagoServicio['cicloPago'],
+          fechaInicio: timestampToDate(d.fechaInicio),
+          fechaVencimiento: timestampToDate(d.fechaVencimiento),
+          monto: (d.monto as number) ?? 0,
+          createdAt: timestampToDate(d.createdAt),
+          updatedAt: timestampToDate(d.updatedAt),
+        }));
+        if (active) setPagosServicio(pagos);
+      } catch (error) {
+        console.error('Error cargando pagos de servicios:', error);
+        if (active) setPagosServicio([]);
+      }
+    };
+    loadPagos();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const pagosPorServicio = useMemo(() => {
+    const map = new Map<string, number>();
+    pagosServicio.forEach((pago) => {
+      const monto = pago.monto || 0;
+      map.set(pago.servicioId, (map.get(pago.servicioId) || 0) + monto);
+    });
+    return map;
+  }, [pagosServicio]);
 
   const rows = useMemo(() => {
     const categoriaData: CategoriaRow[] = categorias
@@ -78,9 +121,9 @@ export const CategoriasTable = memo(function CategoriasTable({
         // Ingresos: 0 sin suscripciones
         const ingresoTotal = 0;
 
-        // Gastos: suma de costos de servicios activos
-        const gastosTotal = serviciosActivos.reduce(
-          (sum, s) => sum + ((s.costoServicio || 0) * (s.perfilesDisponibles || 0)),
+        // Gastos: suma de pagos del historial de cada servicio de la categorÃ­a
+        const gastosTotal = serviciosCategoria.reduce(
+          (sum, s) => sum + (pagosPorServicio.get(s.id) || 0),
           0
         );
 
@@ -104,7 +147,7 @@ export const CategoriasTable = memo(function CategoriasTable({
       });
 
     return categoriaData;
-  }, [categorias, servicios]);
+  }, [categorias, servicios, pagosPorServicio]);
 
   // Filtrar por búsqueda
   const filteredRows = useMemo(() => {
@@ -115,7 +158,11 @@ export const CategoriasTable = memo(function CategoriasTable({
 
   // Sorting
   const sortedRows = useMemo(() => {
-    if (!sortKey || !sortDirection) return filteredRows;
+    if (!sortKey || !sortDirection) {
+      return [...filteredRows].sort((a, b) =>
+        a.categoria.nombre.localeCompare(b.categoria.nombre, 'es')
+      );
+    }
 
     const getSortValue = (row: CategoriaRow, key: keyof CategoriaRow): string | number => {
       if (key === 'categoria') return row.categoria.nombre;

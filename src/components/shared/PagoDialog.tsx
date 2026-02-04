@@ -16,6 +16,7 @@ import { addMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { MetodoPago, PagoServicio, Servicio } from '@/types';
+import { Plan } from '@/types/categorias';
 import { getCurrencySymbol } from '@/lib/constants';
 import { formatearFecha } from '@/lib/utils/calculations';
 
@@ -44,6 +45,8 @@ interface BaseProps {
   metodosPago: MetodoPago[];
   mode: PagoDialogMode;
   onConfirm: (data: PagoDialogFormData) => void;
+  categoriaPlanes?: Plan[];
+  tipoPlan?: Plan['tipoPlan'];
 }
 
 interface VentaDialogProps extends BaseProps {
@@ -82,6 +85,13 @@ export function PagoDialog(props: PagoDialogProps) {
   const servicio = props.context === 'servicio' ? props.servicio : null;
   const pago = props.pago ?? null;
   const { metodosPago } = props;
+  const getPrecioPorCiclo = (ciclo?: Plan['cicloPago']) => {
+    if (!ciclo || !props.categoriaPlanes?.length) return null;
+    const match = props.categoriaPlanes.find((plan) =>
+      plan.cicloPago === ciclo && (!props.tipoPlan || plan.tipoPlan === props.tipoPlan)
+    );
+    return match?.precio ?? null;
+  };
 
   const defaultMetodoPagoId = venta?.metodoPagoId || servicio?.metodoPagoId || '';
   const defaultCosto = venta
@@ -268,10 +278,28 @@ export function PagoDialog(props: PagoDialogProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
-          <DropdownMenuItem onClick={() => { setValue('periodoRenovacion', 'mensual'); clearErrors('periodoRenovacion'); }}>Mensual</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => { setValue('periodoRenovacion', 'trimestral'); clearErrors('periodoRenovacion'); }}>Trimestral</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => { setValue('periodoRenovacion', 'semestral'); clearErrors('periodoRenovacion'); }}>Semestral</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => { setValue('periodoRenovacion', 'anual'); clearErrors('periodoRenovacion'); }}>Anual</DropdownMenuItem>
+          {(() => {
+            const order: Plan['cicloPago'][] = ['mensual', 'trimestral', 'semestral', 'anual'];
+            const planes = props.categoriaPlanes
+              ? props.categoriaPlanes.filter((plan) => !props.tipoPlan || plan.tipoPlan === props.tipoPlan)
+              : [];
+            const ciclosDisponibles = planes.length > 0
+              ? order.filter((ciclo) => planes.some((p) => p.cicloPago === ciclo))
+              : order;
+            return ciclosDisponibles.map((ciclo) => (
+              <DropdownMenuItem
+                key={ciclo}
+                onClick={() => {
+                  setValue('periodoRenovacion', ciclo);
+                  const precio = getPrecioPorCiclo(ciclo);
+                  if (precio !== null) setValue('costo', precio);
+                  clearErrors('periodoRenovacion');
+                }}
+              >
+                {ciclo === 'mensual' ? 'Mensual' : ciclo === 'trimestral' ? 'Trimestral' : ciclo === 'semestral' ? 'Semestral' : 'Anual'}
+              </DropdownMenuItem>
+            ));
+          })()}
         </DropdownMenuContent>
       </DropdownMenu>
       {errors.periodoRenovacion && (

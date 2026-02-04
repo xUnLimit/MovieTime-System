@@ -21,7 +21,11 @@ export const ServiciosCategoriaMetrics = memo(function ServiciosCategoriaMetrics
     const en7Dias = new Date();
     en7Dias.setDate(hoy.getDate() + 7);
 
-    const proximosPagos = 0; // Sin suscripciones, esto será 0
+    const proximosPagos = servicios.filter(s => {
+      if (!s.fechaVencimiento) return false;
+      const fechaVenc = new Date(s.fechaVencimiento);
+      return fechaVenc <= en7Dias;
+    }).length;
 
     return {
       serviciosActivos: `${serviciosActivos.length}/${totalServicios}`,

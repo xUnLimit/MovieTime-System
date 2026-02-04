@@ -79,6 +79,12 @@ export function UsuarioForm({
   const nombreValue = watch('nombre');
   const apellidoValue = watch('apellido');
   const telefonoValue = watch('telefono');
+  const metodosPagoOrdenados = useMemo(
+    () => metodosPago
+      .filter((metodo) => metodo.asociadoA === 'usuario' || !metodo.asociadoA)
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
+    [metodosPago]
+  );
 
   // Detectar si hay cambios en el formulario (solo en modo edición)
   const hasChanges = useMemo(() => {
@@ -336,9 +342,7 @@ export function UsuarioForm({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                  {metodosPago
-                    .filter((metodo) => metodo.asociadoA === 'usuario' || !metodo.asociadoA)
-                    .map((metodo) => (
+                  {metodosPagoOrdenados.map((metodo) => (
                       <DropdownMenuItem
                         key={metodo.id}
                         onClick={() => setValue('metodoPagoId', metodo.id)}
