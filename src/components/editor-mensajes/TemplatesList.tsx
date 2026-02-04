@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Edit, Trash2, Copy } from 'lucide-react';
-import { useTemplatesMensajesStore } from '@/store/templatesMensajesStore';
+import { useTemplatesStore } from '@/store/templatesStore';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { toast } from 'sonner';
 
@@ -18,7 +18,7 @@ interface TemplatesListProps {
 }
 
 export function TemplatesList({ templates, onEdit, onPreview }: TemplatesListProps) {
-  const { updateTemplate, deleteTemplate } = useTemplatesMensajesStore();
+  const { updateTemplate, deleteTemplate } = useTemplatesStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [templateToDelete, setTemplateToDelete] = useState<TemplateMensaje | null>(null);
 

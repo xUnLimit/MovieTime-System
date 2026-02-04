@@ -10,7 +10,7 @@ export function calcularFechaVencimiento(
   fechaInicio: Date,
   cicloPago: CicloPago
 ): Date {
-  const meses = cicloPago === 'mensual' ? 1 : cicloPago === 'trimestral' ? 3 : 12;
+  const meses = cicloPago === 'mensual' ? 1 : cicloPago === 'trimestral' ? 3 : cicloPago === 'semestral' ? 6 : 12;
   return addMonths(fechaInicio, meses);
 }
 
@@ -193,4 +193,38 @@ export function getTextoDiasRetraso(dias: number): string {
   if (dias >= 100) return `${dias} días vencido`;
   if (dias >= 1) return `${dias} días para vencer`;
   return 'Activo';
+}
+
+export function deriveTopLevelFromPagos(pagos: Array<{
+  fecha?: Date | null;
+  precio?: number;
+  descuento?: number;
+  total?: number;
+  metodoPagoId?: string | null;
+  metodoPagoNombre?: string;
+  moneda?: string;
+  cicloPago?: string | null;
+  fechaInicio?: Date | null;
+  fechaVencimiento?: Date | null;
+}>) {
+  if (!pagos || pagos.length === 0) return {};
+
+  const sorted = [...pagos].sort((a, b) => {
+    const aTime = a.fecha ? new Date(a.fecha).getTime() : 0;
+    const bTime = b.fecha ? new Date(b.fecha).getTime() : 0;
+    return bTime - aTime;
+  });
+
+  const latest = sorted[0];
+  return {
+    metodoPagoId: latest.metodoPagoId ?? null,
+    metodoPagoNombre: latest.metodoPagoNombre ?? 'Sin método',
+    moneda: latest.moneda ?? 'USD',
+    cicloPago: latest.cicloPago ?? null,
+    fechaInicio: latest.fechaInicio ?? null,
+    fechaFin: latest.fechaVencimiento ?? null,
+    precio: latest.precio ?? 0,
+    descuento: latest.descuento ?? 0,
+    precioFinal: latest.total ?? 0,
+  };
 }

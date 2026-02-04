@@ -11,8 +11,6 @@ interface UsuariosState {
 
   // Actions
   fetchUsuarios: () => Promise<void>;
-  fetchClientes: () => Promise<void>;
-  fetchRevendedores: () => Promise<void>;
   createUsuario: (usuario: Omit<Usuario, 'id' | 'createdAt' | 'updatedAt' | 'montoSinConsumir' | 'serviciosActivos' | 'suscripcionesTotales'>) => Promise<void>;
   updateUsuario: (id: string, updates: Partial<Usuario>) => Promise<void>;
   deleteUsuario: (id: string) => Promise<void>;
@@ -45,16 +43,6 @@ export const useUsuariosStore = create<UsuariosState>()(
           console.error('Error fetching usuarios:', error);
           set({ usuarios: [], isLoading: false });
         }
-      },
-
-      // Deprecated: usar fetchUsuarios + getClientes()
-      fetchClientes: async () => {
-        await get().fetchUsuarios();
-      },
-
-      // Deprecated: usar fetchUsuarios + getRevendedores()
-      fetchRevendedores: async () => {
-        await get().fetchUsuarios();
       },
 
       createUsuario: async (usuarioData) => {

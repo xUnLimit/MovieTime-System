@@ -2,7 +2,8 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { Notificacion, EstadoNotificacion } from '@/types';
 import { getAll, create as createDoc, update, remove, COLLECTIONS, timestampToDate } from '@/lib/firebase/firestore';
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp, doc as firestoreDoc, writeBatch } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
 
 interface NotificacionesState {
   notificaciones: Notificacion[];
@@ -71,12 +72,14 @@ export const useNotificacionesStore = create<NotificacionesState>()(
 
       markAllAsRead: async () => {
         try {
-          const notificaciones = get().notificaciones;
-          await Promise.all(
-            notificaciones.filter(n => !n.leida).map(n =>
-              update(COLLECTIONS.NOTIFICACIONES, n.id, { leida: true })
-            )
-          );
+          const unread = get().notificaciones.filter((n) => !n.leida);
+          if (unread.length > 0) {
+            const batch = writeBatch(db);
+            unread.forEach((n) => {
+              batch.update(firestoreDoc(db, COLLECTIONS.NOTIFICACIONES, n.id), { leida: true });
+            });
+            await batch.commit();
+          }
 
           set((state) => ({
             notificaciones: state.notificaciones.map((n) => ({ ...n, leida: true })),

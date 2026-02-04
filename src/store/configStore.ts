@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { devtools, persist } from 'zustand/middleware';
+import { devtools } from 'zustand/middleware';
 import { Configuracion, TasasCambio } from '@/types';
 import { getById, update, COLLECTIONS, timestampToDate } from '@/lib/firebase/firestore';
 import { Timestamp } from 'firebase/firestore';
@@ -20,8 +20,7 @@ const CONFIG_DOC_ID = 'global';
 
 export const useConfigStore = create<ConfigState>()(
   devtools(
-    persist(
-      (set, get) => ({
+    (set, get) => ({
         config: null,
         isLoading: false,
 
@@ -160,10 +159,7 @@ export const useConfigStore = create<ConfigState>()(
           }
         }
       }),
-      {
-        name: 'config-storage',
-        partialize: (state) => ({ config: state.config })
-      }
+      { name: 'config-store' }
     )
-  )
-);
+  );
+

@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { TemplateMensaje } from '@/types';
-import { useTemplatesMensajesStore } from '@/store/templatesMensajesStore';
+import { useTemplatesStore } from '@/store/templatesStore';
 import { toast } from 'sonner';
 
 const templateSchema = z.object({
@@ -55,7 +55,7 @@ const AVAILABLE_PLACEHOLDERS = [
 ];
 
 export function TemplateDialog({ open, onOpenChange, template }: TemplateDialogProps) {
-  const { createTemplate, updateTemplate } = useTemplatesMensajesStore();
+  const { createTemplate, updateTemplate } = useTemplatesStore();
   const [detectedPlaceholders, setDetectedPlaceholders] = useState<string[]>([]);
 
   const {

@@ -2,7 +2,8 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { Servicio } from '@/types';
 import { getAll, getById, create as createDoc, update, remove, COLLECTIONS, timestampToDate } from '@/lib/firebase/firestore';
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp, doc as firestoreDoc, updateDoc, increment } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
 
 interface ServiciosState {
   servicios: Servicio[];
@@ -18,7 +19,7 @@ interface ServiciosState {
   getServicio: (id: string) => Servicio | undefined;
   getServiciosByCategoria: (categoriaId: string) => Servicio[];
   getServiciosDisponibles: () => Servicio[];
-  updatePerfilOcupado: (id: string, increment: boolean) => Promise<void>;
+  updatePerfilOcupado: (id: string, shouldIncrement: boolean) => Promise<void>;
 }
 
 export const useServiciosStore = create<ServiciosState>()(
@@ -161,41 +162,29 @@ export const useServiciosStore = create<ServiciosState>()(
         );
       },
 
-      updatePerfilOcupado: async (id, increment) => {
-        const servicio = get().servicios.find((s) => s.id === id);
-        if (!servicio) return;
-
-        const newOcupados = increment
-          ? Math.min(servicio.perfilesOcupados + 1, servicio.perfilesDisponibles)
-          : Math.max(servicio.perfilesOcupados - 1, 0);
+      updatePerfilOcupado: async (id, shouldIncrement) => {
+        const delta = shouldIncrement ? 1 : -1;
+        const prevOcupados = get().servicios.find((s) => s.id === id)?.perfilesOcupados ?? 0;
 
         set((state) => ({
-          servicios: state.servicios.map((s) => {
-            if (s.id === id) {
-              return {
-                ...s,
-                perfilesOcupados: newOcupados,
-                updatedAt: new Date()
-              };
-            }
-            return s;
-          })
+          servicios: state.servicios.map((s) =>
+            s.id === id
+              ? { ...s, perfilesOcupados: Math.max(0, s.perfilesOcupados + delta), updatedAt: new Date() }
+              : s
+          ),
         }));
 
         try {
-          await update(COLLECTIONS.SERVICIOS, id, {
-            perfilesOcupados: newOcupados,
-            updatedAt: Timestamp.now()
+          const docRef = firestoreDoc(db, COLLECTIONS.SERVICIOS, id);
+          await updateDoc(docRef, {
+            perfilesOcupados: increment(delta),
           });
         } catch (error) {
           console.error('Error updating perfil ocupado:', error);
-          // Rollback optimistic update
           set((state) => ({
             servicios: state.servicios.map((s) =>
-              s.id === id
-                ? { ...s, perfilesOcupados: servicio.perfilesOcupados, updatedAt: servicio.updatedAt }
-                : s
-            )
+              s.id === id ? { ...s, perfilesOcupados: prevOcupados } : s
+            ),
           }));
         }
       }

@@ -27,7 +27,7 @@ import { useCategoriasStore } from '@/store/categoriasStore';
 import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { useServiciosStore } from '@/store/serviciosStore';
 import { useUsuariosStore } from '@/store/usuariosStore';
-import { useTemplatesMensajesStore } from '@/store/templatesMensajesStore';
+import { useTemplatesStore } from '@/store/templatesStore';
 import { toast } from 'sonner';
 import { COLLECTIONS, create, queryDocuments } from '@/lib/firebase/firestore';
 import { Switch } from '@/components/ui/switch';
@@ -90,8 +90,8 @@ export function VentasForm() {
   const { metodosPago, fetchMetodosPago } = useMetodosPagoStore();
   const { servicios, fetchServicios, updatePerfilOcupado } = useServiciosStore();
   const { usuarios, fetchUsuarios } = useUsuariosStore();
-  const fetchTemplates = useTemplatesMensajesStore((state) => state.fetchTemplates);
-  const templateNotificacion = useTemplatesMensajesStore((state) => state.getTemplateByTipo('suscripcion'));
+  const fetchTemplates = useTemplatesStore((state) => state.fetchTemplates);
+  const templateNotificacion = useTemplatesStore((state) => state.getTemplateByTipo('suscripcion'));
 
   const [activeTab, setActiveTab] = useState<'datos' | 'preview'>('datos');
   const [isDatosTabComplete, setIsDatosTabComplete] = useState(false);
@@ -533,6 +533,7 @@ export function VentasForm() {
           precioFinal: item.precioFinal,
           pagos: [
             {
+              id: crypto.randomUUID(),
               fecha: new Date(),
               descripcion: 'Pago inicial',
               precio: item.precio,

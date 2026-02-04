@@ -9,7 +9,6 @@ import {
   Calendar,
   CreditCard,
   Edit,
-  MoreHorizontal,
   RefreshCw,
   Trash2,
   User,
@@ -26,56 +25,9 @@ import { useUsuariosStore } from '@/store/usuariosStore';
 import { COLLECTIONS, getById, remove, timestampToDate, update } from '@/lib/firebase/firestore';
 import { toast } from 'sonner';
 import { PagoDialog } from '@/components/shared/PagoDialog';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { getCurrencySymbol } from '@/lib/constants';
-import { formatearFecha } from '@/lib/utils/calculations';
-
-interface VentaDetalle {
-  id: string;
-  clienteId: string;
-  clienteNombre: string;
-  metodoPagoId?: string;
-  metodoPagoNombre?: string;
-  moneda: string;
-  pagos?: VentaPago[];
-  fechaInicio: Date;
-  fechaFin: Date;
-  cicloPago?: 'mensual' | 'trimestral' | 'semestral' | 'anual';
-  categoriaId: string;
-  servicioId: string;
-  servicioNombre: string;
-  servicioCorreo: string;
-  perfilNumero?: number | null;
-  perfilNombre?: string;
-  precio: number;
-  descuento: number;
-  precioFinal: number;
-  codigo?: string;
-  notas?: string;
-  estado?: 'activo' | 'inactivo';
-  createdAt?: Date;
-}
-
-interface VentaPago {
-  fecha?: Date | null;
-  descripcion: string;
-  precio: number;
-  descuento: number;
-  total: number;
-  metodoPagoId?: string | null;
-  metodoPagoNombre?: string;
-  moneda?: string;
-  isPagoInicial?: boolean;
-  cicloPago?: 'mensual' | 'trimestral' | 'semestral' | 'anual' | null;
-  fechaInicio?: Date | null;
-  fechaVencimiento?: Date | null;
-  notas?: string;
-}
+import { formatearFecha, deriveTopLevelFromPagos } from '@/lib/utils/calculations';
+import { VentaDoc, VentaPago } from '@/types';
+import { VentaPagosTable } from '@/components/ventas/VentaPagosTable';
 
 const getCicloPagoLabel = (ciclo?: string) => {
   const labels: Record<string, string> = {
@@ -98,7 +50,7 @@ function VentaDetallePageContent() {
   const { metodosPago, fetchMetodosPago } = useMetodosPagoStore();
   const { usuarios, fetchUsuarios } = useUsuariosStore();
 
-  const [venta, setVenta] = useState<VentaDetalle | null>(null);
+  const [venta, setVenta] = useState<VentaDoc | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [renovarDialogOpen, setRenovarDialogOpen] = useState(false);
@@ -129,10 +81,11 @@ function VentaDetallePageContent() {
           clienteId: (doc.clienteId as string) || '',
           clienteNombre: (doc.clienteNombre as string) || 'Sin cliente',
           metodoPagoId: (doc.metodoPagoId as string) || undefined,
-          metodoPagoNombre: (doc.metodoPagoNombre as string) || undefined,
+          metodoPagoNombre: (doc.metodoPagoNombre as string) || 'Sin método',
           moneda: (doc.moneda as string) || 'USD',
           pagos: Array.isArray(doc.pagos)
             ? (doc.pagos as Array<Record<string, unknown>>).map((p) => ({
+                id: (p.id as string) || crypto.randomUUID(),
                 fecha: p.fecha ? timestampToDate(p.fecha) : undefined,
                 descripcion: (p.descripcion as string) || 'Pago',
                 precio: (p.precio as number) ?? 0,
@@ -142,7 +95,7 @@ function VentaDetallePageContent() {
                 metodoPagoNombre: (p.metodoPagoNombre as string) || undefined,
                 moneda: (p.moneda as string) || undefined,
                 isPagoInicial: (p.isPagoInicial as boolean) || false,
-                cicloPago: (p.cicloPago as VentaDetalle['cicloPago']) ?? undefined,
+                cicloPago: (p.cicloPago as VentaDoc['cicloPago']) ?? undefined,
                 fechaInicio: p.fechaInicio ? timestampToDate(p.fechaInicio) : undefined,
                 fechaVencimiento: p.fechaVencimiento ? timestampToDate(p.fechaVencimiento) : undefined,
                 notas: (p.notas as string) || undefined,
@@ -150,7 +103,7 @@ function VentaDetallePageContent() {
             : [],
           fechaInicio: timestampToDate(doc.fechaInicio),
           fechaFin: timestampToDate(doc.fechaFin),
-          cicloPago: (doc.cicloPago as VentaDetalle['cicloPago']) ?? undefined,
+          cicloPago: (doc.cicloPago as VentaDoc['cicloPago']) ?? undefined,
           categoriaId: (doc.categoriaId as string) || '',
           servicioId: (doc.servicioId as string) || '',
           servicioNombre: (doc.servicioNombre as string) || 'Servicio',
@@ -162,7 +115,7 @@ function VentaDetallePageContent() {
           precioFinal: (doc.precioFinal as number) ?? (doc.precio as number) ?? 0,
           codigo: (doc.codigo as string) || '',
           notas: (doc.notas as string) || '',
-          estado: (doc.estado as VentaDetalle['estado']) ?? 'activo',
+          estado: (doc.estado as VentaDoc['estado']) ?? 'activo',
           createdAt: doc.createdAt ? timestampToDate(doc.createdAt) : undefined,
         });
       } catch (error) {
@@ -206,6 +159,7 @@ function VentaDetallePageContent() {
     }
     return [
       {
+        id: 'synthetic-initial',
         fecha: venta.createdAt || venta.fechaInicio,
         descripcion: 'Pago Inicial',
         precio: venta.precio,
@@ -218,12 +172,6 @@ function VentaDetallePageContent() {
       },
     ];
   }, [venta]);
-
-  const totalIngresos = useMemo(() => {
-    return paymentRows.reduce((sum, pago) => sum + (pago.total ?? 0), 0);
-  }, [paymentRows]);
-
-  const currencySymbol = getCurrencySymbol(venta?.moneda);
 
   const handleDelete = async () => {
     if (!venta) return;
@@ -240,6 +188,7 @@ function VentaDetallePageContent() {
   };
 
   const sanitizePago = (pago: VentaPago) => ({
+    id: pago.id || crypto.randomUUID(),
     fecha: pago.fecha ?? null,
     descripcion: pago.descripcion ?? 'Pago',
     precio: pago.precio ?? 0,
@@ -254,20 +203,6 @@ function VentaDetallePageContent() {
     fechaVencimiento: pago.fechaVencimiento ?? null,
     notas: pago.notas ?? '',
   });
-
-  const isSamePago = (a?: VentaPago | null, b?: VentaPago | null) => {
-    if (!a || !b) return false;
-    const aTime = a.fecha ? new Date(a.fecha).getTime() : null;
-    const bTime = b.fecha ? new Date(b.fecha).getTime() : null;
-    return (
-      aTime === bTime &&
-      a.descripcion === b.descripcion &&
-      a.precio === b.precio &&
-      a.descuento === b.descuento &&
-      a.total === b.total &&
-      (a.metodoPagoId ?? null) === (b.metodoPagoId ?? null)
-    );
-  };
 
   const handleConfirmRenovacion = async (data: {
     periodoRenovacion: string;
@@ -286,6 +221,7 @@ function VentaDetallePageContent() {
     const descuentoNumero = Number(data.descuento) || 0;
     const total = Math.max(data.costo * (1 - descuentoNumero / 100), 0);
     const nuevoPago: VentaPago = {
+      id: crypto.randomUUID(),
       fecha: new Date(),
       descripcion: `Renovación #${numeroRenovacion}`,
       precio: data.costo,
@@ -295,38 +231,15 @@ function VentaDetallePageContent() {
       metodoPagoNombre: metodoPagoSeleccionado?.nombre || venta.metodoPagoNombre || 'Sin método',
       moneda: metodoPagoSeleccionado?.moneda || venta.moneda || 'USD',
       isPagoInicial: false,
-      cicloPago: data.periodoRenovacion as VentaDetalle['cicloPago'],
+      cicloPago: data.periodoRenovacion as VentaDoc['cicloPago'],
       fechaInicio: data.fechaInicio,
       fechaVencimiento: data.fechaVencimiento,
       notas: data.notas?.trim() || '',
     };
-    const nuevosPagos = [nuevoPago, ...pagosActuales].map(sanitizePago);
-    const updatePayload: Record<string, unknown> = {
-      metodoPagoId: data.metodoPagoId,
-      metodoPagoNombre: metodoPagoSeleccionado?.nombre || venta.metodoPagoNombre || 'Sin método',
-      moneda: metodoPagoSeleccionado?.moneda || venta.moneda || 'USD',
-      cicloPago: data.periodoRenovacion as VentaDetalle['cicloPago'],
-      fechaInicio: data.fechaInicio,
-      fechaFin: data.fechaVencimiento,
-      precio: data.costo,
-      descuento: descuentoNumero,
-      precioFinal: total,
-      pagos: nuevosPagos,
-    };
+    const sanitized = [nuevoPago, ...pagosActuales].map(sanitizePago);
+    const updatePayload: Record<string, unknown> = { pagos: sanitized, ...deriveTopLevelFromPagos(sanitized) };
     await update(COLLECTIONS.VENTAS, venta.id, updatePayload);
-    setVenta({
-      ...venta,
-      metodoPagoId: data.metodoPagoId,
-      metodoPagoNombre: metodoPagoSeleccionado?.nombre || venta.metodoPagoNombre || 'Sin método',
-      moneda: metodoPagoSeleccionado?.moneda || venta.moneda || 'USD',
-      cicloPago: data.periodoRenovacion as VentaDetalle['cicloPago'],
-      fechaInicio: data.fechaInicio,
-      fechaFin: data.fechaVencimiento,
-      precio: data.costo,
-      descuento: descuentoNumero,
-      precioFinal: total,
-      pagos: nuevosPagos,
-    });
+    setVenta({ ...venta, pagos: sanitized, ...deriveTopLevelFromPagos(sanitized) } as VentaDoc);
   };
 
   const handleEditarPago = (pago: VentaPago) => {
@@ -351,7 +264,7 @@ function VentaDetallePageContent() {
     if (!venta || !pagoToEdit) return;
     const metodoPagoSeleccionado = metodosPago.find((m) => m.id === data.metodoPagoId);
     const pagos = venta.pagos ?? [];
-    const idx = pagos.findIndex((p) => isSamePago(p, pagoToEdit));
+    const idx = pagos.findIndex((p) => p.id != null && p.id === pagoToEdit?.id);
     if (idx < 0) {
       setEditarPagoDialogOpen(false);
       setPagoToEdit(null);
@@ -367,7 +280,7 @@ function VentaDetallePageContent() {
       metodoPagoId: data.metodoPagoId,
       metodoPagoNombre: metodoPagoSeleccionado?.nombre || venta.metodoPagoNombre || 'Sin método',
       moneda: metodoPagoSeleccionado?.moneda || venta.moneda || 'USD',
-      cicloPago: data.periodoRenovacion as VentaDetalle['cicloPago'],
+      cicloPago: data.periodoRenovacion as VentaDoc['cicloPago'],
       fechaInicio: data.fechaInicio,
       fechaVencimiento: data.fechaVencimiento,
       notas: data.notas?.trim() || '',
@@ -375,40 +288,10 @@ function VentaDetallePageContent() {
     const nuevosPagos = [...pagos];
     nuevosPagos[idx] = edited;
 
-    const ordenados = [...nuevosPagos].sort((a, b) => {
-      const aTime = a.fecha ? new Date(a.fecha).getTime() : 0;
-      const bTime = b.fecha ? new Date(b.fecha).getTime() : 0;
-      return bTime - aTime;
-    });
-    const esUltimo = isSamePago(edited, ordenados[0]);
-    const updatePayload: Record<string, unknown> = {
-      pagos: nuevosPagos.map(sanitizePago),
-    };
-    if (esUltimo) {
-      updatePayload.metodoPagoId = edited.metodoPagoId ?? null;
-      updatePayload.metodoPagoNombre = edited.metodoPagoNombre ?? 'Sin método';
-      updatePayload.moneda = edited.moneda ?? 'USD';
-      updatePayload.cicloPago = edited.cicloPago ?? null;
-      updatePayload.fechaInicio = edited.fechaInicio ?? null;
-      updatePayload.fechaFin = edited.fechaVencimiento ?? null;
-      updatePayload.precio = edited.precio ?? 0;
-      updatePayload.descuento = edited.descuento ?? 0;
-      updatePayload.precioFinal = edited.total ?? 0;
-    }
+    const sanitized = nuevosPagos.map(sanitizePago);
+    const updatePayload: Record<string, unknown> = { pagos: sanitized, ...deriveTopLevelFromPagos(sanitized) };
     await update(COLLECTIONS.VENTAS, venta.id, updatePayload);
-    setVenta({
-      ...venta,
-      metodoPagoId: esUltimo ? (edited.metodoPagoId ?? undefined) : venta.metodoPagoId,
-      metodoPagoNombre: esUltimo ? edited.metodoPagoNombre : venta.metodoPagoNombre,
-      moneda: esUltimo ? edited.moneda || venta.moneda : venta.moneda,
-      cicloPago: esUltimo ? (edited.cicloPago ?? undefined) : venta.cicloPago,
-      fechaInicio: esUltimo ? (edited.fechaInicio ?? venta.fechaInicio) : venta.fechaInicio,
-      fechaFin: esUltimo ? (edited.fechaVencimiento ?? venta.fechaFin) : venta.fechaFin,
-      precio: esUltimo ? edited.precio : venta.precio,
-      descuento: esUltimo ? edited.descuento : venta.descuento,
-      precioFinal: esUltimo ? edited.total : venta.precioFinal,
-      pagos: nuevosPagos,
-    });
+    setVenta({ ...venta, pagos: sanitized, ...deriveTopLevelFromPagos(sanitized) } as VentaDoc);
     setEditarPagoDialogOpen(false);
     setPagoToEdit(null);
   };
@@ -416,7 +299,7 @@ function VentaDetallePageContent() {
   const handleConfirmDeletePago = async () => {
     if (!venta || !pagoToDelete) return;
     const pagos = venta.pagos ?? [];
-    const idx = pagos.findIndex((p) => isSamePago(p, pagoToDelete));
+    const idx = pagos.findIndex((p) => p.id != null && p.id === pagoToDelete?.id);
     if (idx < 0) {
       setDeletePagoDialogOpen(false);
       setPagoToDelete(null);
@@ -424,40 +307,11 @@ function VentaDetallePageContent() {
     }
     const nuevosPagos = [...pagos];
     nuevosPagos.splice(idx, 1);
-    const ordenados = [...nuevosPagos].sort((a, b) => {
-      const aTime = a.fecha ? new Date(a.fecha).getTime() : 0;
-      const bTime = b.fecha ? new Date(b.fecha).getTime() : 0;
-      return bTime - aTime;
-    });
-    const latest = ordenados[0];
-    const updatePayload: Record<string, unknown> = {
-      pagos: nuevosPagos.map(sanitizePago),
-    };
-    if (latest) {
-      updatePayload.metodoPagoId = latest.metodoPagoId ?? null;
-      updatePayload.metodoPagoNombre = latest.metodoPagoNombre ?? 'Sin método';
-      updatePayload.moneda = latest.moneda ?? 'USD';
-      updatePayload.cicloPago = latest.cicloPago ?? null;
-      updatePayload.fechaInicio = latest.fechaInicio ?? null;
-      updatePayload.fechaFin = latest.fechaVencimiento ?? null;
-      updatePayload.precio = latest.precio ?? 0;
-      updatePayload.descuento = latest.descuento ?? 0;
-      updatePayload.precioFinal = latest.total ?? 0;
-    }
+
+    const sanitized = nuevosPagos.map(sanitizePago);
+    const updatePayload: Record<string, unknown> = { pagos: sanitized, ...deriveTopLevelFromPagos(sanitized) };
     await update(COLLECTIONS.VENTAS, venta.id, updatePayload);
-    setVenta({
-      ...venta,
-      metodoPagoId: latest?.metodoPagoId ?? venta.metodoPagoId,
-      metodoPagoNombre: latest?.metodoPagoNombre ?? venta.metodoPagoNombre,
-      moneda: latest?.moneda || venta.moneda,
-      cicloPago: (latest?.cicloPago as VentaDetalle['cicloPago']) ?? venta.cicloPago,
-      fechaInicio: (latest?.fechaInicio as Date) ?? venta.fechaInicio,
-      fechaFin: (latest?.fechaVencimiento as Date) ?? venta.fechaFin,
-      precio: latest?.precio ?? venta.precio,
-      descuento: latest?.descuento ?? venta.descuento,
-      precioFinal: latest?.total ?? venta.precioFinal,
-      pagos: nuevosPagos,
-    });
+    setVenta({ ...venta, pagos: sanitized, ...deriveTopLevelFromPagos(sanitized) } as VentaDoc);
     setDeletePagoDialogOpen(false);
     setPagoToDelete(null);
   };
@@ -544,57 +398,6 @@ function VentaDetallePageContent() {
               </p>
             </div>
             <Badge className={estadoBadgeClass}>{estadoLabel}</Badge>
-          </div>
-
-          <div className="hidden">
-            <div className="space-y-4">
-              <div>
-                <p className="text-xs text-muted-foreground">Cliente</p>
-                {cliente ? (
-                  <Link href={`/usuarios/${cliente.id}`} className="text-sm font-medium text-purple-500 hover:underline">
-                    {venta.clienteNombre}
-                  </Link>
-                ) : (
-                  <p className="text-sm font-medium">{venta.clienteNombre}</p>
-                )}
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Categoría</p>
-                <p className="text-sm font-medium">{categoria?.nombre || 'Sin categoría'}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Perfil</p>
-                <p className="text-sm font-medium text-green-400">{perfilDisplay}</p>
-              </div>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <p className="text-xs text-muted-foreground">Método de Pago</p>
-                <p className="text-sm font-medium text-purple-500">{metodoPago?.nombre || venta.metodoPagoNombre || 'Sin método'}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Servicio</p>
-                <p className="text-sm font-medium">{venta.servicioCorreo || venta.servicioNombre}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Renovaciones</p>
-                <p className="text-sm font-medium">0</p>
-              </div>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <p className="text-xs text-muted-foreground">Contraseña</p>
-                <p className="text-sm font-medium">{servicio?.contrasena || '—'}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Código</p>
-                <p className="text-sm font-medium">{venta.codigo || '—'}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Ciclo de pago</p>
-                <p className="text-sm font-medium">{getCicloPagoLabel(venta.cicloPago)}</p>
-              </div>
-            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr] gap-y-6 md:gap-x-64">
@@ -722,91 +525,13 @@ function VentaDetallePageContent() {
             </p>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full table-fixed">
-              <colgroup>
-                <col style={{ width: '16%' }} />
-                <col style={{ width: '12%' }} />
-                <col style={{ width: '14%' }} />
-                <col style={{ width: '16%' }} />
-                <col style={{ width: '14%' }} />
-                <col style={{ width: '14%' }} />
-                <col style={{ width: '11%' }} />
-                <col style={{ width: '7%' }} />
-                <col style={{ width: '8%' }} />
-              </colgroup>
-              <thead>
-                <tr className="border-b text-sm text-muted-foreground">
-                  <th className="text-left py-3 font-medium whitespace-nowrap">Fecha de Pago</th>
-                  <th className="text-left py-3 font-medium">Descripción</th>
-                  <th className="text-left py-3 font-medium">Ciclo de facturación</th>
-                  <th className="text-left py-3 font-medium whitespace-nowrap">Fecha de Inicio</th>
-                  <th className="text-left py-3 font-medium whitespace-nowrap">Fecha de Fin</th>
-                  <th className="text-center py-3 font-medium">Precio</th>
-                  <th className="text-center py-3 font-medium">Descuento</th>
-                  <th className="text-center py-3 font-medium">Total</th>
-                  <th className="text-center py-3 font-medium">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paymentRows.map((pago, index) => {
-                  const rowCurrency = getCurrencySymbol(pago.moneda || venta?.moneda);
-                  const esInicial = (pago.isPagoInicial ?? false) || pago.descripcion.toLowerCase() === 'pago inicial';
-                  const esUltimo = index === 0;
-                  const puedeGestionar = !!venta?.pagos?.length && esUltimo && !esInicial;
-                  return (
-                    <tr key={`${pago.descripcion}-${index}`} className="border-b text-sm">
-                      <td className="py-3 whitespace-nowrap">
-                        {pago.fecha ? formatearFecha(new Date(pago.fecha)) : '—'}
-                      </td>
-                      <td className="py-3 font-medium">{pago.descripcion}</td>
-                      <td className="py-3">{getCicloPagoLabel(pago.cicloPago ?? undefined)}</td>
-                      <td className="py-3 whitespace-nowrap">
-                        {pago.fechaInicio ? formatearFecha(new Date(pago.fechaInicio)) : '—'}
-                      </td>
-                      <td className="py-3 whitespace-nowrap">
-                        {pago.fechaVencimiento ? formatearFecha(new Date(pago.fechaVencimiento)) : '—'}
-                      </td>
-                      <td className="py-3 text-center">{rowCurrency} {pago.precio.toFixed(2)}</td>
-                      <td className="py-3 text-center text-red-500">{rowCurrency} {pago.descuento.toFixed(2)}</td>
-                      <td className="py-3 text-center font-semibold">{rowCurrency} {pago.total.toFixed(2)}</td>
-                      <td className="py-3 text-center">
-                        {puedeGestionar ? (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-7 w-7">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="center">
-                              <DropdownMenuItem onClick={() => handleEditarPago(pago)}>
-                                <Edit className="h-3.5 w-3.5 mr-2" />
-                                Editar
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="text-destructive focus:text-destructive"
-                                onClick={() => handleDeletePago(pago)}
-                              >
-                                <Trash2 className="h-3.5 w-3.5 mr-2" />
-                                Eliminar
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="pt-3 border-t flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Ingreso Total:</span>
-            <span className="text-lg font-semibold text-purple-400">{currencySymbol} {totalIngresos.toFixed(2)}</span>
-          </div>
+          <VentaPagosTable
+            pagos={paymentRows}
+            moneda={venta.moneda}
+            canManagePagos={!!venta.pagos?.length}
+            onEdit={handleEditarPago}
+            onDelete={handleDeletePago}
+          />
         </Card>
 
         <Card className="p-6 space-y-3">

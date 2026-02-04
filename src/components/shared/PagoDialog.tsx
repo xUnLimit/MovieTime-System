@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, ChevronDown } from 'lucide-react';
+import { CalendarIcon, ChevronDown, Pencil, RefreshCw } from 'lucide-react';
 import { addMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -505,18 +505,12 @@ export function PagoDialog(props: PagoDialogProps) {
             <Button type="submit" disabled={submitDisabled} className="bg-purple-600 hover:bg-purple-700">
               {isEdit ? (
                 <>
-                  {!isVenta && (
-                    <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                  )}
+                  {!isVenta && <Pencil className="h-4 w-4 mr-2" />}
                   Guardar cambios
                 </>
               ) : (
                 <>
-                  <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
+                  <RefreshCw className="h-4 w-4 mr-2" />
                   Confirmar Renovación
                 </>
               )}

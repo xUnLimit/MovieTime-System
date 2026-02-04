@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Copy, Calendar, DollarSign, Mail, Lock, User } from 'lucide-react';
 import { TemplateMensaje, TipoTemplate } from '@/types';
-import { useTemplatesMensajesStore } from '@/store/templatesMensajesStore';
+import { useTemplatesStore } from '@/store/templatesStore';
 import { toast } from 'sonner';
 
 interface TemplateEditorProps {
@@ -39,7 +39,7 @@ const PLACEHOLDERS = [
 ];
 
 export function TemplateEditor({ templates }: TemplateEditorProps) {
-  const { updateTemplate, createTemplate } = useTemplatesMensajesStore();
+  const { updateTemplate, createTemplate } = useTemplatesStore();
   const [selectedTipo, setSelectedTipo] = useState<TipoTemplate>('notificacion_regular');
   const [contenido, setContenido] = useState('');
   const [currentTemplate, setCurrentTemplate] = useState<TemplateMensaje | null>(null);

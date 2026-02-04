@@ -2,12 +2,12 @@
 
 import { useEffect } from 'react';
 import Link from 'next/link';
-import { useTemplatesMensajesStore } from '@/store/templatesMensajesStore';
+import { useTemplatesStore } from '@/store/templatesStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 import { TemplateEditor } from '@/components/editor-mensajes/TemplateEditor';
 
 function EditorMensajesPageContent() {
-  const { templates, fetchTemplates } = useTemplatesMensajesStore();
+  const { templates, fetchTemplates } = useTemplatesStore();
 
   useEffect(() => {
     fetchTemplates();
