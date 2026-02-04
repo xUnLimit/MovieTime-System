@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useMemo, memo } from 'react';
-import { Suscripcion } from '@/types';
+import { useState, useEffect, useMemo, memo } from 'react';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,8 +14,6 @@ import {
 } from '@/components/ui/select';
 import { Search, MoreHorizontal, Eye, EyeOff, Copy, Mail, Bell } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { useSuscripcionesStore } from '@/store/suscripcionesStore';
-import { useUsuariosStore } from '@/store/usuariosStore';
 import { useServiciosStore } from '@/store/serviciosStore';
 import { toast } from 'sonner';
 import {
@@ -26,35 +23,63 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { differenceInDays } from 'date-fns';
+import { getAll, COLLECTIONS, timestampToDate } from '@/lib/firebase/firestore';
+import { VentaDoc } from '@/types';
 
 interface ServicioProximoPagarRow {
   id: string;
   servicioNombre: string;
   email: string;
+  contrasena: string;
   fechaVencimiento: string;
   monto: number;
   diasRestantes: number;
   estado: string;
-  original: Suscripcion;
 }
 
 export const ServiciosProximosPagarTable = memo(function ServiciosProximosPagarTable() {
   const [searchTerm, setSearchTerm] = useState('');
   const [estadoFilter, setEstadoFilter] = useState('todos');
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
-  const { suscripciones } = useSuscripcionesStore();
-  const { usuarios } = useUsuariosStore();
+  const [ventas, setVentas] = useState<VentaDoc[]>([]);
   const { servicios } = useServiciosStore();
-  const clientes = useMemo(() => usuarios.filter((u) => u.tipo === 'cliente'), [usuarios]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await getAll<Record<string, unknown>>(COLLECTIONS.VENTAS);
+        const mapped: VentaDoc[] = data.map((item) => ({
+          id: item.id as string,
+          clienteNombre: (item.clienteNombre as string) || '',
+          metodoPagoNombre: (item.metodoPagoNombre as string) || '',
+          moneda: (item.moneda as string) || 'USD',
+          fechaInicio: item.fechaInicio ? timestampToDate(item.fechaInicio) : new Date(),
+          fechaFin: item.fechaFin ? timestampToDate(item.fechaFin) : new Date(),
+          estado: (item.estado as 'activo' | 'inactivo') || 'activo',
+          cicloPago: item.cicloPago as VentaDoc['cicloPago'],
+          categoriaId: (item.categoriaId as string) || '',
+          servicioId: (item.servicioId as string) || '',
+          servicioNombre: (item.servicioNombre as string) || '',
+          servicioCorreo: (item.servicioCorreo as string) || '',
+          perfilNumero: item.perfilNumero as number | null | undefined,
+          precio: (item.precio as number) || 0,
+          descuento: (item.descuento as number) || 0,
+          precioFinal: (item.precioFinal as number) || 0,
+        }));
+        setVentas(mapped);
+      } catch (error) {
+        console.error('Error cargando ventas:', error);
+      }
+    };
+    load();
+  }, []);
 
   const togglePasswordVisibility = (id: string) => {
-    const newSet = new Set(visiblePasswords);
-    if (newSet.has(id)) {
-      newSet.delete(id);
-    } else {
-      newSet.add(id);
-    }
-    setVisiblePasswords(newSet);
+    setVisiblePasswords((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   };
 
   const copyToClipboard = (text: string) => {
@@ -62,40 +87,37 @@ export const ServiciosProximosPagarTable = memo(function ServiciosProximosPagarT
     toast.success('Copiado al portapapeles');
   };
 
-  // Mapear suscripciones a filas de tabla
   const rows: ServicioProximoPagarRow[] = useMemo(() => {
     const hoy = new Date();
-    return suscripciones
-      .filter(suscripcion => {
-        // Solo mostrar suscripciones activas o próximas a vencer (menos de 100 días)
-        const diasRestantes = differenceInDays(suscripcion.fechaVencimiento, hoy);
+    return ventas
+      .filter((venta) => {
+        if (venta.estado === 'inactivo') return false;
+        const diasRestantes = differenceInDays(new Date(venta.fechaFin), hoy);
         return diasRestantes <= 100;
       })
-      .map(suscripcion => {
-        const cliente = clientes.find(c => c.id === suscripcion.clienteId);
-        const servicio = servicios.find(s => s.id === suscripcion.servicioId);
-        const diasRestantes = differenceInDays(suscripcion.fechaVencimiento, hoy);
+      .map((venta) => {
+        const servicio = servicios.find((s) => s.id === venta.servicioId);
+        const diasRestantes = differenceInDays(new Date(venta.fechaFin), hoy);
 
         return {
-          id: suscripcion.id,
-          servicioNombre: servicio?.nombre || 'N/A',
-          email: cliente?.email || 'N/A',
-          fechaVencimiento: suscripcion.fechaVencimiento.toLocaleDateString('es-ES', {
+          id: venta.id,
+          servicioNombre: venta.servicioNombre || servicio?.nombre || 'N/A',
+          email: venta.servicioCorreo || servicio?.correo || 'N/A',
+          contrasena: servicio?.contrasena || '',
+          fechaVencimiento: new Date(venta.fechaFin).toLocaleDateString('es-ES', {
             year: 'numeric',
             month: 'long',
             day: 'numeric',
           }),
-          monto: suscripcion.monto,
+          monto: venta.precioFinal || 0,
           diasRestantes,
           estado: diasRestantes <= 0 ? 'vencido' : diasRestantes <= 7 ? 'proximoVencer' : 'activo',
-          original: suscripcion,
         };
       });
-  }, [suscripciones, clientes, servicios]);
+  }, [ventas, servicios]);
 
-  // Filtrar datos
   const filteredRows = useMemo(() => {
-    return rows.filter(row => {
+    return rows.filter((row) => {
       const matchesSearch =
         row.servicioNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
         row.email.toLowerCase().includes(searchTerm.toLowerCase());
@@ -105,44 +127,23 @@ export const ServiciosProximosPagarTable = memo(function ServiciosProximosPagarT
     });
   }, [rows, searchTerm, estadoFilter]);
 
-  // Obtener color para campana y badge
   const getBellColor = (diasRestantes: number) => {
-    if (diasRestantes >= 1 && diasRestantes <= 7) {
-      return 'text-yellow-600';
-    }
-    if (diasRestantes <= 0) {
-      return 'text-red-500';
-    }
+    if (diasRestantes >= 1 && diasRestantes <= 7) return 'text-yellow-600';
+    if (diasRestantes <= 0) return 'text-red-500';
     return 'text-green-600';
   };
 
-  // Obtener color del badge con borde
   const getEstadoColor = (diasRestantes: number) => {
-    if (diasRestantes >= 1 && diasRestantes <= 7) {
-      return 'border-yellow-600 text-yellow-600';
-    }
-    if (diasRestantes <= 0) {
-      return 'border-red-500 text-red-500';
-    }
+    if (diasRestantes >= 1 && diasRestantes <= 7) return 'border-yellow-600 text-yellow-600';
+    if (diasRestantes <= 0) return 'border-red-500 text-red-500';
     return 'border-green-600 text-green-600';
   };
 
-  // Obtener etiqueta del estado
   const getEstadoLabel = (diasRestantes: number) => {
-    if (diasRestantes <= 0) {
-      return 'Día de pago';
-    }
-    if (diasRestantes === 1) {
-      return '1 día restante';
-    }
-    if (diasRestantes >= 2 && diasRestantes <= 7) {
-      return `${diasRestantes} días restantes`;
-    }
+    if (diasRestantes <= 0) return 'Día de pago';
+    if (diasRestantes === 1) return '1 día restante';
+    if (diasRestantes >= 2 && diasRestantes <= 7) return `${diasRestantes} días restantes`;
     return 'Activo';
-  };
-
-  const getServiceIcon = (diasRestantes: number) => {
-    return <Bell className={`h-5 w-5 ${getBellColor(diasRestantes)}`} />;
   };
 
   const columns: Column<ServicioProximoPagarRow>[] = [
@@ -154,17 +155,17 @@ export const ServiciosProximosPagarTable = memo(function ServiciosProximosPagarT
       width: '5%',
       render: (item) => (
         <div className="flex items-center justify-center">
-          {getServiceIcon(item.diasRestantes)}
+          <Bell className={`h-5 w-5 ${getBellColor(item.diasRestantes)}`} />
         </div>
       ),
     },
     {
       key: 'servicioNombre',
-      header: 'Categoría',
+      header: 'Servicio',
       sortable: true,
       align: 'center',
       width: '15%',
-      render: (item) => <span className="text-white font-medium">{item.servicioNombre}</span>,
+      render: (item) => <span className="font-medium">{item.servicioNombre}</span>,
     },
     {
       key: 'email',
@@ -174,7 +175,7 @@ export const ServiciosProximosPagarTable = memo(function ServiciosProximosPagarT
       width: '20%',
       render: (item) => (
         <div className="flex items-center justify-center gap-2">
-          <span className="text-white">{item.email}</span>
+          <span>{item.email}</span>
           <Button
             variant="ghost"
             size="icon"
@@ -194,8 +195,8 @@ export const ServiciosProximosPagarTable = memo(function ServiciosProximosPagarT
       width: '18%',
       render: (item) => (
         <div className="flex items-center gap-2 justify-center">
-          <span className="text-white">
-            {visiblePasswords.has(item.id) ? item.original.contrasena : '••••••••'}
+          <span>
+            {visiblePasswords.has(item.id) ? item.contrasena : '••••••••'}
           </span>
           <Button
             variant="ghost"
@@ -213,7 +214,7 @@ export const ServiciosProximosPagarTable = memo(function ServiciosProximosPagarT
             variant="ghost"
             size="icon"
             className="h-5 w-5 hover:bg-transparent"
-            onClick={() => copyToClipboard(item.original.contrasena)}
+            onClick={() => copyToClipboard(item.contrasena)}
           >
             <Copy className="h-4 w-4" />
           </Button>
@@ -226,7 +227,7 @@ export const ServiciosProximosPagarTable = memo(function ServiciosProximosPagarT
       sortable: true,
       align: 'center',
       width: '15%',
-      render: (item) => <span className="text-white">{item.fechaVencimiento}</span>,
+      render: (item) => <span>{item.fechaVencimiento}</span>,
     },
     {
       key: 'monto',
@@ -234,7 +235,7 @@ export const ServiciosProximosPagarTable = memo(function ServiciosProximosPagarT
       sortable: true,
       align: 'center',
       width: '10%',
-      render: (item) => <span className="text-white">${item.monto.toFixed(2)}</span>,
+      render: (item) => <span>${item.monto.toFixed(2)}</span>,
     },
     {
       key: 'estado',
@@ -266,7 +267,7 @@ export const ServiciosProximosPagarTable = memo(function ServiciosProximosPagarT
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Buscar por categoría o email..."
+            placeholder="Buscar por servicio o email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-9"
@@ -307,7 +308,7 @@ export const ServiciosProximosPagarTable = memo(function ServiciosProximosPagarT
               <DropdownMenuItem
                 onClick={() => {
                   const subject = `Datos de acceso - ${item.servicioNombre}`;
-                  const body = `Email: ${item.email}\nContraseña: ${item.original.contrasena}`;
+                  const body = `Email: ${item.email}\nContraseña: ${item.contrasena}`;
                   window.location.href = `mailto:${item.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
                 }}
               >

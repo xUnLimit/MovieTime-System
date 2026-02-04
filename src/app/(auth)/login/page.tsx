@@ -36,7 +36,7 @@ export default function LoginPage() {
       toast.success('Inicio de sesión exitoso');
       router.push('/dashboard');
     } catch (error) {
-      toast.error('Credenciales inválidas');
+      toast.error('Credenciales inválidas', { description: error instanceof Error ? error.message : undefined });
     }
   };
 
@@ -86,15 +86,17 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            <p>Credenciales de prueba:</p>
-            <p className="mt-1">
-              <span className="font-medium">Email:</span> admin@movietime.com
-            </p>
-            <p>
-              <span className="font-medium">Contraseña:</span> 123456
-            </p>
-          </div>
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-6 text-center text-sm text-muted-foreground">
+              <p>Credenciales de prueba:</p>
+              <p className="mt-1">
+                <span className="font-medium">Email:</span> admin@movietime.com
+              </p>
+              <p>
+                <span className="font-medium">Contraseña:</span> 123456
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

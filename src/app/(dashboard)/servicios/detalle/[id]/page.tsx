@@ -56,7 +56,7 @@ function ServicioDetallePageContent() {
   const [pagoToEdit, setPagoToEdit] = useState<PagoServicio | null>(null);
   const [renovarDialogOpen, setRenovarDialogOpen] = useState(false);
   const [pagosServicio, setPagosServicio] = useState<PagoServicio[]>([]);
-  const [ventasServicio, setVentasServicio] = useState<Array<{ perfilNumero?: number | null; clienteNombre?: string; createdAt?: Date }>>([]);
+  const [ventasServicio, setVentasServicio] = useState<Array<PerfilVenta & { perfilNumero?: number | null }>>([]);
   const [expandedProfileIndex, setExpandedProfileIndex] = useState<number | null>(null);
   const [pagosHistorialLoading, setPagosHistorialLoading] = useState(true);
 
@@ -93,6 +93,7 @@ function ServicioDetallePageContent() {
       return ordenados;
     } catch (err) {
       console.error('Error cargando historial de pagos:', err);
+      toast.error('Error cargando historial de pagos', { description: err instanceof Error ? err.message : undefined });
       setPagosServicio([]);
       return [];
     } finally {
@@ -129,6 +130,7 @@ function ServicioDetallePageContent() {
         setVentasServicio(ventas);
       } catch (error) {
         console.error('Error cargando ventas del servicio:', error);
+        toast.error('Error cargando ventas del servicio', { description: error instanceof Error ? error.message : undefined });
         setVentasServicio([]);
       }
     };
@@ -150,7 +152,7 @@ function ServicioDetallePageContent() {
       toast.success('Servicio eliminado');
       router.push('/servicios');
     } catch (error) {
-      toast.error('Error al eliminar servicio');
+      toast.error('Error al eliminar servicio', { description: error instanceof Error ? error.message : undefined });
     }
   };
 
@@ -209,7 +211,7 @@ function ServicioDetallePageContent() {
       setEditarPagoDialogOpen(false);
     } catch (error) {
       console.error('Error al actualizar pago:', error);
-      toast.error('Error al actualizar pago');
+      toast.error('Error al actualizar pago', { description: error instanceof Error ? error.message : undefined });
     }
   };
 
@@ -235,7 +237,7 @@ function ServicioDetallePageContent() {
       setPagoToDelete(null);
     } catch (error) {
       console.error('Error al eliminar renovación:', error);
-      toast.error('Error al eliminar renovación');
+      toast.error('Error al eliminar renovación', { description: error instanceof Error ? error.message : undefined });
     }
   };
 
@@ -300,7 +302,7 @@ function ServicioDetallePageContent() {
       setRenovarDialogOpen(false);
     } catch (error) {
       console.error('Error al registrar la renovación:', error);
-      toast.error('Error al registrar la renovación');
+      toast.error('Error al registrar la renovación', { description: error instanceof Error ? error.message : undefined });
     }
   };
 

@@ -29,11 +29,11 @@ import { toast } from 'sonner';
 const servicioSchema = z.object({
   categoriaId: z.string().min(1, 'La categoría es requerida'),
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  tipo: z.enum(['individual', 'familiar']),
+  tipo: z.enum(['cuenta_completa', 'perfiles']),
   correo: z.string().email('Correo electrónico inválido'),
   contrasena: z.string().min(4, 'La contraseña debe tener al menos 4 caracteres'),
   perfilesDisponibles: z.number().min(1, 'Debe haber al menos 1 perfil'),
-  costoPorPerfil: z.number().min(0.01, 'El costo debe ser mayor a 0'),
+  costoServicio: z.number().min(0.01, 'El costo debe ser mayor a 0'),
   renovacionAutomatica: z.boolean(),
   fechaRenovacion: z.date().optional(),
 });
@@ -66,25 +66,25 @@ export function ServicioDialog({
     defaultValues: {
       categoriaId: '',
       nombre: '',
-      tipo: 'individual',
+      tipo: 'cuenta_completa',
       correo: '',
       contrasena: '',
       perfilesDisponibles: 1,
-      costoPorPerfil: 0,
+      costoServicio: 0,
       renovacionAutomatica: false,
     },
   });
 
   const tipoValue = watch('tipo');
   const perfilesDisponiblesValue = watch('perfilesDisponibles');
-  const costoPorPerfilValue = watch('costoPorPerfil');
+  const costoServicioValue = watch('costoServicio');
   const renovacionAutomaticaValue = watch('renovacionAutomatica');
   const categoriaIdValue = watch('categoriaId');
 
   // Calculate total cost
-  const costoTotal = tipoValue === 'individual'
-    ? costoPorPerfilValue
-    : costoPorPerfilValue * perfilesDisponiblesValue;
+  const costoTotal = tipoValue === 'cuenta_completa'
+    ? costoServicioValue
+    : costoServicioValue * perfilesDisponiblesValue;
 
   useEffect(() => {
     if (servicio) {
@@ -95,7 +95,7 @@ export function ServicioDialog({
         correo: servicio.correo,
         contrasena: servicio.contrasena,
         perfilesDisponibles: servicio.perfilesDisponibles,
-        costoPorPerfil: servicio.costoPorPerfil,
+        costoServicio: servicio.costoServicio,
         renovacionAutomatica: servicio.renovacionAutomatica,
         fechaRenovacion: servicio.fechaRenovacion,
       });
@@ -103,19 +103,19 @@ export function ServicioDialog({
       reset({
         categoriaId: '',
         nombre: '',
-        tipo: 'individual',
+        tipo: 'cuenta_completa',
         correo: '',
         contrasena: '',
         perfilesDisponibles: 1,
-        costoPorPerfil: 0,
+        costoServicio: 0,
         renovacionAutomatica: false,
       });
     }
   }, [servicio, reset]);
 
-  // Auto-set perfiles to 1 for individual type
+  // Auto-set perfiles to 1 for cuenta_completa type
   useEffect(() => {
-    if (tipoValue === 'individual') {
+    if (tipoValue === 'cuenta_completa') {
       setValue('perfilesDisponibles', 1);
     }
   }, [tipoValue, setValue]);
@@ -139,7 +139,7 @@ export function ServicioDialog({
       }
       onOpenChange(false);
     } catch (error) {
-      toast.error('Error al guardar servicio');
+      toast.error('Error al guardar servicio', { description: error instanceof Error ? error.message : undefined });
     }
   };
 
@@ -200,8 +200,8 @@ export function ServicioDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="individual">Individual (1 perfil)</SelectItem>
-                <SelectItem value="familiar">Familiar (múltiples perfiles)</SelectItem>
+                <SelectItem value="cuenta_completa">Cuenta Completa (1 perfil)</SelectItem>
+                <SelectItem value="perfiles">Perfiles (múltiples perfiles)</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -242,7 +242,7 @@ export function ServicioDialog({
                 type="number"
                 min="1"
                 {...register('perfilesDisponibles', { valueAsNumber: true })}
-                disabled={tipoValue === 'individual'}
+                disabled={tipoValue === 'cuenta_completa'}
               />
               {errors.perfilesDisponibles && (
                 <p className="text-sm text-red-500">
@@ -252,17 +252,17 @@ export function ServicioDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="costoPorPerfil">Costo por Perfil</Label>
+              <Label htmlFor="costoServicio">Costo del Servicio</Label>
               <Input
-                id="costoPorPerfil"
+                id="costoServicio"
                 type="number"
                 step="0.01"
                 min="0"
-                {...register('costoPorPerfil', { valueAsNumber: true })}
+                {...register('costoServicio', { valueAsNumber: true })}
                 placeholder="0.00"
               />
-              {errors.costoPorPerfil && (
-                <p className="text-sm text-red-500">{errors.costoPorPerfil.message}</p>
+              {errors.costoServicio && (
+                <p className="text-sm text-red-500">{errors.costoServicio.message}</p>
               )}
             </div>
           </div>

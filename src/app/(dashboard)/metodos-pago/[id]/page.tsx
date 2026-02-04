@@ -11,8 +11,7 @@ import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { toast } from 'sonner';
 import { MetodoPago } from '@/types';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { formatearFechaHora } from '@/lib/utils/calculations';
 
 function VerMetodoPagoPageContent() {
   const params = useParams();
@@ -42,7 +41,7 @@ function VerMetodoPagoPageContent() {
         toast.success('Método de pago eliminado');
         router.push('/metodos-pago');
       } catch (error) {
-        toast.error('Error al eliminar método de pago');
+        toast.error('Error al eliminar método de pago', { description: error instanceof Error ? error.message : undefined });
       }
     }
   };
@@ -166,7 +165,7 @@ function VerMetodoPagoPageContent() {
                 <span>Creado</span>
               </div>
               <p className="text-sm font-medium">
-                {format(new Date(metodo.createdAt), "d 'de' MMMM 'del' yyyy, hh:mm a", { locale: es })}
+                {formatearFechaHora(new Date(metodo.createdAt))}
               </p>
             </div>
 
@@ -175,7 +174,7 @@ function VerMetodoPagoPageContent() {
                 <span>Última Actualización</span>
               </div>
               <p className="text-sm font-medium">
-                {format(new Date(metodo.updatedAt), "d 'de' MMMM 'del' yyyy, hh:mm a", { locale: es })}
+                {formatearFechaHora(new Date(metodo.updatedAt))}
               </p>
             </div>
           </div>

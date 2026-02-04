@@ -281,7 +281,7 @@ export function MetodoPagoForm() {
       if (data.notas) metodoPagoData.notas = data.notas;
       if (data.asociadoA === 'usuario' && data.tipoCuenta) {
         // Campos para usuario
-        metodoPagoData.identificador = data.identificador,
+        metodoPagoData.identificador = data.identificador || '';
         metodoPagoData.tipoCuenta = data.tipoCuenta;
       } else if (data.asociadoA === 'servicio') {
         // Campos para servicio
@@ -297,7 +297,7 @@ export function MetodoPagoForm() {
       toast.success('Método de pago creado exitosamente');
       router.push('/metodos-pago');
     } catch (error) {
-      toast.error('Error al crear el método de pago');
+      toast.error('Error al crear el método de pago', { description: error instanceof Error ? error.message : undefined });
       console.error('Error en onSubmit:', error);
     }
   };

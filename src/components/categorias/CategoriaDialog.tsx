@@ -28,7 +28,7 @@ import { toast } from 'sonner';
 
 const categoriaSchema = z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  tipo: z.enum(['cliente', 'revendedor']),
+  tipo: z.enum(['cliente', 'revendedor', 'ambos']),
   iconUrl: z.string().optional(),
   color: z.string().optional(),
   activo: z.boolean(),
@@ -100,7 +100,7 @@ export function CategoriaDialog({
       }
       onOpenChange(false);
     } catch (error) {
-      toast.error('Error al guardar categoría');
+      toast.error('Error al guardar categoría', { description: error instanceof Error ? error.message : undefined });
     }
   };
 
@@ -135,6 +135,7 @@ export function CategoriaDialog({
               <SelectContent>
                 <SelectItem value="cliente">Cliente</SelectItem>
                 <SelectItem value="revendedor">Revendedor</SelectItem>
+                <SelectItem value="ambos">Ambos</SelectItem>
               </SelectContent>
             </Select>
             {errors.tipo && (

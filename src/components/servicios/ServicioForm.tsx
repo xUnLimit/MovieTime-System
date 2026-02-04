@@ -34,20 +34,18 @@ const servicioSchema = z.object({
   tipoPlan: z.enum(['cuenta_completa', 'perfiles'], {
     message: 'Debe seleccionar un tipo de plan',
   }),
-  correo: z.string().email('Por favor ingrese un correo electrÃ³nico vÃ¡lido'),
+  correo: z.string().email('Por favor ingrese un correo electrónico válido'),
   contrasena: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
   metodoPagoId: z.string().min(1, 'Debe seleccionar un método de pago'),
   costoServicio: z.string()
     .refine((val) => val !== '', 'Por favor ingrese el costo del servicio')
-    .refine((val) => !isNaN(Number(val)), 'El costo debe ser un valor numÃ©rico')
-    .refine((val) => Number(val) > 0, 'El costo debe ser mayor a 0')
-    .transform((val) => Number(val)),
+    .refine((val) => !isNaN(Number(val)), 'El costo debe ser un valor numérico')
+    .refine((val) => Number(val) > 0, 'El costo debe ser mayor a 0'),
   perfilesDisponibles: z.string()
-    .refine((val) => val !== '', 'Por favor ingrese el nÃºmero de perfiles')
-    .refine((val) => !isNaN(Number(val)), 'Debe ingresar un valor numÃ©rico')
+    .refine((val) => val !== '', 'Por favor ingrese el número de perfiles')
+    .refine((val) => !isNaN(Number(val)), 'Debe ingresar un valor numérico')
     .refine((val) => Number(val) >= 1, 'Debe tener al menos 1 perfil disponible')
-    .refine((val) => Number.isInteger(Number(val)), 'El nÃºmero de perfiles debe ser un valor entero')
-    .transform((val) => Number(val)),
+    .refine((val) => Number.isInteger(Number(val)), 'El número de perfiles debe ser un valor entero'),
   cicloPago: z.enum(['mensual', 'trimestral', 'semestral', 'anual']),
   fechaInicio: z.date(),
   fechaVencimiento: z.date(),
@@ -55,8 +53,7 @@ const servicioSchema = z.object({
   notas: z.string().optional(),
 });
 
-type FormData = z.output<typeof servicioSchema>;
-type FormInput = z.input<typeof servicioSchema>;
+type FormData = z.infer<typeof servicioSchema>;
 
 interface ServicioFormProps {
   servicio?: Servicio;
@@ -94,7 +91,7 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
     defaultValues: {
       nombre: servicio?.nombre || '',
       categoriaId: servicio?.categoriaId || '',
-      tipoPlan: servicio?.tipo ? (servicio.tipo === 'individual' ? 'cuenta_completa' : 'perfiles') : ('') as any,
+      tipoPlan: (servicio?.tipo || '') as FormData['tipoPlan'],
       correo: servicio?.correo || '',
       contrasena: servicio?.contrasena || '',
       metodoPagoId: '',
@@ -183,7 +180,7 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
     }
   }, [servicio?.id, setValue]);
 
-  // Auto-limpiar errores solo para campos que no necesitan validaciÃ³n compleja
+  // Auto-limpiar errores solo para campos que no necesitan validación compleja
   useEffect(() => {
     if (nombreValue && nombreValue.length >= 2 && errors.nombre) {
       clearErrors('nombre');
@@ -276,14 +273,15 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
         correo: data.correo,
         contrasena: data.contrasena,
         tipo: data.tipoPlan,
-        costoServicio: data.costoServicio,
-        perfilesDisponibles: data.perfilesDisponibles,
+        costoServicio: Number(data.costoServicio),
+        perfilesDisponibles: Number(data.perfilesDisponibles),
         metodoPagoId: data.metodoPagoId,
         cicloPago: data.cicloPago,
         fechaInicio: data.fechaInicio,
         fechaVencimiento: data.fechaVencimiento,
         notas: data.notas,
         activo: data.estado === 'activo',
+        renovacionAutomatica: false,
         createdBy: 'admin',
       };
 
@@ -299,7 +297,7 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
       }
       router.push('/servicios');
     } catch (error) {
-      toast.error(servicio?.id ? 'Error al actualizar el servicio' : 'Error al crear el servicio');
+      toast.error(servicio?.id ? 'Error al actualizar el servicio' : 'Error al crear el servicio', { description: error instanceof Error ? error.message : undefined });
       console.error(error);
     }
   };
@@ -319,7 +317,7 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
       case 'anual':
         return 'Anual';
       default:
-        return 'Seleccionar perÃ­odo';
+        return 'Seleccionar período';
     }
   };
 
@@ -523,7 +521,7 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
                     if (e.ctrlKey || e.metaKey) {
                       return;
                     }
-                    // Solo permitir nÃºmeros y punto decimal
+                    // Solo permitir números y punto decimal
                     if (!/[0-9.]/.test(char)) {
                       e.preventDefault();
                     }
@@ -710,7 +708,7 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
                   if (e.ctrlKey || e.metaKey) {
                     return;
                   }
-                  // Solo permitir nÃºmeros (sin decimales)
+                  // Solo permitir números (sin decimales)
                   if (!/[0-9]/.test(char)) {
                     e.preventDefault();
                   }
@@ -777,7 +775,7 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
             <div className="space-y-2">
               <h3 className="text-lg font-semibold">Vista previa de perfiles</h3>
               <p className="text-sm text-muted-foreground">
-                {perfilesDisponiblesValue ? `${Number(perfilesDisponiblesValue) || 0} de ${Number(perfilesDisponiblesValue) || 0} perfiles actualmente disponibles.` : 'Ingrese el nÃºmero de perfiles en la pestaÃ±a anterior.'}
+                {perfilesDisponiblesValue ? `${Number(perfilesDisponiblesValue) || 0} de ${Number(perfilesDisponiblesValue) || 0} perfiles actualmente disponibles.` : 'Ingrese el número de perfiles en la pestaña anterior.'}
               </p>
             </div>
 

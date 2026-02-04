@@ -18,7 +18,7 @@ interface ServiciosState {
   getServicio: (id: string) => Servicio | undefined;
   getServiciosByCategoria: (categoriaId: string) => Servicio[];
   getServiciosDisponibles: () => Servicio[];
-  updatePerfilOcupado: (id: string, increment: boolean) => void;
+  updatePerfilOcupado: (id: string, increment: boolean) => Promise<void>;
 }
 
 export const useServiciosStore = create<ServiciosState>()(
@@ -161,18 +161,13 @@ export const useServiciosStore = create<ServiciosState>()(
         );
       },
 
-      updatePerfilOcupado: (id, increment) => {
+      updatePerfilOcupado: async (id, increment) => {
         const servicio = get().servicios.find((s) => s.id === id);
         if (!servicio) return;
 
         const newOcupados = increment
           ? Math.min(servicio.perfilesOcupados + 1, servicio.perfilesDisponibles)
           : Math.max(servicio.perfilesOcupados - 1, 0);
-
-        update(COLLECTIONS.SERVICIOS, id, {
-          perfilesOcupados: newOcupados,
-          updatedAt: Timestamp.now()
-        }).catch(error => console.error('Error updating perfil ocupado:', error));
 
         set((state) => ({
           servicios: state.servicios.map((s) => {
@@ -186,6 +181,23 @@ export const useServiciosStore = create<ServiciosState>()(
             return s;
           })
         }));
+
+        try {
+          await update(COLLECTIONS.SERVICIOS, id, {
+            perfilesOcupados: newOcupados,
+            updatedAt: Timestamp.now()
+          });
+        } catch (error) {
+          console.error('Error updating perfil ocupado:', error);
+          // Rollback optimistic update
+          set((state) => ({
+            servicios: state.servicios.map((s) =>
+              s.id === id
+                ? { ...s, perfilesOcupados: servicio.perfilesOcupados, updatedAt: servicio.updatedAt }
+                : s
+            )
+          }));
+        }
       }
     }),
     { name: 'servicios-store' }

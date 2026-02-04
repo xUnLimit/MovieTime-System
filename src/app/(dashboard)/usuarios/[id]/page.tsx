@@ -88,7 +88,7 @@ function UsuarioDetallesPageContent() {
       toast.success(`${usuario?.tipo === 'revendedor' ? 'Revendedor' : 'Cliente'} eliminado`);
       router.push('/usuarios');
     } catch (error) {
-      toast.error('Error al eliminar usuario');
+      toast.error('Error al eliminar usuario', { description: error instanceof Error ? error.message : undefined });
     }
   };
 

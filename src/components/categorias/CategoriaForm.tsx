@@ -112,7 +112,7 @@ export function CategoriaForm() {
       toast.success('Categoría creada exitosamente');
       router.push('/categorias');
     } catch (error) {
-      toast.error('Error al crear la categoría');
+      toast.error('Error al crear la categoría', { description: error instanceof Error ? error.message : undefined });
       console.error(error);
     }
   };

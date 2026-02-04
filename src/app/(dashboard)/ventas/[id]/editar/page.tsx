@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { VentasEditForm, VentaEditData } from '@/components/ventas/VentasEditForm';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 import { COLLECTIONS, getById, timestampToDate } from '@/lib/firebase/firestore';
+import { toast } from 'sonner';
 
 function EditarVentaPageContent() {
   const params = useParams();
@@ -47,6 +48,7 @@ function EditarVentaPageContent() {
         });
       } catch (error) {
         console.error('Error cargando venta:', error);
+        toast.error('Error cargando venta', { description: error instanceof Error ? error.message : undefined });
         setVenta(null);
       }
     };

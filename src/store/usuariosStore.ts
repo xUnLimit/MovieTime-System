@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { Usuario } from '@/types';
-import { getAll, create as createDoc, update, remove, COLLECTIONS, timestampToDate, queryDocuments } from '@/lib/firebase/firestore';
+import { getAll, create as createDoc, update, remove, COLLECTIONS, timestampToDate } from '@/lib/firebase/firestore';
 import { Timestamp } from 'firebase/firestore';
 
 interface UsuariosState {
@@ -47,58 +47,14 @@ export const useUsuariosStore = create<UsuariosState>()(
         }
       },
 
-      // Fetch solo clientes (por compatibilidad)
+      // Deprecated: usar fetchUsuarios + getClientes()
       fetchClientes: async () => {
-        set({ isLoading: true });
-        try {
-          const docs = await queryDocuments<any>(COLLECTIONS.USUARIOS, [
-            { field: 'tipo', operator: '==', value: 'cliente' }
-          ]);
-          const clientes: Usuario[] = docs.map(item => ({
-            ...item,
-            createdAt: timestampToDate(item.createdAt),
-            updatedAt: timestampToDate(item.updatedAt)
-          }));
-
-          // Actualizar solo clientes en el estado, mantener revendedores
-          set(state => ({
-            usuarios: [
-              ...clientes,
-              ...state.usuarios.filter(u => u.tipo === 'revendedor')
-            ],
-            isLoading: false
-          }));
-        } catch (error) {
-          console.error('Error fetching clientes:', error);
-          set({ isLoading: false });
-        }
+        await get().fetchUsuarios();
       },
 
-      // Fetch solo revendedores (por compatibilidad)
+      // Deprecated: usar fetchUsuarios + getRevendedores()
       fetchRevendedores: async () => {
-        set({ isLoading: true });
-        try {
-          const docs = await queryDocuments<any>(COLLECTIONS.USUARIOS, [
-            { field: 'tipo', operator: '==', value: 'revendedor' }
-          ]);
-          const revendedores: Usuario[] = docs.map(item => ({
-            ...item,
-            createdAt: timestampToDate(item.createdAt),
-            updatedAt: timestampToDate(item.updatedAt)
-          }));
-
-          // Actualizar solo revendedores en el estado, mantener clientes
-          set(state => ({
-            usuarios: [
-              ...state.usuarios.filter(u => u.tipo === 'cliente'),
-              ...revendedores
-            ],
-            isLoading: false
-          }));
-        } catch (error) {
-          console.error('Error fetching revendedores:', error);
-          set({ isLoading: false });
-        }
+        await get().fetchUsuarios();
       },
 
       createUsuario: async (usuarioData) => {

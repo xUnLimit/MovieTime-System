@@ -27,7 +27,7 @@ export function TemplatesList({ templates, onEdit, onPreview }: TemplatesListPro
       await updateTemplate(template.id, { activo: !template.activo });
       toast.success(`Template ${template.activo ? 'desactivado' : 'activado'}`);
     } catch (error) {
-      toast.error('Error al actualizar template');
+      toast.error('Error al actualizar template', { description: error instanceof Error ? error.message : undefined });
     }
   };
 
@@ -42,7 +42,7 @@ export function TemplatesList({ templates, onEdit, onPreview }: TemplatesListPro
         await deleteTemplate(templateToDelete.id);
         toast.success('Template eliminado');
       } catch (error) {
-        toast.error('Error al eliminar template');
+        toast.error('Error al eliminar template', { description: error instanceof Error ? error.message : undefined });
       }
     }
   };
@@ -52,7 +52,7 @@ export function TemplatesList({ templates, onEdit, onPreview }: TemplatesListPro
       await navigator.clipboard.writeText(template.contenido);
       toast.success('Contenido copiado');
     } catch (error) {
-      toast.error('Error al copiar');
+      toast.error('Error al copiar', { description: error instanceof Error ? error.message : undefined });
     }
   };
 

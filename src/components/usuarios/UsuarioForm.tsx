@@ -164,6 +164,8 @@ export function UsuarioForm({
         telefono: data.telefono,
         metodoPagoId: data.metodoPagoId,
         metodoPagoNombre: metodoPago?.nombre || '',
+        active: true,
+        createdBy: 'current-user',
       };
 
       if (usuario) {
@@ -179,7 +181,7 @@ export function UsuarioForm({
 
       onSuccess?.();
     } catch (error) {
-      toast.error('Error al guardar usuario');
+      toast.error('Error al guardar usuario', { description: error instanceof Error ? error.message : undefined });
     }
   };
 

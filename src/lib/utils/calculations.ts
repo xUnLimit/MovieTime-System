@@ -1,6 +1,7 @@
 import { addMonths, differenceInDays, format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CicloPago, EstadoSuscripcion } from '@/types';
+type CicloPago = 'mensual' | 'trimestral' | 'semestral' | 'anual';
+type EstadoSuscripcion = 'activa' | 'suspendida' | 'inactiva' | 'vencida';
 
 /**
  * Calcula la fecha de vencimiento basada en fecha de inicio y ciclo de pago
@@ -83,6 +84,13 @@ export function formatearMoneda(monto: number): string {
  */
 export function formatearFecha(fecha: Date): string {
   return format(fecha, "d 'de' MMMM 'de' yyyy", { locale: es });
+}
+
+/**
+ * Formatea una fecha con hora en formato legible (d de MMMM del yyyy, h:mm a)
+ */
+export function formatearFechaHora(fecha: Date): string {
+  return format(fecha, "d 'de' MMMM 'del' yyyy, h:mm a", { locale: es });
 }
 
 /**

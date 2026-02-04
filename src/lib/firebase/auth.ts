@@ -74,7 +74,7 @@ export function getCurrentUser(): FirebaseUser | null {
  * Convert Firebase User to App User
  */
 export function convertFirebaseUser(firebaseUser: FirebaseUser): User {
-  const isAdmin = firebaseUser.email?.includes('admin') || false;
+  const isAdmin = firebaseUser.email?.startsWith('admin@') || false;
 
   return {
     id: firebaseUser.uid,

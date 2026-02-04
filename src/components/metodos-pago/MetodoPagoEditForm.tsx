@@ -319,7 +319,7 @@ export function MetodoPagoEditForm({ metodoPago }: MetodoPagoEditFormProps) {
       toast.success('Método de pago actualizado exitosamente');
       router.push('/metodos-pago');
     } catch (error) {
-      toast.error('Error al actualizar el método de pago');
+      toast.error('Error al actualizar el método de pago', { description: error instanceof Error ? error.message : undefined });
       console.error(error);
     }
   };

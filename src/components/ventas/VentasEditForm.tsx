@@ -45,7 +45,7 @@ const ventaEditSchema = z.object({
   fechaInicio: z.date(),
   fechaFin: z.date(),
   codigo: z.string().optional(),
-  estado: z.enum(['activo', 'inactivo']).default('activo'),
+  estado: z.enum(['activo', 'inactivo']),
   notas: z.string().optional(),
 });
 
@@ -397,7 +397,7 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
       router.push('/ventas');
     } catch (error) {
       console.error('Error actualizando venta:', error);
-      toast.error('Error al actualizar la venta');
+      toast.error('Error al actualizar la venta', { description: error instanceof Error ? error.message : undefined });
     }
   };
 

@@ -39,7 +39,7 @@ function VerCategoriaPageContent() {
         toast.success('Categoría eliminada');
         router.push('/categorias');
       } catch (error) {
-        toast.error('Error al eliminar categoría');
+        toast.error('Error al eliminar categoría', { description: error instanceof Error ? error.message : undefined });
       }
     }
   };

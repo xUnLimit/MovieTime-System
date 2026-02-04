@@ -117,7 +117,7 @@ export function CategoriaEditForm({ categoria }: CategoriaEditFormProps) {
       toast.success('Categoría actualizada exitosamente');
       router.push('/categorias');
     } catch (error) {
-      toast.error('Error al actualizar la categoría');
+      toast.error('Error al actualizar la categoría', { description: error instanceof Error ? error.message : undefined });
       console.error(error);
     }
   };

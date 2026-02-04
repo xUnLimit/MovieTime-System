@@ -61,7 +61,7 @@ export function TemplateEditor({ templates }: TemplateEditorProps) {
       await navigator.clipboard.writeText(placeholder);
       toast.success('Placeholder copiado');
     } catch (error) {
-      toast.error('Error al copiar');
+      toast.error('Error al copiar', { description: error instanceof Error ? error.message : undefined });
     }
   };
 
@@ -92,7 +92,7 @@ export function TemplateEditor({ templates }: TemplateEditorProps) {
         toast.success('Plantilla creada');
       }
     } catch (error) {
-      toast.error('Error al guardar plantilla');
+      toast.error('Error al guardar plantilla', { description: error instanceof Error ? error.message : undefined });
     }
   };
 
@@ -164,7 +164,7 @@ export function TemplateEditor({ templates }: TemplateEditorProps) {
                             <div className="flex items-start gap-2 flex-1 min-w-0">
                               <Icon className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
                               <div className="flex-1 min-w-0">
-                                <code className="text-xs font-mono font-semibold block text-foreground">
+                                <code className="text-xs font-semibold block text-foreground">
                                   {placeholder.key}
                                 </code>
                                 <p className="text-xs text-muted-foreground mt-0.5 leading-tight">

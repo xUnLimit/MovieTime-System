@@ -118,7 +118,7 @@ export const NotificacionesTable = memo(function NotificacionesTable({
       await deleteNotificacion(id);
       toast.success('Notificación eliminada');
     } catch (error) {
-      toast.error('Error al eliminar notificación');
+      toast.error('Error al eliminar notificación', { description: error instanceof Error ? error.message : undefined });
     }
   };
 

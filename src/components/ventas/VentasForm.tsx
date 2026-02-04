@@ -41,7 +41,7 @@ const ventaSchema = z.object({
   fechaInicio: z.date(),
   fechaFin: z.date(),
   codigo: z.string().optional(),
-  estado: z.enum(['activo', 'inactivo']).default('activo'),
+  estado: z.enum(['activo', 'inactivo']),
 });
 
 type VentaFormData = z.infer<typeof ventaSchema>;
@@ -403,6 +403,7 @@ export function VentasForm() {
       return;
     }
     setItemErrors({});
+    if (!plan || !categoria || !tipoItem) return;
     const itemId =
       typeof crypto !== 'undefined' && 'randomUUID' in crypto
         ? crypto.randomUUID()
@@ -580,7 +581,7 @@ export function VentasForm() {
       router.push('/ventas');
     } catch (error) {
       console.error('Error guardando venta:', error);
-      toast.error('Error al guardar la venta');
+      toast.error('Error al guardar la venta', { description: error instanceof Error ? error.message : undefined });
     } finally {
       setSaving(false);
     }

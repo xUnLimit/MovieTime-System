@@ -82,7 +82,7 @@ export function UsuariosMetodosPagoTable({ metodosPago, onEdit, title = 'Método
       await toggleActivo(metodo.id);
       toast.success(metodo.activo ? 'Método de pago desactivado' : 'Método de pago activado');
     } catch (error) {
-      toast.error('Error al cambiar estado del método de pago');
+      toast.error('Error al cambiar estado del método de pago', { description: error instanceof Error ? error.message : undefined });
     }
   };
 
@@ -97,7 +97,7 @@ export function UsuariosMetodosPagoTable({ metodosPago, onEdit, title = 'Método
         await deleteMetodoPago(metodoToDelete.id);
         toast.success('Método de pago eliminado');
       } catch (error) {
-        toast.error('Error al eliminar método de pago');
+        toast.error('Error al eliminar método de pago', { description: error instanceof Error ? error.message : undefined });
       }
     }
   };

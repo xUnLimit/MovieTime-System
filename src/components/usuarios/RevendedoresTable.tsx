@@ -67,7 +67,7 @@ export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Reven
         await deleteUsuario(revendedorToDelete.id);
         toast.success('Revendedor eliminado');
       } catch (error) {
-        toast.error('Error al eliminar revendedor');
+        toast.error('Error al eliminar revendedor', { description: error instanceof Error ? error.message : undefined });
       }
     }
   };

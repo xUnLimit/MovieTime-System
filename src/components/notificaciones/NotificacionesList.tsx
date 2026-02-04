@@ -22,7 +22,7 @@ export function NotificacionesList({ notificaciones }: NotificacionesListProps) 
     try {
       await markAsRead(id);
     } catch (error) {
-      toast.error('Error al marcar como leída');
+      toast.error('Error al marcar como leída', { description: error instanceof Error ? error.message : undefined });
     }
   };
 
@@ -31,7 +31,7 @@ export function NotificacionesList({ notificaciones }: NotificacionesListProps) 
       await deleteNotificacion(id);
       toast.success('Notificación eliminada');
     } catch (error) {
-      toast.error('Error al eliminar notificación');
+      toast.error('Error al eliminar notificación', { description: error instanceof Error ? error.message : undefined });
     }
   };
 

@@ -128,7 +128,7 @@ export function MetodoPagoDialog({
       }
       onOpenChange(false);
     } catch (error) {
-      toast.error('Error al guardar método de pago');
+      toast.error('Error al guardar método de pago', { description: error instanceof Error ? error.message : undefined });
     }
   };
 

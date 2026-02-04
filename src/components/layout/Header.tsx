@@ -4,11 +4,7 @@ import { NotificationBell } from './NotificationBell';
 import { ThemeToggle } from './ThemeToggle';
 import { UserMenu } from './UserMenu';
 
-interface HeaderProps {
-  sidebarCollapsed?: boolean;
-}
-
-export function Header({ sidebarCollapsed }: HeaderProps) {
+export function Header() {
   return (
     <header className="bg-background sticky top-0 z-10">
       <div className="flex h-16 items-center justify-end px-6">

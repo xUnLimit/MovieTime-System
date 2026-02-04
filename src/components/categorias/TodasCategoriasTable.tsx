@@ -61,7 +61,7 @@ export function TodasCategoriasTable({ categorias, title = 'Todas las categoría
         await deleteCategoria(categoriaToDelete.id);
         toast.success('Categoría eliminada');
       } catch (error) {
-        toast.error('Error al eliminar categoría');
+        toast.error('Error al eliminar categoría', { description: error instanceof Error ? error.message : undefined });
       }
     }
   };
@@ -74,7 +74,7 @@ export function TodasCategoriasTable({ categorias, title = 'Todas las categoría
       });
       toast.success(categoria.activo ? 'Categoría desactivada' : 'Categoría activada');
     } catch (error) {
-      toast.error('Error al actualizar estado');
+      toast.error('Error al actualizar estado', { description: error instanceof Error ? error.message : undefined });
     }
   };
 

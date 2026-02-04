@@ -102,7 +102,7 @@ export function TodosUsuariosTable({
         await deleteUsuario(usuarioToDelete.original.id);
         toast.success(`${usuarioToDelete.tipo} eliminado`);
       } catch (error) {
-        toast.error(`Error al eliminar ${usuarioToDelete.tipo.toLowerCase()}`);
+        toast.error(`Error al eliminar ${usuarioToDelete.tipo.toLowerCase()}`, { description: error instanceof Error ? error.message : undefined });
       }
     }
   };

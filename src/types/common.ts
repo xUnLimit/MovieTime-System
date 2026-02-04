@@ -81,7 +81,7 @@ export interface GastoFormData {
 }
 
 // Template Mensaje Types
-export type TipoTemplate = 'notificacion_regular' | 'informacion';
+export type TipoTemplate = 'notificacion_regular' | 'dia_pago' | 'renovacion' | 'suscripcion' | 'cancelacion';
 
 export interface TemplateMensaje {
   id: string;

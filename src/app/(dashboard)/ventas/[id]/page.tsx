@@ -24,6 +24,7 @@ import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { useServiciosStore } from '@/store/serviciosStore';
 import { useUsuariosStore } from '@/store/usuariosStore';
 import { COLLECTIONS, getById, remove, timestampToDate, update } from '@/lib/firebase/firestore';
+import { toast } from 'sonner';
 import { PagoDialog } from '@/components/shared/PagoDialog';
 import {
   DropdownMenu,
@@ -166,6 +167,7 @@ function VentaDetallePageContent() {
         });
       } catch (error) {
         console.error('Error cargando venta:', error);
+        toast.error('Error cargando venta', { description: error instanceof Error ? error.message : undefined });
         setVenta(null);
       } finally {
         setLoading(false);
@@ -233,6 +235,7 @@ function VentaDetallePageContent() {
       router.push('/ventas');
     } catch (error) {
       console.error('Error eliminando venta:', error);
+      toast.error('Error eliminando venta', { description: error instanceof Error ? error.message : undefined });
     }
   };
 

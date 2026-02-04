@@ -56,7 +56,7 @@ export function ClientesCategoriasTable({ categorias, title = 'Categorías de Cl
         await deleteCategoria(categoriaToDelete.id);
         toast.success('Categoría eliminada');
       } catch (error) {
-        toast.error('Error al eliminar categoría');
+        toast.error('Error al eliminar categoría', { description: error instanceof Error ? error.message : undefined });
       }
     }
   };
@@ -69,7 +69,7 @@ export function ClientesCategoriasTable({ categorias, title = 'Categorías de Cl
       });
       toast.success(categoria.activo ? 'Categoría desactivada' : 'Categoría activada');
     } catch (error) {
-      toast.error('Error al actualizar estado');
+      toast.error('Error al actualizar estado', { description: error instanceof Error ? error.message : undefined });
     }
   };
 

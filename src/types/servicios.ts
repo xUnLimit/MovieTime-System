@@ -21,6 +21,7 @@ export interface Servicio {
   activo: boolean;
   renovacionAutomatica: boolean;
   fechaRenovacion?: Date;
+  renovaciones?: number;
   createdAt: Date;
   updatedAt: Date;
   createdBy: string;

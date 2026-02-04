@@ -67,7 +67,7 @@ export function ClientesTable({ clientes, onEdit, onView, title = 'Clientes' }: 
         await deleteUsuario(clienteToDelete.id);
         toast.success('Cliente eliminado');
       } catch (error) {
-        toast.error('Error al eliminar cliente');
+        toast.error('Error al eliminar cliente', { description: error instanceof Error ? error.message : undefined });
       }
     }
   };

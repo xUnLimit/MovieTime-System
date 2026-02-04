@@ -23,9 +23,9 @@ const pagoDialogSchema = z.object({
   periodoRenovacion: z
     .string()
     .refine((v) => ['mensual', 'trimestral', 'semestral', 'anual'].includes(v), {
-      message: 'Seleccione el ciclo de facturaciÃ³n',
+      message: 'Seleccione el ciclo de facturación',
     }),
-  metodoPagoId: z.string().min(1, 'El mÃ©todo de pago es requerido'),
+  metodoPagoId: z.string().min(1, 'El método de pago es requerido'),
   costo: z.number().min(0, 'El costo debe ser mayor a 0'),
   descuento: z.number().min(0).max(100).optional(),
   fechaInicio: z.date(),
@@ -126,15 +126,15 @@ export function PagoDialog(props: PagoDialogProps) {
 
     if (props.context === 'venta') {
       if (isEdit) {
-        if (pago) {
+        if (props.pago) {
           reset({
-            periodoRenovacion: pago.cicloPago || '',
-            metodoPagoId: (pago.metodoPagoId as string) || venta?.metodoPagoId || '',
-            costo: pago.precio ?? 0,
-            descuento: (pago.descuento as number) ?? 0,
-            fechaInicio: pago.fechaInicio ? new Date(pago.fechaInicio) : new Date(),
-            fechaVencimiento: pago.fechaVencimiento ? new Date(pago.fechaVencimiento) : new Date(),
-            notas: pago.notas ?? '',
+            periodoRenovacion: props.pago.cicloPago || '',
+            metodoPagoId: (props.pago.metodoPagoId as string) || venta?.metodoPagoId || '',
+            costo: props.pago.precio ?? 0,
+            descuento: (props.pago.descuento as number) ?? 0,
+            fechaInicio: props.pago.fechaInicio ? new Date(props.pago.fechaInicio) : new Date(),
+            fechaVencimiento: props.pago.fechaVencimiento ? new Date(props.pago.fechaVencimiento) : new Date(),
+            notas: props.pago.notas ?? '',
           });
           return;
         }
@@ -164,13 +164,13 @@ export function PagoDialog(props: PagoDialogProps) {
     }
 
     if (isEdit) {
-      if (!pago || !servicio) return;
+      if (!props.pago || !servicio) return;
       reset({
         periodoRenovacion: servicio.cicloPago || '',
         metodoPagoId: servicio.metodoPagoId || '',
-        costo: pago.monto,
-        fechaInicio: new Date(pago.fechaInicio),
-        fechaVencimiento: new Date(pago.fechaVencimiento),
+        costo: props.pago.monto,
+        fechaInicio: new Date(props.pago.fechaInicio),
+        fechaVencimiento: new Date(props.pago.fechaVencimiento),
         notas: '',
       });
       return;
@@ -187,7 +187,7 @@ export function PagoDialog(props: PagoDialogProps) {
       fechaVencimiento: fechaVencimientoActual,
       notas: '',
     });
-  }, [open, isEdit, pago, reset, servicio, venta, props.context]);
+  }, [open, isEdit, props.pago, reset, servicio, venta, props.context]);
 
   useEffect(() => {
     if (fechaInicioValue && periodoValue && periodoValue !== '') {
@@ -202,13 +202,13 @@ export function PagoDialog(props: PagoDialogProps) {
 
   const hasChanges = useMemo(() => {
     if (props.context !== 'servicio' || props.mode !== 'edit') return true;
-    if (!pago || !servicio) return false;
-    const inicioPago = new Date(pago.fechaInicio).getTime();
-    const vencimientoPago = new Date(pago.fechaVencimiento).getTime();
+    if (!props.pago || !servicio) return false;
+    const inicioPago = new Date(props.pago.fechaInicio).getTime();
+    const vencimientoPago = new Date(props.pago.fechaVencimiento).getTime();
     return (
       periodoValue !== (servicio.cicloPago || '') ||
       metodoPagoIdValue !== (servicio.metodoPagoId || '') ||
-      costoValue !== pago.monto ||
+      costoValue !== props.pago.monto ||
       fechaInicioValue?.getTime() !== inicioPago ||
       fechaVencimientoValue?.getTime() !== vencimientoPago
     );
@@ -220,7 +220,7 @@ export function PagoDialog(props: PagoDialogProps) {
     props.mode,
     metodoPagoIdValue,
     periodoValue,
-    pago,
+    props.pago,
     servicio,
   ]);
 
@@ -241,10 +241,10 @@ export function PagoDialog(props: PagoDialogProps) {
     : (isEdit ? `Editar pago del servicio: ${servicio?.nombre || ''}` : `Renovar Servicio: ${servicio?.nombre || ''}`);
   const description = isVenta
     ? (isEdit
-        ? 'Actualiza la informaciÃ³n del pago seleccionado.'
+        ? 'Actualiza la información del pago seleccionado.'
         : 'Registre un nuevo pago para esta venta para extender su fecha de vencimiento.')
     : (isEdit
-        ? `Corrija los datos del Ãºltimo pago registrado (${pago?.descripcion ?? 'Pago'}) si se ingresÃ³ algo incorrecto.`
+        ? `Corrija los datos del último pago registrado (${(pago as PagoServicio | null)?.descripcion ?? 'Pago'}) si se ingresó algo incorrecto.`
         : 'Registre un nuevo pago para este servicio para extender su fecha de vencimiento.');
 
   const metodosFiltrados = metodosPago.filter((m) =>
@@ -255,7 +255,7 @@ export function PagoDialog(props: PagoDialogProps) {
 
   const renderPeriodoField = () => (
     <div className="space-y-2">
-      <Label htmlFor="periodoRenovacion">Ciclo de facturaciÃ³n</Label>
+      <Label htmlFor="periodoRenovacion">Ciclo de facturación</Label>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -282,7 +282,7 @@ export function PagoDialog(props: PagoDialogProps) {
 
   const renderMetodoField = () => (
     <div className="space-y-2">
-      <Label htmlFor="metodoPagoId">MÃ©todo de pago</Label>
+      <Label htmlFor="metodoPagoId">Método de pago</Label>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -290,7 +290,7 @@ export function PagoDialog(props: PagoDialogProps) {
             type="button"
             className="w-full justify-between border-input bg-transparent dark:bg-input/30 dark:hover:bg-input/50 h-9"
           >
-            {metodoPagoIdValue ? metodosPago.find((m) => m.id === metodoPagoIdValue)?.nombre : 'Seleccionar mÃ©todo'}
+            {metodoPagoIdValue ? metodosPago.find((m) => m.id === metodoPagoIdValue)?.nombre : 'Seleccionar método'}
             <ChevronDown className="h-4 w-4 opacity-50" />
           </Button>
         </DropdownMenuTrigger>
@@ -465,7 +465,7 @@ export function PagoDialog(props: PagoDialogProps) {
             <Textarea
               id="notas"
               {...register('notas')}
-              placeholder="AÃ±ade notas si es necesario..."
+              placeholder="Añade notas si es necesario..."
               rows={3}
             />
           </div>
@@ -489,7 +489,7 @@ export function PagoDialog(props: PagoDialogProps) {
                   <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
-                  Confirmar RenovaciÃ³n
+                  Confirmar Renovación
                 </>
               )}
             </Button>

@@ -13,6 +13,7 @@ import { VentasTable } from '@/components/ventas/VentasTable';
 import { useCategoriasStore } from '@/store/categoriasStore';
 import { useServiciosStore } from '@/store/serviciosStore';
 import { COLLECTIONS, getAll, remove, timestampToDate } from '@/lib/firebase/firestore';
+import { toast } from 'sonner';
 
 function VentasPageContent() {
   const { categorias, fetchCategorias } = useCategoriasStore();
@@ -56,6 +57,7 @@ function VentasPageContent() {
         setVentas(mapped);
       } catch (error) {
         console.error('Error cargando ventas:', error);
+        toast.error('Error cargando ventas', { description: error instanceof Error ? error.message : undefined });
         setVentas([]);
       }
     };
@@ -95,6 +97,7 @@ function VentasPageContent() {
       setDeleteDialogOpen(false);
     } catch (error) {
       console.error('Error eliminando venta:', error);
+      toast.error('Error eliminando venta', { description: error instanceof Error ? error.message : undefined });
     }
   };
 

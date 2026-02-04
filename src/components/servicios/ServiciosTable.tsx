@@ -32,7 +32,7 @@ export function ServiciosTable({ servicios, onEdit }: ServiciosTableProps) {
         await deleteServicio(servicioToDelete.id);
         toast.success('Servicio eliminado');
       } catch (error) {
-        toast.error('Error al eliminar servicio');
+        toast.error('Error al eliminar servicio', { description: error instanceof Error ? error.message : undefined });
       }
     }
   };
@@ -60,8 +60,8 @@ export function ServiciosTable({ servicios, onEdit }: ServiciosTableProps) {
       header: 'Tipo',
       sortable: true,
       render: (item) => (
-        <Badge variant={item.tipo === 'individual' ? 'default' : 'secondary'}>
-          {item.tipo === 'individual' ? 'Individual' : 'Familiar'}
+        <Badge variant={item.tipo === 'cuenta_completa' ? 'default' : 'secondary'}>
+          {item.tipo === 'cuenta_completa' ? 'Cuenta Completa' : 'Perfiles'}
         </Badge>
       ),
     },
@@ -87,7 +87,7 @@ export function ServiciosTable({ servicios, onEdit }: ServiciosTableProps) {
       render: (item) => (
         <div className="flex items-center gap-2">
           <div className="text-sm">
-            <div className="font-mono">{item.correo}</div>
+            <div className="text-sm">{item.correo}</div>
           </div>
           <Button
             variant="ghost"

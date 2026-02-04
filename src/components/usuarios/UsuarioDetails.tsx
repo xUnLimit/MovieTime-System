@@ -6,8 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { useEffect, useMemo, useState } from 'react';
 import { User, MessageCircle, Monitor, Calendar, Clock, MoreHorizontal, RefreshCw, Copy } from 'lucide-react';
-import { format, differenceInCalendarDays } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { differenceInCalendarDays } from 'date-fns';
 import {
   Table,
   TableBody,
@@ -27,7 +26,7 @@ import { useServiciosStore } from '@/store/serviciosStore';
 import { useCategoriasStore } from '@/store/categoriasStore';
 import { useVentasUsuario } from '@/hooks/use-ventas-usuario';
 import { getCurrencySymbol } from '@/lib/constants';
-import { formatearFecha } from '@/lib/utils/calculations';
+import { formatearFecha, formatearFechaHora } from '@/lib/utils/calculations';
 
 interface UsuarioDetailsProps {
   usuario: Usuario;
@@ -179,17 +178,13 @@ export function UsuarioDetails({ usuario }: UsuarioDetailsProps) {
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Cliente desde</p>
                   <p className="text-sm font-medium">
-                    {format(new Date(usuario.createdAt), "d 'de' MMMM 'del' yyyy, h:mm a", {
-                      locale: es,
-                    })}
+                    {formatearFechaHora(new Date(usuario.createdAt))}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Última actualización</p>
                   <p className="text-sm font-medium">
-                    {format(new Date(usuario.updatedAt), "d 'de' MMMM 'del' yyyy, h:mm a", {
-                      locale: es,
-                    })}
+                    {formatearFechaHora(new Date(usuario.updatedAt))}
                   </p>
                 </div>
               </div>

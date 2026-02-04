@@ -79,7 +79,7 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
         setDeleteDialogOpen(false);
         setServicioToDelete(null);
       } catch (error) {
-        toast.error('Error al eliminar servicio');
+        toast.error('Error al eliminar servicio', { description: error instanceof Error ? error.message : undefined });
       }
     }
   };

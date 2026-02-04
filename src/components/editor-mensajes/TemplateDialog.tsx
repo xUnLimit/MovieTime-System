@@ -29,7 +29,7 @@ import { toast } from 'sonner';
 
 const templateSchema = z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  tipo: z.enum(['notificacion_regular', 'informacion']),
+  tipo: z.enum(['notificacion_regular', 'dia_pago', 'renovacion', 'suscripcion', 'cancelacion']),
   contenido: z.string().min(10, 'El contenido debe tener al menos 10 caracteres'),
 });
 
@@ -123,7 +123,7 @@ export function TemplateDialog({ open, onOpenChange, template }: TemplateDialogP
       }
       onOpenChange(false);
     } catch (error) {
-      toast.error('Error al guardar template');
+      toast.error('Error al guardar template', { description: error instanceof Error ? error.message : undefined });
     }
   };
 
@@ -161,7 +161,10 @@ export function TemplateDialog({ open, onOpenChange, template }: TemplateDialogP
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="notificacion_regular">Notificación Regular</SelectItem>
-                  <SelectItem value="informacion">Información</SelectItem>
+                  <SelectItem value="dia_pago">Día de Pago</SelectItem>
+                  <SelectItem value="renovacion">Renovación</SelectItem>
+                  <SelectItem value="suscripcion">Suscripción</SelectItem>
+                  <SelectItem value="cancelacion">Cancelación</SelectItem>
                 </SelectContent>
               </Select>
             </div>
