@@ -16,6 +16,7 @@ import { format, addMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { MetodoPago } from '@/types';
+import { getCurrencySymbol } from '@/lib/constants';
 
 const editarPagoSchema = z.object({
   periodoRenovacion: z
@@ -91,24 +92,6 @@ export function EditarPagoVentaDialog({
   const fechaVencimientoValue = watch('fechaVencimiento');
 
   const metodoPagoSeleccionado = metodosPago.find((m) => m.id === metodoPagoIdValue);
-  const getCurrencySymbol = (moneda?: string): string => {
-    if (!moneda) return '$';
-    const symbols: Record<string, string> = {
-      USD: '$',
-      PAB: 'B/.',
-      EUR: '€',
-      COP: '$',
-      MXN: '$',
-      CRC: '₡',
-      VES: 'Bs.',
-      ARS: '$',
-      CLP: '$',
-      PEN: 'S/',
-      NGN: '₦',
-      TRY: '₺',
-    };
-    return symbols[moneda] || '$';
-  };
   const currencySymbol = getCurrencySymbol(metodoPagoSeleccionado?.moneda);
   const descuentoNumero = Number(descuentoValue) || 0;
   const precioFinal = Math.max((Number(costoValue) || 0) * (1 - descuentoNumero / 100), 0);

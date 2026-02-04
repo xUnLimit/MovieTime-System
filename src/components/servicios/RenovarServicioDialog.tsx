@@ -27,6 +27,7 @@ import { CalendarIcon, ChevronDown } from 'lucide-react';
 import { format, addMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { getCurrencySymbol } from '@/lib/constants';
 
 const renovacionSchema = z.object({
   periodoRenovacion: z
@@ -88,24 +89,6 @@ export function RenovarServicioDialog({
   const fechaVencimientoValue = watch('fechaVencimiento');
 
   const metodoPagoSeleccionado = metodosPago.find((m) => m.id === metodoPagoIdValue);
-  const getCurrencySymbol = (moneda?: string): string => {
-    if (!moneda) return '$';
-    const symbols: Record<string, string> = {
-      USD: '$',
-      PAB: 'B/.',
-      EUR: '€',
-      COP: '$',
-      MXN: '$',
-      CRC: '₡',
-      VES: 'Bs.',
-      ARS: '$',
-      CLP: '$',
-      PEN: 'S/',
-      NGN: '₦',
-      TRY: '₺',
-    };
-    return symbols[moneda] || '$';
-  };
   const currencySymbol = getCurrencySymbol(metodoPagoSeleccionado?.moneda);
 
   // Reset form when dialog opens: fecha de inicio = fecha de vencimiento actual del servicio; ciclo sin preseleccionar

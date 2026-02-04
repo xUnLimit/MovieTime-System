@@ -25,6 +25,7 @@ import {
 import { Categoria } from '@/types';
 import { VentaDoc } from '@/components/ventas/VentasMetrics';
 import { cn } from '@/lib/utils';
+import { getCurrencySymbol } from '@/lib/constants';
 
 interface VentasTableProps {
   ventas: VentaDoc[];
@@ -62,24 +63,6 @@ const getCicloPagoLabel = (ciclo?: string) => {
   return ciclo ? labels[ciclo] || ciclo : '—';
 };
 
-const getCurrencySymbol = (moneda?: string): string => {
-  if (!moneda) return '$';
-  const symbols: Record<string, string> = {
-    USD: '$',
-    PAB: 'B/.',
-    EUR: '€',
-    COP: '$',
-    MXN: '$',
-    CRC: '₡',
-    VES: 'Bs.',
-    ARS: '$',
-    CLP: '$',
-    PEN: 'S/',
-    NGN: '₦',
-    TRY: '₺',
-  };
-  return symbols[moneda] || '$';
-};
 
 const clamp = (value: number, min = 0, max = 1) => Math.min(Math.max(value, min), max);
 

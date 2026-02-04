@@ -25,7 +25,8 @@ import {
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useServiciosStore } from '@/store/serviciosStore';
 import { useCategoriasStore } from '@/store/categoriasStore';
-import { COLLECTIONS, queryDocuments, remove, timestampToDate } from '@/lib/firebase/firestore';
+import { useVentasUsuario } from '@/hooks/use-ventas-usuario';
+import { getCurrencySymbol } from '@/lib/constants';
 
 interface UsuarioDetailsProps {
   usuario: Usuario;
@@ -33,13 +34,12 @@ interface UsuarioDetailsProps {
 
 export function UsuarioDetails({ usuario }: UsuarioDetailsProps) {
   const isRevendedor = usuario.tipo === 'revendedor';
-  const { servicios, fetchServicios, updatePerfilOcupado } = useServiciosStore();
+  const { servicios, fetchServicios } = useServiciosStore();
   const { categorias, fetchCategorias } = useCategoriasStore();
-  const [ventasUsuario, setVentasUsuario] = useState<Array<Record<string, unknown>>>([]);
-  const [renovacionesByServicio, setRenovacionesByServicio] = useState<Record<string, number>>({});
-  const [deleteVentaId, setDeleteVentaId] = useState<string | null>(null);
-  const [deleteVentaServicioId, setDeleteVentaServicioId] = useState<string | undefined>(undefined);
-  const [deleteVentaPerfilNumero, setDeleteVentaPerfilNumero] = useState<number | null | undefined>(undefined);
+  const { ventas: ventasUsuario, renovacionesByServicio, deleteVenta } = useVentasUsuario(usuario.id);
+
+  // Confirmación de eliminación
+  const [deleteTarget, setDeleteTarget] = useState<{ ventaId: string; servicioId?: string; perfilNumero?: number | null } | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const handleWhatsApp = () => {
@@ -48,23 +48,15 @@ export function UsuarioDetails({ usuario }: UsuarioDetailsProps) {
   };
 
   const handleDeleteVenta = (ventaId: string, servicioId?: string, perfilNumero?: number | null) => {
-    setDeleteVentaId(ventaId);
-    setDeleteVentaServicioId(servicioId);
-    setDeleteVentaPerfilNumero(perfilNumero ?? null);
+    setDeleteTarget({ ventaId, servicioId, perfilNumero });
     setDeleteDialogOpen(true);
   };
 
   const handleConfirmDeleteVenta = async () => {
-    if (!deleteVentaId) return;
+    if (!deleteTarget) return;
     try {
-      await remove(COLLECTIONS.VENTAS, deleteVentaId);
-      if (deleteVentaServicioId && deleteVentaPerfilNumero) {
-        updatePerfilOcupado(deleteVentaServicioId, false);
-      }
-      setVentasUsuario((prev) => prev.filter((venta) => (venta.id as string) !== deleteVentaId));
-      setDeleteVentaId(null);
-      setDeleteVentaServicioId(undefined);
-      setDeleteVentaPerfilNumero(undefined);
+      await deleteVenta(deleteTarget.ventaId, deleteTarget.servicioId, deleteTarget.perfilNumero);
+      setDeleteTarget(null);
       setDeleteDialogOpen(false);
     } catch (error) {
       console.error('Error eliminando venta:', error);
@@ -76,51 +68,6 @@ export function UsuarioDetails({ usuario }: UsuarioDetailsProps) {
     fetchCategorias();
   }, [fetchServicios, fetchCategorias]);
 
-  useEffect(() => {
-    const loadVentas = async () => {
-      try {
-        const docs = await queryDocuments<Record<string, unknown>>(COLLECTIONS.VENTAS, [
-          { field: 'clienteId', operator: '==', value: usuario.id },
-        ]);
-        setVentasUsuario(docs);
-      } catch (error) {
-        console.error('Error cargando ventas del usuario:', error);
-        setVentasUsuario([]);
-      }
-    };
-
-    loadVentas();
-  }, [usuario.id]);
-
-  useEffect(() => {
-    const loadRenovaciones = async () => {
-      const servicioIds = Array.from(
-        new Set(ventasUsuario.map((venta) => (venta.servicioId as string) || '').filter(Boolean))
-      );
-      if (servicioIds.length === 0) {
-        setRenovacionesByServicio({});
-        return;
-      }
-      try {
-        const entries = await Promise.all(
-          servicioIds.map(async (servicioId) => {
-            const pagos = await queryDocuments<Record<string, unknown>>(COLLECTIONS.PAGOS_SERVICIO, [
-              { field: 'servicioId', operator: '==', value: servicioId },
-            ]);
-            const renovaciones = pagos.filter((pago) => !pago.isPagoInicial && pago.descripcion !== 'Pago inicial').length;
-            return [servicioId, renovaciones] as const;
-          })
-        );
-        setRenovacionesByServicio(Object.fromEntries(entries));
-      } catch (error) {
-        console.error('Error cargando renovaciones:', error);
-        setRenovacionesByServicio({});
-      }
-    };
-
-    loadRenovaciones();
-  }, [ventasUsuario]);
-
   const getCicloPagoLabel = (ciclo?: string) => {
     const labels: Record<string, string> = {
       mensual: 'Mensual',
@@ -131,57 +78,34 @@ export function UsuarioDetails({ usuario }: UsuarioDetailsProps) {
     return ciclo ? labels[ciclo] || ciclo : '—';
   };
 
-  const getCurrencySymbol = (moneda?: string): string => {
-    if (!moneda) return '$';
-    const symbols: Record<string, string> = {
-      USD: '$',
-      PAB: 'B/.',
-      EUR: '€',
-      COP: '$',
-      MXN: '$',
-      CRC: '₡',
-      VES: 'Bs.',
-      ARS: '$',
-      CLP: '$',
-      PEN: 'S/',
-      NGN: '₦',
-      TRY: '₺',
-    };
-    return symbols[moneda] || '$';
-  };
 
   const rows = useMemo(() => {
     const now = new Date();
     return ventasUsuario.map((venta) => {
-      const servicioId = (venta.servicioId as string) || '';
-      const servicio = servicios.find((s) => s.id === servicioId);
-      const categoria = categorias.find((c) => c.id === (venta.categoriaId as string));
-      const fechaInicio = venta.fechaInicio ? timestampToDate(venta.fechaInicio) : null;
-      const fechaFin = venta.fechaFin ? timestampToDate(venta.fechaFin) : null;
-      const precioFinal = (venta.precioFinal as number) ?? (venta.precio as number) ?? 0;
-      const totalDias = fechaInicio && fechaFin ? Math.max(differenceInCalendarDays(fechaFin, fechaInicio), 0) : 0;
-      const diasRestantes = fechaFin ? Math.max(differenceInCalendarDays(fechaFin, now), 0) : 0;
+      const servicio  = servicios.find((s) => s.id === venta.servicioId);
+      const categoria = categorias.find((c) => c.id === venta.categoriaId);
+
+      const totalDias     = venta.fechaInicio && venta.fechaFin ? Math.max(differenceInCalendarDays(venta.fechaFin, venta.fechaInicio), 0) : 0;
+      const diasRestantes = venta.fechaFin ? Math.max(differenceInCalendarDays(venta.fechaFin, now), 0) : 0;
       const ratioRestante = totalDias > 0 ? Math.min(diasRestantes / totalDias, 1) : 0;
-      const montoSinConsumir = totalDias > 0 ? Math.max(precioFinal * ratioRestante, 0) : 0;
-      const estadoVenta = (venta.estado as string | undefined) ?? 'activo';
-      const estado = estadoVenta === 'inactivo' ? 'Inactiva' : 'Activa';
+      const montoSinConsumir = totalDias > 0 ? Math.max(venta.precioFinal * ratioRestante, 0) : 0;
 
       return {
-        id: venta.id as string,
+        id:              venta.id,
         categoriaNombre: categoria?.nombre || 'Sin categoría',
-        servicioNombre: servicio?.nombre || (venta.servicioNombre as string) || 'Servicio',
-        servicioId,
-        correo: (venta.servicioCorreo as string) || servicio?.correo || '—',
-        contrasena: servicio?.contrasena || '—',
-        cicloPago: getCicloPagoLabel(venta.cicloPago as string | undefined),
-        fechaInicio,
-        fechaFin,
+        servicioNombre:  servicio?.nombre  || venta.servicioNombre,
+        servicioId:      venta.servicioId,
+        correo:          venta.servicioCorreo !== '—' ? venta.servicioCorreo : (servicio?.correo || '—'),
+        contrasena:      servicio?.contrasena || '—',
+        cicloPago:       getCicloPagoLabel(venta.cicloPago),
+        fechaInicio:     venta.fechaInicio,
+        fechaFin:        venta.fechaFin,
         montoSinConsumir,
-        renovaciones: renovacionesByServicio[servicioId] ?? 0,
+        renovaciones:    renovacionesByServicio[venta.servicioId] ?? 0,
         diasRestantes,
-        estado,
-        moneda: (venta.moneda as string) || undefined,
-        perfilNumero: (venta.perfilNumero as number | null | undefined) ?? null,
+        estado:          venta.estado === 'inactivo' ? 'Inactiva' : 'Activa',
+        moneda:          venta.moneda,
+        perfilNumero:    venta.perfilNumero,
       };
     });
   }, [ventasUsuario, servicios, categorias, renovacionesByServicio]);
@@ -416,11 +340,7 @@ export function UsuarioDetails({ usuario }: UsuarioDetailsProps) {
         open={deleteDialogOpen}
         onOpenChange={(open) => {
           setDeleteDialogOpen(open);
-          if (!open) {
-            setDeleteVentaId(null);
-            setDeleteVentaServicioId(undefined);
-            setDeleteVentaPerfilNumero(undefined);
-          }
+          if (!open) setDeleteTarget(null);
         }}
         onConfirm={handleConfirmDeleteVenta}
         title="Eliminar Venta"

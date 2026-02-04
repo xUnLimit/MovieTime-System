@@ -27,6 +27,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { CURRENCY_SYMBOLS } from '@/lib/constants';
 
 interface ServiciosCategoriaTableDetalleProps {
   servicios: Servicio[];
@@ -62,22 +63,7 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
     if (!metodoPagoId) return '$';
     const metodoPago = metodosPago.find(m => m.id === metodoPagoId);
     if (!metodoPago?.moneda) return '$';
-
-    const currencySymbols: Record<string, string> = {
-      USD: '$',
-      EUR: '€',
-      COP: '$',
-      MXN: '$',
-      CRC: '₡',
-      VES: 'Bs',
-      ARS: '$',
-      CLP: '$',
-      PEN: 'S/',
-      NGN: '₦',
-      TRY: '₺',
-    };
-
-    return currencySymbols[metodoPago.moneda] || '$';
+    return CURRENCY_SYMBOLS[metodoPago.moneda] || '$';
   };
 
   const handleDelete = (servicio: Servicio) => {

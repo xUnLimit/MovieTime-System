@@ -18,7 +18,9 @@
       "Bash(git config:*)",
       "Bash(tree:*)",
       "Bash(npx tsc:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(node:*)",
+      "Bash(git checkout:*)"
     ]
   }
 }

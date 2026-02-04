@@ -25,6 +25,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { getCurrencySymbol } from '@/lib/constants';
 
 function ServicioDetallePageContent() {
   const params = useParams();
@@ -298,24 +299,6 @@ function ServicioDetallePageContent() {
     return labels[ciclo] || ciclo;
   };
 
-  const getCurrencySymbol = (moneda?: string): string => {
-    if (!moneda) return '$';
-    const symbols: Record<string, string> = {
-      USD: '$',
-      PAB: 'B/.',
-      EUR: '€',
-      COP: '$',
-      MXN: '$',
-      CRC: '₡',
-      VES: 'Bs.',
-      ARS: '$',
-      CLP: '$',
-      PEN: 'S/',
-      NGN: '₦',
-      TRY: '₺',
-    };
-    return symbols[moneda] || '$';
-  };
 
   const currencySymbol = getCurrencySymbol(metodoPago?.moneda);
 

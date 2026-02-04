@@ -33,6 +33,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { getCurrencySymbol } from '@/lib/constants';
 
 interface VentaDetalle {
   id: string;
@@ -86,24 +87,6 @@ const getCicloPagoLabel = (ciclo?: string) => {
   return ciclo ? labels[ciclo] || ciclo : '—';
 };
 
-const getCurrencySymbol = (moneda?: string): string => {
-  if (!moneda) return '$';
-  const symbols: Record<string, string> = {
-    USD: '$',
-    PAB: 'B/.',
-    EUR: '€',
-    COP: '$',
-    MXN: '$',
-    CRC: '₡',
-    VES: 'Bs.',
-    ARS: '$',
-    CLP: '$',
-    PEN: 'S/',
-    NGN: '₦',
-    TRY: '₺',
-  };
-  return symbols[moneda] || '$';
-};
 
 function VentaDetallePageContent() {
   const params = useParams();

@@ -29,6 +29,7 @@ import { useServiciosStore } from '@/store/serviciosStore';
 import { useUsuariosStore } from '@/store/usuariosStore';
 import { Categoria, Plan } from '@/types/categorias';
 import { toast } from 'sonner';
+import { getCurrencySymbol } from '@/lib/constants';
 
 const ventaEditSchema = z.object({
   clienteId: z.string().min(1, 'Seleccione un cliente'),
@@ -82,24 +83,6 @@ export interface VentaEditData {
   notas?: string;
 }
 
-const getCurrencySymbol = (moneda?: string): string => {
-  if (!moneda) return '$';
-  const symbols: Record<string, string> = {
-    USD: '$',
-    PAB: 'B/.',
-    EUR: '€',
-    COP: '$',
-    MXN: '$',
-    CRC: '₡',
-    VES: 'Bs.',
-    ARS: '$',
-    CLP: '$',
-    PEN: 'S/',
-    NGN: '₦',
-    TRY: '₺',
-  };
-  return symbols[moneda] || '$';
-};
 
 const getCicloPagoLabel = (ciclo?: string) => {
   const labels: Record<string, string> = {

@@ -185,6 +185,42 @@ export const PRIORIDADES_NOTIFICACION = [
 ] as const;
 
 // ===========================
+// CURRENCY SYMBOLS MAP
+// ===========================
+
+export const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: '$',
+  PAB: 'B/.',
+  EUR: '€',
+  GBP: '£',
+  JPY: '¥',
+  CNY: '¥',
+  INR: '₹',
+  NGN: '₦',
+  BRL: 'R$',
+  MXN: '$',
+  CAD: 'C$',
+  AUD: 'A$',
+  CHF: 'Fr',
+  ARS: '$',
+  CLP: '$',
+  COP: '$',
+  PEN: 'S/',
+  CRC: '₡',
+  VES: 'Bs.',
+  TRY: '₺',
+  BTC: '₿',
+  ETH: 'Ξ',
+  USDT: '$',
+  USDC: '$',
+};
+
+export const getCurrencySymbol = (moneda?: string): string => {
+  if (!moneda) return '$';
+  return CURRENCY_SYMBOLS[moneda.toUpperCase()] || '$';
+};
+
+// ===========================
 // DEFAULT VALUES
 // ===========================
 

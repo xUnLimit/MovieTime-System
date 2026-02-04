@@ -27,6 +27,7 @@ import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { useRouter } from 'next/navigation';
 import { Servicio } from '@/types';
 import { addMonths } from 'date-fns';
+import { CURRENCY_SYMBOLS } from '@/lib/constants';
 
 const servicioSchema = z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
@@ -359,35 +360,7 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
     if (!moneda) return '$';
     const monedaKey = moneda.toUpperCase();
     const paisKey = (pais || '').toUpperCase();
-    const simbolos: Record<string, string> = {
-      USD: '$',
-      PAB: 'B/.',
-      EUR: '\u20AC',
-      GBP: '\u00A3',
-      JPY: '\u00A5',
-      CNY: '\u00A5',
-      INR: '\u20B9',
-      NGN: '\u20A6',
-      BRL: 'R$',
-      MXN: '$',
-      CAD: 'C$',
-      AUD: 'A$',
-      CHF: 'Fr',
-      ARS: '$',
-      CLP: '$',
-      COP: '$',
-      PEN: 'S/',
-      CRC: '\u20A1',
-      VES: 'Bs.',
-      TRY: '\u20BA',
-      BTC: '\u20BF',
-      ETH: '\u039E',
-      USDT: '$',
-      USDC: '$',
-    };
-    if (simbolos[monedaKey]) return simbolos[monedaKey];
-    if (simbolos[paisKey]) return simbolos[paisKey];
-    return monedaKey;
+    return CURRENCY_SYMBOLS[monedaKey] || CURRENCY_SYMBOLS[paisKey] || monedaKey;
   };
 
   const simboloMoneda = metodoPagoSeleccionado
@@ -911,7 +884,3 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
     </form>
   );
 }
-
-
-
-

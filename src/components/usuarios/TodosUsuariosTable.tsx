@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Usuario } from '@/types';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { Card } from '@/components/ui/card';
@@ -23,8 +23,7 @@ import { Search, MoreHorizontal, Edit, Trash2, MessageCircle, Monitor, Eye } fro
 import { useUsuariosStore } from '@/store/usuariosStore';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { toast } from 'sonner';
-import { COLLECTIONS, getAll, timestampToDate } from '@/lib/firebase/firestore';
-import { differenceInCalendarDays } from 'date-fns';
+import { useVentasPorUsuarios } from '@/hooks/use-ventas-por-usuarios';
 
 // Tipo para display en la tabla
 interface UsuarioDisplay {
@@ -57,53 +56,7 @@ export function TodosUsuariosTable({
   const [usuarioToDelete, setUsuarioToDelete] = useState<UsuarioDisplay | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [metodoPagoFilter, setMetodoPagoFilter] = useState('todos');
-  const [ventas, setVentas] = useState<Array<Record<string, unknown>>>([]);
-
-  useEffect(() => {
-    const loadVentas = async () => {
-      try {
-        const docs = await getAll<Record<string, unknown>>(COLLECTIONS.VENTAS);
-        setVentas(docs);
-      } catch (error) {
-        console.error('Error cargando ventas:', error);
-        setVentas([]);
-      }
-    };
-
-    loadVentas();
-  }, []);
-
-  const ventasPorUsuario = useMemo(() => {
-    const now = new Date();
-    return ventas.reduce<Record<string, { serviciosActivos: number; montoSinConsumir: number; serviciosActivosSet: Set<string> }>>((acc, venta) => {
-      const clienteId = venta.clienteId as string | undefined;
-      if (!clienteId) return acc;
-      const itemId = (venta.itemId as string) || '';
-      const ventaId = (venta.ventaId as string) || '';
-      const servicioId = (venta.servicioId as string) || '';
-      const servicioKey = itemId || ventaId || servicioId;
-
-      const fechaInicio = venta.fechaInicio ? timestampToDate(venta.fechaInicio) : null;
-      const fechaFin = venta.fechaFin ? timestampToDate(venta.fechaFin) : null;
-      const precioFinal = (venta.precioFinal as number) ?? (venta.precio as number) ?? 0;
-      const totalDias = fechaInicio && fechaFin ? Math.max(differenceInCalendarDays(fechaFin, fechaInicio), 0) : 0;
-      const diasRestantes = fechaFin ? Math.max(differenceInCalendarDays(fechaFin, now), 0) : 0;
-      const ratioRestante = totalDias > 0 ? Math.min(diasRestantes / totalDias, 1) : 0;
-      const montoSinConsumir = totalDias > 0 ? Math.max(precioFinal * ratioRestante, 0) : 0;
-      const estadoVenta = (venta.estado as string | undefined) ?? 'activo';
-      const isActivo = estadoVenta !== 'inactivo';
-
-      if (!acc[clienteId]) {
-        acc[clienteId] = { serviciosActivos: 0, montoSinConsumir: 0, serviciosActivosSet: new Set() };
-      }
-
-      if (isActivo && servicioKey) {
-        acc[clienteId].serviciosActivosSet.add(servicioKey);
-        acc[clienteId].montoSinConsumir += montoSinConsumir;
-      }
-      return acc;
-    }, {});
-  }, [ventas]);
+  const { stats: ventasPorUsuario } = useVentasPorUsuarios();
 
   // Mapear usuarios a formato display
   const usuariosDisplay: UsuarioDisplay[] = useMemo(() => {
@@ -114,7 +67,7 @@ export function TodosUsuariosTable({
       telefono: u.telefono,
       metodoPagoNombre: u.metodoPagoNombre,
       tipo: u.tipo === 'cliente' ? 'Cliente' : 'Revendedor',
-      serviciosActivos: u.tipo === 'cliente' ? (ventasPorUsuario[u.id]?.serviciosActivosSet?.size ?? 0) : 0,
+      serviciosActivos: u.tipo === 'cliente' ? (ventasPorUsuario[u.id]?.serviciosActivos ?? 0) : 0,
       montoSinConsumir: u.tipo === 'cliente' ? (ventasPorUsuario[u.id]?.montoSinConsumir ?? 0) : 0,
       original: u,
     }));
@@ -138,7 +91,7 @@ export function TodosUsuariosTable({
     });
   }, [usuariosDisplay, searchQuery, metodoPagoFilter]);
 
-  const handleDelete = (usuario: UsuarioUnificado) => {
+  const handleDelete = (usuario: UsuarioDisplay) => {
     setUsuarioToDelete(usuario);
     setDeleteDialogOpen(true);
   };

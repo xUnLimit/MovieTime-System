@@ -32,6 +32,7 @@ import { toast } from 'sonner';
 import { COLLECTIONS, create, queryDocuments } from '@/lib/firebase/firestore';
 import { Switch } from '@/components/ui/switch';
 import { formatearFechaWhatsApp, getSaludo } from '@/lib/utils/whatsapp';
+import { getCurrencySymbol } from '@/lib/constants';
 
 const ventaSchema = z.object({
   clienteId: z.string().min(1, 'Seleccione un cliente'),
@@ -81,24 +82,6 @@ const MESES_POR_CICLO: Record<string, number> = {
   anual: 12,
 };
 
-const getCurrencySymbol = (moneda?: string): string => {
-  if (!moneda) return '$';
-  const symbols: Record<string, string> = {
-    USD: '$',
-    PAB: 'B/.',
-    EUR: 'EUR',
-    COP: '$',
-    MXN: '$',
-    CRC: 'CRC',
-    VES: 'Bs.',
-    ARS: '$',
-    CLP: '$',
-    PEN: 'S/',
-    NGN: 'NGN',
-    TRY: 'TRY',
-  };
-  return symbols[moneda] || '$';
-};
 
 export function VentasForm() {
   const router = useRouter();
