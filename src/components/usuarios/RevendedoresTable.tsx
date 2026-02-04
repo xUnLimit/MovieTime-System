@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Revendedor } from '@/types';
+import { Usuario } from '@/types';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -20,21 +20,21 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Search, MoreHorizontal, Edit, Trash2, MessageCircle, Monitor, Eye } from 'lucide-react';
-import { useRevendedoresStore } from '@/store/revendedoresStore';
+import { useUsuariosStore } from '@/store/usuariosStore';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { toast } from 'sonner';
 
 interface RevendedoresTableProps {
-  revendedores: Revendedor[];
-  onEdit: (revendedor: Revendedor) => void;
-  onView?: (revendedor: Revendedor) => void;
+  revendedores: Usuario[];
+  onEdit: (revendedor: Usuario) => void;
+  onView?: (revendedor: Usuario) => void;
   title?: string;
 }
 
 export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Revendedores' }: RevendedoresTableProps) {
-  const { deleteRevendedor } = useRevendedoresStore();
+  const { deleteUsuario } = useUsuariosStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [revendedorToDelete, setRevendedorToDelete] = useState<Revendedor | null>(null);
+  const [revendedorToDelete, setRevendedorToDelete] = useState<Usuario | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [metodoPagoFilter, setMetodoPagoFilter] = useState('todos');
 
@@ -56,7 +56,7 @@ export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Reven
     });
   }, [revendedores, searchQuery, metodoPagoFilter]);
 
-  const handleDelete = (revendedor: Revendedor) => {
+  const handleDelete = (revendedor: Usuario) => {
     setRevendedorToDelete(revendedor);
     setDeleteDialogOpen(true);
   };
@@ -64,7 +64,7 @@ export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Reven
   const handleConfirmDelete = async () => {
     if (revendedorToDelete) {
       try {
-        await deleteRevendedor(revendedorToDelete.id);
+        await deleteUsuario(revendedorToDelete.id);
         toast.success('Revendedor eliminado');
       } catch (error) {
         toast.error('Error al eliminar revendedor');
@@ -72,12 +72,12 @@ export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Reven
     }
   };
 
-  const handleWhatsApp = (revendedor: Revendedor) => {
+  const handleWhatsApp = (revendedor: Usuario) => {
     const phone = revendedor.telefono.replace(/\D/g, '');
     window.open(`https://wa.me/${phone}`, '_blank');
   };
 
-  const columns: Column<Revendedor>[] = [
+  const columns: Column<Usuario>[] = [
     {
       key: 'nombre',
       header: 'Nombre',
@@ -109,11 +109,12 @@ export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Reven
       align: 'center',
       width: '16%',
       render: (item) => {
-        const isActive = item.suscripcionesTotales > 0;
+        const suscripcionesTotales = item.suscripcionesTotales ?? 0;
+        const isActive = suscripcionesTotales > 0;
         return (
           <div className="flex items-center justify-center gap-2">
             <Monitor className={`h-4 w-4 ${isActive ? 'text-green-500' : 'text-muted-foreground'}`} />
-            <span className={isActive ? '' : 'text-muted-foreground'}>{item.suscripcionesTotales}</span>
+            <span className={isActive ? '' : 'text-muted-foreground'}>{suscripcionesTotales}</span>
           </div>
         );
       },

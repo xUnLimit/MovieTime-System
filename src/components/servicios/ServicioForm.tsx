@@ -19,8 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
 import { ChevronDown, Users, Calendar as CalendarIcon } from 'lucide-react';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { formatearFecha } from '@/lib/utils/calculations';
 import { useServiciosStore } from '@/store/serviciosStore';
 import { useCategoriasStore } from '@/store/categoriasStore';
 import { useMetodosPagoStore } from '@/store/metodosPagoStore';
@@ -618,7 +617,7 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
                     <CalendarIcon className="h-4 w-4 flex-shrink-0" />
                     <span className="text-sm">
                       {fechaInicioValue ? (
-                        format(fechaInicioValue, "d 'de' MMMM 'del' yyyy", { locale: es })
+                        formatearFecha(fechaInicioValue)
                       ) : (
                         'Seleccionar fecha'
                       )}
@@ -656,7 +655,7 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
                     <CalendarIcon className="h-4 w-4 flex-shrink-0" />
                     <span className="text-sm">
                       {fechaVencimientoValue ? (
-                        format(fechaVencimientoValue, "d 'de' MMMM 'del' yyyy", { locale: es })
+                        formatearFecha(fechaVencimientoValue)
                       ) : (
                         'Seleccionar fecha'
                       )}
@@ -855,11 +854,11 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
                 <div className="flex justify-between items-start">
                   <div>
                     <span className="text-xs text-muted-foreground block mb-1">Fecha de inicio</span>
-                    <span className="font-medium">{fechaInicioValue ? format(fechaInicioValue, "d 'de' MMMM 'del' yyyy", { locale: es }) : 'Sin especificar'}</span>
+                    <span className="font-medium">{fechaInicioValue ? formatearFecha(fechaInicioValue) : 'Sin especificar'}</span>
                   </div>
                   <div className="text-center">
                     <span className="text-xs text-muted-foreground block mb-1">Fecha de vencimiento</span>
-                    <span className="font-medium">{fechaVencimientoValue ? format(fechaVencimientoValue, "d 'de' MMMM 'del' yyyy", { locale: es }) : 'Sin especificar'}</span>
+                    <span className="font-medium">{fechaVencimientoValue ? formatearFecha(fechaVencimientoValue) : 'Sin especificar'}</span>
                   </div>
                   <div className="text-right">
                     <span className="text-xs text-muted-foreground block mb-1">Costo del servicio</span>

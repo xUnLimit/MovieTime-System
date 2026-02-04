@@ -27,6 +27,7 @@ import { useServiciosStore } from '@/store/serviciosStore';
 import { useCategoriasStore } from '@/store/categoriasStore';
 import { useVentasUsuario } from '@/hooks/use-ventas-usuario';
 import { getCurrencySymbol } from '@/lib/constants';
+import { formatearFecha } from '@/lib/utils/calculations';
 
 interface UsuarioDetailsProps {
   usuario: Usuario;
@@ -280,7 +281,7 @@ export function UsuarioDetails({ usuario }: UsuarioDetailsProps) {
                       <div className="flex items-center justify-center gap-2">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
                         <span className="font-medium">
-                          {row.fechaInicio ? format(row.fechaInicio, "d 'de' MMMM 'del' yyyy", { locale: es }) : '—'}
+                          {row.fechaInicio ? formatearFecha(row.fechaInicio) : '—'}
                         </span>
                       </div>
                     </TableCell>
@@ -288,7 +289,7 @@ export function UsuarioDetails({ usuario }: UsuarioDetailsProps) {
                       <div className="flex items-center justify-center gap-2">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
                         <span className="font-medium">
-                          {row.fechaFin ? format(row.fechaFin, "d 'de' MMMM 'del' yyyy", { locale: es }) : '—'}
+                          {row.fechaFin ? formatearFecha(row.fechaFin) : '—'}
                         </span>
                       </div>
                     </TableCell>

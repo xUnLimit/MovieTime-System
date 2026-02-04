@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -6,56 +6,43 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { UsuarioForm } from '@/components/usuarios/UsuarioForm';
-import { useClientesStore } from '@/store/clientesStore';
-import { useRevendedoresStore } from '@/store/revendedoresStore';
+import { useUsuariosStore } from '@/store/usuariosStore';
 import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
-import { Cliente, Revendedor } from '@/types';
+import { Usuario } from '@/types';
 
 function EditarUsuarioPageContent() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
 
-  const { clientes, fetchClientes } = useClientesStore();
-  const { revendedores, fetchRevendedores } = useRevendedoresStore();
+  const { usuarios, fetchUsuarios } = useUsuariosStore();
   const { metodosPago, fetchMetodosPago } = useMetodosPagoStore();
 
-  const [usuario, setUsuario] = useState<Cliente | Revendedor | null>(null);
+  const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [tipoUsuario, setTipoUsuario] = useState<'cliente' | 'revendedor'>('cliente');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([fetchClientes(), fetchRevendedores(), fetchMetodosPago()]);
+      await Promise.all([fetchUsuarios(), fetchMetodosPago()]);
       setLoading(false);
     };
     loadData();
-  }, [fetchClientes, fetchRevendedores, fetchMetodosPago]);
+  }, [fetchUsuarios, fetchMetodosPago]);
 
   useEffect(() => {
     if (!loading && id) {
-      // Buscar primero en clientes
-      const cliente = clientes.find((c) => c.id === id);
-      if (cliente) {
-        setUsuario(cliente);
-        setTipoUsuario('cliente');
+      const found = usuarios.find((u) => u.id === id);
+      if (found) {
+        setUsuario(found);
+        setTipoUsuario(found.tipo);
         return;
       }
-
-      // Buscar en revendedores
-      const revendedor = revendedores.find((r) => r.id === id);
-      if (revendedor) {
-        setUsuario(revendedor);
-        setTipoUsuario('revendedor');
-        return;
-      }
-
-      // No se encontró
       setUsuario(null);
     }
-  }, [id, clientes, revendedores, loading]);
+  }, [id, usuarios, loading]);
 
   const handleSuccess = () => {
     router.push('/usuarios');
@@ -152,6 +139,7 @@ export default function EditarUsuarioPage() {
     </ModuleErrorBoundary>
   );
 }
+
 
 
 

@@ -16,7 +16,7 @@ import {
 import { Search, MoreHorizontal, Eye, EyeOff, Copy, Mail, Bell } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useSuscripcionesStore } from '@/store/suscripcionesStore';
-import { useClientesStore } from '@/store/clientesStore';
+import { useUsuariosStore } from '@/store/usuariosStore';
 import { useServiciosStore } from '@/store/serviciosStore';
 import { toast } from 'sonner';
 import {
@@ -43,8 +43,9 @@ export const ServiciosProximosPagarTable = memo(function ServiciosProximosPagarT
   const [estadoFilter, setEstadoFilter] = useState('todos');
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
   const { suscripciones } = useSuscripcionesStore();
-  const { clientes } = useClientesStore();
+  const { usuarios } = useUsuariosStore();
   const { servicios } = useServiciosStore();
+  const clientes = useMemo(() => usuarios.filter((u) => u.tipo === 'cliente'), [usuarios]);
 
   const togglePasswordVisibility = (id: string) => {
     const newSet = new Set(visiblePasswords);

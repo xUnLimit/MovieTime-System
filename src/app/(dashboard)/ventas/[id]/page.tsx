@@ -3,8 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { format, differenceInCalendarDays } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { differenceInCalendarDays } from 'date-fns';
 import {
   ArrowLeft,
   Calendar,
@@ -25,8 +24,7 @@ import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { useServiciosStore } from '@/store/serviciosStore';
 import { useUsuariosStore } from '@/store/usuariosStore';
 import { COLLECTIONS, getById, remove, timestampToDate, update } from '@/lib/firebase/firestore';
-import { RenovarVentaDialog } from '@/components/ventas/RenovarVentaDialog';
-import { EditarPagoVentaDialog } from '@/components/ventas/EditarPagoVentaDialog';
+import { PagoDialog } from '@/components/shared/PagoDialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,6 +32,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { getCurrencySymbol } from '@/lib/constants';
+import { formatearFecha } from '@/lib/utils/calculations';
 
 interface VentaDetalle {
   id: string;
@@ -645,14 +644,14 @@ function VentaDetallePageContent() {
               <p className="text-xs text-muted-foreground">Fecha de Inicio</p>
               <p className="text-sm font-medium flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
-                {venta.fechaInicio ? format(new Date(venta.fechaInicio), "d 'de' MMMM 'del' yyyy", { locale: es }) : '—'}
+                {venta.fechaInicio ? formatearFecha(new Date(venta.fechaInicio)) : '—'}
               </p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Fecha de Vencimiento</p>
               <p className="text-sm font-medium flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
-                {venta.fechaFin ? format(new Date(venta.fechaFin), "d 'de' MMMM 'del' yyyy", { locale: es }) : '—'}
+                {venta.fechaFin ? formatearFecha(new Date(venta.fechaFin)) : '—'}
               </p>
             </div>
             <div>
@@ -755,15 +754,15 @@ function VentaDetallePageContent() {
                   return (
                     <tr key={`${pago.descripcion}-${index}`} className="border-b text-sm">
                       <td className="py-3 whitespace-nowrap">
-                        {pago.fecha ? format(new Date(pago.fecha), "d 'de' MMMM 'del' yyyy", { locale: es }) : '—'}
+                        {pago.fecha ? formatearFecha(new Date(pago.fecha)) : '—'}
                       </td>
                       <td className="py-3 font-medium">{pago.descripcion}</td>
                       <td className="py-3">{getCicloPagoLabel(pago.cicloPago ?? undefined)}</td>
                       <td className="py-3 whitespace-nowrap">
-                        {pago.fechaInicio ? format(new Date(pago.fechaInicio), "d 'de' MMMM 'del' yyyy", { locale: es }) : '—'}
+                        {pago.fechaInicio ? formatearFecha(new Date(pago.fechaInicio)) : '—'}
                       </td>
                       <td className="py-3 whitespace-nowrap">
-                        {pago.fechaVencimiento ? format(new Date(pago.fechaVencimiento), "d 'de' MMMM 'del' yyyy", { locale: es }) : '—'}
+                        {pago.fechaVencimiento ? formatearFecha(new Date(pago.fechaVencimiento)) : '—'}
                       </td>
                       <td className="py-3 text-center">{rowCurrency} {pago.precio.toFixed(2)}</td>
                       <td className="py-3 text-center text-red-500">{rowCurrency} {pago.descuento.toFixed(2)}</td>
@@ -815,7 +814,9 @@ function VentaDetallePageContent() {
         </Card>
       </div>
 
-      <RenovarVentaDialog
+      <PagoDialog
+        context="venta"
+        mode="renew"
         open={renovarDialogOpen}
         onOpenChange={setRenovarDialogOpen}
         venta={venta}
@@ -823,7 +824,9 @@ function VentaDetallePageContent() {
         onConfirm={handleConfirmRenovacion}
       />
 
-      <EditarPagoVentaDialog
+      <PagoDialog
+        context="venta"
+        mode="edit"
         open={editarPagoDialogOpen}
         onOpenChange={setEditarPagoDialogOpen}
         venta={venta}

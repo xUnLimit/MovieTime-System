@@ -4,10 +4,9 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { UsuarioDetails } from '@/components/usuarios/UsuarioDetails';
-import { useClientesStore } from '@/store/clientesStore';
-import { useRevendedoresStore } from '@/store/revendedoresStore';
+import { useUsuariosStore } from '@/store/usuariosStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
-import { Cliente, Revendedor } from '@/types';
+import { Usuario } from '@/types';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Pencil, Trash2 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -18,45 +17,27 @@ function UsuarioDetallesPageContent() {
   const router = useRouter();
   const id = params.id as string;
 
-  const { clientes, fetchClientes, deleteCliente } = useClientesStore();
-  const { revendedores, fetchRevendedores, deleteRevendedor } = useRevendedoresStore();
+  const { usuarios, fetchUsuarios, deleteUsuario } = useUsuariosStore();
 
-  const [usuario, setUsuario] = useState<Cliente | Revendedor | null>(null);
-  const [tipoUsuario, setTipoUsuario] = useState<'cliente' | 'revendedor'>('cliente');
+  const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([fetchClientes(), fetchRevendedores()]);
+      await fetchUsuarios();
       setLoading(false);
     };
     loadData();
-  }, [fetchClientes, fetchRevendedores]);
+  }, [fetchUsuarios]);
 
   useEffect(() => {
     if (!loading && id) {
-      // Buscar primero en clientes
-      const cliente = clientes.find((c) => c.id === id);
-      if (cliente) {
-        setUsuario(cliente);
-        setTipoUsuario('cliente');
-        return;
-      }
-
-      // Buscar en revendedores
-      const revendedor = revendedores.find((r) => r.id === id);
-      if (revendedor) {
-        setUsuario(revendedor);
-        setTipoUsuario('revendedor');
-        return;
-      }
-
-      // No se encontró
-      setUsuario(null);
+      const found = usuarios.find((u) => u.id === id);
+      setUsuario(found ?? null);
     }
-  }, [id, clientes, revendedores, loading]);
+  }, [id, usuarios, loading]);
 
   if (loading) {
     return (
@@ -103,12 +84,8 @@ function UsuarioDetallesPageContent() {
 
   const handleConfirmDelete = async () => {
     try {
-      if (tipoUsuario === 'revendedor') {
-        await deleteRevendedor(usuario!.id);
-      } else {
-        await deleteCliente(usuario!.id);
-      }
-      toast.success(`${tipoUsuario === 'revendedor' ? 'Revendedor' : 'Cliente'} eliminado`);
+      await deleteUsuario(usuario!.id);
+      toast.success(`${usuario?.tipo === 'revendedor' ? 'Revendedor' : 'Cliente'} eliminado`);
       router.push('/usuarios');
     } catch (error) {
       toast.error('Error al eliminar usuario');
@@ -153,14 +130,14 @@ function UsuarioDetallesPageContent() {
           </div>
         </div>
 
-        <UsuarioDetails usuario={usuario} tipoUsuario={tipoUsuario} />
+        <UsuarioDetails usuario={usuario} />
       </div>
 
       <ConfirmDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
         onConfirm={handleConfirmDelete}
-        title={`Eliminar ${tipoUsuario === 'revendedor' ? 'Revendedor' : 'Cliente'}`}
+        title={`Eliminar ${usuario.tipo === 'revendedor' ? 'Revendedor' : 'Cliente'}`}
         description={`¿Estás seguro de que quieres eliminar a "${usuario.nombre} ${usuario.apellido}"? Esta acción no se puede deshacer.`}
         confirmText="Eliminar"
         variant="danger"
@@ -176,3 +153,6 @@ export default function UsuarioDetallesPage() {
     </ModuleErrorBoundary>
   );
 }
+
+
+

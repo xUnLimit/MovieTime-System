@@ -6,6 +6,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Edit, Trash2, Plus } from 'lucide-react';
 import Link from 'next/link';
+import { ActivityLog } from '@/types';
 
 const actionIcons = {
   creacion: Plus,
@@ -27,7 +28,7 @@ const actionColors = {
 };
 
 export function RecentActivity() {
-  const logs: any[] = [];
+  const logs: ActivityLog[] = [];
   const recentLogs = logs.slice(0, 6);
 
   return (

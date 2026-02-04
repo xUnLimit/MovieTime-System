@@ -14,6 +14,7 @@ import { useUsuariosStore } from '@/store/usuariosStore';
 import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 import { useMemo } from 'react';
+import { Usuario } from '@/types';
 
 function UsuariosPageContent() {
   const router = useRouter();
@@ -31,11 +32,11 @@ function UsuariosPageContent() {
     fetchMetodosPago();
   }, [fetchUsuarios, fetchMetodosPago]);
 
-  const handleEdit = (usuario: any) => {
+  const handleEdit = (usuario: Usuario) => {
     router.push(`/usuarios/editar/${usuario.id}`);
   };
 
-  const handleView = (usuario: any) => {
+  const handleView = (usuario: Usuario) => {
     router.push(`/usuarios/${usuario.id}`);
   };
 

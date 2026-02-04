@@ -13,3 +13,4 @@ export * from './metodos-pago';
 export * from './notificaciones';
 export * from './whatsapp';
 export * from './dashboard';
+export * from './ventas';

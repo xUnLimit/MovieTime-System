@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { FieldErrors, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
@@ -19,7 +19,7 @@ import { toast } from 'sonner';
 import { ChevronDown, Search, Eye, EyeOff } from 'lucide-react';
 import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { useRouter } from 'next/navigation';
-import { TipoMetodoPago, TipoCuenta } from '@/types';
+import { MetodoPago } from '@/types';
 
 // Schema completo con todos los campos
 const metodoPagoSchemaComplete = z.object({
@@ -265,13 +265,15 @@ export function MetodoPagoForm() {
     console.log('Form data:', data);
 
     try {
-      const metodoPagoData: any = {
+      const metodoPagoData: Omit<MetodoPago, 'id' | 'createdAt' | 'updatedAt' | 'asociadoUsuarios' | 'asociadoServicios'> = {
         nombre: data.nombre,
         pais: data.pais,
         moneda: data.moneda,
         titular: data.titular,
         activo: true,
         asociadoA: data.asociadoA,
+        tipo: 'banco',
+        identificador: data.identificador || data.email || '',
       };
 
       // Agregar campos opcionales si tienen valor
@@ -332,7 +334,7 @@ export function MetodoPagoForm() {
     }
   };
 
-  const onError = (errors: any) => {
+  const onError = (errors: FieldErrors<FormData>) => {
     console.log('Validation errors:', errors);
 
     // Si hay errores en campos de información adicional, cambiar a ese tab

@@ -115,7 +115,7 @@ export function ServiciosCategoriaTable({ servicios, categoriaNombre }: Servicio
                         ? format(new Date(servicio.fechaVencimiento), "d 'de' MMM 'del' yyyy", { locale: es })
                         : '-'}
                     </TableCell>
-                    <TableCell className="font-medium">${servicio.costoPorPerfil * servicio.perfilesDisponibles}</TableCell>
+                    <TableCell className="font-medium">${servicio.costoServicio * servicio.perfilesDisponibles}</TableCell>
                     <TableCell>
                       <Badge variant={badgeColor}>
                         {diasRestantes < 0 ? `Vencido` : `${diasRestantes} días restantes`}

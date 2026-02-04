@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { addMonths, format } from 'date-fns';
+import { addMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +30,7 @@ import { useUsuariosStore } from '@/store/usuariosStore';
 import { Categoria, Plan } from '@/types/categorias';
 import { toast } from 'sonner';
 import { getCurrencySymbol } from '@/lib/constants';
+import { formatearFecha } from '@/lib/utils/calculations';
 
 const ventaEditSchema = z.object({
   clienteId: z.string().min(1, 'Seleccione un cliente'),
@@ -645,7 +646,7 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
                     className={cn('w-full justify-start text-left font-normal', !fechaInicioValue && 'text-muted-foreground')}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {fechaInicioValue ? format(fechaInicioValue, "d 'de' MMMM 'del' yyyy", { locale: es }) : 'Seleccionar fecha'}
+                    {fechaInicioValue ? formatearFecha(fechaInicioValue) : 'Seleccionar fecha'}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -671,7 +672,7 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
                     className={cn('w-full justify-start text-left font-normal', !fechaFinValue && 'text-muted-foreground')}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {fechaFinValue ? format(fechaFinValue, "d 'de' MMMM 'del' yyyy", { locale: es }) : 'Seleccionar fecha'}
+                    {fechaFinValue ? formatearFecha(fechaFinValue) : 'Seleccionar fecha'}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -804,13 +805,13 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
                     <div>
                       <p>Fecha de inicio</p>
                       <p className="text-foreground font-medium">
-                        {fechaInicioValue ? format(fechaInicioValue, "d 'de' MMMM 'del' yyyy", { locale: es }) : '—'}
+                        {fechaInicioValue ? formatearFecha(fechaInicioValue) : '—'}
                       </p>
                     </div>
                     <div>
                       <p>Fecha de fin</p>
                       <p className="text-foreground font-medium">
-                        {fechaFinValue ? format(fechaFinValue, "d 'de' MMMM 'del' yyyy", { locale: es }) : '—'}
+                        {fechaFinValue ? formatearFecha(fechaFinValue) : '—'}
                       </p>
                     </div>
                     <div>

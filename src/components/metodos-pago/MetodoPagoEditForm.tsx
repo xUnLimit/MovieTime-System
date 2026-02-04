@@ -290,7 +290,7 @@ export function MetodoPagoEditForm({ metodoPago }: MetodoPagoEditFormProps) {
 
   const onSubmit = async (data: FormData) => {
     try {
-      const updates: any = {
+      const updates: Partial<MetodoPago> = {
         nombre: data.nombre,
         pais: data.pais,
         moneda: data.moneda,

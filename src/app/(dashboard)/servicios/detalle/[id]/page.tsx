@@ -12,8 +12,7 @@ import { useCategoriasStore } from '@/store/categoriasStore';
 import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
-import { RenovarServicioDialog } from '@/components/servicios/RenovarServicioDialog';
-import { EditarPagoServicioDialog } from '@/components/servicios/EditarPagoServicioDialog';
+import { PagoDialog } from '@/components/shared/PagoDialog';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -26,6 +25,20 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { getCurrencySymbol } from '@/lib/constants';
+import { formatearFecha } from '@/lib/utils/calculations';
+
+interface PerfilVenta {
+  clienteNombre?: string;
+  createdAt?: Date;
+  precioFinal?: number;
+  descuento?: number;
+  fechaInicio?: Date;
+  fechaFin?: Date;
+  notas?: string;
+  servicioNombre?: string;
+  servicioCorreo?: string;
+  moneda?: string;
+}
 
 function ServicioDetallePageContent() {
   const params = useParams();
@@ -163,6 +176,7 @@ function ServicioDetallePageContent() {
     periodoRenovacion: string;
     metodoPagoId: string;
     costo: number;
+    descuento?: number;
     fechaInicio: Date;
     fechaVencimiento: Date;
     notas?: string;
@@ -229,6 +243,7 @@ function ServicioDetallePageContent() {
     periodoRenovacion: string;
     metodoPagoId: string;
     costo: number;
+    descuento?: number;
     fechaInicio: Date;
     fechaVencimiento: Date;
     notas?: string;
@@ -337,18 +352,7 @@ function ServicioDetallePageContent() {
   }
 
   const ventasPorPerfil = useMemo(() => {
-    const map = new Map<number, {
-      clienteNombre?: string;
-      createdAt?: Date;
-      precioFinal?: number;
-      descuento?: number;
-      fechaInicio?: Date;
-      fechaFin?: Date;
-      notas?: string;
-      servicioNombre?: string;
-      servicioCorreo?: string;
-      moneda?: string;
-    }>();
+    const map = new Map<number, PerfilVenta>();
     ventasServicio.forEach((venta) => {
       if (!venta.perfilNumero) return;
       const existing = map.get(venta.perfilNumero);
@@ -483,13 +487,13 @@ function ServicioDetallePageContent() {
                   <div className="flex items-start gap-2">
                     <span className="text-sm text-muted-foreground mt-0.5">Fecha de Inicio</span>
                     <Badge variant="outline" className="ml-auto font-normal text-sm bg-green-500/20 text-white border-green-500/30 [a&]:hover:bg-green-500/30 [a&]:hover:text-white">
-                      {servicio.fechaInicio ? format(new Date(servicio.fechaInicio), "d 'de' MMMM 'del' yyyy", { locale: es }) : '—'}
+                      {servicio.fechaInicio ? formatearFecha(new Date(servicio.fechaInicio)) : '—'}
                     </Badge>
                   </div>
                   <div className="flex items-start gap-2">
                     <span className="text-sm text-muted-foreground mt-0.5">Fecha de Vencimiento</span>
                     <Badge variant="outline" className="ml-auto font-normal text-sm bg-green-500/20 text-white border-green-500/30 [a&]:hover:bg-green-500/30 [a&]:hover:text-white">
-                      {servicio.fechaVencimiento ? format(new Date(servicio.fechaVencimiento), "d 'de' MMMM 'del' yyyy", { locale: es }) : '—'}
+                      {servicio.fechaVencimiento ? formatearFecha(new Date(servicio.fechaVencimiento)) : '—'}
                     </Badge>
                   </div>
                   <div className="flex items-start gap-2">
@@ -532,11 +536,11 @@ function ServicioDetallePageContent() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Creado:</p>
-                  <p className="text-sm">{format(new Date(servicio.createdAt), "d 'de' MMMM 'del' yyyy", { locale: es })}</p>
+                  <p className="text-sm">{formatearFecha(new Date(servicio.createdAt))}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Última Actualización:</p>
-                  <p className="text-sm">{format(new Date(servicio.updatedAt), "d 'de' MMMM 'del' yyyy", { locale: es })}</p>
+                  <p className="text-sm">{formatearFecha(new Date(servicio.updatedAt))}</p>
                 </div>
               </div>
             </Card>
@@ -560,18 +564,8 @@ function ServicioDetallePageContent() {
               </div>
 
               <div className="space-y-2">
-                {perfilesArray.map((perfil: { nombre: string; estado: string; clienteNombre?: string; venta?: any }, index: number) => {
-                  const venta = perfil.venta as {
-                    clienteNombre?: string;
-                    precioFinal?: number;
-                    descuento?: number;
-                    fechaInicio?: Date;
-                    fechaFin?: Date;
-                    notas?: string;
-                    servicioNombre?: string;
-                    servicioCorreo?: string;
-                    moneda?: string;
-                  } | undefined;
+                {perfilesArray.map((perfil, index) => {
+                  const venta = perfil.venta;
                   const ventaCurrency = getCurrencySymbol(venta?.moneda || metodoPago?.moneda);
                   const diasRestantes =
                     venta?.fechaFin ? Math.max(Math.ceil((new Date(venta.fechaFin).getTime() - Date.now()) / (1000 * 60 * 60 * 24)), 0) : null;
@@ -813,7 +807,9 @@ function ServicioDetallePageContent() {
         variant="danger"
       />
 
-      <RenovarServicioDialog
+      <PagoDialog
+        context="servicio"
+        mode="renew"
         open={renovarDialogOpen}
         onOpenChange={setRenovarDialogOpen}
         servicio={servicio}
@@ -821,7 +817,9 @@ function ServicioDetallePageContent() {
         onConfirm={handleConfirmRenovacion}
       />
 
-      <EditarPagoServicioDialog
+      <PagoDialog
+        context="servicio"
+        mode="edit"
         open={editarPagoDialogOpen}
         onOpenChange={(open) => {
           setEditarPagoDialogOpen(open);

@@ -162,7 +162,14 @@ export function ServiciosMetodosPagoTable({ metodosPago, onEdit, title = 'Métod
       align: 'center',
       width: '10%',
       render: (item) => (
-        <Badge variant={item.activo ? 'default' : 'secondary'} className="text-xs">
+        <Badge
+          variant="outline"
+          className={
+            item.activo
+              ? 'text-xs bg-green-500/20 text-green-400 border-green-500/30'
+              : 'text-xs bg-gray-500/20 text-gray-400 border-gray-500/30'
+          }
+        >
           {item.activo ? 'Activo' : 'Inactivo'}
         </Badge>
       ),

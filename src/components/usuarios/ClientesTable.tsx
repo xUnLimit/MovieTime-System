@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Cliente } from '@/types';
+import { Usuario } from '@/types';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -20,21 +20,21 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Search, MoreHorizontal, Edit, Trash2, MessageCircle, Monitor, Eye } from 'lucide-react';
-import { useClientesStore } from '@/store/clientesStore';
+import { useUsuariosStore } from '@/store/usuariosStore';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { toast } from 'sonner';
 
 interface ClientesTableProps {
-  clientes: Cliente[];
-  onEdit: (cliente: Cliente) => void;
-  onView?: (cliente: Cliente) => void;
+  clientes: Usuario[];
+  onEdit: (cliente: Usuario) => void;
+  onView?: (cliente: Usuario) => void;
   title?: string;
 }
 
 export function ClientesTable({ clientes, onEdit, onView, title = 'Clientes' }: ClientesTableProps) {
-  const { deleteCliente } = useClientesStore();
+  const { deleteUsuario } = useUsuariosStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [clienteToDelete, setClienteToDelete] = useState<Cliente | null>(null);
+  const [clienteToDelete, setClienteToDelete] = useState<Usuario | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [metodoPagoFilter, setMetodoPagoFilter] = useState('todos');
 
@@ -56,7 +56,7 @@ export function ClientesTable({ clientes, onEdit, onView, title = 'Clientes' }: 
     });
   }, [clientes, searchQuery, metodoPagoFilter]);
 
-  const handleDelete = (cliente: Cliente) => {
+  const handleDelete = (cliente: Usuario) => {
     setClienteToDelete(cliente);
     setDeleteDialogOpen(true);
   };
@@ -64,7 +64,7 @@ export function ClientesTable({ clientes, onEdit, onView, title = 'Clientes' }: 
   const handleConfirmDelete = async () => {
     if (clienteToDelete) {
       try {
-        await deleteCliente(clienteToDelete.id);
+        await deleteUsuario(clienteToDelete.id);
         toast.success('Cliente eliminado');
       } catch (error) {
         toast.error('Error al eliminar cliente');
@@ -72,12 +72,12 @@ export function ClientesTable({ clientes, onEdit, onView, title = 'Clientes' }: 
     }
   };
 
-  const handleWhatsApp = (cliente: Cliente) => {
+  const handleWhatsApp = (cliente: Usuario) => {
     const phone = cliente.telefono.replace(/\D/g, '');
     window.open(`https://wa.me/${phone}`, '_blank');
   };
 
-  const columns: Column<Cliente>[] = [
+  const columns: Column<Usuario>[] = [
     {
       key: 'nombre',
       header: 'Nombre',
@@ -109,11 +109,12 @@ export function ClientesTable({ clientes, onEdit, onView, title = 'Clientes' }: 
       align: 'center',
       width: '16%',
       render: (item) => {
-        const isActive = item.serviciosActivos > 0;
+        const serviciosActivos = item.serviciosActivos ?? 0;
+        const isActive = serviciosActivos > 0;
         return (
           <div className="flex items-center justify-center gap-2">
             <Monitor className={`h-4 w-4 ${isActive ? 'text-green-500' : 'text-muted-foreground'}`} />
-            <span className={isActive ? '' : 'text-muted-foreground'}>{item.serviciosActivos}</span>
+            <span className={isActive ? '' : 'text-muted-foreground'}>{serviciosActivos}</span>
           </div>
         );
       },
@@ -125,7 +126,8 @@ export function ClientesTable({ clientes, onEdit, onView, title = 'Clientes' }: 
       align: 'center',
       width: '16%',
       render: (item) => {
-        const isActive = item.serviciosActivos > 0;
+        const serviciosActivos = item.serviciosActivos ?? 0;
+        const isActive = serviciosActivos > 0;
         return (
           <div className="flex items-center justify-center gap-1">
             <span className={isActive ? 'text-green-500 font-medium' : 'text-muted-foreground'}>$</span>

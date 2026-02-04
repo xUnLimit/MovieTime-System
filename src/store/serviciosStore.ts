@@ -11,7 +11,7 @@ interface ServiciosState {
 
   // Actions
   fetchServicios: () => Promise<void>;
-  createServicio: (servicio: Omit<Servicio, 'id' | 'createdAt' | 'updatedAt' | 'perfilesOcupados' | 'costoTotal'>) => Promise<void>;
+  createServicio: (servicio: Omit<Servicio, 'id' | 'createdAt' | 'updatedAt' | 'perfilesOcupados'>) => Promise<void>;
   updateServicio: (id: string, updates: Partial<Servicio>) => Promise<void>;
   deleteServicio: (id: string) => Promise<void>;
   setSelectedServicio: (servicio: Servicio | null) => void;
@@ -112,7 +112,6 @@ export const useServiciosStore = create<ServiciosState>()(
           };
 
           const payload: Record<string, unknown> = { ...updates, updatedAt: Timestamp.now() };
-          if (updated.costoTotal !== undefined) payload.costoTotal = updated.costoTotal;
 
           await update(COLLECTIONS.SERVICIOS, id, payload);
 

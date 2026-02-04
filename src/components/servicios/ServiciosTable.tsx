@@ -103,14 +103,14 @@ export function ServiciosTable({ servicios, onEdit }: ServiciosTableProps) {
       ),
     },
     {
-      key: 'costoTotal',
+      key: 'costoServicio',
       header: 'Costo',
       sortable: true,
       render: (item) => (
         <div>
-          <div className="font-medium">${item.costoTotal.toFixed(2)}</div>
+          <div className="font-medium">${(item.costoServicio * item.perfilesDisponibles).toFixed(2)}</div>
           <div className="text-sm text-muted-foreground">
-            ${item.costoPorPerfil.toFixed(2)}/perfil
+            ${item.costoServicio.toFixed(2)}/perfil
           </div>
         </div>
       ),

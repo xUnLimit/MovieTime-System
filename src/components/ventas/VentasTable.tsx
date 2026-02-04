@@ -2,8 +2,6 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -23,9 +21,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Categoria } from '@/types';
-import { VentaDoc } from '@/components/ventas/VentasMetrics';
+import { VentaDoc } from '@/types';
 import { cn } from '@/lib/utils';
 import { getCurrencySymbol } from '@/lib/constants';
+import { formatearFecha } from '@/lib/utils/calculations';
 
 interface VentasTableProps {
   ventas: VentaDoc[];
@@ -187,7 +186,7 @@ export function VentasTable({
       align: 'center',
       render: (item) => (
         <div className="text-center">
-          {item.fechaInicio ? format(item.fechaInicio, "d 'de' MMMM 'del' yyyy", { locale: es }) : '—'}
+          {item.fechaInicio ? formatearFecha(item.fechaInicio) : '—'}
         </div>
       ),
     },
@@ -199,7 +198,7 @@ export function VentasTable({
       align: 'center',
       render: (item) => (
         <div className="text-center">
-          {item.fechaVencimiento ? format(item.fechaVencimiento, "d 'de' MMMM 'del' yyyy", { locale: es }) : '—'}
+          {item.fechaVencimiento ? formatearFecha(item.fechaVencimiento) : '—'}
         </div>
       ),
     },

@@ -22,13 +22,14 @@ import {
 import { useMemo } from 'react';
 import { subMonths, format, eachDayOfInterval, eachMonthOfInterval, startOfMonth, endOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { Usuario } from '@/types';
 
 export function CrecimientoUsuarios() {
   const [selectedPeriod, setSelectedPeriod] = useState('actual');
 
   const currentDate = new Date();
-  const clientes: any[] = [];
-  const revendedores: any[] = [];
+  const clientes: Usuario[] = [];
+  const revendedores: Usuario[] = [];
   const hasData = false;
 
   const data = useMemo(() => {

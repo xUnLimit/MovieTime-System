@@ -50,7 +50,7 @@ export const CategoriasTable = memo(function CategoriasTable({
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<keyof CategoriaRow | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
 
   const handleViewCategoria = (categoriaId: string) => {
@@ -80,7 +80,7 @@ export const CategoriasTable = memo(function CategoriasTable({
 
         // Gastos: suma de costos de servicios activos
         const gastosTotal = serviciosActivos.reduce(
-          (sum, s) => sum + ((s.costoPorPerfil || 0) * (s.perfilesDisponibles || 0)),
+          (sum, s) => sum + ((s.costoServicio || 0) * (s.perfilesDisponibles || 0)),
           0
         );
 
@@ -117,14 +117,14 @@ export const CategoriasTable = memo(function CategoriasTable({
   const sortedRows = useMemo(() => {
     if (!sortKey || !sortDirection) return filteredRows;
 
-    return [...filteredRows].sort((a, b) => {
-      let aValue: any = a[sortKey as keyof CategoriaRow];
-      let bValue: any = b[sortKey as keyof CategoriaRow];
+    const getSortValue = (row: CategoriaRow, key: keyof CategoriaRow): string | number => {
+      if (key === 'categoria') return row.categoria.nombre;
+      return row[key];
+    };
 
-      if (sortKey === 'categoria') {
-        aValue = a.categoria.nombre;
-        bValue = b.categoria.nombre;
-      }
+    return [...filteredRows].sort((a, b) => {
+      const aValue = getSortValue(a, sortKey);
+      const bValue = getSortValue(b, sortKey);
 
       if (aValue === bValue) return 0;
       const comparison = aValue < bValue ? -1 : 1;
@@ -132,7 +132,7 @@ export const CategoriasTable = memo(function CategoriasTable({
     });
   }, [filteredRows, sortKey, sortDirection]);
 
-  const handleSort = (key: string) => {
+  const handleSort = (key: keyof CategoriaRow) => {
     if (sortKey === key) {
       if (sortDirection === 'asc') {
         setSortDirection('desc');
@@ -149,7 +149,7 @@ export const CategoriasTable = memo(function CategoriasTable({
     setCurrentPage(1);
   };
 
-  const getSortIcon = (columnKey: string) => {
+  const getSortIcon = (columnKey: keyof CategoriaRow) => {
     if (sortKey !== columnKey) {
       return <ArrowUpDown className="h-3 w-3 text-muted-foreground" />;
     }
