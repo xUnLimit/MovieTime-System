@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
@@ -66,7 +66,6 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
   const { metodosPago, fetchMetodosPago } = useMetodosPagoStore();
   const [activeTab, setActiveTab] = useState('datos');
   const [isDatosTabComplete, setIsDatosTabComplete] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [manualFechaVencimiento, setManualFechaVencimiento] = useState(false);
   const [openFechaInicio, setOpenFechaInicio] = useState(false);
   const [openFechaVencimiento, setOpenFechaVencimiento] = useState(false);
@@ -87,7 +86,7 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
     clearErrors,
     trigger,
   } = useForm<FormData>({
-    resolver: zodResolver(servicioSchema) as any,
+    resolver: zodResolver(servicioSchema),
     defaultValues: {
       nombre: servicio?.nombre || '',
       categoriaId: servicio?.categoriaId || '',
@@ -95,12 +94,12 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
       correo: servicio?.correo || '',
       contrasena: servicio?.contrasena || '',
       metodoPagoId: '',
-      costoServicio: '' as any,
-      perfilesDisponibles: '' as any,
-      cicloPago: 'mensual' as any,
+      costoServicio: '' as unknown as number,
+      perfilesDisponibles: '' as unknown as number,
+      cicloPago: 'mensual' as 'mensual' | 'trimestral' | 'semestral' | 'anual',
       fechaInicio: new Date(),
       fechaVencimiento: addMonths(new Date(), 1),
-      estado: 'activo' as any,
+      estado: 'activo' as 'activo' | 'inactivo' | 'suspendido' | 'vencido',
       notas: '',
     },
   });
@@ -178,6 +177,7 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
       setValue('notas', servicio.notas || '');
       setManualFechaVencimiento(true);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [servicio?.id, setValue]);
 
   // Auto-limpiar errores solo para campos que no necesitan validación compleja
@@ -371,7 +371,7 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
   const metodosPagoActivos = metodosPago.filter(m => m.activo && (!m.asociadoA || m.asociadoA === 'servicio'));
 
   return (
-    <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-6" noValidate>
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="mb-8 bg-transparent rounded-none p-0 h-auto inline-flex border-b border-border">
           <TabsTrigger

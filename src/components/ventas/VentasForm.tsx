@@ -1,6 +1,6 @@
-﻿'use client';
+'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -113,13 +113,11 @@ export function VentasForm() {
 
   const {
     register,
-    handleSubmit,
     setValue,
     watch,
     clearErrors,
-    trigger,
     setError,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<VentaFormData>({
     resolver: zodResolver(ventaSchema),
     defaultValues: {
@@ -321,7 +319,7 @@ export function VentasForm() {
     });
     return next;
   };
-  const renderTemplateWithItems = (template: string, globals: Record<string, string>) => {
+  const renderTemplateWithItems = useCallback((template: string, globals: Record<string, string>) => {
     const blockMatch = template.match(/{{#items}}([\s\S]*?){{\/items}}/);
     let content = template;
     if (blockMatch) {
@@ -344,7 +342,7 @@ export function VentasForm() {
       content = content.replace(blockMatch[0], renderedItems);
     }
     return replaceAllPlaceholders(content, globals);
-  };
+  }, [items, servicios, categorias]);
   const previewMessage = useMemo(() => {
     const content = templateNotificacion?.contenido || 'No hay plantilla de Notificación de Suscripción configurada.';
     const placeholders: Record<string, string> = {
@@ -375,9 +373,7 @@ export function VentasForm() {
     previewCodigo,
     previewServicioNombre,
     itemsList,
-    items,
-    servicios,
-    categorias,
+    renderTemplateWithItems,
   ]);
 
   const handleAddItem = () => {
@@ -451,15 +447,6 @@ export function VentasForm() {
 
   const handleRemoveItem = (id: string) => {
     setItems((prev) => prev.filter((item) => item.id !== id));
-  };
-
-  const onSubmit = async () => {
-    if (activeTab !== 'preview') return;
-    if (items.length === 0) {
-      toast.error('Agregue al menos un item');
-      return;
-    }
-    toast.success('Venta registrada');
   };
 
   const handleNext = async () => {

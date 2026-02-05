@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { FieldErrors, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -41,8 +41,6 @@ const metodoPagoSchemaComplete = z.object({
   numeroTarjeta: z.string().optional(),
   fechaExpiracion: z.string().optional(),
 }).superRefine((data, ctx) => {
-  // Validaciones condicionales basadas en asociadoA
-  console.log('Validating with asociadoA:', data.asociadoA);
   if (data.asociadoA === 'usuario') {
     if (!data.tipoCuenta) {
       ctx.addIssue({
@@ -110,12 +108,17 @@ const PAISES_MONEDAS = [
 
 const MONEDAS = ['USD', 'EUR', 'COP', 'MXN', 'CRC', 'VES', 'ARS', 'CLP', 'PEN', 'NGN', 'TRY'];
 
-export function MetodoPagoForm() {
+interface MetodoPagoFormProps {
+  mode: 'create' | 'edit';
+  metodoPago?: MetodoPago;
+}
+
+export function MetodoPagoForm({ mode, metodoPago }: MetodoPagoFormProps) {
   const router = useRouter();
-  const { createMetodoPago } = useMetodosPagoStore();
+  const { createMetodoPago, updateMetodoPago } = useMetodosPagoStore();
   const [activeTab, setActiveTab] = useState('basica');
   const [paisSearch, setPaisSearch] = useState('');
-  const [isBasicaTabComplete, setIsBasicaTabComplete] = useState(false);
+  const [isBasicaTabComplete, setIsBasicaTabComplete] = useState(mode === 'edit');
   const [showPassword, setShowPassword] = useState(false);
 
   const {
@@ -128,14 +131,28 @@ export function MetodoPagoForm() {
     trigger,
   } = useForm<FormData>({
     resolver: zodResolver(metodoPagoSchemaComplete),
-    defaultValues: {
+    defaultValues: mode === 'edit' && metodoPago ? {
+      nombre: metodoPago.nombre,
+      asociadoA: metodoPago.asociadoA || (!metodoPago.tipoCuenta ? 'servicio' : 'usuario') as 'servicio' | 'usuario',
+      pais: metodoPago.pais,
+      moneda: 'USD',
+      alias: '',
+      titular: metodoPago.titular,
+      tipoCuenta: (metodoPago.tipoCuenta && ['ahorro', 'corriente', 'wallet', 'telefono', 'email'].includes(metodoPago.tipoCuenta)) ? metodoPago.tipoCuenta as 'ahorro' | 'corriente' | 'wallet' | 'telefono' | 'email' | undefined : undefined,
+      identificador: metodoPago.identificador,
+      email: metodoPago.email || '',
+      contrasena: metodoPago.contrasena || '',
+      numeroTarjeta: metodoPago.numeroTarjeta || '',
+      fechaExpiracion: metodoPago.fechaExpiracion || '',
+      notas: '',
+    } : {
       nombre: '',
-      asociadoA: undefined as any,
+      asociadoA: undefined as 'servicio' | 'usuario' | undefined,
       pais: '',
       moneda: '',
       alias: '',
       titular: '',
-      tipoCuenta: undefined as any,
+      tipoCuenta: undefined as 'ahorro' | 'corriente' | 'wallet' | 'telefono' | 'email' | undefined,
       identificador: '',
       email: '',
       contrasena: '',
@@ -149,6 +166,7 @@ export function MetodoPagoForm() {
   const asociadoAValue = watch('asociadoA');
   const paisValue = watch('pais');
   const monedaValue = watch('moneda');
+  const aliasValue = watch('alias');
   const titularValue = watch('titular');
   const tipoCuentaValue = watch('tipoCuenta');
   const identificadorValue = watch('identificador');
@@ -156,6 +174,28 @@ export function MetodoPagoForm() {
   const contrasenaValue = watch('contrasena');
   const numeroTarjetaValue = watch('numeroTarjeta');
   const fechaExpiracionValue = watch('fechaExpiracion');
+  const notasValue = watch('notas');
+
+  const hasChanges = useMemo(() => {
+    if (mode !== 'edit' || !metodoPago) return true;
+    if (nombreValue !== metodoPago.nombre) return true;
+    if (paisValue !== metodoPago.pais) return true;
+    if (monedaValue !== (metodoPago.moneda || 'USD')) return true;
+    if (titularValue !== metodoPago.titular) return true;
+    if (asociadoAValue !== (metodoPago.asociadoA || (!metodoPago.tipoCuenta ? 'servicio' : 'usuario'))) return true;
+    if ((aliasValue || '') !== (metodoPago.alias || '')) return true;
+    if ((notasValue || '') !== (metodoPago.notas || '')) return true;
+    if (asociadoAValue === 'usuario') {
+      if (tipoCuentaValue !== metodoPago.tipoCuenta) return true;
+      if (identificadorValue !== metodoPago.identificador) return true;
+    } else if (asociadoAValue === 'servicio') {
+      if (emailValue !== (metodoPago.email || '')) return true;
+      if (contrasenaValue !== (metodoPago.contrasena || '')) return true;
+      if (numeroTarjetaValue !== (metodoPago.numeroTarjeta || '')) return true;
+      if (fechaExpiracionValue !== (metodoPago.fechaExpiracion || '')) return true;
+    }
+    return false;
+  }, [mode, metodoPago, nombreValue, asociadoAValue, paisValue, monedaValue, aliasValue, titularValue, tipoCuentaValue, identificadorValue, emailValue, contrasenaValue, numeroTarjetaValue, fechaExpiracionValue, notasValue]);
 
   // Auto-limpiar errores - Tab Básica
   useEffect(() => {
@@ -262,43 +302,59 @@ export function MetodoPagoForm() {
   };
 
   const onSubmit = async (data: FormData) => {
-    console.log('Form data:', data);
-
     try {
-      const metodoPagoData: Omit<MetodoPago, 'id' | 'createdAt' | 'updatedAt' | 'asociadoUsuarios' | 'asociadoServicios'> = {
-        nombre: data.nombre,
-        pais: data.pais,
-        moneda: data.moneda,
-        titular: data.titular,
-        activo: true,
-        asociadoA: data.asociadoA,
-        tipo: 'banco',
-        identificador: data.identificador || data.email || '',
-      };
-
-      // Agregar campos opcionales si tienen valor
-      if (data.alias) metodoPagoData.alias = data.alias;
-      if (data.notas) metodoPagoData.notas = data.notas;
-      if (data.asociadoA === 'usuario' && data.tipoCuenta) {
-        // Campos para usuario
-        metodoPagoData.identificador = data.identificador || '';
-        metodoPagoData.tipoCuenta = data.tipoCuenta;
-      } else if (data.asociadoA === 'servicio') {
-        // Campos para servicio
-        if (data.email) metodoPagoData.email = data.email;
-        if (data.contrasena) metodoPagoData.contrasena = data.contrasena;
-        if (data.numeroTarjeta) metodoPagoData.numeroTarjeta = data.numeroTarjeta;
-        if (data.fechaExpiracion) metodoPagoData.fechaExpiracion = data.fechaExpiracion;
+      if (mode === 'create') {
+        const metodoPagoData: Omit<MetodoPago, 'id' | 'createdAt' | 'updatedAt' | 'asociadoUsuarios' | 'asociadoServicios'> = {
+          nombre: data.nombre,
+          pais: data.pais,
+          moneda: data.moneda,
+          titular: data.titular,
+          activo: true,
+          asociadoA: data.asociadoA,
+          tipo: 'banco',
+          identificador: data.identificador || data.email || '',
+        };
+        if (data.alias) metodoPagoData.alias = data.alias;
+        if (data.notas) metodoPagoData.notas = data.notas;
+        if (data.asociadoA === 'usuario' && data.tipoCuenta) {
+          metodoPagoData.identificador = data.identificador || '';
+          metodoPagoData.tipoCuenta = data.tipoCuenta;
+        } else if (data.asociadoA === 'servicio') {
+          if (data.email) metodoPagoData.email = data.email;
+          if (data.contrasena) metodoPagoData.contrasena = data.contrasena;
+          if (data.numeroTarjeta) metodoPagoData.numeroTarjeta = data.numeroTarjeta;
+          if (data.fechaExpiracion) metodoPagoData.fechaExpiracion = data.fechaExpiracion;
+        }
+        await createMetodoPago(metodoPagoData);
+        toast.success('Método de pago creado exitosamente');
+      } else if (metodoPago) {
+        const updates: Partial<MetodoPago> = {
+          nombre: data.nombre,
+          pais: data.pais,
+          moneda: data.moneda,
+          titular: data.titular,
+          asociadoA: data.asociadoA,
+        };
+        if (data.alias) updates.alias = data.alias;
+        if (data.notas) updates.notas = data.notas;
+        if (data.asociadoA === 'usuario') {
+          updates.tipoCuenta = data.tipoCuenta;
+          updates.identificador = data.identificador;
+        } else if (data.asociadoA === 'servicio') {
+          updates.identificador = data.email || '';
+          if (data.email) updates.email = data.email;
+          if (data.contrasena) updates.contrasena = data.contrasena;
+          if (data.numeroTarjeta) updates.numeroTarjeta = data.numeroTarjeta;
+          if (data.fechaExpiracion) updates.fechaExpiracion = data.fechaExpiracion;
+        }
+        await updateMetodoPago(metodoPago.id, updates);
+        toast.success('Método de pago actualizado exitosamente');
       }
-
-      console.log('Sending to store:', metodoPagoData);
-
-      await createMetodoPago(metodoPagoData);
-      toast.success('Método de pago creado exitosamente');
       router.push('/metodos-pago');
     } catch (error) {
-      toast.error('Error al crear el método de pago', { description: error instanceof Error ? error.message : undefined });
-      console.error('Error en onSubmit:', error);
+      const message = mode === 'create' ? 'Error al crear el método de pago' : 'Error al actualizar el método de pago';
+      toast.error(message, { description: error instanceof Error ? error.message : undefined });
+      console.error(error);
     }
   };
 
@@ -335,8 +391,6 @@ export function MetodoPagoForm() {
   };
 
   const onError = (errors: FieldErrors<FormData>) => {
-    console.log('Validation errors:', errors);
-
     // Si hay errores en campos de información adicional, cambiar a ese tab
     const additionalFields = ['titular', 'tipoCuenta', 'identificador', 'email', 'contrasena', 'numeroTarjeta', 'fechaExpiracion'];
     const hasAdditionalErrors = Object.keys(errors).some(key => additionalFields.includes(key));
@@ -741,8 +795,8 @@ export function MetodoPagoForm() {
             <Button type="button" variant="outline" onClick={handlePrevious}>
               Anterior
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Creando...' : 'Crear Método de Pago'}
+            <Button type="submit" disabled={isSubmitting || (mode === 'edit' && !hasChanges)}>
+              {isSubmitting ? (mode === 'create' ? 'Creando...' : 'Guardando...') : (mode === 'create' ? 'Crear Método de Pago' : 'Guardar Cambios')}
             </Button>
           </div>
         </TabsContent>

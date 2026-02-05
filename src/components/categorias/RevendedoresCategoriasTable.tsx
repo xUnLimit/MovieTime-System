@@ -12,7 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, MoreHorizontal, Eye, Edit, Trash2, Power } from 'lucide-react';
+import { Search, MoreHorizontal, Eye, Edit, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useCategoriasStore } from '@/store/categoriasStore';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -26,7 +26,7 @@ interface RevendedoresCategoriasTableProps {
 
 export function RevendedoresCategoriasTable({ categorias, title = 'Categorías de Revendedores' }: RevendedoresCategoriasTableProps) {
   const router = useRouter();
-  const { deleteCategoria, updateCategoria } = useCategoriasStore();
+  const { deleteCategoria } = useCategoriasStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [categoriaToDelete, setCategoriaToDelete] = useState<Categoria | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -58,18 +58,6 @@ export function RevendedoresCategoriasTable({ categorias, title = 'Categorías d
       } catch (error) {
         toast.error('Error al eliminar categoría', { description: error instanceof Error ? error.message : undefined });
       }
-    }
-  };
-
-  const handleToggleStatus = async (categoria: Categoria) => {
-    try {
-      await updateCategoria(categoria.id, {
-        ...categoria,
-        activo: !categoria.activo,
-      });
-      toast.success(categoria.activo ? 'Categoría desactivada' : 'Categoría activada');
-    } catch (error) {
-      toast.error('Error al actualizar estado', { description: error instanceof Error ? error.message : undefined });
     }
   };
 

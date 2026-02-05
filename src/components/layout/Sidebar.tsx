@@ -103,7 +103,7 @@ export function Sidebar({ collapsed: controlledCollapsed, onCollapse }: SidebarP
   const { isOpen, toggle } = useSidebarState();
 
   const collapsed = controlledCollapsed !== undefined ? controlledCollapsed : !isOpen;
-  const setCollapsed = onCollapse || ((value: boolean) => toggle());
+  const setCollapsed = onCollapse || (() => toggle());
 
   // Keyboard shortcut: Ctrl/Cmd + B
   useEffect(() => {
@@ -116,7 +116,8 @@ export function Sidebar({ collapsed: controlledCollapsed, onCollapse }: SidebarP
 
     window.addEventListener('keydown', handleKeyboard);
     return () => window.removeEventListener('keydown', handleKeyboard);
-  }, [collapsed, setCollapsed]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collapsed]);
 
   const handleLogout = () => {
     logout();

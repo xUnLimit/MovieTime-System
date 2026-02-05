@@ -37,7 +37,6 @@ const pagoDialogSchema = z.object({
 type PagoDialogFormData = z.infer<typeof pagoDialogSchema>;
 
 type PagoDialogMode = 'edit' | 'renew';
-type PagoDialogContext = 'venta' | 'servicio';
 
 interface BaseProps {
   open: boolean;
@@ -197,7 +196,7 @@ export function PagoDialog(props: PagoDialogProps) {
       fechaVencimiento: fechaVencimientoActual,
       notas: '',
     });
-  }, [open, isEdit, props.pago, reset, servicio, venta, props.context]);
+  }, [isEdit, props.pago, reset, servicio, venta, props.context]);
 
   useEffect(() => {
     if (fechaInicioValue && periodoValue && periodoValue !== '') {

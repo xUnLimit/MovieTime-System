@@ -3,12 +3,12 @@ import {
   doc,
   getDoc,
   getDocs,
+  getCountFromServer,
   addDoc,
   updateDoc,
   deleteDoc,
   query,
   where,
-  orderBy,
   Timestamp,
   DocumentData,
   QueryConstraint,
@@ -21,7 +21,7 @@ import { db } from './config';
  */
 
 // Convert Firestore Timestamp to Date
-export const timestampToDate = (timestamp: any): Date => {
+export const timestampToDate = (timestamp: unknown): Date => {
   if (timestamp instanceof Timestamp) {
     return timestamp.toDate();
   }
@@ -42,21 +42,66 @@ export const dateToTimestamp = (date: Date | string): Timestamp => {
   return Timestamp.fromDate(new Date(date));
 };
 
-const removeUndefinedFields = <T extends Record<string, any>>(data: T): T => {
+const removeUndefinedFields = <T extends Record<string, unknown>>(data: T): T => {
   const entries = Object.entries(data).filter(([, value]) => value !== undefined);
   return Object.fromEntries(entries) as T;
 };
 
 /**
- * Get all documents from a collection
+ * Recursively convert Firestore Timestamps to Dates
+ */
+export function convertTimestamps(data: unknown): unknown {
+  if (!data || typeof data !== 'object') return data;
+  
+  if (data instanceof Timestamp) {
+    return data.toDate();
+  }
+  
+  if (Array.isArray(data)) {
+    return data.map(convertTimestamps);
+  }
+  
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data)) {
+    result[key] = convertTimestamps(value);
+  }
+  return result;
+}
+
+/**
+ * Dev-only: log cuando un store evita una lectura por caché
+ */
+export function logCacheHit(collectionName: string) {
+  if (process.env.NODE_ENV !== 'development') return;
+  console.log(
+    '%c[Cache]%c Hit (' + collectionName + ') → sin lectura a Firestore',
+    'background:#FF9800;color:#fff;padding:2px 6px;border-radius:3px;font-weight:600',
+    'color:#FF9800;font-weight:600'
+  );
+}
+
+/**
+ * Get all documents from a collection with automatic timestamp conversion
  */
 export async function getAll<T>(collectionName: string): Promise<T[]> {
+  const start = Date.now();
   try {
     const querySnapshot = await getDocs(collection(db, collectionName));
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    } as T));
+    const docs = querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...(convertTimestamps(data) as Record<string, unknown>),
+      } as T;
+    });
+    if (process.env.NODE_ENV === 'development') {
+      console.log(
+        '%c[Firestore]%c getAll (' + collectionName + ') → ' + docs.length + ' docs · ' + (Date.now() - start) + 'ms',
+        'background:#4CAF50;color:#fff;padding:2px 6px;border-radius:3px;font-weight:600',
+        'color:#4CAF50;font-weight:600'
+      );
+    }
+    return docs;
   } catch (error) {
     console.error(`Error getting ${collectionName}:`, error);
     throw error;
@@ -64,20 +109,30 @@ export async function getAll<T>(collectionName: string): Promise<T[]> {
 }
 
 /**
- * Get a single document by ID
+ * Get a single document by ID with automatic timestamp conversion
  */
 export async function getById<T>(collectionName: string, id: string): Promise<T | null> {
+  const start = Date.now();
   try {
     const docRef = doc(db, collectionName, id);
     const docSnap = await getDoc(docRef);
 
+    let result: T | null = null;
     if (docSnap.exists()) {
-      return {
+      const data = docSnap.data();
+      result = {
         id: docSnap.id,
-        ...docSnap.data(),
+        ...(convertTimestamps(data) as Record<string, unknown>),
       } as T;
     }
-    return null;
+    if (process.env.NODE_ENV === 'development') {
+      console.log(
+        '%c[Firestore]%c getById (' + collectionName + '/' + id + ') → ' + (result ? 'encontrado' : 'null') + ' · ' + (Date.now() - start) + 'ms',
+        'background:#4CAF50;color:#fff;padding:2px 6px;border-radius:3px;font-weight:600',
+        'color:#4CAF50;font-weight:600'
+      );
+    }
+    return result;
   } catch (error) {
     console.error(`Error getting document ${id} from ${collectionName}:`, error);
     throw error;
@@ -85,12 +140,13 @@ export async function getById<T>(collectionName: string, id: string): Promise<T 
 }
 
 /**
- * Query documents with filters
+ * Query documents with filters and automatic timestamp conversion
  */
 export async function queryDocuments<T>(
   collectionName: string,
-  filters: { field: string; operator: WhereFilterOp; value: any }[] = []
+  filters: { field: string; operator: WhereFilterOp; value: unknown }[] = []
 ): Promise<T[]> {
+  const start = Date.now();
   try {
     const constraints: QueryConstraint[] = filters.map(filter =>
       where(filter.field, filter.operator, filter.value)
@@ -99,12 +155,56 @@ export async function queryDocuments<T>(
     const q = query(collection(db, collectionName), ...constraints);
     const querySnapshot = await getDocs(q);
 
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    } as T));
+    const docs = querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...(convertTimestamps(data) as Record<string, unknown>),
+      } as T;
+    });
+    if (process.env.NODE_ENV === 'development') {
+      const filterStr = filters.map(f => f.field + ' ' + f.operator + ' ' + JSON.stringify(f.value)).join(', ');
+      console.log(
+        '%c[Firestore]%c query (' + collectionName + (filterStr ? ' where ' + filterStr : '') + ') → ' + docs.length + ' docs · ' + (Date.now() - start) + 'ms',
+        'background:#4CAF50;color:#fff;padding:2px 6px;border-radius:3px;font-weight:600',
+        'color:#4CAF50;font-weight:600'
+      );
+    }
+    return docs;
   } catch (error) {
     console.error(`Error querying ${collectionName}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Count documents in a collection (without fetching data).
+ * Costs 1 read regardless of collection size.
+ */
+export async function getCount(
+  collectionName: string,
+  filters: { field: string; operator: WhereFilterOp; value: unknown }[] = []
+): Promise<number> {
+  const start = Date.now();
+  try {
+    const constraints: QueryConstraint[] = filters.map(filter =>
+      where(filter.field, filter.operator, filter.value)
+    );
+    const q = query(collection(db, collectionName), ...constraints);
+    const snapshot = await getCountFromServer(q);
+    const count = snapshot.data().count;
+
+    if (process.env.NODE_ENV === 'development') {
+      const filterStr = filters.map(f => f.field + ' ' + f.operator + ' ' + JSON.stringify(f.value)).join(', ');
+      console.log(
+        '%c[Firestore]%c count (' + collectionName + (filterStr ? ' where ' + filterStr : '') + ') → ' + count + ' · ' + (Date.now() - start) + 'ms',
+        'background:#9C27B0;color:#fff;padding:2px 6px;border-radius:3px;font-weight:600',
+        'color:#9C27B0;font-weight:600'
+      );
+    }
+    return count;
+  } catch (error) {
+    console.error(`Error counting ${collectionName}:`, error);
     throw error;
   }
 }
@@ -118,7 +218,7 @@ export async function create<T extends DocumentData>(
 ): Promise<string> {
   try {
     const now = Timestamp.now();
-    const cleanedData = removeUndefinedFields(data as Record<string, any>);
+    const cleanedData = removeUndefinedFields(data as Record<string, unknown>);
     const docRef = await addDoc(collection(db, collectionName), {
       ...cleanedData,
       createdAt: now,
@@ -141,7 +241,7 @@ export async function update<T extends DocumentData>(
 ): Promise<void> {
   try {
     const docRef = doc(db, collectionName, id);
-    const cleanedData = removeUndefinedFields(data as Record<string, any>);
+    const cleanedData = removeUndefinedFields(data as Record<string, unknown>);
     await updateDoc(docRef, {
       ...cleanedData,
       updatedAt: Timestamp.now(),
@@ -170,13 +270,8 @@ export async function remove(collectionName: string, id: string): Promise<void> 
  */
 export const COLLECTIONS = {
   USUARIOS: 'usuarios',
-  /** @deprecated Usar USUARIOS con filtro tipo='cliente' */
-  CLIENTES: 'clientes',
-  /** @deprecated Usar USUARIOS con filtro tipo='revendedor' */
-  REVENDEDORES: 'revendedores',
   SERVICIOS: 'servicios',
   CATEGORIAS: 'categorias',
-  SUSCRIPCIONES: 'suscripciones',
   NOTIFICACIONES: 'notificaciones',
   METODOS_PAGO: 'metodosPago',
   ACTIVITY_LOG: 'activityLog',

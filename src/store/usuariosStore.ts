@@ -1,16 +1,19 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { Usuario } from '@/types';
-import { getAll, create as createDoc, update, remove, COLLECTIONS, timestampToDate } from '@/lib/firebase/firestore';
-import { Timestamp } from 'firebase/firestore';
+import { getAll, getCount, create as createDoc, update, remove, COLLECTIONS, logCacheHit } from '@/lib/firebase/firestore';
 
 interface UsuariosState {
   usuarios: Usuario[];
+  totalClientes: number;
+  totalRevendedores: number;
   isLoading: boolean;
+  error: string | null;
+  lastFetch: number | null;
   selectedUsuario: Usuario | null;
 
   // Actions
-  fetchUsuarios: () => Promise<void>;
+  fetchUsuarios: (force?: boolean) => Promise<void>;
   createUsuario: (usuario: Omit<Usuario, 'id' | 'createdAt' | 'updatedAt' | 'montoSinConsumir' | 'serviciosActivos' | 'suscripcionesTotales'>) => Promise<void>;
   updateUsuario: (id: string, updates: Partial<Usuario>) => Promise<void>;
   deleteUsuario: (id: string) => Promise<void>;
@@ -20,28 +23,38 @@ interface UsuariosState {
   getRevendedores: () => Usuario[];
 }
 
+const CACHE_TIMEOUT = 5 * 60 * 1000;
+
 export const useUsuariosStore = create<UsuariosState>()(
   devtools(
     (set, get) => ({
       usuarios: [],
+      totalClientes: 0,
+      totalRevendedores: 0,
       isLoading: false,
+      error: null,
+      lastFetch: null,
       selectedUsuario: null,
 
-      // Fetch all usuarios
-      fetchUsuarios: async () => {
-        set({ isLoading: true });
-        try {
-          const data = await getAll<any>(COLLECTIONS.USUARIOS);
-          const usuarios: Usuario[] = data.map(item => ({
-            ...item,
-            createdAt: timestampToDate(item.createdAt),
-            updatedAt: timestampToDate(item.updatedAt)
-          }));
+      fetchUsuarios: async (force = false) => {
+        const { lastFetch } = get();
+        if (!force && lastFetch && (Date.now() - lastFetch) < CACHE_TIMEOUT) {
+          logCacheHit(COLLECTIONS.USUARIOS);
+          return;
+        }
 
-          set({ usuarios, isLoading: false });
+        set({ isLoading: true, error: null });
+        try {
+          const [usuarios, totalClientes, totalRevendedores] = await Promise.all([
+            getAll<Usuario>(COLLECTIONS.USUARIOS),
+            getCount(COLLECTIONS.USUARIOS, [{ field: 'tipo', operator: '==', value: 'cliente' }]),
+            getCount(COLLECTIONS.USUARIOS, [{ field: 'tipo', operator: '==', value: 'revendedor' }]),
+          ]);
+          set({ usuarios, totalClientes, totalRevendedores, isLoading: false, error: null, lastFetch: Date.now() });
         } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Error desconocido al cargar usuarios';
           console.error('Error fetching usuarios:', error);
-          set({ usuarios: [], isLoading: false });
+          set({ usuarios: [], isLoading: false, error: errorMessage });
         }
       },
 
@@ -51,13 +64,12 @@ export const useUsuariosStore = create<UsuariosState>()(
             usuarioData.tipo === 'cliente'
               ? { serviciosActivos: 0 }
               : { suscripcionesTotales: 0 };
+
           const id = await createDoc(COLLECTIONS.USUARIOS, {
             ...usuarioData,
             montoSinConsumir: 0,
             ...tipoFields,
             active: true,
-            createdAt: Timestamp.now(),
-            updatedAt: Timestamp.now()
           });
 
           const newUsuario: Usuario = {
@@ -72,9 +84,14 @@ export const useUsuariosStore = create<UsuariosState>()(
           };
 
           set((state) => ({
-            usuarios: [...state.usuarios, newUsuario]
+            usuarios: [...state.usuarios, newUsuario],
+            totalClientes: usuarioData.tipo === 'cliente' ? state.totalClientes + 1 : state.totalClientes,
+            totalRevendedores: usuarioData.tipo === 'revendedor' ? state.totalRevendedores + 1 : state.totalRevendedores,
+            error: null
           }));
         } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Error al crear usuario';
+          set({ error: errorMessage });
           console.error('Error creating usuario:', error);
           throw error;
         }
@@ -82,32 +99,47 @@ export const useUsuariosStore = create<UsuariosState>()(
 
       updateUsuario: async (id, updates) => {
         try {
-          await update(COLLECTIONS.USUARIOS, id, {
-            ...updates,
-            updatedAt: Timestamp.now()
-          });
+          await update(COLLECTIONS.USUARIOS, id, updates);
 
           set((state) => ({
             usuarios: state.usuarios.map((usuario) =>
               usuario.id === id
                 ? { ...usuario, ...updates, updatedAt: new Date() }
                 : usuario
-            )
+            ),
+            error: null
           }));
         } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Error al actualizar usuario';
+          set({ error: errorMessage });
           console.error('Error updating usuario:', error);
           throw error;
         }
       },
 
       deleteUsuario: async (id) => {
+        const currentUsuarios = get().usuarios;
+        const deletedUser = currentUsuarios.find(u => u.id === id);
+
+        // Optimistic update
+        set((state) => ({
+          usuarios: state.usuarios.filter((usuario) => usuario.id !== id),
+          totalClientes: deletedUser?.tipo === 'cliente' ? state.totalClientes - 1 : state.totalClientes,
+          totalRevendedores: deletedUser?.tipo === 'revendedor' ? state.totalRevendedores - 1 : state.totalRevendedores,
+        }));
+
         try {
           await remove(COLLECTIONS.USUARIOS, id);
-
-          set((state) => ({
-            usuarios: state.usuarios.filter((usuario) => usuario.id !== id)
-          }));
+          set({ error: null });
         } catch (error) {
+          // Rollback on error
+          const errorMessage = error instanceof Error ? error.message : 'Error al eliminar usuario';
+          set({
+            usuarios: currentUsuarios,
+            totalClientes: currentUsuarios.filter(u => u.tipo === 'cliente').length,
+            totalRevendedores: currentUsuarios.filter(u => u.tipo === 'revendedor').length,
+            error: errorMessage,
+          });
           console.error('Error deleting usuario:', error);
           throw error;
         }
@@ -121,7 +153,6 @@ export const useUsuariosStore = create<UsuariosState>()(
         return get().usuarios.find((usuario) => usuario.id === id);
       },
 
-      // Helpers para filtrar por tipo
       getClientes: () => {
         return get().usuarios.filter(u => u.tipo === 'cliente');
       },

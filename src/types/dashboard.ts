@@ -11,7 +11,6 @@ export interface DashboardMetrics {
   clientesActivos: number;
   revendedoresActivos: number;
   serviciosActivos: number;
-  suscripcionesActivas: number;
 }
 
 export interface MetricaPorCategoria {

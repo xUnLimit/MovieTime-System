@@ -1,17 +1,19 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { Servicio } from '@/types';
-import { getAll, getById, create as createDoc, update, remove, COLLECTIONS, timestampToDate } from '@/lib/firebase/firestore';
-import { Timestamp, doc as firestoreDoc, updateDoc, increment } from 'firebase/firestore';
+import { getAll, getById, create as createDoc, update, remove, COLLECTIONS, logCacheHit } from '@/lib/firebase/firestore';
+import { doc as firestoreDoc, updateDoc, increment } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 
 interface ServiciosState {
   servicios: Servicio[];
   isLoading: boolean;
+  error: string | null;
+  lastFetch: number | null;
   selectedServicio: Servicio | null;
 
   // Actions
-  fetchServicios: () => Promise<void>;
+  fetchServicios: (force?: boolean) => Promise<void>;
   createServicio: (servicio: Omit<Servicio, 'id' | 'createdAt' | 'updatedAt' | 'perfilesOcupados'>) => Promise<void>;
   updateServicio: (id: string, updates: Partial<Servicio>) => Promise<void>;
   deleteServicio: (id: string) => Promise<void>;
@@ -22,46 +24,41 @@ interface ServiciosState {
   updatePerfilOcupado: (id: string, shouldIncrement: boolean) => Promise<void>;
 }
 
+const CACHE_TIMEOUT = 5 * 60 * 1000;
+
 export const useServiciosStore = create<ServiciosState>()(
   devtools(
     (set, get) => ({
       servicios: [],
       isLoading: false,
+      error: null,
+      lastFetch: null,
       selectedServicio: null,
 
-      fetchServicios: async () => {
-        set({ isLoading: true });
-        try {
-          const data = await getAll<any>(COLLECTIONS.SERVICIOS);
-          const servicios: Servicio[] = data.map(item => {
-            return {
-              ...item,
-              fechaInicio: item.fechaInicio ? timestampToDate(item.fechaInicio) : undefined,
-              fechaVencimiento: item.fechaVencimiento ? timestampToDate(item.fechaVencimiento) : undefined,
-              createdAt: timestampToDate(item.createdAt),
-              updatedAt: timestampToDate(item.updatedAt)
-            };
-          });
+      fetchServicios: async (force = false) => {
+        const { lastFetch } = get();
+        if (!force && lastFetch && (Date.now() - lastFetch) < CACHE_TIMEOUT) {
+          logCacheHit(COLLECTIONS.SERVICIOS);
+          return;
+        }
 
-          set({ servicios, isLoading: false });
+        set({ isLoading: true, error: null });
+        try {
+          const servicios = await getAll<Servicio>(COLLECTIONS.SERVICIOS);
+          set({ servicios, isLoading: false, error: null, lastFetch: Date.now() });
         } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Error desconocido al cargar servicios';
           console.error('Error fetching servicios:', error);
-          set({ servicios: [], isLoading: false });
+          set({ servicios: [], isLoading: false, error: errorMessage });
         }
       },
 
       createServicio: async (servicioData) => {
         try {
-          const pagoInicialFechaInicio = servicioData.fechaInicio;
-          const pagoInicialFechaVencimiento = servicioData.fechaVencimiento;
-          const pagoInicialMonto = servicioData.costoServicio;
-          const pagoInicialCicloPago = servicioData.cicloPago;
           const id = await createDoc(COLLECTIONS.SERVICIOS, {
             ...servicioData,
             perfilesOcupados: 0,
             activo: true,
-            createdAt: Timestamp.now(),
-            updatedAt: Timestamp.now()
           });
 
           let moneda: string | undefined;
@@ -70,6 +67,7 @@ export const useServiciosStore = create<ServiciosState>()(
             moneda = (metodoPago?.moneda as string) ?? undefined;
           }
 
+          // Create initial PagoServicio record
           await createDoc(COLLECTIONS.PAGOS_SERVICIO, {
             servicioId: id,
             metodoPagoId: servicioData.metodoPagoId,
@@ -77,10 +75,10 @@ export const useServiciosStore = create<ServiciosState>()(
             isPagoInicial: true,
             fecha: new Date(),
             descripcion: 'Pago inicial',
-            cicloPago: pagoInicialCicloPago ?? undefined,
-            fechaInicio: pagoInicialFechaInicio ?? new Date(),
-            fechaVencimiento: pagoInicialFechaVencimiento ?? new Date(),
-            monto: pagoInicialMonto ?? 0,
+            cicloPago: servicioData.cicloPago ?? undefined,
+            fechaInicio: servicioData.fechaInicio ?? new Date(),
+            fechaVencimiento: servicioData.fechaVencimiento ?? new Date(),
+            monto: servicioData.costoServicio ?? 0,
           });
 
           const newServicio: Servicio = {
@@ -93,9 +91,12 @@ export const useServiciosStore = create<ServiciosState>()(
           } as Servicio;
 
           set((state) => ({
-            servicios: [...state.servicios, newServicio]
+            servicios: [...state.servicios, newServicio],
+            error: null
           }));
         } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Error al crear servicio';
+          set({ error: errorMessage });
           console.error('Error creating servicio:', error);
           throw error;
         }
@@ -106,35 +107,39 @@ export const useServiciosStore = create<ServiciosState>()(
           const servicio = get().servicios.find((s) => s.id === id);
           if (!servicio) throw new Error('Servicio not found');
 
-          const updated: Servicio = {
-            ...servicio,
-            ...updates,
-            updatedAt: new Date(),
-          };
-
-          const payload: Record<string, unknown> = { ...updates, updatedAt: Timestamp.now() };
-
-          await update(COLLECTIONS.SERVICIOS, id, payload);
+          await update(COLLECTIONS.SERVICIOS, id, updates);
 
           set((state) => ({
             servicios: state.servicios.map((s) =>
-              s.id === id ? updated : s
-            )
+              s.id === id
+                ? { ...s, ...updates, updatedAt: new Date() }
+                : s
+            ),
+            error: null
           }));
         } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Error al actualizar servicio';
+          set({ error: errorMessage });
           console.error('Error updating servicio:', error);
           throw error;
         }
       },
 
       deleteServicio: async (id) => {
+        const currentServicios = get().servicios;
+
+        // Optimistic update
+        set((state) => ({
+          servicios: state.servicios.filter((servicio) => servicio.id !== id)
+        }));
+
         try {
           await remove(COLLECTIONS.SERVICIOS, id);
-
-          set((state) => ({
-            servicios: state.servicios.filter((servicio) => servicio.id !== id)
-          }));
+          set({ error: null });
         } catch (error) {
+          // Rollback on error
+          const errorMessage = error instanceof Error ? error.message : 'Error al eliminar servicio';
+          set({ servicios: currentServicios, error: errorMessage });
           console.error('Error deleting servicio:', error);
           throw error;
         }

@@ -1,31 +1,25 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useMemo } from 'react';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { useCategoriasStore } from '@/store/categoriasStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
-import { Categoria } from '@/types';
-import { CategoriaEditForm } from '@/components/categorias/CategoriaEditForm';
+import { CategoriaForm } from '@/components/categorias/CategoriaForm';
 
 function EditarCategoriaPageContent() {
   const params = useParams();
-  const router = useRouter();
   const { categorias, fetchCategorias } = useCategoriasStore();
-  const [categoria, setCategoria] = useState<Categoria | null>(null);
 
   useEffect(() => {
     fetchCategorias();
   }, [fetchCategorias]);
 
-  useEffect(() => {
+  const categoria = useMemo(() => {
     const id = Array.isArray(params.id) ? params.id[0] : params.id;
-    if (categorias.length > 0 && id) {
-      const found = categorias.find((c) => c.id === id);
-      setCategoria(found || null);
-    }
+    return categorias.find((c) => c.id === id) || null;
   }, [categorias, params.id]);
 
   if (!categoria) {
@@ -71,7 +65,7 @@ function EditarCategoriaPageContent() {
 
       {/* Form Card */}
       <div className="bg-card border rounded-lg p-6">
-        <CategoriaEditForm categoria={categoria} />
+        <CategoriaForm mode="edit" categoria={categoria} />
       </div>
     </div>
   );

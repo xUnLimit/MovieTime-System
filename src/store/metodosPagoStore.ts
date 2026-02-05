@@ -1,16 +1,17 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { MetodoPago } from '@/types';
-import { getAll, create as createDoc, update, remove, COLLECTIONS, timestampToDate } from '@/lib/firebase/firestore';
-import { Timestamp } from 'firebase/firestore';
+import { getAll, create as createDoc, update, remove, COLLECTIONS, logCacheHit } from '@/lib/firebase/firestore';
 
 interface MetodosPagoState {
   metodosPago: MetodoPago[];
   isLoading: boolean;
+  error: string | null;
+  lastFetch: number | null;
   selectedMetodo: MetodoPago | null;
 
   // Actions
-  fetchMetodosPago: () => Promise<void>;
+  fetchMetodosPago: (force?: boolean) => Promise<void>;
   createMetodoPago: (metodo: Omit<MetodoPago, 'id' | 'createdAt' | 'updatedAt' | 'asociadoUsuarios' | 'asociadoServicios'>) => Promise<void>;
   updateMetodoPago: (id: string, updates: Partial<MetodoPago>) => Promise<void>;
   toggleActivo: (id: string) => Promise<void>;
@@ -19,27 +20,32 @@ interface MetodosPagoState {
   getMetodoPago: (id: string) => MetodoPago | undefined;
 }
 
+const CACHE_TIMEOUT = 5 * 60 * 1000;
+
 export const useMetodosPagoStore = create<MetodosPagoState>()(
   devtools(
     (set, get) => ({
       metodosPago: [],
       isLoading: false,
+      error: null,
+      lastFetch: null,
       selectedMetodo: null,
 
-      fetchMetodosPago: async () => {
-        set({ isLoading: true });
-        try {
-          const data = await getAll<any>(COLLECTIONS.METODOS_PAGO);
-          const metodosPago: MetodoPago[] = data.map(item => ({
-            ...item,
-            createdAt: timestampToDate(item.createdAt),
-            updatedAt: timestampToDate(item.updatedAt)
-          }));
+      fetchMetodosPago: async (force = false) => {
+        const { lastFetch } = get();
+        if (!force && lastFetch && (Date.now() - lastFetch) < CACHE_TIMEOUT) {
+          logCacheHit(COLLECTIONS.METODOS_PAGO);
+          return;
+        }
 
-          set({ metodosPago, isLoading: false });
+        set({ isLoading: true, error: null });
+        try {
+          const metodosPago = await getAll<MetodoPago>(COLLECTIONS.METODOS_PAGO);
+          set({ metodosPago, isLoading: false, error: null, lastFetch: Date.now() });
         } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Error desconocido al cargar métodos de pago';
           console.error('Error fetching metodos pago:', error);
-          set({ metodosPago: [], isLoading: false });
+          set({ metodosPago: [], isLoading: false, error: errorMessage });
         }
       },
 
@@ -49,8 +55,6 @@ export const useMetodosPagoStore = create<MetodosPagoState>()(
             ...metodoData,
             asociadoUsuarios: 0,
             asociadoServicios: 0,
-            createdAt: Timestamp.now(),
-            updatedAt: Timestamp.now()
           });
 
           const newMetodo: MetodoPago = {
@@ -73,10 +77,7 @@ export const useMetodosPagoStore = create<MetodosPagoState>()(
 
       updateMetodoPago: async (id, updates) => {
         try {
-          await update(COLLECTIONS.METODOS_PAGO, id, {
-            ...updates,
-            updatedAt: Timestamp.now()
-          });
+          await update(COLLECTIONS.METODOS_PAGO, id, updates);
 
           set((state) => ({
             metodosPago: state.metodosPago.map((metodo) =>
@@ -97,10 +98,7 @@ export const useMetodosPagoStore = create<MetodosPagoState>()(
           if (!metodo) throw new Error('Método de pago no encontrado');
 
           const newActivo = !metodo.activo;
-          await update(COLLECTIONS.METODOS_PAGO, id, {
-            activo: newActivo,
-            updatedAt: Timestamp.now()
-          });
+          await update(COLLECTIONS.METODOS_PAGO, id, { activo: newActivo });
 
           set((state) => ({
             metodosPago: state.metodosPago.map((m) =>

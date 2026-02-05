@@ -67,7 +67,7 @@ export function UsuarioForm({
     defaultValues: {
       nombre: '',
       apellido: '',
-      tipoUsuario: '' as any,
+      tipoUsuario: '' as 'cliente' | 'revendedor',
       telefono: '',
       metodoPagoId: '',
       notas: '',
@@ -138,7 +138,7 @@ export function UsuarioForm({
       reset({
         nombre: '',
         apellido: '',
-        tipoUsuario: tipoInicial as any,
+        tipoUsuario: tipoInicial as 'cliente' | 'revendedor',
         telefono: '',
         metodoPagoId: '',
         notas: '',

@@ -154,7 +154,7 @@ export function TemplateDialog({ open, onOpenChange, template }: TemplateDialogP
               <Label htmlFor="tipo">Tipo</Label>
               <Select
                 value={tipoValue}
-                onValueChange={(value) => setValue('tipo', value as any)}
+                onValueChange={(value) => setValue('tipo', value as 'notificacion_regular' | 'dia_pago' | 'renovacion' | 'suscripcion' | 'cancelacion')}
               >
                 <SelectTrigger>
                   <SelectValue />

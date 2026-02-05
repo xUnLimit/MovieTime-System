@@ -35,7 +35,7 @@ function CrearCategoriaPageContent() {
 
       {/* Form Card */}
       <div className="bg-card border rounded-lg p-6">
-        <CategoriaForm />
+        <CategoriaForm mode="create" />
       </div>
     </div>
   );

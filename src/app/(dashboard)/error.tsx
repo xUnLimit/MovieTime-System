@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { AlertTriangle, Home, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -10,11 +10,10 @@ interface ErrorPageProps {
 }
 
 export default function ErrorPage({ error, reset }: ErrorPageProps) {
-  const [details, setDetails] = useState('');
+  const details = error.message || 'Un error inesperado ocurrió.';
 
   useEffect(() => {
     console.error('Dashboard error boundary caught:', error);
-    setDetails(error.message || 'Un error inesperado ocurrió.');
   }, [error]);
 
   return (

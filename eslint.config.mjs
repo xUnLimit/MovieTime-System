@@ -13,6 +13,14 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      // Allow 'any' in form libraries where type casting is necessary
+      "@typescript-eslint/no-explicit-any": "warn",
+      // React Hook Form watch() is incompatible with React Compiler - this is expected
+      "react-hooks/incompatible-library": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

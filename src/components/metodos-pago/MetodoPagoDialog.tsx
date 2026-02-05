@@ -81,7 +81,7 @@ export function MetodoPagoDialog({
         tipo: metodoPago.tipo,
         titular: metodoPago.titular,
         identificador: metodoPago.identificador,
-        tipoCuenta: (metodoPago.tipoCuenta && ['ahorro', 'corriente', 'wallet', 'telefono', 'email'].includes(metodoPago.tipoCuenta)) ? metodoPago.tipoCuenta as any : 'ahorro',
+        tipoCuenta: (metodoPago.tipoCuenta && ['ahorro', 'corriente', 'wallet', 'telefono', 'email'].includes(metodoPago.tipoCuenta)) ? metodoPago.tipoCuenta as 'ahorro' | 'corriente' | 'wallet' | 'telefono' | 'email' : 'ahorro',
         banco: metodoPago.banco || '',
         pais: metodoPago.pais || 'Panamá',
         moneda: metodoPago.moneda || 'USD',
@@ -157,7 +157,7 @@ export function MetodoPagoDialog({
 
             <div className="space-y-2">
               <Label htmlFor="tipo">Tipo</Label>
-              <Select value={tipoValue} onValueChange={(value) => setValue('tipo', value as any)}>
+              <Select value={tipoValue} onValueChange={(value) => setValue('tipo', value as 'banco' | 'transferencia' | 'wallet' | 'criptomoneda')}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -188,7 +188,7 @@ export function MetodoPagoDialog({
                 <Label htmlFor="tipoCuenta">Tipo de Cuenta</Label>
                 <Select
                   value={tipoCuentaValue}
-                  onValueChange={(value) => setValue('tipoCuenta', value as any)}
+                  onValueChange={(value) => setValue('tipoCuenta', value as 'ahorro' | 'corriente' | 'wallet' | 'telefono' | 'email')}
                 >
                   <SelectTrigger>
                     <SelectValue />

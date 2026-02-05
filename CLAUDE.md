@@ -45,18 +45,23 @@ MovieTime System/
     │   ├── env.ts           # Environment config
     │   └── site.ts          # Site metadata
     ├── hooks/                # Custom React hooks
-    │   └── use-sidebar.ts   # Sidebar toggle state hook
+    │   ├── use-sidebar.ts   # Sidebar toggle state hook
+    │   └── useVentasMetrics.ts # Ventas metrics calculation hook
     ├── lib/                  # Utilities and helpers
     │   ├── firebase/        # Firebase integration
     │   │   ├── auth.ts     # Authentication functions
     │   │   ├── config.ts   # Firebase initialization
-    │   │   └── firestore.ts # Generic CRUD + COLLECTIONS + queryDocuments
+    │   │   ├── firestore.ts # Generic CRUD + COLLECTIONS + queryDocuments (with auto timestamp conversion)
+    │   │   └── pagination.ts # Pagination utilities
+    │   ├── services/        # Business logic layer
+    │   │   ├── metricsService.ts # Metrics calculations
+    │   │   └── ventasService.ts  # Ventas business logic
     │   ├── utils/           # Utility functions
     │   │   ├── calculations.ts # Business logic
     │   │   ├── whatsapp.ts    # WhatsApp utilities (expanded)
     │   │   ├── cn.ts          # Class utilities
     │   │   └── index.ts       # Exports
-    │   └── constants/       # Application constants
+    │   └── constants/       # Application constants (includes CYCLE_MONTHS)
     ├── store/                # Zustand stores (Firebase-integrated)
     ├── test/                 # Test utilities
     │   ├── setup.ts         # Test setup
@@ -170,22 +175,25 @@ fetchItems: async () => {
 }
 ```
 
-### Store Directory (12 stores)
+### Store Directory (10 active stores)
 
-All stores in `src/store/` are Firebase-integrated:
+All stores in `src/store/` are Firebase-integrated with **error states**, **caching**, and **optimistic updates**:
 
 1. **authStore.ts** - Firebase authentication + localStorage persistence
-2. **usuariosStore.ts** - Manages both clients and resellers in a single `usuarios` collection. Supports `fetchUsuarios()`, `fetchClientes()`, `fetchRevendedores()` (the latter two use `queryDocuments` with `tipo` filter). Has `getClientes()` / `getRevendedores()` selectors.
-3. **clientesStore.ts** - ⚠️ **Deprecated wrapper** around `usuariosStore`. Subscribes to `usuariosStore` and syncs filtered state. Use `usuariosStore` directly for new code.
-4. **revendedoresStore.ts** - ⚠️ **Deprecated wrapper** around `usuariosStore`. Same pattern as `clientesStore`. Use `usuariosStore` directly for new code.
-5. **serviciosStore.ts** - Services management. Creates an initial `PagoServicio` record in `COLLECTIONS.PAGOS_SERVICIO` when a service is created. Includes `updatePerfilOcupado()` for profile occupancy tracking.
-6. **categoriasStore.ts** - Categories (Firebase)
-7. **metodosPagoStore.ts** - Payment methods (Firebase)
-8. **notificacionesStore.ts** - Notifications (Firebase)
-9. **activityLogStore.ts** - Activity logs (Firebase)
-10. **configStore.ts** - Configuration settings (Firebase)
-11. **templatesStore.ts** - Message templates (localStorage persistence)
-12. **templatesMensajesStore.ts** - Additional template management
+2. **usuariosStore.ts** - Manages both clients and resellers in a single `usuarios` collection. Supports `fetchUsuarios()`, `fetchClientes()`, `fetchRevendedores()` (the latter two use `queryDocuments` with `tipo` filter). Has `getClientes()` / `getRevendedores()` selectors. ✅ Includes error state and optimistic deletes.
+3. **serviciosStore.ts** - Services management. Creates an initial `PagoServicio` record in `COLLECTIONS.PAGOS_SERVICIO` when a service is created. Includes `updatePerfilOcupado()` for profile occupancy tracking. ✅ Includes error state and optimistic deletes.
+4. **ventasStore.ts** - **NEW**: Sales management with caching (5-minute timeout), error states, and optimistic updates. Handles profile occupancy updates automatically on delete.
+5. **categoriasStore.ts** - Categories (Firebase) ✅ Includes error state and optimistic deletes.
+6. **metodosPagoStore.ts** - Payment methods (Firebase) ✅ Includes error state.
+7. **notificacionesStore.ts** - Notifications (Firebase) ✅ Includes error state.
+8. **activityLogStore.ts** - Activity logs (Firebase) ✅ Includes error state.
+9. **configStore.ts** - Configuration settings (Firebase) ✅ Includes error state.
+10. **templatesStore.ts** - Message templates (localStorage persistence) ✅ Includes error state.
+
+**Removed/Deprecated:**
+- ❌ **clientesStore.ts** - Deprecated wrapper (removed)
+- ❌ **revendedoresStore.ts** - Deprecated wrapper (removed)
+- ❌ **templatesMensajesStore.ts** - Consolidated into templatesStore
 
 ### Type System
 
@@ -542,21 +550,24 @@ try {
 
 8. **Removed modules**: Do not reference `/suscripciones` or `/pagos-servicios` routes - they were permanently removed.
 
-9. **Usuarios stores**: Do not create new code that uses `clientesStore` or `revendedoresStore` directly. Use `usuariosStore` and filter by `tipo` instead. The wrapper stores exist only for backward compatibility with existing components.
+9. **Usuarios stores**: ~~Do not create new code that uses `clientesStore` or `revendedoresStore` directly.~~ These stores have been removed. Use `usuariosStore` and filter by `tipo` instead.
 
-10. **Ventas has no store**: The Ventas module calls Firestore functions directly. Do not create a `ventasStore` unless explicitly needed — follow the existing pattern of direct calls + local `useState`.
+10. **Ventas store**: ~~The Ventas module calls Firestore functions directly.~~ **UPDATED**: Ventas now uses `ventasStore` for consistent state management with caching and error handling. Use `useVentasStore()` hook in components.
 
-11. **Profile occupancy**: When creating or deleting a venta that occupies a service profile, always call `updatePerfilOcupado(servicioId, increment)` on `serviciosStore` to keep the occupancy count in sync.
+11. **Profile occupancy**: ~~When creating or deleting a venta that occupies a service profile, always call `updatePerfilOcupado(servicioId, increment)` on `serviciosStore`.~~ **UPDATED**: This is now handled automatically by `ventasStore.deleteVenta()` method.
 
 ## Firebase Best Practices
 
 1. **Use COLLECTIONS enum**: Always use `COLLECTIONS.ITEMS` instead of hardcoded strings
 2. **Generic CRUD functions**: Use `getAll()`, `getById()`, `queryDocuments()`, `create()`, `update()`, `remove()` from `src/lib/firebase/firestore.ts`
 3. **Type safety**: Pass type parameter to generic functions: `getAll<Servicio>(COLLECTIONS.SERVICIOS)`
-4. **Error handling**: Firebase operations can fail - always handle errors gracefully
+4. **Error handling**: Firebase operations can fail - always handle errors gracefully. All stores now include `error: string | null` state.
 5. **Loading states**: Show loading indicators while Firebase operations are in progress
-6. **Optimistic updates**: Update local state immediately, then sync with Firebase
+6. **Optimistic updates**: Update local state immediately, then sync with Firebase. All delete operations now use optimistic updates with rollback on error.
 7. **Undefined fields**: The `create()` and `update()` functions automatically strip `undefined` values before writing to Firestore (via `removeUndefinedFields`)
+8. **Automatic timestamp conversion**: ✅ **NEW**: All Firebase CRUD functions (`getAll`, `getById`, `queryDocuments`) now automatically convert Firestore Timestamps to JavaScript Date objects. No need to manually call `timestampToDate()` in stores.
+9. **Caching**: Stores now include 5-minute cache timeout to reduce unnecessary Firebase reads. Use `fetchItems(true)` to force refresh.
+10. **Pagination**: Use `getPaginated()` from `src/lib/firebase/pagination.ts` for large datasets (not yet enabled by default).
 
 ## shadcn/ui Components
 
@@ -602,8 +613,8 @@ When adding features:
 2. **Subscription References**: Some types (`dashboard.ts`, `clientes.ts`) contain subscription-related fields (`suscripcionesTotales`, `suscripcionesActivas`) for historical data compatibility
 3. **Dashboard Placeholder Data**: Dashboard UI restored but contains placeholder/static data (not connected to backend logic)
 4. **SUSCRIPCIONES Collection**: Defined in Firestore COLLECTIONS enum but not used in UI (reserved for future use)
-5. **Deprecated Stores**: `clientesStore` and `revendedoresStore` are deprecated wrappers; existing components that use them still work via subscriptions to `usuariosStore`, but new code should use `usuariosStore` directly
-6. **VentaDoc type location**: The `VentaDoc` interface is exported from `src/components/ventas/VentasMetrics.tsx` rather than from `src/types/`. Consider moving it to `src/types/` in a future refactor.
+5. ~~**Deprecated Stores**: `clientesStore` and `revendedoresStore` are deprecated wrappers~~ ✅ **RESOLVED**: Deprecated stores have been removed.
+6. ~~**VentaDoc type location**: The `VentaDoc` interface is exported from `src/components/ventas/VentasMetrics.tsx`~~ ✅ **RESOLVED**: `VentaDoc` now properly defined in `src/types/ventas.ts`.
 
 ## Deployment Considerations
 
@@ -631,11 +642,46 @@ The system has been fully migrated from mock data to Firebase:
 
 ## Recent Changes (Feb 2026)
 
+### Architecture Refactoring (Feb 4, 2026) ✅ **NEW**
+**Major improvements to architecture, performance, and code quality:**
+
+1. **Standardized Data Fetching**:
+   - Created `ventasStore` with caching (5-minute timeout), error states, and optimistic updates
+   - All stores now follow consistent pattern with error handling
+   - Removed direct Firebase calls from components
+
+2. **Error Handling**:
+   - Added `error: string | null` state to all 10 stores
+   - Implemented `DashboardErrorFallback` component
+   - Added `ErrorBoundary` to dashboard layout for better error recovery
+
+3. **Service Layer**:
+   - Created `src/lib/services/` directory for business logic
+   - `metricsService.ts` - Extracted metrics calculations from components
+   - `ventasService.ts` - Encapsulates venta deletion with profile occupancy updates
+   - Created `useVentasMetrics` custom hook
+
+4. **Performance Optimizations**:
+   - Added 5-minute caching to all stores (reduces Firebase reads)
+   - Implemented optimistic updates with rollback for all delete operations
+   - Created pagination utilities in `src/lib/firebase/pagination.ts` (ready for future use)
+   - Fixed unnecessary re-renders in `VentasMetrics` component
+
+5. **Firebase Layer Improvements**:
+   - Automatic timestamp conversion in `getAll()`, `getById()`, `queryDocuments()`
+   - No need to manually call `timestampToDate()` in stores anymore
+   - Cleaner, more maintainable code
+
+6. **Constants Cleanup**:
+   - Added `CYCLE_MONTHS` constant with proper typing
+   - Updated `CICLOS_PAGO` to include `semestral` option
+   - Eliminated magic numbers throughout codebase
+
 ### Ventas Module (NEW)
 - Full sales module: pages (`/ventas`, `/ventas/crear`, `/ventas/[id]`, `/ventas/[id]/editar`)
 - Components: `VentasForm`, `VentasEditForm`, `VentasTable`, `VentasMetrics`, `RenovarVentaDialog`, `EditarPagoVentaDialog`
 - Multi-item sale creation with per-item pricing, discounts, cycles, and WhatsApp message generation
-- No dedicated store — direct Firestore calls + local state
+- ~~No dedicated store~~ **UPDATED**: Now uses `ventasStore` with full error handling and caching
 - Added to sidebar under GESTIÓN section
 
 ### Usuarios Migration (Unified Collection)

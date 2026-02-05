@@ -1,16 +1,14 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Monitor, DollarSign, CalendarDays, Users } from 'lucide-react';
+import { Monitor, CalendarDays, Users } from 'lucide-react';
 import { Servicio } from '@/types';
-import { Categoria } from '@/types/categorias';
 
 interface ServicioDetailMetricsProps {
   servicios: Servicio[];
-  categoria?: Categoria;
 }
 
-export function ServicioDetailMetrics({ servicios, categoria }: ServicioDetailMetricsProps) {
+export function ServicioDetailMetrics({ servicios }: ServicioDetailMetricsProps) {
   const serviciosActivos = servicios.filter(s => s.activo);
   const totalPerfiles = servicios.reduce((sum, s) => sum + s.perfilesDisponibles, 0);
   const perfilesOcupados = servicios.reduce((sum, s) => sum + (s.perfilesOcupados || 0), 0);

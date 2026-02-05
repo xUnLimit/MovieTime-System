@@ -39,9 +39,10 @@ export const useAuthStore = create<AuthState>()(
               isAuthenticated: true,
               isLoading: false
             });
-          } catch (error: any) {
+          } catch (error) {
             set({ isLoading: false });
-            throw new Error(error.message || 'Error al iniciar sesión');
+            const message = error instanceof Error ? error.message : 'Error al iniciar sesión';
+            throw new Error(message);
           }
         },
 
@@ -53,9 +54,10 @@ export const useAuthStore = create<AuthState>()(
               isAuthenticated: false,
               isLoading: false
             });
-          } catch (error: any) {
+          } catch (error) {
             console.error('Error logging out:', error);
-            throw new Error(error.message || 'Error al cerrar sesión');
+            const message = error instanceof Error ? error.message : 'Error al cerrar sesión';
+            throw new Error(message);
           }
         },
 

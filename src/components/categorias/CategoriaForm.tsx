@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -19,11 +19,11 @@ import { toast } from 'sonner';
 import { ChevronDown, Plus, Trash2 } from 'lucide-react';
 import { useCategoriasStore } from '@/store/categoriasStore';
 import { useRouter } from 'next/navigation';
-import { Plan } from '@/types';
+import { Plan, Categoria } from '@/types';
 
 const categoriaSchema = z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  tipo: z.enum(['cliente', 'revendedor'], {
+  tipo: z.enum(['cliente', 'revendedor', 'ambos'], {
     message: 'Debe seleccionar asociado a',
   }),
   tipoCategoria: z.enum(['plataforma_streaming', 'otros'], {
@@ -34,12 +34,17 @@ const categoriaSchema = z.object({
 
 type FormData = z.infer<typeof categoriaSchema>;
 
-export function CategoriaForm() {
+interface CategoriaFormProps {
+  mode: 'create' | 'edit';
+  categoria?: Categoria;
+}
+
+export function CategoriaForm({ mode, categoria }: CategoriaFormProps) {
   const router = useRouter();
-  const { createCategoria } = useCategoriasStore();
+  const { createCategoria, updateCategoria } = useCategoriasStore();
   const [activeTab, setActiveTab] = useState('general');
-  const [isGeneralTabComplete, setIsGeneralTabComplete] = useState(false);
-  const [planes, setPlanes] = useState<Plan[]>([]);
+  const [isGeneralTabComplete, setIsGeneralTabComplete] = useState(mode === 'edit');
+  const [planes, setPlanes] = useState<Plan[]>(mode === 'edit' && categoria ? categoria.planes || [] : []);
   const [tipoPlanSeleccionado, setTipoPlanSeleccionado] = useState<'cuenta_completa' | 'perfiles'>('cuenta_completa');
   const [planesError, setPlanesError] = useState<string>('');
 
@@ -53,10 +58,15 @@ export function CategoriaForm() {
     trigger,
   } = useForm<FormData>({
     resolver: zodResolver(categoriaSchema),
-    defaultValues: {
+    defaultValues: mode === 'edit' && categoria ? {
+      nombre: categoria.nombre,
+      tipo: categoria.tipo,
+      tipoCategoria: categoria.tipoCategoria,
+      notas: categoria.notas || '',
+    } : {
       nombre: '',
-      tipo: '' as any,
-      tipoCategoria: '' as any,
+      tipo: '' as 'cliente' | 'revendedor' | 'ambos',
+      tipoCategoria: '' as 'plataforma_streaming' | 'otros',
       notas: '',
     },
   });
@@ -64,6 +74,23 @@ export function CategoriaForm() {
   const nombreValue = watch('nombre');
   const tipoValue = watch('tipo');
   const tipoCategoriaValue = watch('tipoCategoria');
+  const notasValue = watch('notas');
+
+  const hasChanges = useMemo(() => {
+    if (mode !== 'edit' || !categoria) return true;
+    const originalPlanes = categoria.planes || [];
+    if (nombreValue !== categoria.nombre) return true;
+    if (tipoValue !== categoria.tipo) return true;
+    if (tipoCategoriaValue !== categoria.tipoCategoria) return true;
+    if ((notasValue || '') !== (categoria.notas || '')) return true;
+    if (planes.length !== originalPlanes.length) return true;
+    for (let i = 0; i < planes.length; i++) {
+      const curr = planes[i];
+      const orig = originalPlanes[i];
+      if (!orig || curr.id !== orig.id || curr.nombre !== orig.nombre || curr.precio !== orig.precio || curr.cicloPago !== orig.cicloPago || curr.tipoPlan !== orig.tipoPlan) return true;
+    }
+    return false;
+  }, [mode, categoria, nombreValue, tipoValue, tipoCategoriaValue, notasValue, planes]);
 
   // Limpieza automática de errores
   useEffect(() => {
@@ -85,34 +112,46 @@ export function CategoriaForm() {
   }, [tipoCategoriaValue, errors.tipoCategoria, clearErrors]);
 
   const onSubmit = async (data: FormData) => {
-    // Validar que al menos exista un plan
-    if (planes.length === 0) {
-      setPlanesError('Debe agregar al menos un plan a la categoría');
-      setActiveTab('planes');
-      return;
-    }
-
-    // Validar que cada plan tenga nombre válido
-    const planesConError = planes.some(plan => !plan.nombre || plan.nombre.trim() === '');
-    if (planesConError) {
-      setPlanesError('Todos los planes deben tener un nombre');
-      setActiveTab('planes');
-      return;
+    if (mode === 'create') {
+      if (planes.length === 0) {
+        setPlanesError('Debe agregar al menos un plan a la categoría');
+        setActiveTab('planes');
+        return;
+      }
+      const planesConError = planes.some(plan => !plan.nombre || plan.nombre.trim() === '');
+      if (planesConError) {
+        setPlanesError('Todos los planes deben tener un nombre');
+        setActiveTab('planes');
+        return;
+      }
     }
 
     try {
       setPlanesError('');
-      await createCategoria({
-        nombre: data.nombre,
-        tipo: data.tipo,
-        tipoCategoria: data.tipoCategoria,
-        planes: planes.length > 0 ? planes : undefined,
-        activo: true,
-      });
-      toast.success('Categoría creada exitosamente');
+      if (mode === 'create') {
+        await createCategoria({
+          nombre: data.nombre,
+          tipo: data.tipo,
+          tipoCategoria: data.tipoCategoria,
+          planes: planes.length > 0 ? planes : undefined,
+          activo: true,
+        });
+        toast.success('Categoría creada exitosamente');
+      } else if (categoria) {
+        await updateCategoria(categoria.id, {
+          nombre: data.nombre,
+          tipo: data.tipo,
+          tipoCategoria: data.tipoCategoria,
+          planes: planes.length > 0 ? planes : undefined,
+          notas: data.notas,
+          activo: categoria.activo,
+        });
+        toast.success('Categoría actualizada exitosamente');
+      }
       router.push('/categorias');
     } catch (error) {
-      toast.error('Error al crear la categoría', { description: error instanceof Error ? error.message : undefined });
+      const message = mode === 'create' ? 'Error al crear la categoría' : 'Error al actualizar la categoría';
+      toast.error(message, { description: error instanceof Error ? error.message : undefined });
       console.error(error);
     }
   };
@@ -173,6 +212,8 @@ export function CategoriaForm() {
         return 'Cliente';
       case 'revendedor':
         return 'Revendedor';
+      case 'ambos':
+        return 'Ambos';
       default:
         return 'Seleccionar';
     }
@@ -441,7 +482,7 @@ export function CategoriaForm() {
                         No hay planes agregados
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Haz clic en "Agregar Plan" para crear tu primer plan de cuenta completa
+                        Haz clic en &quot;Agregar Plan&quot; para crear tu primer plan de cuenta completa
                       </p>
                     </div>
                   </div>
@@ -577,7 +618,7 @@ export function CategoriaForm() {
                         No hay planes agregados
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Haz clic en "Agregar Plan" para crear tu primer plan de perfiles
+                        Haz clic en &quot;Agregar Plan&quot; para crear tu primer plan de perfiles
                       </p>
                     </div>
                   </div>
@@ -699,8 +740,8 @@ export function CategoriaForm() {
             <Button type="button" variant="outline" onClick={handlePrevious}>
               Anterior
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Creando...' : 'Crear Categoría'}
+            <Button type="submit" disabled={isSubmitting || (mode === 'edit' && !hasChanges)}>
+              {isSubmitting ? (mode === 'create' ? 'Creando...' : 'Guardando...') : (mode === 'create' ? 'Crear Categoría' : 'Guardar Cambios')}
             </Button>
           </div>
         </TabsContent>

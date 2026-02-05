@@ -58,7 +58,7 @@ export const NotificacionesTable = memo(function NotificacionesTable({
         categoriaNombre: notif.titulo,
         fechaInicio: new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }),
         fechaVencimiento: fechaVencimiento.toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }),
-        monto: Math.random() * 10, // Valor simulado
+        monto: 0, // Placeholder value
         estado: notif.estado,
         original: notif,
       };

@@ -19,8 +19,8 @@ import { COLLECTIONS, queryDocuments } from '@/lib/firebase/firestore';
 
 function UsuariosPageContent() {
   const router = useRouter();
-  const { usuarios, fetchUsuarios } = useUsuariosStore();
-  const { metodosPago, fetchMetodosPago } = useMetodosPagoStore();
+  const { usuarios, totalClientes, totalRevendedores, fetchUsuarios } = useUsuariosStore();
+  const { fetchMetodosPago } = useMetodosPagoStore();
 
   const [activeTab, setActiveTab] = useState('todos');
   const [clientesConVentasActivas, setClientesConVentasActivas] = useState<Set<string>>(new Set());
@@ -77,7 +77,7 @@ function UsuariosPageContent() {
         </Link>
       </div>
 
-      <UsuariosMetrics usuarios={usuarios} clientesConVentasActivas={clientesConVentasActivas} />
+      <UsuariosMetrics usuarios={usuarios} clientesConVentasActivas={clientesConVentasActivas} totalClientes={totalClientes} totalRevendedores={totalRevendedores} />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-transparent rounded-none p-0 h-auto inline-flex border-b border-border">

@@ -9,15 +9,13 @@ import { startOfDay } from 'date-fns';
 interface UsuariosMetricsProps {
   usuarios: Usuario[];
   clientesConVentasActivas: Set<string>;
+  totalClientes: number;
+  totalRevendedores: number;
 }
 
-export const UsuariosMetrics = memo(function UsuariosMetrics({ usuarios, clientesConVentasActivas }: UsuariosMetricsProps) {
+export const UsuariosMetrics = memo(function UsuariosMetrics({ usuarios, clientesConVentasActivas, totalClientes, totalRevendedores }: UsuariosMetricsProps) {
   const metrics = useMemo(() => {
     const clientes = usuarios.filter(u => u.tipo === 'cliente');
-    const revendedores = usuarios.filter(u => u.tipo === 'revendedor');
-
-    const totalClientes = clientes.length;
-    const totalRevendedores = revendedores.length;
 
     const clientesActivos = clientes.filter((c) => clientesConVentasActivas.has(c.id)).length;
 
@@ -34,7 +32,7 @@ export const UsuariosMetrics = memo(function UsuariosMetrics({ usuarios, cliente
       clientesActivos,
       usuariosNuevos,
     };
-  }, [usuarios, clientesConVentasActivas]);
+  }, [usuarios, clientesConVentasActivas, totalClientes, totalRevendedores]);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -27,7 +27,6 @@ import { useCategoriasStore } from '@/store/categoriasStore';
 import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { useServiciosStore } from '@/store/serviciosStore';
 import { useUsuariosStore } from '@/store/usuariosStore';
-import { Categoria, Plan } from '@/types/categorias';
 import { toast } from 'sonner';
 import { getCurrencySymbol } from '@/lib/constants';
 import { formatearFecha } from '@/lib/utils/calculations';
@@ -50,8 +49,6 @@ const ventaEditSchema = z.object({
 });
 
 type VentaEditFormData = z.infer<typeof ventaEditSchema>;
-
-type TipoItem = 'cuenta' | 'perfil';
 
 const MESES_POR_CICLO: Record<string, number> = {
   mensual: 1,
@@ -108,7 +105,6 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
 
   const [activeTab, setActiveTab] = useState<'datos' | 'preview'>('datos');
   const [isDatosTabComplete, setIsDatosTabComplete] = useState(false);
-  const [tipoItem, setTipoItem] = useState<TipoItem>(venta.perfilNumero ? 'perfil' : 'cuenta');
   const [fechaInicioOpen, setFechaInicioOpen] = useState(false);
   const [fechaFinOpen, setFechaFinOpen] = useState(false);
   const [perfilesOcupadosVenta, setPerfilesOcupadosVenta] = useState<Record<string, Set<number>>>({});
@@ -126,7 +122,6 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
     setValue,
     watch,
     clearErrors,
-    trigger,
     setError,
     formState: { errors, isSubmitting },
   } = useForm<VentaEditFormData>({
@@ -295,6 +290,7 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
     venta,
     codigoValue,
     estadoValue,
+    perfilNombreValue,
   ]);
 
   const handleNext = async () => {

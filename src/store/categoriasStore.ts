@@ -1,16 +1,17 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { Categoria } from '@/types';
-import { getAll, create as createDoc, update, remove, COLLECTIONS, timestampToDate } from '@/lib/firebase/firestore';
-import { Timestamp } from 'firebase/firestore';
+import { getAll, create as createDoc, update, remove, COLLECTIONS, logCacheHit } from '@/lib/firebase/firestore';
 
 interface CategoriasState {
   categorias: Categoria[];
   isLoading: boolean;
+  error: string | null;
+  lastFetch: number | null;
   selectedCategoria: Categoria | null;
 
   // Actions
-  fetchCategorias: () => Promise<void>;
+  fetchCategorias: (force?: boolean) => Promise<void>;
   createCategoria: (categoria: Omit<Categoria, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateCategoria: (id: string, updates: Partial<Categoria>) => Promise<void>;
   deleteCategoria: (id: string) => Promise<void>;
@@ -19,37 +20,38 @@ interface CategoriasState {
   getCategoriasByTipo: (tipo: 'cliente' | 'revendedor' | 'ambos') => Categoria[];
 }
 
+const CACHE_TIMEOUT = 5 * 60 * 1000;
+
 export const useCategoriasStore = create<CategoriasState>()(
   devtools(
     (set, get) => ({
       categorias: [],
       isLoading: false,
+      error: null,
+      lastFetch: null,
       selectedCategoria: null,
 
-      fetchCategorias: async () => {
-        set({ isLoading: true });
-        try {
-          const data = await getAll<any>(COLLECTIONS.CATEGORIAS);
-          const categorias: Categoria[] = data.map(item => ({
-            ...item,
-            createdAt: timestampToDate(item.createdAt),
-            updatedAt: timestampToDate(item.updatedAt)
-          }));
+      fetchCategorias: async (force = false) => {
+        const { lastFetch } = get();
+        if (!force && lastFetch && (Date.now() - lastFetch) < CACHE_TIMEOUT) {
+          logCacheHit(COLLECTIONS.CATEGORIAS);
+          return;
+        }
 
-          set({ categorias, isLoading: false });
+        set({ isLoading: true, error: null });
+        try {
+          const categorias = await getAll<Categoria>(COLLECTIONS.CATEGORIAS);
+          set({ categorias, isLoading: false, error: null, lastFetch: Date.now() });
         } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Error desconocido al cargar categorías';
           console.error('Error fetching categorias:', error);
-          set({ categorias: [], isLoading: false });
+          set({ categorias: [], isLoading: false, error: errorMessage });
         }
       },
 
       createCategoria: async (categoriaData) => {
         try {
-          const id = await createDoc(COLLECTIONS.CATEGORIAS, {
-            ...categoriaData,
-            createdAt: Timestamp.now(),
-            updatedAt: Timestamp.now()
-          });
+          const id = await createDoc(COLLECTIONS.CATEGORIAS, categoriaData);
 
           const newCategoria: Categoria = {
             ...categoriaData,
@@ -59,9 +61,12 @@ export const useCategoriasStore = create<CategoriasState>()(
           };
 
           set((state) => ({
-            categorias: [...state.categorias, newCategoria]
+            categorias: [...state.categorias, newCategoria],
+            error: null
           }));
         } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Error al crear categoría';
+          set({ error: errorMessage });
           console.error('Error creating categoria:', error);
           throw error;
         }
@@ -69,32 +74,39 @@ export const useCategoriasStore = create<CategoriasState>()(
 
       updateCategoria: async (id, updates) => {
         try {
-          await update(COLLECTIONS.CATEGORIAS, id, {
-            ...updates,
-            updatedAt: Timestamp.now()
-          });
+          await update(COLLECTIONS.CATEGORIAS, id, updates);
 
           set((state) => ({
             categorias: state.categorias.map((cat) =>
               cat.id === id
                 ? { ...cat, ...updates, updatedAt: new Date() }
                 : cat
-            )
+            ),
+            error: null
           }));
         } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Error al actualizar categoría';
+          set({ error: errorMessage });
           console.error('Error updating categoria:', error);
           throw error;
         }
       },
 
       deleteCategoria: async (id) => {
+        const currentCategorias = get().categorias;
+
+        // Optimistic update
+        set((state) => ({
+          categorias: state.categorias.filter((cat) => cat.id !== id)
+        }));
+
         try {
           await remove(COLLECTIONS.CATEGORIAS, id);
-
-          set((state) => ({
-            categorias: state.categorias.filter((cat) => cat.id !== id)
-          }));
+          set({ error: null });
         } catch (error) {
+          // Rollback on error
+          const errorMessage = error instanceof Error ? error.message : 'Error al eliminar categoría';
+          set({ categorias: currentCategorias, error: errorMessage });
           console.error('Error deleting categoria:', error);
           throw error;
         }

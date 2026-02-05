@@ -1,16 +1,17 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import { TemplateMensaje, TipoTemplate } from '@/types';
-import { getAll, create as createDoc, update, remove, COLLECTIONS, timestampToDate } from '@/lib/firebase/firestore';
-import { Timestamp } from 'firebase/firestore';
+import { getAll, create as createDoc, update, remove, COLLECTIONS, logCacheHit } from '@/lib/firebase/firestore';
 
 interface TemplatesState {
   templates: TemplateMensaje[];
   isLoading: boolean;
+  error: string | null;
+  lastFetch: number | null;
   selectedTemplate: TemplateMensaje | null;
 
   // Actions
-  fetchTemplates: () => Promise<void>;
+  fetchTemplates: (force?: boolean) => Promise<void>;
   createTemplate: (template: Omit<TemplateMensaje, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateTemplate: (id: string, updates: Partial<TemplateMensaje>) => Promise<void>;
   deleteTemplate: (id: string) => Promise<void>;
@@ -18,38 +19,39 @@ interface TemplatesState {
   getTemplateByTipo: (tipo: TipoTemplate) => TemplateMensaje | undefined;
 }
 
+const CACHE_TIMEOUT = 5 * 60 * 1000;
+
 export const useTemplatesStore = create<TemplatesState>()(
   devtools(
     persist(
       (set, get) => ({
         templates: [],
         isLoading: false,
+        error: null,
+        lastFetch: null,
         selectedTemplate: null,
 
-        fetchTemplates: async () => {
-          set({ isLoading: true });
-          try {
-            const data = await getAll<any>(COLLECTIONS.TEMPLATES);
-            const templates: TemplateMensaje[] = data.map(item => ({
-              ...item,
-              createdAt: timestampToDate(item.createdAt),
-              updatedAt: timestampToDate(item.updatedAt)
-            }));
+        fetchTemplates: async (force = false) => {
+          const { lastFetch } = get();
+          if (!force && lastFetch && (Date.now() - lastFetch) < CACHE_TIMEOUT) {
+            logCacheHit(COLLECTIONS.TEMPLATES);
+            return;
+          }
 
-            set({ templates, isLoading: false });
+          set({ isLoading: true, error: null });
+          try {
+            const templates = await getAll<TemplateMensaje>(COLLECTIONS.TEMPLATES);
+            set({ templates, isLoading: false, error: null, lastFetch: Date.now() });
           } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Error desconocido al cargar templates';
             console.error('Error fetching templates:', error);
-            set({ isLoading: false });
+            set({ isLoading: false, error: errorMessage });
           }
         },
 
         createTemplate: async (templateData) => {
           try {
-            const id = await createDoc(COLLECTIONS.TEMPLATES, {
-              ...templateData,
-              createdAt: Timestamp.now(),
-              updatedAt: Timestamp.now()
-            });
+            const id = await createDoc(COLLECTIONS.TEMPLATES, templateData);
 
             const newTemplate: TemplateMensaje = {
               ...templateData,
@@ -69,10 +71,7 @@ export const useTemplatesStore = create<TemplatesState>()(
 
         updateTemplate: async (id, updates) => {
           try {
-            await update(COLLECTIONS.TEMPLATES, id, {
-              ...updates,
-              updatedAt: Timestamp.now()
-            });
+            await update(COLLECTIONS.TEMPLATES, id, updates);
 
             set((state) => ({
               templates: state.templates.map((template) =>

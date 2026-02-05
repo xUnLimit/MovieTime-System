@@ -1,31 +1,25 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useMemo } from 'react';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
-import { MetodoPago } from '@/types';
-import { MetodoPagoEditForm } from '@/components/metodos-pago/MetodoPagoEditForm';
+import { MetodoPagoForm } from '@/components/metodos-pago/MetodoPagoForm';
 
 function EditarMetodoPagoPageContent() {
   const params = useParams();
-  const router = useRouter();
   const { metodosPago, fetchMetodosPago } = useMetodosPagoStore();
-  const [metodoPago, setMetodoPago] = useState<MetodoPago | null>(null);
 
   useEffect(() => {
     fetchMetodosPago();
   }, [fetchMetodosPago]);
 
-  useEffect(() => {
+  const metodoPago = useMemo(() => {
     const id = Array.isArray(params.id) ? params.id[0] : params.id;
-    if (metodosPago.length > 0 && id) {
-      const found = metodosPago.find((m) => m.id === id);
-      setMetodoPago(found || null);
-    }
+    return metodosPago.find((m) => m.id === id) || null;
   }, [metodosPago, params.id]);
 
   if (!metodoPago) {
@@ -71,7 +65,7 @@ function EditarMetodoPagoPageContent() {
 
       {/* Form Card */}
       <div className="bg-card border rounded-lg p-6">
-        <MetodoPagoEditForm metodoPago={metodoPago} />
+        <MetodoPagoForm mode="edit" metodoPago={metodoPago} />
       </div>
     </div>
   );

@@ -1,8 +1,8 @@
 'use client';
 
-import { memo, useMemo } from 'react';
+import { memo } from 'react';
 import { MetricCard } from '@/components/shared/MetricCard';
-import { calcularConsumo, calcularMontoRestante } from '@/lib/utils/calculations';
+import { useVentasMetrics } from '@/hooks/useVentasMetrics';
 import { CreditCard, DollarSign, CalendarRange, Wallet, CheckCircle2, XCircle } from 'lucide-react';
 import { VentaDoc } from '@/types';
 
@@ -11,32 +11,8 @@ interface VentasMetricsProps {
 }
 
 export const VentasMetrics = memo(function VentasMetrics({ ventas }: VentasMetricsProps) {
-  const metrics = useMemo(() => {
-    const ventasTotales = ventas.length;
-    const ingresoTotal = ventas.reduce((sum, v) => sum + (v.precioFinal || 0), 0);
-    const activas = ventas.filter((v) => v.estado !== 'inactivo');
-    const ingresoMensualEsperado = activas.reduce((sum, v) => {
-      const meses = v.cicloPago === 'mensual' ? 1 : v.cicloPago === 'trimestral' ? 3 : v.cicloPago === 'semestral' ? 6 : v.cicloPago === 'anual' ? 12 : 1;
-      return sum + (v.precioFinal || 0) / meses;
-    }, 0);
-    const montoSinConsumir = activas.reduce((sum, v) => {
-      if (!v.fechaInicio || !v.fechaFin) return sum;
-      const consumo = calcularConsumo(new Date(v.fechaInicio), new Date(v.fechaFin));
-      return sum + calcularMontoRestante(v.precioFinal || 0, consumo);
-    }, 0);
-    const ventasActivas = ventas.filter((v) => v.estado !== 'inactivo').length;
-    const ventasInactivas = ventas.filter((v) => v.estado === 'inactivo').length;
-
-    return {
-      ventasTotales,
-      ingresoTotal,
-      ingresoMensualEsperado,
-      montoSinConsumir,
-      ventasActivas,
-      ventasInactivas,
-    };
-  }, [ventas]);
-
+  const metrics = useVentasMetrics(ventas);
+  
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
       <MetricCard

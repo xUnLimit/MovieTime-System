@@ -22,15 +22,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 interface ServiciosCategoriaTableProps {
   servicios: Servicio[];
-  categoriaNombre: string;
 }
 
-export function ServiciosCategoriaTable({ servicios, categoriaNombre }: ServiciosCategoriaTableProps) {
+export function ServiciosCategoriaTable({ servicios }: ServiciosCategoriaTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const router = useRouter();
 

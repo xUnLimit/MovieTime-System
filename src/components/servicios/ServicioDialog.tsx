@@ -194,7 +194,7 @@ export function ServicioDialog({
             <Label htmlFor="tipo">Tipo</Label>
             <Select
               value={tipoValue}
-              onValueChange={(value) => setValue('tipo', value as any)}
+              onValueChange={(value) => setValue('tipo', value as 'cuenta_completa' | 'perfiles')}
             >
               <SelectTrigger>
                 <SelectValue />

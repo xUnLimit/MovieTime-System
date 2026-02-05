@@ -8,19 +8,18 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 import { VentasMetrics } from '@/components/ventas/VentasMetrics';
-import { VentaDoc } from '@/types';
 import { VentasTable } from '@/components/ventas/VentasTable';
 import { useCategoriasStore } from '@/store/categoriasStore';
 import { useServiciosStore } from '@/store/serviciosStore';
-import { COLLECTIONS, getAll, remove, timestampToDate } from '@/lib/firebase/firestore';
+import { useVentasStore } from '@/store/ventasStore';
 import { toast } from 'sonner';
 
 function VentasPageContent() {
   const { categorias, fetchCategorias } = useCategoriasStore();
-  const { fetchServicios, updatePerfilOcupado } = useServiciosStore();
+  const { fetchServicios } = useServiciosStore();
+  const { ventas, fetchVentas, deleteVenta } = useVentasStore();
 
   const [activeTab, setActiveTab] = useState<'todas' | 'activas' | 'inactivas'>('todas');
-  const [ventas, setVentas] = useState<VentaDoc[]>([]);
   const [deleteVentaId, setDeleteVentaId] = useState<string | null>(null);
   const [deleteVentaServicioId, setDeleteVentaServicioId] = useState<string | undefined>(undefined);
   const [deleteVentaPerfilNumero, setDeleteVentaPerfilNumero] = useState<number | null | undefined>(undefined);
@@ -29,41 +28,8 @@ function VentasPageContent() {
   useEffect(() => {
     fetchCategorias();
     fetchServicios();
-  }, [fetchCategorias, fetchServicios]);
-
-  useEffect(() => {
-    const loadVentas = async () => {
-      try {
-        const docs = await getAll<Record<string, unknown>>(COLLECTIONS.VENTAS);
-        const mapped = docs.map((doc) => ({
-          id: doc.id as string,
-          clienteNombre: (doc.clienteNombre as string) || 'Sin cliente',
-          metodoPagoNombre: (doc.metodoPagoNombre as string) || 'Sin metodo',
-          moneda: (doc.moneda as string) || 'USD',
-          fechaInicio: timestampToDate(doc.fechaInicio),
-          fechaFin: timestampToDate(doc.fechaFin),
-          estado: (doc.estado as VentaDoc['estado']) ?? 'activo',
-          cicloPago: (doc.cicloPago as VentaDoc['cicloPago']) ?? undefined,
-          categoriaId: (doc.categoriaId as string) || '',
-          servicioId: (doc.servicioId as string) || '',
-          servicioNombre: (doc.servicioNombre as string) || 'Sin servicio',
-          servicioCorreo: (doc.servicioCorreo as string) || '',
-          perfilNumero: (doc.perfilNumero as number | null | undefined) ?? undefined,
-          precio: (doc.precio as number) ?? 0,
-          descuento: (doc.descuento as number) ?? 0,
-          precioFinal: (doc.precioFinal as number) ?? (doc.precio as number) ?? 0,
-          totalVenta: (doc.totalVenta as number) ?? undefined,
-        }));
-        setVentas(mapped);
-      } catch (error) {
-        console.error('Error cargando ventas:', error);
-        toast.error('Error cargando ventas', { description: error instanceof Error ? error.message : undefined });
-        setVentas([]);
-      }
-    };
-
-    loadVentas();
-  }, []);
+    fetchVentas();
+  }, [fetchCategorias, fetchServicios, fetchVentas]);
 
   const tituloTab = useMemo(() => {
     switch (activeTab) {
@@ -86,11 +52,8 @@ function VentasPageContent() {
   const handleConfirmDeleteVenta = async () => {
     if (!deleteVentaId) return;
     try {
-      await remove(COLLECTIONS.VENTAS, deleteVentaId);
-      if (deleteVentaServicioId && deleteVentaPerfilNumero) {
-        updatePerfilOcupado(deleteVentaServicioId, false);
-      }
-      setVentas((prev) => prev.filter((venta) => venta.id !== deleteVentaId));
+      await deleteVenta(deleteVentaId, deleteVentaServicioId, deleteVentaPerfilNumero);
+      toast.success('Venta eliminada correctamente');
       setDeleteVentaId(null);
       setDeleteVentaServicioId(undefined);
       setDeleteVentaPerfilNumero(undefined);

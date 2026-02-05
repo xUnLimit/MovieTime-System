@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -41,20 +41,20 @@ const PLACEHOLDERS = [
 export function TemplateEditor({ templates }: TemplateEditorProps) {
   const { updateTemplate, createTemplate } = useTemplatesStore();
   const [selectedTipo, setSelectedTipo] = useState<TipoTemplate>('notificacion_regular');
-  const [contenido, setContenido] = useState('');
-  const [currentTemplate, setCurrentTemplate] = useState<TemplateMensaje | null>(null);
 
-  // Load template content when tipo changes
-  useEffect(() => {
-    const template = templates.find((t) => t.tipo === selectedTipo);
-    if (template) {
-      setCurrentTemplate(template);
-      setContenido(template.contenido);
-    } else {
-      setCurrentTemplate(null);
-      setContenido('');
-    }
+  const currentTemplate = useMemo(() => {
+    return templates.find((t) => t.tipo === selectedTipo) || null;
   }, [selectedTipo, templates]);
+
+  const defaultContenido = currentTemplate?.contenido || '';
+  const [contenido, setContenido] = useState(defaultContenido);
+  const [lastTipo, setLastTipo] = useState(selectedTipo);
+
+  // Sync when tipo changes (not when just template updates)
+  if (selectedTipo !== lastTipo) {
+    setLastTipo(selectedTipo);
+    setContenido(defaultContenido);
+  }
 
   const handleCopyPlaceholder = async (placeholder: string) => {
     try {

@@ -103,6 +103,7 @@ function ServicioDetallePageContent() {
 
   useEffect(() => {
     loadPagos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   useEffect(() => {
@@ -327,32 +328,6 @@ function ServicioDetallePageContent() {
     return [...pagosServicio].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
   }, [pagosServicio]);
 
-  if (!servicio) {
-    return (
-      <div className="space-y-4">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight">Servicio no encontrado</h1>
-          <p className="text-sm text-muted-foreground">
-            <Link href="/" className="hover:text-foreground transition-colors">
-              Dashboard
-            </Link>{' '}
-            /{' '}
-            <Link href="/servicios" className="hover:text-foreground transition-colors">
-              Servicios
-            </Link>{' '}
-            / <span className="text-foreground">Detalles</span>
-          </p>
-        </div>
-        <div className="bg-card border border-border rounded-lg p-6">
-          <p className="text-muted-foreground">No se encontró el servicio con el ID proporcionado.</p>
-          <Link href="/servicios" className="inline-block mt-4 text-primary hover:underline">
-            Volver a Servicios
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   const ventasPorPerfil = useMemo(() => {
     const map = new Map<number, PerfilVenta>();
     ventasServicio.forEach((venta) => {
@@ -392,6 +367,32 @@ function ServicioDetallePageContent() {
     });
     return map;
   }, [ventasServicio]);
+
+  if (!servicio) {
+    return (
+      <div className="space-y-4">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight">Servicio no encontrado</h1>
+          <p className="text-sm text-muted-foreground">
+            <Link href="/" className="hover:text-foreground transition-colors">
+              Dashboard
+            </Link>{' '}
+            /{' '}
+            <Link href="/servicios" className="hover:text-foreground transition-colors">
+              Servicios
+            </Link>{' '}
+            / <span className="text-foreground">Detalles</span>
+          </p>
+        </div>
+        <div className="bg-card border border-border rounded-lg p-6">
+          <p className="text-muted-foreground">No se encontró el servicio con el ID proporcionado.</p>
+          <Link href="/servicios" className="inline-block mt-4 text-primary hover:underline">
+            Volver a Servicios
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   // Generar perfiles dinamicamente
   const perfilesArray = Array.from({ length: servicio.perfilesDisponibles }, (_, i) => {

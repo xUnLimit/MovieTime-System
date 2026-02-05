@@ -16,9 +16,10 @@ export async function signIn(email: string, password: string): Promise<FirebaseU
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     return userCredential.user;
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error signing in:', error);
-    throw new Error(error.message || 'Error al iniciar sesión');
+    const message = error instanceof Error ? error.message : 'Error al iniciar sesión';
+    throw new Error(message);
   }
 }
 
@@ -28,9 +29,10 @@ export async function signIn(email: string, password: string): Promise<FirebaseU
 export async function signOut(): Promise<void> {
   try {
     await firebaseSignOut(auth);
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error signing out:', error);
-    throw new Error(error.message || 'Error al cerrar sesión');
+    const message = error instanceof Error ? error.message : 'Error al cerrar sesión';
+    throw new Error(message);
   }
 }
 
@@ -50,9 +52,10 @@ export async function createUser(
     await updateProfile(user, { displayName });
 
     return user;
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error creating user:', error);
-    throw new Error(error.message || 'Error al crear usuario');
+    const message = error instanceof Error ? error.message : 'Error al crear usuario';
+    throw new Error(message);
   }
 }
 

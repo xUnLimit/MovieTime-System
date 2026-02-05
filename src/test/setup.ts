@@ -5,7 +5,7 @@
  * Imported in vitest.config.ts
  */
 
-import { beforeAll, afterEach, afterAll, vi } from 'vitest';
+import { afterEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 
 // Cleanup after each test
@@ -21,7 +21,7 @@ const localStorageMock = {
   clear: vi.fn(),
 };
 
-global.localStorage = localStorageMock as any;
+global.localStorage = localStorageMock as unknown as Storage;
 
 // Mock matchMedia
 Object.defineProperty(window, 'matchMedia', {

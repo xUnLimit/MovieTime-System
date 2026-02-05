@@ -19,7 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, MoreHorizontal, Edit, Trash2, Eye, Power } from 'lucide-react';
+import { Search, MoreHorizontal, Edit, Trash2, Eye } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -34,7 +34,7 @@ interface UsuariosMetodosPagoTableProps {
 
 export function UsuariosMetodosPagoTable({ metodosPago, onEdit, title = 'Métodos de pago de Usuarios' }: UsuariosMetodosPagoTableProps) {
   const router = useRouter();
-  const { deleteMetodoPago, toggleActivo } = useMetodosPagoStore();
+  const { deleteMetodoPago } = useMetodosPagoStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [metodoToDelete, setMetodoToDelete] = useState<MetodoPago | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -75,15 +75,6 @@ export function UsuariosMetodosPagoTable({ metodosPago, onEdit, title = 'Método
 
   const handleViewDetails = (metodo: MetodoPago) => {
     router.push(`/metodos-pago/${metodo.id}`);
-  };
-
-  const handleToggleActivo = async (metodo: MetodoPago) => {
-    try {
-      await toggleActivo(metodo.id);
-      toast.success(metodo.activo ? 'Método de pago desactivado' : 'Método de pago activado');
-    } catch (error) {
-      toast.error('Error al cambiar estado del método de pago', { description: error instanceof Error ? error.message : undefined });
-    }
   };
 
   const handleDelete = (metodo: MetodoPago) => {

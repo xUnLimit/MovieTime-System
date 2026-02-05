@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -10,14 +10,12 @@ import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { toast } from 'sonner';
-import { MetodoPago } from '@/types';
 import { formatearFechaHora } from '@/lib/utils/calculations';
 
 function VerMetodoPagoPageContent() {
   const params = useParams();
   const router = useRouter();
   const { metodosPago, fetchMetodosPago, deleteMetodoPago } = useMetodosPagoStore();
-  const [metodo, setMetodo] = useState<MetodoPago | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showCardNumber, setShowCardNumber] = useState(false);
@@ -26,12 +24,9 @@ function VerMetodoPagoPageContent() {
     fetchMetodosPago();
   }, [fetchMetodosPago]);
 
-  useEffect(() => {
+  const metodo = useMemo(() => {
     const id = Array.isArray(params.id) ? params.id[0] : params.id;
-    if (metodosPago.length > 0 && id) {
-      const found = metodosPago.find((m) => m.id === id);
-      setMetodo(found || null);
-    }
+    return metodosPago.find((m) => m.id === id) || null;
   }, [metodosPago, params.id]);
 
   const handleDelete = async () => {

@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { Sidebar } from '@/components/layout/Sidebar';
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
+import { DashboardErrorFallback } from '@/components/shared/DashboardErrorFallback';
 
 export default function DashboardLayout({
   children
@@ -40,18 +42,20 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      {/* Sidebar */}
-      <Sidebar collapsed={sidebarCollapsed} onCollapse={setSidebarCollapsed} />
+    <ErrorBoundary fallback={<DashboardErrorFallback />}>
+      <div className="flex h-screen overflow-hidden">
+        {/* Sidebar */}
+        <Sidebar collapsed={sidebarCollapsed} onCollapse={setSidebarCollapsed} />
 
-      {/* Main Content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <main className="flex-1 overflow-y-auto bg-background">
-          <div className="h-full p-6">
-            {children}
-          </div>
-        </main>
+        {/* Main Content */}
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <main className="flex-1 overflow-y-auto bg-background">
+            <div className="h-full p-6">
+              {children}
+            </div>
+          </main>
+        </div>
       </div>
-    </div>
+    </ErrorBoundary>
   );
 }

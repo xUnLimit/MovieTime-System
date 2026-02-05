@@ -1,17 +1,19 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { Notificacion, EstadoNotificacion } from '@/types';
-import { getAll, create as createDoc, update, remove, COLLECTIONS, timestampToDate } from '@/lib/firebase/firestore';
-import { Timestamp, doc as firestoreDoc, writeBatch } from 'firebase/firestore';
+import { getAll, create as createDoc, update, remove, COLLECTIONS, logCacheHit } from '@/lib/firebase/firestore';
+import { doc as firestoreDoc, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 
 interface NotificacionesState {
   notificaciones: Notificacion[];
   unreadCount: number;
   isLoading: boolean;
+  error: string | null;
+  lastFetch: number | null;
 
   // Actions
-  fetchNotificaciones: () => Promise<void>;
+  fetchNotificaciones: (force?: boolean) => Promise<void>;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   deleteNotificacion: (id: string) => Promise<void>;
@@ -20,38 +22,46 @@ interface NotificacionesState {
   getNotificacionesPrioritarias: () => Notificacion[];
 }
 
+const CACHE_TIMEOUT = 5 * 60 * 1000;
+
 export const useNotificacionesStore = create<NotificacionesState>()(
   devtools(
     (set, get) => ({
       notificaciones: [],
       unreadCount: 0,
       isLoading: false,
+      error: null,
+      lastFetch: null,
 
-      fetchNotificaciones: async () => {
-        set({ isLoading: true });
+      fetchNotificaciones: async (force = false) => {
+        const { lastFetch } = get();
+        if (!force && lastFetch && (Date.now() - lastFetch) < CACHE_TIMEOUT) {
+          logCacheHit(COLLECTIONS.NOTIFICACIONES);
+          return;
+        }
+
+        set({ isLoading: true, error: null });
         try {
-          const data = await getAll<any>(COLLECTIONS.NOTIFICACIONES);
-          const notificaciones: Notificacion[] = data.map(item => ({
-            ...item,
-            createdAt: timestampToDate(item.createdAt)
-          })).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+          const notificaciones = (await getAll<Notificacion>(COLLECTIONS.NOTIFICACIONES))
+            .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
           set({
             notificaciones,
             unreadCount: notificaciones.filter((n) => !n.leida).length,
-            isLoading: false
+            isLoading: false,
+            error: null,
+            lastFetch: Date.now()
           });
         } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Error desconocido al cargar notificaciones';
           console.error('Error fetching notificaciones:', error);
-          set({ notificaciones: [], unreadCount: 0, isLoading: false });
+          set({ notificaciones: [], unreadCount: 0, isLoading: false, error: errorMessage });
         }
       },
 
       markAsRead: async (id) => {
         try {
-          await update(COLLECTIONS.NOTIFICACIONES, id, {
-            leida: true
-          });
+          await update(COLLECTIONS.NOTIFICACIONES, id, { leida: true });
 
           set((state) => {
             const notificacion = state.notificaciones.find((n) => n.id === id);
@@ -115,7 +125,6 @@ export const useNotificacionesStore = create<NotificacionesState>()(
           const id = await createDoc(COLLECTIONS.NOTIFICACIONES, {
             ...notificacionData,
             leida: false,
-            createdAt: Timestamp.now()
           });
 
           const newNotificacion: Notificacion = {

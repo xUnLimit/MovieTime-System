@@ -45,12 +45,11 @@ export interface DataTableProps<T> {
 type SortDirection = 'asc' | 'desc' | null;
 
 // Memoized TableRow component for better performance
-const MemoizedTableRow = memo(function MemoizedTableRow<T extends Record<string, any>>({
+const MemoizedTableRow = memo(function MemoizedTableRow<T extends Record<string, unknown>>({
   item,
   columns,
   actions,
   onRowClick,
-  index,
 }: {
   item: T;
   columns: Column<T>[];
@@ -80,7 +79,7 @@ const MemoizedTableRow = memo(function MemoizedTableRow<T extends Record<string,
   );
 });
 
-function DataTableComponent<T extends Record<string, any>>({
+function DataTableComponent<T extends Record<string, unknown>>({
   data,
   columns,
   loading = false,
@@ -210,9 +209,9 @@ function DataTableComponent<T extends Record<string, any>>({
                 <MemoizedTableRow
                   key={item.id || index}
                   item={item}
-                  columns={columns as Column<Record<string, any>>[]}
-                  actions={actions as ((item: Record<string, any>) => React.ReactNode) | undefined}
-                  onRowClick={onRowClick as ((item: Record<string, any>) => void) | undefined}
+                  columns={columns as Column<Record<string, unknown>>[]}
+                  actions={actions as ((item: Record<string, unknown>) => React.ReactNode) | undefined}
+                  onRowClick={onRowClick as ((item: Record<string, unknown>) => void) | undefined}
                   index={index}
                 />
               ))

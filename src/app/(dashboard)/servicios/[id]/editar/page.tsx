@@ -1,27 +1,25 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ServicioForm } from '@/components/servicios/ServicioForm';
 import { useServiciosStore } from '@/store/serviciosStore';
-import { Servicio } from '@/types';
 
 export default function EditarServicioPage() {
   const params = useParams();
   const { servicios, fetchServicios } = useServiciosStore();
-  const [servicio, setServicio] = useState<Servicio | undefined>();
 
   useEffect(() => {
     fetchServicios();
   }, [fetchServicios]);
 
-  useEffect(() => {
-    const servicioEncontrado = servicios.find(s => s.id === params.id);
-    setServicio(servicioEncontrado);
-  }, [servicios, params.id]);
+  const servicio = useMemo(() => 
+    servicios.find(s => s.id === params.id),
+    [servicios, params.id]
+  );
 
   return (
     <div className="space-y-6">

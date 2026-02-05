@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { DataTable, Column } from '@/components/shared/DataTable';
-import { Search, MoreHorizontal, Monitor, User, Clock, ArrowUpRight, Edit, Trash2, Eye } from 'lucide-react';
+import { Search, MoreHorizontal, Monitor, User, Clock, Edit, Trash2, Eye } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,

@@ -27,12 +27,13 @@ import { Usuario } from '@/types';
 export function CrecimientoUsuarios() {
   const [selectedPeriod, setSelectedPeriod] = useState('actual');
 
-  const currentDate = new Date();
-  const clientes: Usuario[] = [];
-  const revendedores: Usuario[] = [];
   const hasData = false;
 
   const data = useMemo(() => {
+    const currentDate = new Date();
+    const clientes: Usuario[] = [];
+    const revendedores: Usuario[] = [];
+
     if (selectedPeriod === 'actual') {
       // Datos diarios para el mes actual - total acumulado hasta cada día
       const monthStart = startOfMonth(currentDate);
@@ -88,7 +89,7 @@ export function CrecimientoUsuarios() {
         };
       });
     }
-  }, [selectedPeriod, clientes, revendedores, currentDate]);
+  }, [selectedPeriod]);
 
   if (!hasData) {
     return (

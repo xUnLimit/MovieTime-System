@@ -1,15 +1,17 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { ActivityLog, AccionLog, EntidadLog } from '@/types';
-import { getAll, create as createDoc, remove, COLLECTIONS, timestampToDate } from '@/lib/firebase/firestore';
+import { getAll, create as createDoc, remove, COLLECTIONS, logCacheHit } from '@/lib/firebase/firestore';
 import { Timestamp } from 'firebase/firestore';
 
 interface ActivityLogState {
   logs: ActivityLog[];
   isLoading: boolean;
+  error: string | null;
+  lastFetch: number | null;
 
   // Actions
-  fetchLogs: () => Promise<void>;
+  fetchLogs: (force?: boolean) => Promise<void>;
   addLog: (log: Omit<ActivityLog, 'id' | 'timestamp'>) => Promise<void>;
   clearLogs: () => Promise<void>;
   getLogsByEntidad: (entidad: EntidadLog) => ActivityLog[];
@@ -17,25 +19,33 @@ interface ActivityLogState {
   getRecentLogs: (limit: number) => ActivityLog[];
 }
 
+const CACHE_TIMEOUT = 5 * 60 * 1000;
+
 export const useActivityLogStore = create<ActivityLogState>()(
   devtools(
     (set, get) => ({
       logs: [],
       isLoading: false,
+      error: null,
+      lastFetch: null,
 
-      fetchLogs: async () => {
-        set({ isLoading: true });
+      fetchLogs: async (force = false) => {
+        const { lastFetch } = get();
+        if (!force && lastFetch && (Date.now() - lastFetch) < CACHE_TIMEOUT) {
+          logCacheHit(COLLECTIONS.ACTIVITY_LOG);
+          return;
+        }
+
+        set({ isLoading: true, error: null });
         try {
-          const data = await getAll<any>(COLLECTIONS.ACTIVITY_LOG);
-          const logs: ActivityLog[] = data.map(item => ({
-            ...item,
-            timestamp: timestampToDate(item.timestamp)
-          })).sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+          const logs = (await getAll<ActivityLog>(COLLECTIONS.ACTIVITY_LOG))
+            .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
-          set({ logs, isLoading: false });
+          set({ logs, isLoading: false, error: null, lastFetch: Date.now() });
         } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Error desconocido al cargar logs';
           console.error('Error fetching activity logs:', error);
-          set({ logs: [], isLoading: false });
+          set({ logs: [], isLoading: false, error: errorMessage });
         }
       },
 

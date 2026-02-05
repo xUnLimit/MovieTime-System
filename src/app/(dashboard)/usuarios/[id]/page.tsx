@@ -1,45 +1,35 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { UsuarioDetails } from '@/components/usuarios/UsuarioDetails';
 import { useUsuariosStore } from '@/store/usuariosStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
-import { Usuario } from '@/types';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Pencil, Trash2 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { toast } from 'sonner';
+import { useState } from 'react';
 
 function UsuarioDetallesPageContent() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
 
-  const { usuarios, fetchUsuarios, deleteUsuario } = useUsuariosStore();
-
-  const [usuario, setUsuario] = useState<Usuario | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { usuarios, fetchUsuarios, deleteUsuario, isLoading } = useUsuariosStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      await fetchUsuarios();
-      setLoading(false);
-    };
-    loadData();
+    fetchUsuarios();
   }, [fetchUsuarios]);
 
-  useEffect(() => {
-    if (!loading && id) {
-      const found = usuarios.find((u) => u.id === id);
-      setUsuario(found ?? null);
-    }
-  }, [id, usuarios, loading]);
+  const usuario = useMemo(() => 
+    usuarios.find((u) => u.id === id) ?? null,
+    [usuarios, id]
+  );
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-muted-foreground">Cargando...</div>

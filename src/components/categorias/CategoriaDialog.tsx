@@ -128,7 +128,7 @@ export function CategoriaDialog({
 
           <div className="space-y-2">
             <Label htmlFor="tipo">Tipo</Label>
-            <Select value={tipoValue} onValueChange={(value) => setValue('tipo', value as any)}>
+            <Select value={tipoValue} onValueChange={(value) => setValue('tipo', value as 'cliente' | 'revendedor' | 'ambos')}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
@@ -9,40 +9,27 @@ import { UsuarioForm } from '@/components/usuarios/UsuarioForm';
 import { useUsuariosStore } from '@/store/usuariosStore';
 import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
-import { Usuario } from '@/types';
 
 function EditarUsuarioPageContent() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
 
-  const { usuarios, fetchUsuarios } = useUsuariosStore();
-  const { metodosPago, fetchMetodosPago } = useMetodosPagoStore();
-
-  const [usuario, setUsuario] = useState<Usuario | null>(null);
-  const [tipoUsuario, setTipoUsuario] = useState<'cliente' | 'revendedor'>('cliente');
-  const [loading, setLoading] = useState(true);
+  const { usuarios, fetchUsuarios, isLoading: usuariosLoading } = useUsuariosStore();
+  const { metodosPago, fetchMetodosPago, isLoading: metodosLoading } = useMetodosPagoStore();
 
   useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      await Promise.all([fetchUsuarios(), fetchMetodosPago()]);
-      setLoading(false);
-    };
-    loadData();
+    fetchUsuarios();
+    fetchMetodosPago();
   }, [fetchUsuarios, fetchMetodosPago]);
 
-  useEffect(() => {
-    if (!loading && id) {
-      const found = usuarios.find((u) => u.id === id);
-      if (found) {
-        setUsuario(found);
-        setTipoUsuario(found.tipo);
-        return;
-      }
-      setUsuario(null);
-    }
-  }, [id, usuarios, loading]);
+  const usuario = useMemo(() => 
+    usuarios.find((u) => u.id === id) ?? null,
+    [usuarios, id]
+  );
+
+  const tipoUsuario = usuario?.tipo ?? 'cliente';
+  const loading = usuariosLoading || metodosLoading;
 
   const handleSuccess = () => {
     router.push('/usuarios');

@@ -62,8 +62,22 @@ export const NAVIGATION_ITEMS = [
 export const CICLOS_PAGO = [
   { value: 'mensual', label: 'Mensual', meses: 1 },
   { value: 'trimestral', label: 'Trimestral', meses: 3 },
+  { value: 'semestral', label: 'Semestral', meses: 6 },
   { value: 'anual', label: 'Anual', meses: 12 }
 ] as const;
+
+// ===========================
+// CYCLE MONTHS MAPPING
+// ===========================
+
+export const CYCLE_MONTHS = {
+  mensual: 1,
+  trimestral: 3,
+  semestral: 6,
+  anual: 12,
+} as const;
+
+export type CicloPago = keyof typeof CYCLE_MONTHS;
 
 // ===========================
 // ESTADO OPTIONS
