@@ -22,21 +22,33 @@ import {
 import { Search, MoreHorizontal, Edit, Trash2, MessageCircle, Monitor, Eye } from 'lucide-react';
 import { useUsuariosStore } from '@/store/usuariosStore';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { PaginationFooter, PaginationFooterProps } from '@/components/shared/PaginationFooter';
 import { toast } from 'sonner';
+import { useVentasPorUsuarios } from '@/hooks/use-ventas-por-usuarios';
 
 interface ClientesTableProps {
   clientes: Usuario[];
   onEdit: (cliente: Usuario) => void;
   onView?: (cliente: Usuario) => void;
   title?: string;
+  isLoading?: boolean;
+  pagination: PaginationFooterProps;
+  onRefresh: () => void;
 }
 
-export function ClientesTable({ clientes, onEdit, onView, title = 'Clientes' }: ClientesTableProps) {
+export function ClientesTable({ clientes, onEdit, onView, title = 'Clientes', isLoading = false, pagination, onRefresh }: ClientesTableProps) {
   const { deleteUsuario } = useUsuariosStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clienteToDelete, setClienteToDelete] = useState<Usuario | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [metodoPagoFilter, setMetodoPagoFilter] = useState('todos');
+
+  // IDs de clientes de la página actual para la query de ventas
+  const clienteIds = useMemo(
+    () => clientes.map(c => c.id),
+    [clientes]
+  );
+  const { stats: ventasPorUsuario } = useVentasPorUsuarios(clienteIds, { enabled: !isLoading });
 
   // Obtener métodos de pago únicos
   const metodosPagoUnicos = useMemo(() => {
@@ -66,6 +78,7 @@ export function ClientesTable({ clientes, onEdit, onView, title = 'Clientes' }: 
       try {
         await deleteUsuario(clienteToDelete.id);
         toast.success('Cliente eliminado');
+        onRefresh();
       } catch (error) {
         toast.error('Error al eliminar cliente', { description: error instanceof Error ? error.message : undefined });
       }
@@ -109,12 +122,12 @@ export function ClientesTable({ clientes, onEdit, onView, title = 'Clientes' }: 
       align: 'center',
       width: '16%',
       render: (item) => {
-        const serviciosActivos = item.serviciosActivos ?? 0;
-        const isActive = serviciosActivos > 0;
+        const ventasActivas = item.ventasActivas ?? 0;
+        const isActive = ventasActivas > 0;
         return (
           <div className="flex items-center justify-center gap-2">
             <Monitor className={`h-4 w-4 ${isActive ? 'text-green-500' : 'text-muted-foreground'}`} />
-            <span className={isActive ? '' : 'text-muted-foreground'}>{serviciosActivos}</span>
+            <span className={isActive ? '' : 'text-muted-foreground'}>{ventasActivas}</span>
           </div>
         );
       },
@@ -126,12 +139,12 @@ export function ClientesTable({ clientes, onEdit, onView, title = 'Clientes' }: 
       align: 'center',
       width: '16%',
       render: (item) => {
-        const serviciosActivos = item.serviciosActivos ?? 0;
-        const isActive = serviciosActivos > 0;
+        const isActive = (item.ventasActivas ?? 0) > 0;
+        const monto = ventasPorUsuario[item.id]?.montoSinConsumir ?? 0;
         return (
           <div className="flex items-center justify-center gap-1">
             <span className={isActive ? 'text-green-500 font-medium' : 'text-muted-foreground'}>$</span>
-            <span className={isActive ? 'font-medium' : 'text-muted-foreground'}>{item.montoSinConsumir.toFixed(2)}</span>
+            <span className={isActive ? 'font-medium' : 'text-muted-foreground'}>{monto.toFixed(2)}</span>
           </div>
         );
       },
@@ -190,8 +203,8 @@ export function ClientesTable({ clientes, onEdit, onView, title = 'Clientes' }: 
         <DataTable
             data={filteredClientes}
             columns={columns}
-            pagination={true}
-            itemsPerPageOptions={[10, 25, 50, 100]}
+            loading={isLoading}
+            pagination={false}
             actions={(item) => (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -221,6 +234,7 @@ export function ClientesTable({ clientes, onEdit, onView, title = 'Clientes' }: 
               </DropdownMenu>
             )}
           />
+        <PaginationFooter {...pagination} />
       </Card>
 
       <ConfirmDialog

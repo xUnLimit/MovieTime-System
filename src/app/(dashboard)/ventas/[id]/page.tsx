@@ -22,7 +22,7 @@ import { useCategoriasStore } from '@/store/categoriasStore';
 import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { useServiciosStore } from '@/store/serviciosStore';
 import { useUsuariosStore } from '@/store/usuariosStore';
-import { COLLECTIONS, getById, remove, timestampToDate, update } from '@/lib/firebase/firestore';
+import { COLLECTIONS, getById, remove, timestampToDate, update, adjustVentasActivas } from '@/lib/firebase/firestore';
 import { toast } from 'sonner';
 import { PagoDialog } from '@/components/shared/PagoDialog';
 import { formatearFecha, deriveTopLevelFromPagos } from '@/lib/utils/calculations';
@@ -179,6 +179,9 @@ function VentaDetallePageContent() {
       await remove(COLLECTIONS.VENTAS, venta.id);
       if (venta.servicioId && venta.perfilNumero) {
         updatePerfilOcupado(venta.servicioId, false);
+      }
+      if (venta.clienteId && (venta.estado ?? 'activo') !== 'inactivo') {
+        adjustVentasActivas(venta.clienteId, -1);
       }
       router.push('/ventas');
     } catch (error) {

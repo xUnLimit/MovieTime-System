@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { VentaDoc } from '@/types';
-import { getAll, create as createDoc, update, remove, COLLECTIONS, logCacheHit } from '@/lib/firebase/firestore';
+import { getAll, create as createDoc, update, remove, COLLECTIONS, logCacheHit, adjustVentasActivas } from '@/lib/firebase/firestore';
 
 interface VentasState {
   ventas: VentaDoc[];
@@ -93,6 +93,7 @@ export const useVentasStore = create<VentasState>()(
       deleteVenta: async (id, servicioId?, perfilNumero?) => {
         // Save current state for rollback
         const currentVentas = get().ventas;
+        const ventaEliminada = currentVentas.find(v => v.id === id);
 
         // Optimistic update
         set((state) => ({
@@ -106,6 +107,11 @@ export const useVentasStore = create<VentasState>()(
           if (servicioId && perfilNumero) {
             const { useServiciosStore } = await import('./serviciosStore');
             await useServiciosStore.getState().updatePerfilOcupado(servicioId, false);
+          }
+
+          // Decrementar ventasActivas si la venta eliminada era activa
+          if (ventaEliminada?.clienteId && (ventaEliminada.estado ?? 'activo') !== 'inactivo') {
+            adjustVentasActivas(ventaEliminada.clienteId, -1);
           }
         } catch (error) {
           // Rollback on error

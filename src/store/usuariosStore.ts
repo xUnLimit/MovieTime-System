@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import { startOfDay } from 'date-fns';
 import { Usuario } from '@/types';
 import { getAll, getCount, create as createDoc, update, remove, COLLECTIONS, logCacheHit } from '@/lib/firebase/firestore';
 
@@ -7,13 +8,17 @@ interface UsuariosState {
   usuarios: Usuario[];
   totalClientes: number;
   totalRevendedores: number;
+  totalNuevosHoy: number;
+  totalClientesActivos: number;
   isLoading: boolean;
   error: string | null;
   lastFetch: number | null;
+  lastCountsFetch: number | null;
   selectedUsuario: Usuario | null;
 
   // Actions
   fetchUsuarios: (force?: boolean) => Promise<void>;
+  fetchCounts: () => Promise<void>;
   createUsuario: (usuario: Omit<Usuario, 'id' | 'createdAt' | 'updatedAt' | 'montoSinConsumir' | 'serviciosActivos' | 'suscripcionesTotales'>) => Promise<void>;
   updateUsuario: (id: string, updates: Partial<Usuario>) => Promise<void>;
   deleteUsuario: (id: string) => Promise<void>;
@@ -31,11 +36,15 @@ export const useUsuariosStore = create<UsuariosState>()(
       usuarios: [],
       totalClientes: 0,
       totalRevendedores: 0,
+      totalNuevosHoy: 0,
+      totalClientesActivos: 0,
       isLoading: false,
       error: null,
       lastFetch: null,
+      lastCountsFetch: null,
       selectedUsuario: null,
 
+      // Trae todos los docs — para páginas de detalle/edición
       fetchUsuarios: async (force = false) => {
         const { lastFetch } = get();
         if (!force && lastFetch && (Date.now() - lastFetch) < CACHE_TIMEOUT) {
@@ -45,16 +54,36 @@ export const useUsuariosStore = create<UsuariosState>()(
 
         set({ isLoading: true, error: null });
         try {
-          const [usuarios, totalClientes, totalRevendedores] = await Promise.all([
-            getAll<Usuario>(COLLECTIONS.USUARIOS),
-            getCount(COLLECTIONS.USUARIOS, [{ field: 'tipo', operator: '==', value: 'cliente' }]),
-            getCount(COLLECTIONS.USUARIOS, [{ field: 'tipo', operator: '==', value: 'revendedor' }]),
-          ]);
-          set({ usuarios, totalClientes, totalRevendedores, isLoading: false, error: null, lastFetch: Date.now() });
+          const usuarios = await getAll<Usuario>(COLLECTIONS.USUARIOS);
+          set({ usuarios, isLoading: false, error: null, lastFetch: Date.now() });
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Error desconocido al cargar usuarios';
           console.error('Error fetching usuarios:', error);
           set({ usuarios: [], isLoading: false, error: errorMessage });
+        }
+      },
+
+      // Solo conteos — para widgets (3 lecturas totales)
+      fetchCounts: async () => {
+        const { lastCountsFetch } = get();
+        if (lastCountsFetch && (Date.now() - lastCountsFetch) < CACHE_TIMEOUT) {
+          logCacheHit('usuarios-counts');
+          return;
+        }
+
+        try {
+          const today = startOfDay(new Date());
+          const [totalClientes, totalRevendedores, totalNuevosHoy, totalClientesActivos] = await Promise.all([
+            getCount(COLLECTIONS.USUARIOS, [{ field: 'tipo', operator: '==', value: 'cliente' }]),
+            getCount(COLLECTIONS.USUARIOS, [{ field: 'tipo', operator: '==', value: 'revendedor' }]),
+            getCount(COLLECTIONS.USUARIOS, [{ field: 'createdAt', operator: '>=', value: today }]),
+            getCount(COLLECTIONS.USUARIOS, [{ field: 'tipo', operator: '==', value: 'cliente' }, { field: 'ventasActivas', operator: '>', value: 0 }]),
+          ]);
+          set({ totalClientes, totalRevendedores, totalNuevosHoy, totalClientesActivos, lastCountsFetch: Date.now() });
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Error al cargar conteos';
+          set({ error: errorMessage });
+          console.error('Error fetching counts:', error);
         }
       },
 
@@ -87,6 +116,7 @@ export const useUsuariosStore = create<UsuariosState>()(
             usuarios: [...state.usuarios, newUsuario],
             totalClientes: usuarioData.tipo === 'cliente' ? state.totalClientes + 1 : state.totalClientes,
             totalRevendedores: usuarioData.tipo === 'revendedor' ? state.totalRevendedores + 1 : state.totalRevendedores,
+            totalNuevosHoy: state.totalNuevosHoy + 1,
             error: null
           }));
         } catch (error) {

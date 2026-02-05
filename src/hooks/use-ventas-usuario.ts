@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { COLLECTIONS, queryDocuments, remove, timestampToDate } from '@/lib/firebase/firestore';
+import { COLLECTIONS, queryDocuments, remove, timestampToDate, adjustVentasActivas } from '@/lib/firebase/firestore';
 import { useServiciosStore } from '@/store/serviciosStore';
 
 /**
@@ -116,14 +116,21 @@ export function useVentasUsuario(usuarioId: string) {
 
   /* ── 3. Eliminar venta ──────────────────────────── */
   const deleteVenta = useCallback(async (ventaId: string, servicioId?: string, perfilNumero?: number | null) => {
+    const ventaEliminada = ventas.find(v => v.id === ventaId);
+
     await remove(COLLECTIONS.VENTAS, ventaId);
 
     if (servicioId && perfilNumero) {
       updatePerfilOcupado(servicioId, false);
     }
 
+    // Decrementar ventasActivas si la venta eliminada era activa
+    if (ventaEliminada && (ventaEliminada.estado ?? 'activo') !== 'inactivo') {
+      adjustVentasActivas(usuarioId, -1);
+    }
+
     setVentas((prev) => prev.filter((v) => v.id !== ventaId));
-  }, [updatePerfilOcupado]);
+  }, [updatePerfilOcupado, ventas, usuarioId]);
 
   return {
     ventas,

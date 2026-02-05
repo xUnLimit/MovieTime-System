@@ -1,65 +1,43 @@
 'use client';
 
-import { memo, useMemo } from 'react';
-import { Usuario } from '@/types';
+import { memo } from 'react';
 import { MetricCard } from '@/components/shared/MetricCard';
 import { Users, Store, UserCheck, UserPlus } from 'lucide-react';
-import { startOfDay } from 'date-fns';
 
 interface UsuariosMetricsProps {
-  usuarios: Usuario[];
-  clientesConVentasActivas: Set<string>;
   totalClientes: number;
   totalRevendedores: number;
+  clientesActivos: number;
+  totalNuevosHoy: number;
 }
 
-export const UsuariosMetrics = memo(function UsuariosMetrics({ usuarios, clientesConVentasActivas, totalClientes, totalRevendedores }: UsuariosMetricsProps) {
-  const metrics = useMemo(() => {
-    const clientes = usuarios.filter(u => u.tipo === 'cliente');
-
-    const clientesActivos = clientes.filter((c) => clientesConVentasActivas.has(c.id)).length;
-
-    // Usuarios nuevos hoy
-    const inicioHoy = startOfDay(new Date());
-    const usuariosNuevos = usuarios.filter((u) => {
-      const createdDate = u.createdAt ? new Date(u.createdAt) : new Date();
-      return createdDate >= inicioHoy;
-    }).length;
-
-    return {
-      totalClientes,
-      totalRevendedores,
-      clientesActivos,
-      usuariosNuevos,
-    };
-  }, [usuarios, clientesConVentasActivas, totalClientes, totalRevendedores]);
-
+export const UsuariosMetrics = memo(function UsuariosMetrics({ totalClientes, totalRevendedores, clientesActivos, totalNuevosHoy }: UsuariosMetricsProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <MetricCard
         title="Total Clientes"
-        value={metrics.totalClientes}
+        value={totalClientes}
         icon={Users}
         iconColor="text-purple-500"
         underlineColor="bg-purple-500"
       />
       <MetricCard
         title="Total Revendedores"
-        value={metrics.totalRevendedores}
+        value={totalRevendedores}
         icon={Store}
         iconColor="text-orange-500"
         underlineColor="bg-orange-500"
       />
       <MetricCard
         title="Clientes Activos"
-        value={metrics.clientesActivos}
+        value={clientesActivos}
         icon={UserCheck}
         iconColor="text-green-500"
         underlineColor="bg-green-500"
       />
       <MetricCard
         title="Usuarios Nuevos"
-        value={metrics.usuariosNuevos}
+        value={totalNuevosHoy}
         icon={UserPlus}
         iconColor="text-purple-500"
         underlineColor="bg-purple-500"

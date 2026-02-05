@@ -29,7 +29,7 @@ import { useServiciosStore } from '@/store/serviciosStore';
 import { useUsuariosStore } from '@/store/usuariosStore';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { toast } from 'sonner';
-import { COLLECTIONS, create, queryDocuments } from '@/lib/firebase/firestore';
+import { COLLECTIONS, create, queryDocuments, adjustVentasActivas } from '@/lib/firebase/firestore';
 import { Switch } from '@/components/ui/switch';
 import { formatearFechaWhatsApp, getSaludo } from '@/lib/utils/whatsapp';
 import { getCurrencySymbol } from '@/lib/constants';
@@ -547,6 +547,10 @@ export function VentasForm() {
             updatePerfilOcupado(item.servicioId, true);
           }
         });
+        // Incrementar ventasActivas en el usuario (una vez por item creado)
+        if (clienteIdValue) {
+          adjustVentasActivas(clienteIdValue, items.length);
+        }
       }
       toast.success('Venta registrada');
       if (notifyCliente && estadoVenta !== 'inactivo') {

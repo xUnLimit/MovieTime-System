@@ -22,7 +22,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { CalendarIcon, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { COLLECTIONS, queryDocuments, update } from '@/lib/firebase/firestore';
+import { COLLECTIONS, queryDocuments, update, adjustVentasActivas } from '@/lib/firebase/firestore';
 import { useCategoriasStore } from '@/store/categoriasStore';
 import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { useServiciosStore } from '@/store/serviciosStore';
@@ -387,6 +387,15 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
       } else if (prevActivo && nextActivo && prevServicioId !== nextServicioId) {
         updatePerfilOcupado(prevServicioId, false);
         updatePerfilOcupado(nextServicioId, true);
+      }
+
+      // Ajustar ventasActivas si el estado cambió entre activo e inactivo
+      const prevEstadoActivo = (venta.estado ?? 'activo') !== 'inactivo';
+      const nextEstadoActivo = (data.estado ?? 'activo') !== 'inactivo';
+      if (prevEstadoActivo && !nextEstadoActivo) {
+        adjustVentasActivas(venta.clienteId, -1);
+      } else if (!prevEstadoActivo && nextEstadoActivo) {
+        adjustVentasActivas(venta.clienteId, +1);
       }
 
       toast.success('Venta actualizada');

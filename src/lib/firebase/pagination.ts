@@ -5,17 +5,27 @@ import {
   limit,
   startAfter,
   getDocs,
+  where,
   QueryDocumentSnapshot,
   DocumentData,
+  WhereFilterOp,
+  QueryConstraint,
 } from 'firebase/firestore';
 import { db } from './config';
 import { convertTimestamps } from './firestore';
+
+export interface FilterOption {
+  field: string;
+  operator: WhereFilterOp;
+  value: unknown;
+}
 
 export interface PaginationOptions {
   pageSize: number;
   orderByField?: string;
   orderDirection?: 'asc' | 'desc';
   startAfterDoc?: QueryDocumentSnapshot<DocumentData>;
+  filters?: FilterOption[];
 }
 
 export interface PaginatedResult<T> {
@@ -25,10 +35,8 @@ export interface PaginatedResult<T> {
 }
 
 /**
- * Fetch paginated documents from a Firestore collection
- * @param collectionName - Name of the Firestore collection
- * @param options - Pagination options
- * @returns Paginated result with documents and metadata
+ * Fetch paginated documents from a Firestore collection.
+ * Costs pageSize + 1 reads (one extra to detect hasMore).
  */
 export async function getPaginated<T>(
   collectionName: string,
@@ -39,13 +47,21 @@ export async function getPaginated<T>(
     orderByField = 'createdAt',
     orderDirection = 'desc',
     startAfterDoc,
+    filters = [],
   } = options;
 
+  const start = Date.now();
+
   try {
+    const filterConstraints: QueryConstraint[] = filters.map(f =>
+      where(f.field, f.operator, f.value)
+    );
+
     let q = query(
       collection(db, collectionName),
+      ...filterConstraints,
       orderBy(orderByField, orderDirection),
-      limit(pageSize + 1) // Fetch one extra to check if there are more
+      limit(pageSize + 1)
     );
 
     if (startAfterDoc) {
@@ -57,10 +73,19 @@ export async function getPaginated<T>(
     const hasMore = querySnapshot.docs.length > pageSize;
     const lastDoc = docs.length > 0 ? docs[docs.length - 1] : null;
 
+    if (process.env.NODE_ENV === 'development') {
+      const filterStr = filters.map(f => f.field + ' ' + f.operator + ' ' + JSON.stringify(f.value)).join(', ');
+      console.log(
+        '%c[Firestore]%c paginated (' + collectionName + (filterStr ? ' where ' + filterStr : '') + ') → ' + docs.length + ' docs · ' + (Date.now() - start) + 'ms',
+        'background:#2196F3;color:#fff;padding:2px 6px;border-radius:3px;font-weight:600',
+        'color:#2196F3;font-weight:600'
+      );
+    }
+
     return {
       docs: docs.map(doc => ({
         id: doc.id,
-        ...convertTimestamps(doc.data()),
+        ...(convertTimestamps(doc.data()) as Record<string, unknown>),
       } as T)),
       lastDoc,
       hasMore,

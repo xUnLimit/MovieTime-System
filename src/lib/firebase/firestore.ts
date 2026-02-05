@@ -13,6 +13,7 @@ import {
   DocumentData,
   QueryConstraint,
   WhereFilterOp,
+  increment,
 } from 'firebase/firestore';
 import { db } from './config';
 
@@ -262,6 +263,23 @@ export async function remove(collectionName: string, id: string): Promise<void> 
   } catch (error) {
     console.error(`Error deleting document ${id} from ${collectionName}:`, error);
     throw error;
+  }
+}
+
+/**
+ * Incrementa o decrementa el campo `ventasActivas` de un usuario de forma atómica.
+ * Si el campo no existe, `increment` lo inicializa en 0 antes de ajustar.
+ * @param clienteId  – id del documento en la colección `usuarios`
+ * @param delta      – +1 al crear venta activa, -1 al eliminar/inactivar
+ */
+export async function adjustVentasActivas(clienteId: string, delta: number): Promise<void> {
+  if (!clienteId) return;
+  try {
+    const docRef = doc(db, 'usuarios', clienteId);
+    await updateDoc(docRef, { ventasActivas: increment(delta) });
+  } catch (error) {
+    console.error(`Error ajustando ventasActivas para usuario ${clienteId}:`, error);
+    // No lanzamos — es un campo denormalizado, no debe bloquear la operación principal
   }
 }
 

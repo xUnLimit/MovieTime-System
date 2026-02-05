@@ -22,21 +22,33 @@ import {
 import { Search, MoreHorizontal, Edit, Trash2, MessageCircle, Monitor, Eye } from 'lucide-react';
 import { useUsuariosStore } from '@/store/usuariosStore';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { PaginationFooter, PaginationFooterProps } from '@/components/shared/PaginationFooter';
 import { toast } from 'sonner';
+import { useVentasPorUsuarios } from '@/hooks/use-ventas-por-usuarios';
 
 interface RevendedoresTableProps {
   revendedores: Usuario[];
   onEdit: (revendedor: Usuario) => void;
   onView?: (revendedor: Usuario) => void;
   title?: string;
+  isLoading?: boolean;
+  pagination: PaginationFooterProps;
+  onRefresh: () => void;
 }
 
-export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Revendedores' }: RevendedoresTableProps) {
+export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Revendedores', isLoading = false, pagination, onRefresh }: RevendedoresTableProps) {
   const { deleteUsuario } = useUsuariosStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [revendedorToDelete, setRevendedorToDelete] = useState<Usuario | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [metodoPagoFilter, setMetodoPagoFilter] = useState('todos');
+
+  // IDs de revendedores de la página actual para la query de ventas
+  const revendedorIds = useMemo(
+    () => revendedores.map(r => r.id),
+    [revendedores]
+  );
+  const { stats: ventasPorUsuario } = useVentasPorUsuarios(revendedorIds, { enabled: !isLoading });
 
   // Obtener métodos de pago únicos
   const metodosPagoUnicos = useMemo(() => {
@@ -66,6 +78,7 @@ export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Reven
       try {
         await deleteUsuario(revendedorToDelete.id);
         toast.success('Revendedor eliminado');
+        onRefresh();
       } catch (error) {
         toast.error('Error al eliminar revendedor', { description: error instanceof Error ? error.message : undefined });
       }
@@ -103,18 +116,18 @@ export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Reven
       width: '16%',
     },
     {
-      key: 'suscripcionesTotales',
+      key: 'ventasActivas',
       header: 'Servicios Activos',
       sortable: true,
       align: 'center',
       width: '16%',
       render: (item) => {
-        const suscripcionesTotales = item.suscripcionesTotales ?? 0;
-        const isActive = suscripcionesTotales > 0;
+        const ventasActivas = item.ventasActivas ?? 0;
+        const isActive = ventasActivas > 0;
         return (
           <div className="flex items-center justify-center gap-2">
             <Monitor className={`h-4 w-4 ${isActive ? 'text-green-500' : 'text-muted-foreground'}`} />
-            <span className={isActive ? '' : 'text-muted-foreground'}>{suscripcionesTotales}</span>
+            <span className={isActive ? '' : 'text-muted-foreground'}>{ventasActivas}</span>
           </div>
         );
       },
@@ -126,11 +139,12 @@ export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Reven
       align: 'center',
       width: '16%',
       render: (item) => {
-        const isActive = item.montoSinConsumir > 0;
+        const isActive = (item.ventasActivas ?? 0) > 0;
+        const monto = ventasPorUsuario[item.id]?.montoSinConsumir ?? 0;
         return (
           <div className="flex items-center justify-center gap-1">
             <span className={isActive ? 'text-green-500 font-medium' : 'text-muted-foreground'}>$</span>
-            <span className={isActive ? 'font-medium' : 'text-muted-foreground'}>{item.montoSinConsumir.toFixed(2)}</span>
+            <span className={isActive ? 'font-medium' : 'text-muted-foreground'}>{monto.toFixed(2)}</span>
           </div>
         );
       },
@@ -189,8 +203,8 @@ export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Reven
         <DataTable
             data={filteredRevendedores}
             columns={columns}
-            pagination={true}
-            itemsPerPageOptions={[10, 25, 50, 100]}
+            loading={isLoading}
+            pagination={false}
             actions={(item) => (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -220,6 +234,7 @@ export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Reven
               </DropdownMenu>
             )}
           />
+        <PaginationFooter {...pagination} />
       </Card>
 
       <ConfirmDialog

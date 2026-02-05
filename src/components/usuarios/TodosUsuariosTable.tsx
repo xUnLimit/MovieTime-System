@@ -22,6 +22,7 @@ import {
 import { Search, MoreHorizontal, Edit, Trash2, MessageCircle, Monitor, Eye } from 'lucide-react';
 import { useUsuariosStore } from '@/store/usuariosStore';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { PaginationFooter, PaginationFooterProps } from '@/components/shared/PaginationFooter';
 import { toast } from 'sonner';
 import { useVentasPorUsuarios } from '@/hooks/use-ventas-por-usuarios';
 
@@ -43,6 +44,9 @@ interface TodosUsuariosTableProps {
   onEdit: (usuario: Usuario) => void;
   onView?: (usuario: Usuario) => void;
   title?: string;
+  isLoading?: boolean;
+  pagination: PaginationFooterProps;
+  onRefresh: () => void;
 }
 
 export function TodosUsuariosTable({
@@ -50,13 +54,21 @@ export function TodosUsuariosTable({
   onEdit,
   onView,
   title = 'Todos los usuarios',
+  isLoading = false,
+  pagination,
+  onRefresh,
 }: TodosUsuariosTableProps) {
   const { deleteUsuario } = useUsuariosStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [usuarioToDelete, setUsuarioToDelete] = useState<UsuarioDisplay | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [metodoPagoFilter, setMetodoPagoFilter] = useState('todos');
-  const { stats: ventasPorUsuario } = useVentasPorUsuarios();
+  // Solo IDs de clientes de la página actual (máx 10) para la query de ventas
+  const clienteIds = useMemo(
+    () => usuarios.filter(u => u.tipo === 'cliente').map(u => u.id),
+    [usuarios]
+  );
+  const { stats: ventasPorUsuario } = useVentasPorUsuarios(clienteIds, { enabled: !isLoading });
 
   // Mapear usuarios a formato display
   const usuariosDisplay: UsuarioDisplay[] = useMemo(() => {
@@ -67,7 +79,7 @@ export function TodosUsuariosTable({
       telefono: u.telefono,
       metodoPagoNombre: u.metodoPagoNombre,
       tipo: u.tipo === 'cliente' ? 'Cliente' : 'Revendedor',
-      serviciosActivos: u.tipo === 'cliente' ? (ventasPorUsuario[u.id]?.serviciosActivos ?? 0) : 0,
+      serviciosActivos: u.tipo === 'cliente' ? (u.ventasActivas ?? 0) : 0,
       montoSinConsumir: u.tipo === 'cliente' ? (ventasPorUsuario[u.id]?.montoSinConsumir ?? 0) : 0,
       original: u,
     }));
@@ -101,6 +113,7 @@ export function TodosUsuariosTable({
       try {
         await deleteUsuario(usuarioToDelete.original.id);
         toast.success(`${usuarioToDelete.tipo} eliminado`);
+        onRefresh();
       } catch (error) {
         toast.error(`Error al eliminar ${usuarioToDelete.tipo.toLowerCase()}`, { description: error instanceof Error ? error.message : undefined });
       }
@@ -239,8 +252,8 @@ export function TodosUsuariosTable({
         <DataTable
             data={filteredUsuarios}
             columns={columns}
-            pagination={true}
-            itemsPerPageOptions={[10, 25, 50, 100]}
+            loading={isLoading}
+            pagination={false}
             actions={(item) => (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -270,6 +283,7 @@ export function TodosUsuariosTable({
               </DropdownMenu>
             )}
           />
+        <PaginationFooter {...pagination} />
       </Card>
 
       <ConfirmDialog

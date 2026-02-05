@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -11,46 +11,43 @@ import { RevendedoresTable } from '@/components/usuarios/RevendedoresTable';
 import { TodosUsuariosTable } from '@/components/usuarios/TodosUsuariosTable';
 import { UsuariosMetrics } from '@/components/usuarios/UsuariosMetrics';
 import { useUsuariosStore } from '@/store/usuariosStore';
-import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
-import { useMemo } from 'react';
+import { useServerPagination } from '@/hooks/useServerPagination';
 import { Usuario } from '@/types';
-import { COLLECTIONS, queryDocuments } from '@/lib/firebase/firestore';
+import { COLLECTIONS } from '@/lib/firebase/firestore';
+import { FilterOption } from '@/lib/firebase/pagination';
+
+const PAGE_SIZE = 10;
 
 function UsuariosPageContent() {
   const router = useRouter();
-  const { usuarios, totalClientes, totalRevendedores, fetchUsuarios } = useUsuariosStore();
-  const { fetchMetodosPago } = useMetodosPagoStore();
+  const { totalClientes, totalRevendedores, totalNuevosHoy, totalClientesActivos, fetchCounts } = useUsuariosStore();
 
   const [activeTab, setActiveTab] = useState('todos');
-  const [clientesConVentasActivas, setClientesConVentasActivas] = useState<Set<string>>(new Set());
 
-  // Filtrar usuarios por tipo
-  const clientes = useMemo(() => usuarios.filter(u => u.tipo === 'cliente'), [usuarios]);
-  const revendedores = useMemo(() => usuarios.filter(u => u.tipo === 'revendedor'), [usuarios]);
+  // Filtros según tab activo
+  const filters: FilterOption[] = useMemo(() => {
+    if (activeTab === 'clientes') return [{ field: 'tipo', operator: '==', value: 'cliente' }];
+    if (activeTab === 'revendedores') return [{ field: 'tipo', operator: '==', value: 'revendedor' }];
+    return [];
+  }, [activeTab]);
+
+  // Paginación server-side
+  const { data: pageData, isLoading, hasMore, hasPrevious, page, next, previous, refresh } = useServerPagination<Usuario>({
+    collectionName: COLLECTIONS.USUARIOS,
+    filters,
+    pageSize: PAGE_SIZE,
+  });
+
+  // Total según tab (para calcular páginas)
+  const totalCurrentTab = activeTab === 'clientes' ? totalClientes : activeTab === 'revendedores' ? totalRevendedores : totalClientes + totalRevendedores;
+  const totalPages = Math.ceil(totalCurrentTab / PAGE_SIZE);
+
+  const paginationProps = { page, totalPages, hasPrevious, hasMore, onPrevious: previous, onNext: next };
 
   useEffect(() => {
-    fetchUsuarios();
-    fetchMetodosPago();
-  }, [fetchUsuarios, fetchMetodosPago]);
-
-  useEffect(() => {
-    const loadClientesActivos = async () => {
-      try {
-        const docs = await queryDocuments<Record<string, unknown>>(COLLECTIONS.VENTAS, [
-          { field: 'estado', operator: '==', value: 'activo' },
-        ]);
-        const ids = new Set<string>();
-        docs.forEach((doc) => {
-          if (doc.clienteId) ids.add(doc.clienteId as string);
-        });
-        setClientesConVentasActivas(ids);
-      } catch (error) {
-        console.error('Error cargando ventas activas:', error);
-      }
-    };
-    loadClientesActivos();
-  }, []);
+    fetchCounts();
+  }, [fetchCounts]);
 
   const handleEdit = (usuario: Usuario) => {
     router.push(`/usuarios/editar/${usuario.id}`);
@@ -77,7 +74,12 @@ function UsuariosPageContent() {
         </Link>
       </div>
 
-      <UsuariosMetrics usuarios={usuarios} clientesConVentasActivas={clientesConVentasActivas} totalClientes={totalClientes} totalRevendedores={totalRevendedores} />
+      <UsuariosMetrics
+        totalClientes={totalClientes}
+        totalRevendedores={totalRevendedores}
+        clientesActivos={totalClientesActivos}
+        totalNuevosHoy={totalNuevosHoy}
+      />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-transparent rounded-none p-0 h-auto inline-flex border-b border-border">
@@ -103,27 +105,36 @@ function UsuariosPageContent() {
 
         <TabsContent value="todos" className="space-y-4">
           <TodosUsuariosTable
-            usuarios={usuarios}
+            usuarios={pageData}
             onEdit={handleEdit}
             onView={handleView}
             title="Todos los usuarios"
+            isLoading={isLoading}
+            pagination={paginationProps}
+            onRefresh={refresh}
           />
         </TabsContent>
 
         <TabsContent value="clientes" className="space-y-4">
           <ClientesTable
-            clientes={clientes}
+            clientes={pageData}
             onEdit={handleEdit}
             onView={handleView}
             title="Clientes"
+            isLoading={isLoading}
+            pagination={paginationProps}
+            onRefresh={refresh}
           />
         </TabsContent>
 
         <TabsContent value="revendedores" className="space-y-4">
           <RevendedoresTable
-            revendedores={revendedores}
+            revendedores={pageData}
             onEdit={handleEdit}
             onView={handleView}
+            isLoading={isLoading}
+            pagination={paginationProps}
+            onRefresh={refresh}
           />
         </TabsContent>
       </Tabs>

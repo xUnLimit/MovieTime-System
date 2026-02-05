@@ -14,6 +14,7 @@ export interface Usuario {
   montoSinConsumir: number;
   // Campos específicos por tipo (opcionales):
   serviciosActivos?: number;        // Solo para clientes
+  ventasActivas?: number;           // Solo para clientes — denormalizado desde Ventas
   suscripcionesTotales?: number;    // Solo para revendedores
   active: boolean;
   createdAt: Date;
