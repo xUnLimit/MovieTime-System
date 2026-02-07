@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
+import { QueryDocumentSnapshot, DocumentData, collection, query, where, orderBy, onSnapshot, Query } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
 import { getPaginated, FilterOption } from '@/lib/firebase/pagination';
 
 interface UseServerPaginationOptions {
@@ -10,6 +11,7 @@ interface UseServerPaginationOptions {
   pageSize?: number;
   orderByField?: string;
   orderDirection?: 'asc' | 'desc';
+  realtime?: boolean; // Nuevo parámetro para activar listeners en tiempo real
 }
 
 /**
@@ -83,7 +85,12 @@ export function useServerPagination<T>({
 
   const next = useCallback(() => setPageIndex(p => p + 1), []);
   const previous = useCallback(() => setPageIndex(p => Math.max(0, p - 1)), []);
-  const refresh = useCallback(() => setRefreshKey(k => k + 1), []);
+  const refresh = useCallback(() => {
+    // Reset cursors and go back to first page
+    cursorsRef.current = [undefined];
+    setPageIndex(0);
+    setRefreshKey(k => k + 1);
+  }, []);
 
   return {
     data,

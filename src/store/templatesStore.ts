@@ -51,7 +51,7 @@ export const useTemplatesStore = create<TemplatesState>()(
 
         createTemplate: async (templateData) => {
           try {
-            const id = await createDoc(COLLECTIONS.TEMPLATES, templateData);
+            const id = await createDoc(COLLECTIONS.TEMPLATES, templateData as Omit<TemplateMensaje, 'id'>);
 
             const newTemplate: TemplateMensaje = {
               ...templateData,

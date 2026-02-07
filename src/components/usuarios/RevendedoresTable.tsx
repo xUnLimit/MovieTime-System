@@ -76,8 +76,14 @@ export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Reven
   const handleConfirmDelete = async () => {
     if (revendedorToDelete) {
       try {
-        await deleteUsuario(revendedorToDelete.id);
+        await deleteUsuario(revendedorToDelete.id, {
+          tipo: revendedorToDelete.tipo,
+          createdAt: revendedorToDelete.createdAt,
+          serviciosActivos: revendedorToDelete.serviciosActivos,
+        });
         toast.success('Revendedor eliminado');
+        setDeleteDialogOpen(false);
+        setRevendedorToDelete(null);
         onRefresh();
       } catch (error) {
         toast.error('Error al eliminar revendedor', { description: error instanceof Error ? error.message : undefined });
@@ -122,12 +128,12 @@ export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Reven
       align: 'center',
       width: '16%',
       render: (item) => {
-        const ventasActivas = item.ventasActivas ?? 0;
-        const isActive = ventasActivas > 0;
+        const serviciosActivos = item.serviciosActivos ?? 0;
+        const isActive = serviciosActivos > 0;
         return (
           <div className="flex items-center justify-center gap-2">
             <Monitor className={`h-4 w-4 ${isActive ? 'text-green-500' : 'text-muted-foreground'}`} />
-            <span className={isActive ? '' : 'text-muted-foreground'}>{ventasActivas}</span>
+            <span className={isActive ? '' : 'text-muted-foreground'}>{serviciosActivos}</span>
           </div>
         );
       },
@@ -139,7 +145,7 @@ export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Reven
       align: 'center',
       width: '16%',
       render: (item) => {
-        const isActive = (item.ventasActivas ?? 0) > 0;
+        const isActive = (item.serviciosActivos ?? 0) > 0;
         const monto = ventasPorUsuario[item.id]?.montoSinConsumir ?? 0;
         return (
           <div className="flex items-center justify-center gap-1">
@@ -200,41 +206,46 @@ export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Reven
           </Select>
         </div>
 
-        <DataTable
-            data={filteredRevendedores}
-            columns={columns}
+        <div>
+          <DataTable
+            data={filteredRevendedores as unknown as Record<string, unknown>[]}
+            columns={columns as unknown as Column<Record<string, unknown>>[]}
             loading={isLoading}
             pagination={false}
-            actions={(item) => (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {onView && (
-                    <DropdownMenuItem onClick={() => onView(item)}>
-                      <Eye className="h-4 w-4 mr-2" />
-                      Ver detalles
+            actions={(item) => {
+              const usuario = item as unknown as Usuario;
+              return (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {onView && (
+                      <DropdownMenuItem onClick={() => onView(usuario)}>
+                        <Eye className="h-4 w-4 mr-2" />
+                        Ver detalles
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onClick={() => onEdit(usuario)}>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Editar
                     </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem onClick={() => onEdit(item)}>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Editar
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => handleDelete(item)}
-                    className="text-red-500 focus:text-red-500"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Eliminar
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+                    <DropdownMenuItem
+                      onClick={() => handleDelete(usuario)}
+                      className="text-red-500 focus:text-red-500"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Eliminar
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }}
           />
-        <PaginationFooter {...pagination} />
+          <PaginationFooter {...pagination} />
+        </div>
       </Card>
 
       <ConfirmDialog

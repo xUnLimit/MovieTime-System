@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './config';
 import { convertTimestamps } from './firestore';
+import { logFirestoreOp } from '@/lib/utils/devLogger';
 
 export interface FilterOption {
   field: string;
@@ -73,14 +74,9 @@ export async function getPaginated<T>(
     const hasMore = querySnapshot.docs.length > pageSize;
     const lastDoc = docs.length > 0 ? docs[docs.length - 1] : null;
 
-    if (process.env.NODE_ENV === 'development') {
-      const filterStr = filters.map(f => f.field + ' ' + f.operator + ' ' + JSON.stringify(f.value)).join(', ');
-      console.log(
-        '%c[Firestore]%c paginated (' + collectionName + (filterStr ? ' where ' + filterStr : '') + ') → ' + docs.length + ' docs · ' + (Date.now() - start) + 'ms',
-        'background:#2196F3;color:#fff;padding:2px 6px;border-radius:3px;font-weight:600',
-        'color:#2196F3;font-weight:600'
-      );
-    }
+    const filterStr = filters.map(f => `${f.field} ${f.operator} ${JSON.stringify(f.value)}`).join(', ');
+    const details = filterStr ? `where ${filterStr} → ${docs.length} docs` : `${docs.length} docs`;
+    logFirestoreOp('paginated', collectionName, details, Date.now() - start);
 
     return {
       docs: docs.map(doc => ({

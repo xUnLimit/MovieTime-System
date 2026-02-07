@@ -16,6 +16,7 @@ import {
   increment,
 } from 'firebase/firestore';
 import { db } from './config';
+import { logCacheHit as devLogCacheHit, logFirestoreOp } from '@/lib/utils/devLogger';
 
 /**
  * Generic Firestore service for CRUD operations
@@ -73,12 +74,7 @@ export function convertTimestamps(data: unknown): unknown {
  * Dev-only: log cuando un store evita una lectura por caché
  */
 export function logCacheHit(collectionName: string) {
-  if (process.env.NODE_ENV !== 'development') return;
-  console.log(
-    '%c[Cache]%c Hit (' + collectionName + ') → sin lectura a Firestore',
-    'background:#FF9800;color:#fff;padding:2px 6px;border-radius:3px;font-weight:600',
-    'color:#FF9800;font-weight:600'
-  );
+  devLogCacheHit(collectionName);
 }
 
 /**
@@ -95,13 +91,7 @@ export async function getAll<T>(collectionName: string): Promise<T[]> {
         ...(convertTimestamps(data) as Record<string, unknown>),
       } as T;
     });
-    if (process.env.NODE_ENV === 'development') {
-      console.log(
-        '%c[Firestore]%c getAll (' + collectionName + ') → ' + docs.length + ' docs · ' + (Date.now() - start) + 'ms',
-        'background:#4CAF50;color:#fff;padding:2px 6px;border-radius:3px;font-weight:600',
-        'color:#4CAF50;font-weight:600'
-      );
-    }
+    logFirestoreOp('getAll', collectionName, `${docs.length} docs`, Date.now() - start);
     return docs;
   } catch (error) {
     console.error(`Error getting ${collectionName}:`, error);
@@ -126,13 +116,7 @@ export async function getById<T>(collectionName: string, id: string): Promise<T 
         ...(convertTimestamps(data) as Record<string, unknown>),
       } as T;
     }
-    if (process.env.NODE_ENV === 'development') {
-      console.log(
-        '%c[Firestore]%c getById (' + collectionName + '/' + id + ') → ' + (result ? 'encontrado' : 'null') + ' · ' + (Date.now() - start) + 'ms',
-        'background:#4CAF50;color:#fff;padding:2px 6px;border-radius:3px;font-weight:600',
-        'color:#4CAF50;font-weight:600'
-      );
-    }
+    logFirestoreOp('getById', `${collectionName}/${id}`, result ? 'encontrado' : 'null', Date.now() - start);
     return result;
   } catch (error) {
     console.error(`Error getting document ${id} from ${collectionName}:`, error);
@@ -163,14 +147,9 @@ export async function queryDocuments<T>(
         ...(convertTimestamps(data) as Record<string, unknown>),
       } as T;
     });
-    if (process.env.NODE_ENV === 'development') {
-      const filterStr = filters.map(f => f.field + ' ' + f.operator + ' ' + JSON.stringify(f.value)).join(', ');
-      console.log(
-        '%c[Firestore]%c query (' + collectionName + (filterStr ? ' where ' + filterStr : '') + ') → ' + docs.length + ' docs · ' + (Date.now() - start) + 'ms',
-        'background:#4CAF50;color:#fff;padding:2px 6px;border-radius:3px;font-weight:600',
-        'color:#4CAF50;font-weight:600'
-      );
-    }
+    const filterStr = filters.map(f => `${f.field} ${f.operator} ${JSON.stringify(f.value)}`).join(', ');
+    const details = filterStr ? `where ${filterStr} → ${docs.length} docs` : `${docs.length} docs`;
+    logFirestoreOp('query', collectionName, details, Date.now() - start);
     return docs;
   } catch (error) {
     console.error(`Error querying ${collectionName}:`, error);
@@ -195,14 +174,9 @@ export async function getCount(
     const snapshot = await getCountFromServer(q);
     const count = snapshot.data().count;
 
-    if (process.env.NODE_ENV === 'development') {
-      const filterStr = filters.map(f => f.field + ' ' + f.operator + ' ' + JSON.stringify(f.value)).join(', ');
-      console.log(
-        '%c[Firestore]%c count (' + collectionName + (filterStr ? ' where ' + filterStr : '') + ') → ' + count + ' · ' + (Date.now() - start) + 'ms',
-        'background:#9C27B0;color:#fff;padding:2px 6px;border-radius:3px;font-weight:600',
-        'color:#9C27B0;font-weight:600'
-      );
-    }
+    const filterStr = filters.map(f => `${f.field} ${f.operator} ${JSON.stringify(f.value)}`).join(', ');
+    const details = filterStr ? `where ${filterStr} → ${count}` : `${count}`;
+    logFirestoreOp('count', collectionName, details, Date.now() - start);
     return count;
   } catch (error) {
     console.error(`Error counting ${collectionName}:`, error);
@@ -267,21 +241,25 @@ export async function remove(collectionName: string, id: string): Promise<void> 
 }
 
 /**
- * Incrementa o decrementa el campo `ventasActivas` de un usuario de forma atómica.
+ * Incrementa o decrementa el campo `serviciosActivos` de un usuario de forma atómica.
  * Si el campo no existe, `increment` lo inicializa en 0 antes de ajustar.
  * @param clienteId  – id del documento en la colección `usuarios`
  * @param delta      – +1 al crear venta activa, -1 al eliminar/inactivar
  */
-export async function adjustVentasActivas(clienteId: string, delta: number): Promise<void> {
+export async function adjustServiciosActivos(clienteId: string, delta: number): Promise<void> {
   if (!clienteId) return;
   try {
     const docRef = doc(db, 'usuarios', clienteId);
-    await updateDoc(docRef, { ventasActivas: increment(delta) });
+    await updateDoc(docRef, { serviciosActivos: increment(delta) });
   } catch (error) {
-    console.error(`Error ajustando ventasActivas para usuario ${clienteId}:`, error);
-    // No lanzamos — es un campo denormalizado, no debe bloquear la operación principal
+    console.error(`Error ajustando serviciosActivos para usuario ${clienteId}:`, error);
   }
 }
+
+/**
+ * @deprecated Use adjustServiciosActivos instead
+ */
+export const adjustVentasActivas = adjustServiciosActivos;
 
 /**
  * Collection names constants
@@ -297,5 +275,6 @@ export const COLLECTIONS = {
   GASTOS: 'gastos',
   TEMPLATES: 'templates',
   PAGOS_SERVICIO: 'pagosServicio',
-  VENTAS: 'Ventas',
+  VENTAS: 'ventas',
+  PAGOS_VENTA: 'pagosVenta',
 } as const;

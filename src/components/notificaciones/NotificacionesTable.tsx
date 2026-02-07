@@ -3,6 +3,7 @@
 import { useState, useMemo, memo } from 'react';
 import { Notificacion } from '@/types';
 import { DataTable, Column } from '@/components/shared/DataTable';
+import { PaginationFooter } from '@/components/shared/PaginationFooter';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, MoreHorizontal, Bell } from 'lucide-react';
+import { Search, MoreHorizontal, Bell, Trash2, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useNotificacionesStore } from '@/store/notificacionesStore';
 import { toast } from 'sonner';
@@ -23,10 +24,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Trash2 } from 'lucide-react';
 
 interface NotificacionesTableProps {
   notificaciones: Notificacion[];
+  isLoading: boolean;
+  hasMore: boolean;
+  hasPrevious: boolean;
+  page: number;
+  onNext: () => void;
+  onPrevious: () => void;
+  onRefresh: () => void;
 }
 
 interface NotificacionRow {
@@ -42,6 +49,13 @@ interface NotificacionRow {
 
 export const NotificacionesTable = memo(function NotificacionesTable({
   notificaciones,
+  isLoading,
+  hasMore,
+  hasPrevious,
+  page,
+  onNext,
+  onPrevious,
+  onRefresh,
 }: NotificacionesTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [estadoFilter, setEstadoFilter] = useState('todos');
@@ -218,30 +232,44 @@ export const NotificacionesTable = memo(function NotificacionesTable({
         </Select>
       </div>
 
-      <DataTable
-        data={filteredRows}
-        columns={columns}
-        pagination={true}
-        itemsPerPageOptions={[10, 25, 50, 100]}
-        actions={(item) => (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={() => handleDelete(item.id)}
-                className="text-red-500 focus:text-red-500"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Eliminar
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      />
+      <div>
+        <DataTable
+          data={filteredRows as unknown as Record<string, unknown>[]}
+          columns={columns as unknown as Column<Record<string, unknown>>[]}
+          loading={isLoading}
+          pagination={false}
+          actions={(item) => {
+            const row = item as unknown as NotificacionRow;
+            return (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => handleDelete(row.id)}
+                    className="text-red-500 focus:text-red-500"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Eliminar
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            );
+          }}
+        />
+
+        <PaginationFooter
+          page={page}
+          totalPages={hasMore ? page + 1 : page}
+          hasPrevious={hasPrevious}
+          hasMore={hasMore}
+          onPrevious={onPrevious}
+          onNext={onNext}
+        />
+      </div>
     </Card>
   );
 });

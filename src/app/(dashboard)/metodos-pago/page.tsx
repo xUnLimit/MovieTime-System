@@ -43,7 +43,7 @@ function MetodosPagoPageContent() {
         </Link>
       </div>
 
-      <MetodosPagoMetrics metodosPago={metodosPago} />
+      <MetodosPagoMetrics />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-transparent rounded-none p-0 h-auto inline-flex border-b border-border">

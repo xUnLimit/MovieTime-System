@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { MetodoPago } from '@/types';
-import { getAll, create as createDoc, update, remove, COLLECTIONS, logCacheHit } from '@/lib/firebase/firestore';
+import { getAll, getCount, queryDocuments, create as createDoc, update, remove, COLLECTIONS, logCacheHit } from '@/lib/firebase/firestore';
 
 interface MetodosPagoState {
   metodosPago: MetodoPago[];
@@ -10,14 +10,24 @@ interface MetodosPagoState {
   lastFetch: number | null;
   selectedMetodo: MetodoPago | null;
 
+  // Counts for metrics (free queries)
+  totalMetodos: number;
+  metodosUsuarios: number;
+  metodosServicios: number;
+
   // Actions
   fetchMetodosPago: (force?: boolean) => Promise<void>;
-  createMetodoPago: (metodo: Omit<MetodoPago, 'id' | 'createdAt' | 'updatedAt' | 'asociadoUsuarios' | 'asociadoServicios'>) => Promise<void>;
+  fetchMetodosPagoUsuarios: () => Promise<MetodoPago[]>;
+  fetchMetodosPagoServicios: () => Promise<MetodoPago[]>;
+  fetchCounts: () => Promise<void>;
+  createMetodoPago: (metodo: Omit<MetodoPago, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateMetodoPago: (id: string, updates: Partial<MetodoPago>) => Promise<void>;
   toggleActivo: (id: string) => Promise<void>;
   deleteMetodoPago: (id: string) => Promise<void>;
   setSelectedMetodo: (metodo: MetodoPago | null) => void;
   getMetodoPago: (id: string) => MetodoPago | undefined;
+  getMetodosPagoUsuarios: () => MetodoPago[];
+  getMetodosPagoServicios: () => MetodoPago[];
 }
 
 const CACHE_TIMEOUT = 5 * 60 * 1000;
@@ -30,6 +40,9 @@ export const useMetodosPagoStore = create<MetodosPagoState>()(
       error: null,
       lastFetch: null,
       selectedMetodo: null,
+      totalMetodos: 0,
+      metodosUsuarios: 0,
+      metodosServicios: 0,
 
       fetchMetodosPago: async (force = false) => {
         const { lastFetch } = get();
@@ -49,19 +62,53 @@ export const useMetodosPagoStore = create<MetodosPagoState>()(
         }
       },
 
+      fetchMetodosPagoUsuarios: async () => {
+        try {
+          const metodos = await queryDocuments<MetodoPago>(COLLECTIONS.METODOS_PAGO, [
+            { field: 'asociadoA', operator: '==', value: 'usuario' },
+            { field: 'activo', operator: '==', value: true }
+          ]);
+          return metodos;
+        } catch (error) {
+          console.error('Error fetching metodos pago usuarios:', error);
+          return [];
+        }
+      },
+
+      fetchMetodosPagoServicios: async () => {
+        try {
+          const metodos = await queryDocuments<MetodoPago>(COLLECTIONS.METODOS_PAGO, [
+            { field: 'asociadoA', operator: '==', value: 'servicio' },
+            { field: 'activo', operator: '==', value: true }
+          ]);
+          return metodos;
+        } catch (error) {
+          console.error('Error fetching metodos pago servicios:', error);
+          return [];
+        }
+      },
+
+      fetchCounts: async () => {
+        try {
+          const [totalMetodos, metodosUsuarios, metodosServicios] = await Promise.all([
+            getCount(COLLECTIONS.METODOS_PAGO, []),
+            getCount(COLLECTIONS.METODOS_PAGO, [{ field: 'asociadoA', operator: '==', value: 'usuario' }]),
+            getCount(COLLECTIONS.METODOS_PAGO, [{ field: 'asociadoA', operator: '==', value: 'servicio' }]),
+          ]);
+          set({ totalMetodos, metodosUsuarios, metodosServicios });
+        } catch (error) {
+          console.error('Error fetching counts:', error);
+          set({ totalMetodos: 0, metodosUsuarios: 0, metodosServicios: 0 });
+        }
+      },
+
       createMetodoPago: async (metodoData) => {
         try {
-          const id = await createDoc(COLLECTIONS.METODOS_PAGO, {
-            ...metodoData,
-            asociadoUsuarios: 0,
-            asociadoServicios: 0,
-          });
+          const id = await createDoc(COLLECTIONS.METODOS_PAGO, metodoData as Omit<MetodoPago, 'id'>);
 
           const newMetodo: MetodoPago = {
             ...metodoData,
             id,
-            asociadoUsuarios: 0,
-            asociadoServicios: 0,
             createdAt: new Date(),
             updatedAt: new Date()
           };
@@ -132,6 +179,14 @@ export const useMetodosPagoStore = create<MetodosPagoState>()(
 
       getMetodoPago: (id) => {
         return get().metodosPago.find((metodo) => metodo.id === id);
+      },
+
+      getMetodosPagoUsuarios: () => {
+        return get().metodosPago.filter((metodo) => metodo.asociadoA === 'usuario' && metodo.activo);
+      },
+
+      getMetodosPagoServicios: () => {
+        return get().metodosPago.filter((metodo) => metodo.asociadoA === 'servicio' && metodo.activo);
       }
     }),
     { name: 'metodos-pago-store' }

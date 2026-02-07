@@ -45,7 +45,7 @@ export function CategoriaForm({ mode, categoria }: CategoriaFormProps) {
   const [activeTab, setActiveTab] = useState('general');
   const [isGeneralTabComplete, setIsGeneralTabComplete] = useState(mode === 'edit');
   const [planes, setPlanes] = useState<Plan[]>(mode === 'edit' && categoria ? categoria.planes || [] : []);
-  const [tipoPlanSeleccionado, setTipoPlanSeleccionado] = useState<'cuenta_completa' | 'perfiles'>('cuenta_completa');
+  const [tipoPlanSeleccionado, setTipoPlanSeleccionado] = useState<'cuenta_completa' | 'perfiles'>('perfiles');
   const [planesError, setPlanesError] = useState<string>('');
 
   const {
@@ -135,6 +135,11 @@ export function CategoriaForm({ mode, categoria }: CategoriaFormProps) {
           tipoCategoria: data.tipoCategoria,
           planes: planes.length > 0 ? planes : undefined,
           activo: true,
+          // Campos denormalizados inicializados en 0
+          totalServicios: 0,
+          serviciosActivos: 0,
+          perfilesDisponiblesTotal: 0,
+          gastosTotal: 0,
         });
         toast.success('Categoría creada exitosamente');
       } else if (categoria) {
@@ -391,36 +396,6 @@ export function CategoriaForm({ mode, categoria }: CategoriaFormProps) {
               </div>
 
               <div className="flex flex-col gap-3">
-                {/* Opción: Cuenta Completa */}
-                <button
-                  type="button"
-                  onClick={() => setTipoPlanSeleccionado('cuenta_completa')}
-                  className={`p-4 border-2 rounded-lg transition-all hover:shadow-sm ${
-                    tipoPlanSeleccionado === 'cuenta_completa'
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:border-primary/50'
-                  }`}
-                >
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-semibold">Cuenta Completa</h4>
-                      {tipoPlanSeleccionado === 'cuenta_completa' && (
-                        <div className="h-4 w-4 rounded-full bg-primary flex items-center justify-center">
-                          <div className="h-1.5 w-1.5 rounded-full bg-white" />
-                        </div>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground text-left">
-                      Acceso completo a la cuenta
-                    </p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className="px-2 py-0.5 bg-muted rounded text-xs">
-                        {planesCuentaCompleta.length} plan{planesCuentaCompleta.length !== 1 ? 'es' : ''}
-                      </span>
-                    </div>
-                  </div>
-                </button>
-
                 {/* Opción: Perfiles */}
                 <button
                   type="button"
@@ -446,6 +421,36 @@ export function CategoriaForm({ mode, categoria }: CategoriaFormProps) {
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span className="px-2 py-0.5 bg-muted rounded text-xs">
                         {planesPerfiles.length} plan{planesPerfiles.length !== 1 ? 'es' : ''}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+
+                {/* Opción: Cuenta Completa */}
+                <button
+                  type="button"
+                  onClick={() => setTipoPlanSeleccionado('cuenta_completa')}
+                  className={`p-4 border-2 rounded-lg transition-all hover:shadow-sm ${
+                    tipoPlanSeleccionado === 'cuenta_completa'
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-semibold">Cuenta Completa</h4>
+                      {tipoPlanSeleccionado === 'cuenta_completa' && (
+                        <div className="h-4 w-4 rounded-full bg-primary flex items-center justify-center">
+                          <div className="h-1.5 w-1.5 rounded-full bg-white" />
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground text-left">
+                      Acceso completo a la cuenta
+                    </p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="px-2 py-0.5 bg-muted rounded text-xs">
+                        {planesCuentaCompleta.length} plan{planesCuentaCompleta.length !== 1 ? 'es' : ''}
                       </span>
                     </div>
                   </div>
@@ -527,7 +532,7 @@ export function CategoriaForm({ mode, categoria }: CategoriaFormProps) {
                             id={`plan-precio-${plan.id}`}
                             type="number"
                             step="0.01"
-                            value={plan.precio}
+                            value={plan.precio === 0 ? '' : plan.precio}
                             onChange={(e) =>
                               actualizarPlan(
                                 plan.id,
@@ -536,6 +541,7 @@ export function CategoriaForm({ mode, categoria }: CategoriaFormProps) {
                               )
                             }
                             placeholder="$0.00"
+                            className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                           />
                         </div>
 
@@ -663,7 +669,7 @@ export function CategoriaForm({ mode, categoria }: CategoriaFormProps) {
                             id={`plan-precio-${plan.id}`}
                             type="number"
                             step="0.01"
-                            value={plan.precio}
+                            value={plan.precio === 0 ? '' : plan.precio}
                             onChange={(e) =>
                               actualizarPlan(
                                 plan.id,
@@ -672,6 +678,7 @@ export function CategoriaForm({ mode, categoria }: CategoriaFormProps) {
                               )
                             }
                             placeholder="$0.00"
+                            className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                           />
                         </div>
 

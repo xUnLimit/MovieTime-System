@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -11,23 +11,38 @@ import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { toast } from 'sonner';
 import { formatearFechaHora } from '@/lib/utils/calculations';
+import { getById, COLLECTIONS } from '@/lib/firebase/firestore';
+import { MetodoPago } from '@/types';
 
 function VerMetodoPagoPageContent() {
   const params = useParams();
   const router = useRouter();
-  const { metodosPago, fetchMetodosPago, deleteMetodoPago } = useMetodosPagoStore();
+  const { deleteMetodoPago } = useMetodosPagoStore();
+  const [metodo, setMetodo] = useState<MetodoPago | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showCardNumber, setShowCardNumber] = useState(false);
 
   useEffect(() => {
-    fetchMetodosPago();
-  }, [fetchMetodosPago]);
+    const loadMetodoPago = async () => {
+      const id = Array.isArray(params.id) ? params.id[0] : params.id;
+      if (!id) return;
 
-  const metodo = useMemo(() => {
-    const id = Array.isArray(params.id) ? params.id[0] : params.id;
-    return metodosPago.find((m) => m.id === id) || null;
-  }, [metodosPago, params.id]);
+      setIsLoading(true);
+      try {
+        const data = await getById<MetodoPago>(COLLECTIONS.METODOS_PAGO, id);
+        setMetodo(data);
+      } catch (error) {
+        console.error('Error cargando método de pago:', error);
+        setMetodo(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadMetodoPago();
+  }, [params.id]);
 
   const handleDelete = async () => {
     if (metodo) {
@@ -61,6 +76,24 @@ function VerMetodoPagoPageContent() {
     binance: 'Binance',
     efectivo: 'Efectivo',
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-2">
+          <Link href="/metodos-pago">
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <h1 className="text-3xl font-bold tracking-tight">Cargando método de pago...</h1>
+        </div>
+        <div className="rounded-lg border bg-card p-6">
+          <p className="text-muted-foreground">Cargando datos...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!metodo) {
     return (

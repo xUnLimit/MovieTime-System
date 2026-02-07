@@ -157,14 +157,16 @@ export function MetodoPagoDialog({
 
             <div className="space-y-2">
               <Label htmlFor="tipo">Tipo</Label>
-              <Select value={tipoValue} onValueChange={(value) => setValue('tipo', value as 'banco' | 'transferencia' | 'wallet' | 'criptomoneda')}>
+              <Select value={tipoValue} onValueChange={(value) => setValue('tipo', value as MetodoPago['tipo'])}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="banco">Banco</SelectItem>
                   <SelectItem value="yappy">Yappy</SelectItem>
+                  <SelectItem value="paypal">PayPal</SelectItem>
                   <SelectItem value="binance">Binance</SelectItem>
+                  <SelectItem value="efectivo">Efectivo</SelectItem>
                 </SelectContent>
               </Select>
               {errors.tipo && (

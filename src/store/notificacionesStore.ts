@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { Notificacion, EstadoNotificacion } from '@/types';
-import { getAll, create as createDoc, update, remove, COLLECTIONS, logCacheHit } from '@/lib/firebase/firestore';
+import { getAll, getCount, create as createDoc, update, remove, COLLECTIONS, logCacheHit } from '@/lib/firebase/firestore';
 import { doc as firestoreDoc, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 
@@ -14,6 +14,7 @@ interface NotificacionesState {
 
   // Actions
   fetchNotificaciones: (force?: boolean) => Promise<void>;
+  fetchUnreadCount: () => Promise<void>;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   deleteNotificacion: (id: string) => Promise<void>;
@@ -56,6 +57,18 @@ export const useNotificacionesStore = create<NotificacionesState>()(
           const errorMessage = error instanceof Error ? error.message : 'Error desconocido al cargar notificaciones';
           console.error('Error fetching notificaciones:', error);
           set({ notificaciones: [], unreadCount: 0, isLoading: false, error: errorMessage });
+        }
+      },
+
+      fetchUnreadCount: async () => {
+        try {
+          const count = await getCount(COLLECTIONS.NOTIFICACIONES, [
+            { field: 'leida', operator: '==', value: false }
+          ]);
+          set({ unreadCount: count });
+        } catch (error) {
+          console.error('Error fetching unread count:', error);
+          set({ unreadCount: 0 });
         }
       },
 

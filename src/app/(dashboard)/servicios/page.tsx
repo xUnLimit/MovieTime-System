@@ -6,18 +6,64 @@ import { Plus } from 'lucide-react';
 import Link from 'next/link';
 import { CategoriasTable } from '@/components/servicios/CategoriasTable';
 import { ServiciosMetrics } from '@/components/servicios/ServiciosMetrics';
-import { useServiciosStore } from '@/store/serviciosStore';
 import { useCategoriasStore } from '@/store/categoriasStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 
 function ServiciosPageContent() {
-  const { servicios, fetchServicios } = useServiciosStore();
   const { categorias, fetchCategorias } = useCategoriasStore();
 
+  // Cargar datos iniciales (siempre refresca para mostrar datos actualizados)
   useEffect(() => {
-    fetchServicios();
-    fetchCategorias();
-  }, [fetchServicios, fetchCategorias]);
+    fetchCategorias(true);
+  }, [fetchCategorias]);
+
+  // Refrescar cuando el usuario vuelve a la página
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        // Forzar refresh cuando la página vuelve a estar visible
+        fetchCategorias(true);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [fetchCategorias]);
+
+  // Refrescar cuando se navega de vuelta a esta página desde otra ruta
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchCategorias(true);
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [fetchCategorias]);
+
+  // Escuchar cuando se elimina un servicio desde otra página
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'servicio-deleted') {
+        fetchCategorias(true);
+      }
+    };
+
+    const handleServicioDeleted = () => {
+      fetchCategorias(true);
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('servicio-deleted', handleServicioDeleted);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('servicio-deleted', handleServicioDeleted);
+    };
+  }, [fetchCategorias]);
 
   return (
     <div className="space-y-4">
@@ -36,14 +82,10 @@ function ServiciosPageContent() {
         </Link>
       </div>
 
-      <ServiciosMetrics
-        servicios={servicios}
-        categorias={categorias}
-      />
+      <ServiciosMetrics />
 
       <CategoriasTable
         categorias={categorias}
-        servicios={servicios}
         title="Todas las categorías"
       />
     </div>

@@ -21,9 +21,9 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
-// Initialize Analytics (only on client-side)
+// Initialize Analytics (only on client-side and in production)
 let analytics: Analytics | undefined;
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
   analytics = getAnalytics(app);
 }
 

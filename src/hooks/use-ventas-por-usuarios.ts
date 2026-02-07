@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { differenceInCalendarDays } from 'date-fns';
 import { COLLECTIONS, queryDocuments } from '@/lib/firebase/firestore';
+import { logVentasCacheHit } from '@/lib/utils/devLogger';
 
 /**
  * Resultado agregado por usuario: monto sin consumir calculado
@@ -18,6 +19,14 @@ export interface VentasUsuarioStats {
 // Key = idsKey (IDs ordenados y concatenados), Value = { data, ts }
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 const ventasCache = new Map<string, { data: Record<string, VentasUsuarioStats>; ts: number }>();
+
+/**
+ * Invalida el cache de ventas por usuarios.
+ * Útil cuando se elimina/actualiza una venta desde otra página.
+ */
+export function invalidateVentasPorUsuariosCache() {
+  ventasCache.clear();
+}
 
 /**
  * Carga solo las ventas activas de los usuarios de la página actual
@@ -46,13 +55,7 @@ export function useVentasPorUsuarios(clienteIds: string[], { enabled = true } = 
     // Cache hit: mismo set de IDs dentro del TTL
     const cached = ventasCache.get(idsKey);
     if (cached && Date.now() - cached.ts < CACHE_TTL) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log(
-          '%c[VentasCache]%c HIT · ' + clienteIds.length + ' IDs · age ' + Math.round((Date.now() - cached.ts) / 1000) + 's',
-          'background:#4CAF50;color:#fff;padding:2px 6px;border-radius:3px;font-weight:600',
-          'color:#4CAF50;font-weight:600'
-        );
-      }
+      logVentasCacheHit(clienteIds.length, Math.round((Date.now() - cached.ts) / 1000));
       setStats(cached.data);
       return;
     }

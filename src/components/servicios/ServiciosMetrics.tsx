@@ -1,59 +1,43 @@
 'use client';
 
-import { memo, useMemo } from 'react';
-import { Servicio, Categoria } from '@/types';
+import { memo, useEffect } from 'react';
 import { MetricCard } from '@/components/shared/MetricCard';
 import { Tag, Monitor, CheckCircle, ShoppingBag } from 'lucide-react';
+import { useServiciosStore } from '@/store/serviciosStore';
 
-interface ServiciosMetricsProps {
-  servicios: Servicio[];
-  categorias: Categoria[];
-}
+export const ServiciosMetrics = memo(function ServiciosMetrics() {
+  const { totalServicios, serviciosActivos, totalCategoriasActivas, fetchCounts } = useServiciosStore();
 
-export const ServiciosMetrics = memo(function ServiciosMetrics({
-  servicios,
-  categorias,
-}: ServiciosMetricsProps) {
-  const metrics = useMemo(() => {
-    const totalCategorias = categorias.filter(c => c.activo).length;
-    const totalServicios = servicios.length;
-    const serviciosActivos = servicios.filter(s => s.activo).length;
-    const totalSuscripciones = 0; // Sin suscripciones en este commit
-
-    return {
-      totalCategorias,
-      totalServicios,
-      serviciosActivos,
-      totalSuscripciones,
-    };
-  }, [servicios, categorias]);
+  useEffect(() => {
+    fetchCounts();
+  }, [fetchCounts]);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <MetricCard
         title="Categorías"
-        value={metrics.totalCategorias}
+        value={totalCategoriasActivas}
         icon={Tag}
         underlineColor="bg-red-500"
         iconColor="text-red-500"
       />
       <MetricCard
         title="Total Servicios"
-        value={metrics.totalServicios}
+        value={totalServicios}
         icon={Monitor}
         underlineColor="bg-blue-500"
         iconColor="text-blue-500"
       />
       <MetricCard
         title="Servicios Activos"
-        value={`${metrics.serviciosActivos}/${metrics.totalServicios}`}
+        value={`${serviciosActivos}/${totalServicios}`}
         icon={CheckCircle}
         underlineColor="bg-green-500"
         iconColor="text-green-500"
       />
       <MetricCard
         title="Suscripciones Totales"
-        value={metrics.totalSuscripciones}
+        value={0}
         icon={ShoppingBag}
         underlineColor="bg-purple-500"
         iconColor="text-purple-500"

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -10,22 +10,37 @@ import { useCategoriasStore } from '@/store/categoriasStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { toast } from 'sonner';
+import { getById, COLLECTIONS } from '@/lib/firebase/firestore';
+import { Categoria } from '@/types';
 
 function VerCategoriaPageContent() {
   const params = useParams();
   const router = useRouter();
-  const { categorias, fetchCategorias, deleteCategoria } = useCategoriasStore();
+  const { deleteCategoria } = useCategoriasStore();
+  const [categoria, setCategoria] = useState<Categoria | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [expandedPlan, setExpandedPlan] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchCategorias();
-  }, [fetchCategorias]);
+    const loadCategoria = async () => {
+      const id = Array.isArray(params.id) ? params.id[0] : params.id;
+      if (!id) return;
 
-  const categoria = useMemo(() => {
-    const id = Array.isArray(params.id) ? params.id[0] : params.id;
-    return categorias.find((c) => c.id === id) || null;
-  }, [categorias, params.id]);
+      setIsLoading(true);
+      try {
+        const data = await getById<Categoria>(COLLECTIONS.CATEGORIAS, id);
+        setCategoria(data);
+      } catch (error) {
+        console.error('Error cargando categoría:', error);
+        setCategoria(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadCategoria();
+  }, [params.id]);
 
   const handleDelete = async () => {
     if (categoria) {
@@ -65,6 +80,24 @@ function VerCategoriaPageContent() {
       default: return { label: ciclo, short: ciclo };
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-2">
+          <Link href="/categorias">
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <h1 className="text-3xl font-bold tracking-tight">Cargando categoría...</h1>
+        </div>
+        <div className="rounded-lg border bg-card p-6">
+          <p className="text-muted-foreground">Cargando datos...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!categoria) {
     return (

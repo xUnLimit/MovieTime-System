@@ -8,16 +8,18 @@ import { Plus, ArrowLeft } from 'lucide-react';
 import { ServiciosCategoriaMetrics } from '@/components/servicios/ServiciosCategoriaMetrics';
 import { ServiciosCategoriaFilters } from '@/components/servicios/ServiciosCategoriaFilters';
 import { ServiciosCategoriaTableDetalle } from '@/components/servicios/ServiciosCategoriaTableDetalle';
-import { useServiciosStore } from '@/store/serviciosStore';
 import { useCategoriasStore } from '@/store/categoriasStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
+import { useServerPagination } from '@/hooks/useServerPagination';
+import { COLLECTIONS } from '@/lib/firebase/firestore';
+import { Servicio } from '@/types';
+import type { FilterOption } from '@/lib/firebase/pagination';
 
 function ServiciosCategoriaPageContent() {
   const params = useParams();
   const router = useRouter();
   const categoriaId = params.id as string;
 
-  const { servicios, fetchServicios } = useServiciosStore();
   const { categorias, fetchCategorias } = useCategoriasStore();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -26,20 +28,66 @@ function ServiciosCategoriaPageContent() {
   const [estadoFilter, setEstadoFilter] = useState('activo');
 
   useEffect(() => {
-    fetchServicios();
     fetchCategorias();
-  }, [fetchServicios, fetchCategorias]);
+  }, [fetchCategorias]);
+
+  // Construir filtros dinámicos
+  const filters = useMemo(() => {
+    const baseFilters: FilterOption[] = [
+      { field: 'categoriaId', operator: '==', value: categoriaId }
+    ];
+
+    if (estadoFilter === 'activo') {
+      baseFilters.push({ field: 'activo', operator: '==', value: true });
+    } else if (estadoFilter === 'inactivo') {
+      baseFilters.push({ field: 'activo', operator: '==', value: false });
+    }
+
+    return baseFilters;
+  }, [categoriaId, estadoFilter]);
+
+  // Paginación con filtros
+  const {
+    data: servicios,
+    isLoading,
+    hasMore,
+    hasPrevious,
+    page,
+    next,
+    previous,
+    refresh
+  } = useServerPagination<Servicio>({
+    collectionName: COLLECTIONS.SERVICIOS,
+    filters,
+    pageSize: 10,
+  });
 
   const categoria = categorias.find(c => c.id === categoriaId);
 
-  // Filtrar servicios por categoría
-  const serviciosCategoria = useMemo(() => {
-    return servicios.filter(s => s.categoriaId === categoriaId);
-  }, [servicios, categoriaId]);
+  // Escuchar cuando se elimina un servicio desde otra página
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'servicio-deleted') {
+        refresh();
+      }
+    };
 
-  // Aplicar filtros adicionales
+    const handleServicioDeleted = () => {
+      refresh();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('servicio-deleted', handleServicioDeleted);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('servicio-deleted', handleServicioDeleted);
+    };
+  }, [refresh]);
+
+  // Aplicar filtros client-side (búsqueda, ciclo, perfil)
   const serviciosFiltrados = useMemo(() => {
-    return serviciosCategoria.filter(servicio => {
+    return servicios.filter(servicio => {
       // Filtro de búsqueda
       const matchSearch = searchTerm === '' ||
         servicio.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -54,15 +102,9 @@ function ServiciosCategoriaPageContent() {
         (perfilFilter === 'con_disponibles' && perfilesLibres > 0) ||
         (perfilFilter === 'sin_disponibles' && perfilesLibres <= 0);
 
-      // Filtro de estado
-      const matchEstado =
-        estadoFilter === 'todos' ||
-        (estadoFilter === 'activo' && servicio.activo) ||
-        (estadoFilter === 'inactivo' && !servicio.activo);
-
-      return matchSearch && matchCiclo && matchPerfil && matchEstado;
+      return matchSearch && matchCiclo && matchPerfil;
     });
-  }, [serviciosCategoria, searchTerm, cicloFilter, perfilFilter, estadoFilter]);
+  }, [servicios, searchTerm, cicloFilter, perfilFilter]);
 
   const handleEdit = (id: string) => {
     router.push(`/servicios/${id}/editar`);
@@ -107,7 +149,7 @@ function ServiciosCategoriaPageContent() {
         </Link>
       </div>
 
-      <ServiciosCategoriaMetrics servicios={serviciosCategoria} />
+      <ServiciosCategoriaMetrics categoria={categoria} />
 
       <ServiciosCategoriaFilters
         estadoFilter={estadoFilter}
@@ -125,6 +167,13 @@ function ServiciosCategoriaPageContent() {
         onCicloChange={setCicloFilter}
         perfilFilter={perfilFilter}
         onPerfilChange={setPerfilFilter}
+        isLoading={isLoading}
+        hasMore={hasMore}
+        hasPrevious={hasPrevious}
+        page={page}
+        onNext={next}
+        onPrevious={previous}
+        onRefresh={refresh}
       />
     </div>
   );

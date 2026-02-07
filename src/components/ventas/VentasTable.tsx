@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { DataTable, Column } from '@/components/shared/DataTable';
+import { PaginationFooter } from '@/components/shared/PaginationFooter';
 import { Search, MoreHorizontal, Monitor, User, Clock, Edit, Trash2, Eye } from 'lucide-react';
 import {
   DropdownMenu,
@@ -13,14 +14,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Categoria } from '@/types';
 import { VentaDoc } from '@/types';
 import { cn } from '@/lib/utils';
 import { getCurrencySymbol } from '@/lib/constants';
@@ -28,10 +21,16 @@ import { formatearFecha } from '@/lib/utils/calculations';
 
 interface VentasTableProps {
   ventas: VentaDoc[];
-  categorias: Categoria[];
-  estadoFiltro: 'todas' | 'activas' | 'inactivas';
+  isLoading: boolean;
   title: string;
   onDelete?: (ventaId: string, servicioId?: string, perfilNumero?: number | null) => void;
+  // Paginación
+  hasMore: boolean;
+  hasPrevious: boolean;
+  page: number;
+  onNext: () => void;
+  onPrevious: () => void;
+  onRefresh: () => void;
 }
 
 interface VentaRow {
@@ -67,14 +66,18 @@ const clamp = (value: number, min = 0, max = 1) => Math.min(Math.max(value, min)
 
 export function VentasTable({
   ventas,
-  categorias,
-  estadoFiltro,
+  isLoading,
   title,
   onDelete,
+  hasMore,
+  hasPrevious,
+  page,
+  onNext,
+  onPrevious,
+  onRefresh,
 }: VentasTableProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
-  const [categoriaFilter, setCategoriaFilter] = useState('todas');
 
   const rows = useMemo(() => {
     const hoy = new Date();
@@ -115,22 +118,15 @@ export function VentasTable({
   }, [ventas]);
 
   const filteredRows = useMemo(() => {
+    if (!searchQuery) return rows;
     return rows.filter((row) => {
-      const matchesSearch =
+      return (
         row.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
         row.clienteDetalle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        row.servicio.toLowerCase().includes(searchQuery.toLowerCase());
-
-      const matchesCategoria = categoriaFilter === 'todas' || row.categoriaId === categoriaFilter;
-
-      const matchesEstado =
-        estadoFiltro === 'todas' ||
-        (estadoFiltro === 'activas' && row.estado === 'activa') ||
-        (estadoFiltro === 'inactivas' && row.estado === 'inactiva');
-
-      return matchesSearch && matchesCategoria && matchesEstado;
+        row.servicio.toLowerCase().includes(searchQuery.toLowerCase())
+      );
     });
-  }, [rows, searchQuery, categoriaFilter, estadoFiltro]);
+  }, [rows, searchQuery]);
 
   const columns: Column<VentaRow>[] = [
     {
@@ -268,27 +264,23 @@ export function VentasTable({
             className="pl-9"
           />
         </div>
-        <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
-          <SelectTrigger className="w-[220px]">
-            <SelectValue placeholder="Todas las categorías" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todas">Todas las categorías</SelectItem>
-            {categorias.map((categoria) => (
-              <SelectItem key={categoria.id} value={categoria.id}>
-                {categoria.nombre}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
-      <DataTable
-        data={filteredRows}
-        columns={columns}
-        pagination={true}
-        itemsPerPageOptions={[10, 25, 50, 100]}
-        actions={(item) => (
+      {isLoading ? (
+        <div className="border border-border rounded-md p-12 text-center">
+          <p className="text-sm text-muted-foreground">Cargando ventas...</p>
+        </div>
+      ) : filteredRows.length === 0 ? (
+        <div className="border border-border rounded-md p-12 text-center">
+          <p className="text-sm text-muted-foreground">No hay ventas para mostrar</p>
+        </div>
+      ) : (
+        <div>
+          <DataTable
+            data={filteredRows}
+            columns={columns}
+            pagination={false}
+            actions={(item) => (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -317,6 +309,17 @@ export function VentasTable({
         </DropdownMenu>
       )}
       />
+
+          <PaginationFooter
+            page={page}
+            totalPages={hasMore ? page + 1 : page}
+            hasPrevious={hasPrevious}
+            hasMore={hasMore}
+            onPrevious={onPrevious}
+            onNext={onNext}
+          />
+        </div>
+      )}
     </Card>
   );
 }

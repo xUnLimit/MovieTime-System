@@ -24,6 +24,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Servicio, Categoria } from '@/types';
 import { useServiciosStore } from '@/store/serviciosStore';
+import { useCategoriasStore } from '@/store/categoriasStore';
 import { toast } from 'sonner';
 
 const servicioSchema = z.object({
@@ -54,6 +55,7 @@ export function ServicioDialog({
   categorias,
 }: ServicioDialogProps) {
   const { createServicio, updateServicio } = useServiciosStore();
+  const { fetchCategorias } = useCategoriasStore();
   const {
     register,
     handleSubmit,
@@ -128,6 +130,7 @@ export function ServicioDialog({
         activo: servicio?.activo ?? true,
         createdBy: servicio?.createdBy || 'current-user',
         categoriaNombre: categoria?.nombre || '',
+        gastosTotal: servicio?.gastosTotal ?? 0, // Preservar o inicializar campo denormalizado
       };
 
       if (servicio) {
@@ -137,6 +140,10 @@ export function ServicioDialog({
         await createServicio(servicioData);
         toast.success('Servicio creado');
       }
+
+      // Refrescar categorías para actualizar contadores
+      await fetchCategorias(true);
+
       onOpenChange(false);
     } catch (error) {
       toast.error('Error al guardar servicio', { description: error instanceof Error ? error.message : undefined });

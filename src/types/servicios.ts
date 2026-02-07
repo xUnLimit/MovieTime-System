@@ -13,7 +13,10 @@ export interface Servicio {
   perfilesDisponibles: number;
   perfilesOcupados: number;
   costoServicio: number;
+  gastosTotal: number; // Suma acumulada de todos los pagos del servicio
   metodoPagoId?: string;
+  metodoPagoNombre?: string;  // Denormalizado de MetodoPago
+  moneda?: string;            // Denormalizado de MetodoPago
   cicloPago?: 'mensual' | 'trimestral' | 'semestral' | 'anual';
   fechaInicio?: Date;
   fechaVencimiento?: Date;
@@ -32,6 +35,7 @@ export interface PagoServicio {
   id: string;
   servicioId: string;
   metodoPagoId?: string;
+  metodoPagoNombre?: string;  // Denormalizado de MetodoPago
   moneda?: string;
   isPagoInicial?: boolean;
   /** Fecha en que se registró el pago */

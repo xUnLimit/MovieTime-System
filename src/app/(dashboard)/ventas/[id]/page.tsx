@@ -18,16 +18,15 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
-import { useCategoriasStore } from '@/store/categoriasStore';
-import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { useServiciosStore } from '@/store/serviciosStore';
-import { useUsuariosStore } from '@/store/usuariosStore';
-import { COLLECTIONS, getById, remove, timestampToDate, update, adjustVentasActivas } from '@/lib/firebase/firestore';
+import { COLLECTIONS, getById, remove, timestampToDate, update, adjustVentasActivas, queryDocuments } from '@/lib/firebase/firestore';
 import { toast } from 'sonner';
 import { PagoDialog } from '@/components/shared/PagoDialog';
 import { formatearFecha, deriveTopLevelFromPagos } from '@/lib/utils/calculations';
-import { VentaDoc, VentaPago } from '@/types';
+import { VentaDoc, VentaPago, PagoVenta, MetodoPago } from '@/types';
 import { VentaPagosTable } from '@/components/ventas/VentaPagosTable';
+import { usePagosVenta } from '@/hooks/use-pagos-venta';
+import { crearPagoRenovacion } from '@/lib/services/pagosVentaService';
 
 const getCicloPagoLabel = (ciclo?: string) => {
   const labels: Record<string, string> = {
@@ -45,12 +44,12 @@ function VentaDetallePageContent() {
   const router = useRouter();
   const id = params.id as string;
 
-  const { categorias, fetchCategorias } = useCategoriasStore();
-  const { servicios, fetchServicios, updatePerfilOcupado } = useServiciosStore();
-  const { metodosPago, fetchMetodosPago } = useMetodosPagoStore();
-  const { usuarios, fetchUsuarios } = useUsuariosStore();
+  const { updatePerfilOcupado } = useServiciosStore();
 
+  // Estados locales para datos específicos de esta venta
   const [venta, setVenta] = useState<VentaDoc | null>(null);
+  const [metodosPago, setMetodosPago] = useState<MetodoPago[]>([]); // Para dropdown de renovación (lazy loaded)
+  const [servicioContrasena, setServicioContrasena] = useState<string>(''); // Contraseña del servicio
   const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [renovarDialogOpen, setRenovarDialogOpen] = useState(false);
@@ -59,24 +58,23 @@ function VentaDetallePageContent() {
   const [pagoToEdit, setPagoToEdit] = useState<VentaPago | null>(null);
   const [pagoToDelete, setPagoToDelete] = useState<VentaPago | null>(null);
 
-  useEffect(() => {
-    fetchCategorias();
-    fetchServicios();
-    fetchMetodosPago();
-    fetchUsuarios();
-  }, [fetchCategorias, fetchServicios, fetchMetodosPago, fetchUsuarios]);
+  // Cargar pagos desde la colección pagosVenta
+  const { pagos: pagosVenta, isLoading: loadingPagos, renovaciones, refresh: refreshPagos } = usePagosVenta(id);
 
   useEffect(() => {
     const loadVenta = async () => {
       if (!id) return;
       try {
         setLoading(true);
+        // 1. Cargar la venta
         const doc = await getById<Record<string, unknown>>(COLLECTIONS.VENTAS, id);
         if (!doc) {
           setVenta(null);
+          setLoading(false);
           return;
         }
-        setVenta({
+
+        const ventaData: VentaDoc = {
           id: doc.id as string,
           clienteId: (doc.clienteId as string) || '',
           clienteNombre: (doc.clienteNombre as string) || 'Sin cliente',
@@ -105,6 +103,7 @@ function VentaDetallePageContent() {
           fechaFin: timestampToDate(doc.fechaFin),
           cicloPago: (doc.cicloPago as VentaDoc['cicloPago']) ?? undefined,
           categoriaId: (doc.categoriaId as string) || '',
+          categoriaNombre: (doc.categoriaNombre as string) || undefined,
           servicioId: (doc.servicioId as string) || '',
           servicioNombre: (doc.servicioNombre as string) || 'Servicio',
           servicioCorreo: (doc.servicioCorreo as string) || '',
@@ -117,7 +116,24 @@ function VentaDetallePageContent() {
           notas: (doc.notas as string) || '',
           estado: (doc.estado as VentaDoc['estado']) ?? 'activo',
           createdAt: doc.createdAt ? timestampToDate(doc.createdAt) : undefined,
-        });
+        };
+        setVenta(ventaData);
+
+        // Cargar la contraseña del servicio (lazy load)
+        if (ventaData.servicioId) {
+          try {
+            const servicioDoc = await getById<Record<string, unknown>>(COLLECTIONS.SERVICIOS, ventaData.servicioId);
+            if (servicioDoc && servicioDoc.contrasena) {
+              setServicioContrasena(servicioDoc.contrasena as string);
+            }
+          } catch (error) {
+            console.error('Error cargando contraseña del servicio:', error);
+          }
+        }
+
+        // Nota: No cargamos todos los datos relacionados aquí.
+        // Los nombres ya están denormalizados en la venta.
+        // Solo cargaremos metodosPago cuando el usuario abra el diálogo de renovación.
       } catch (error) {
         console.error('Error cargando venta:', error);
         toast.error('Error cargando venta', { description: error instanceof Error ? error.message : undefined });
@@ -129,11 +145,6 @@ function VentaDetallePageContent() {
 
     loadVenta();
   }, [id]);
-
-  const servicio = servicios.find((s) => s.id === venta?.servicioId);
-  const categoria = categorias.find((c) => c.id === venta?.categoriaId);
-  const metodoPago = metodosPago.find((m) => m.id === venta?.metodoPagoId);
-  const cliente = usuarios.find((u) => u.id === venta?.clienteId);
 
   const estadoLabel = venta?.estado === 'inactivo' ? 'Inactiva' : 'Activa';
   const estadoBadgeClass =
@@ -148,8 +159,31 @@ function VentaDetallePageContent() {
 
   const perfilDisplay = venta?.perfilNombre?.trim() || '—';
 
+  // Convertir PagoVenta[] a VentaPago[] para compatibilidad con VentaPagosTable
   const paymentRows = useMemo(() => {
-    if (!venta) return [];
+    if (!venta || loadingPagos) return [];
+
+    // Usar pagos de la colección pagosVenta
+    if (pagosVenta.length > 0) {
+      return pagosVenta.map(p => ({
+        id: p.id,
+        fecha: p.fecha,
+        descripcion: p.isPagoInicial ? 'Pago Inicial' : `Renovación`,
+        precio: p.monto,
+        descuento: 0,
+        total: p.monto,
+        metodoPagoNombre: p.metodoPago,
+        moneda: venta.moneda,
+        isPagoInicial: p.isPagoInicial,
+        notas: p.notas,
+        cicloPago: p.cicloPago,
+        // Usar las fechas guardadas en el PagoVenta
+        fechaInicio: p.fechaInicio ?? null,
+        fechaVencimiento: p.fechaVencimiento ?? null,
+      } as VentaPago));
+    }
+
+    // Fallback: Si no hay pagos en la colección pero hay en el array legacy
     if (venta.pagos && venta.pagos.length > 0) {
       return [...venta.pagos].sort((a, b) => {
         const aTime = a.fecha ? new Date(a.fecha).getTime() : 0;
@@ -157,6 +191,8 @@ function VentaDetallePageContent() {
         return bTime - aTime;
       });
     }
+
+    // Si no hay pagos en ningún lado, crear uno sintético
     return [
       {
         id: 'synthetic-initial',
@@ -171,7 +207,22 @@ function VentaDetallePageContent() {
         isPagoInicial: true,
       },
     ];
-  }, [venta]);
+  }, [venta, pagosVenta, loadingPagos]);
+
+  // Cargar métodos de pago solo cuando se necesite (lazy loading)
+  const loadMetodosPago = async () => {
+    if (metodosPago.length > 0) return; // Ya están cargados
+    try {
+      // Solo cargar métodos de pago asociados a usuarios/clientes
+      const methods = await queryDocuments<MetodoPago>(COLLECTIONS.METODOS_PAGO, [
+        { field: 'asociadoA', operator: '==', value: 'usuario' }
+      ]);
+      setMetodosPago(Array.isArray(methods) ? methods : []);
+    } catch (error) {
+      console.error('Error cargando métodos de pago:', error);
+      setMetodosPago([]);
+    }
+  };
 
   const handleDelete = async () => {
     if (!venta) return;
@@ -217,35 +268,54 @@ function VentaDetallePageContent() {
     notas?: string;
   }) => {
     if (!venta) return;
-    const metodoPagoSeleccionado = metodosPago.find((m) => m.id === data.metodoPagoId);
-    const pagosActuales = venta.pagos ?? [];
-    const numeroRenovacion =
-      pagosActuales.filter((p) => !p.isPagoInicial && p.descripcion !== 'Pago inicial').length + 1;
-    const descuentoNumero = Number(data.descuento) || 0;
-    const total = Math.max(data.costo * (1 - descuentoNumero / 100), 0);
-    const nuevoPago: VentaPago = {
-      id: crypto.randomUUID(),
-      fecha: new Date(),
-      descripcion: `Renovación #${numeroRenovacion}`,
-      precio: data.costo,
-      descuento: descuentoNumero,
-      total,
-      metodoPagoId: data.metodoPagoId,
-      metodoPagoNombre: metodoPagoSeleccionado?.nombre || venta.metodoPagoNombre || 'Sin método',
-      moneda: metodoPagoSeleccionado?.moneda || venta.moneda || 'USD',
-      isPagoInicial: false,
-      cicloPago: data.periodoRenovacion as VentaDoc['cicloPago'],
-      fechaInicio: data.fechaInicio,
-      fechaVencimiento: data.fechaVencimiento,
-      notas: data.notas?.trim() || '',
-    };
-    const sanitized = [nuevoPago, ...pagosActuales].map(sanitizePago);
-    const updatePayload: Record<string, unknown> = { pagos: sanitized, ...deriveTopLevelFromPagos(sanitized) };
-    await update(COLLECTIONS.VENTAS, venta.id, updatePayload);
-    setVenta({ ...venta, pagos: sanitized, ...deriveTopLevelFromPagos(sanitized) } as VentaDoc);
+    try {
+      const metodoPagoSeleccionado = metodosPago.find((m) => m.id === data.metodoPagoId);
+      const descuentoNumero = Number(data.descuento) || 0;
+      const monto = Math.max(data.costo * (1 - descuentoNumero / 100), 0);
+
+      // Crear pago en la colección pagosVenta
+      await crearPagoRenovacion(
+        venta.id,
+        venta.clienteId || '',
+        venta.clienteNombre,
+        monto,
+        metodoPagoSeleccionado?.nombre || venta.metodoPagoNombre,
+        (data as any).metodoPagoId || data.metodoPagoId,                      // Denormalizado
+        (data as any).moneda || metodoPagoSeleccionado?.moneda || venta.moneda, // Denormalizado
+        data.periodoRenovacion as VentaDoc['cicloPago'],
+        data.notas?.trim(),
+        data.fechaInicio,
+        data.fechaVencimiento
+      );
+
+      // Actualizar fechas de la venta
+      await update(COLLECTIONS.VENTAS, venta.id, {
+        fechaInicio: data.fechaInicio,
+        fechaFin: data.fechaVencimiento,
+      });
+
+      // Actualizar estado local
+      setVenta({
+        ...venta,
+        fechaInicio: data.fechaInicio,
+        fechaFin: data.fechaVencimiento,
+      });
+
+      // Recargar los pagos sin recargar la página
+      refreshPagos();
+
+      // Cerrar el diálogo
+      setRenovarDialogOpen(false);
+
+      toast.success('Venta renovada exitosamente');
+    } catch (error) {
+      console.error('Error renovando venta:', error);
+      toast.error('Error al renovar venta');
+    }
   };
 
-  const handleEditarPago = (pago: VentaPago) => {
+  const handleEditarPago = async (pago: VentaPago) => {
+    await loadMetodosPago(); // Cargar métodos de pago antes de abrir el diálogo
     setPagoToEdit(pago);
     setEditarPagoDialogOpen(true);
   };
@@ -264,59 +334,116 @@ function VentaDetallePageContent() {
     fechaVencimiento: Date;
     notas?: string;
   }) => {
-    if (!venta || !pagoToEdit) return;
-    const metodoPagoSeleccionado = metodosPago.find((m) => m.id === data.metodoPagoId);
-    const pagos = venta.pagos ?? [];
-    const idx = pagos.findIndex((p) => p.id != null && p.id === pagoToEdit?.id);
-    if (idx < 0) {
-      setEditarPagoDialogOpen(false);
-      setPagoToEdit(null);
+    if (!venta || !pagoToEdit || !pagoToEdit.id) {
+      console.error('[EditarPago] Missing data:', { venta: !!venta, pagoToEdit: !!pagoToEdit, id: pagoToEdit?.id });
       return;
     }
-    const descuentoNumero = Number(data.descuento) || 0;
-    const total = Math.max(data.costo * (1 - descuentoNumero / 100), 0);
-    const edited: VentaPago = {
-      ...pagos[idx],
-      precio: data.costo,
-      descuento: descuentoNumero,
-      total,
-      metodoPagoId: data.metodoPagoId,
-      metodoPagoNombre: metodoPagoSeleccionado?.nombre || venta.metodoPagoNombre || 'Sin método',
-      moneda: metodoPagoSeleccionado?.moneda || venta.moneda || 'USD',
-      cicloPago: data.periodoRenovacion as VentaDoc['cicloPago'],
-      fechaInicio: data.fechaInicio,
-      fechaVencimiento: data.fechaVencimiento,
-      notas: data.notas?.trim() || '',
-    };
-    const nuevosPagos = [...pagos];
-    nuevosPagos[idx] = edited;
 
-    const sanitized = nuevosPagos.map(sanitizePago);
-    const updatePayload: Record<string, unknown> = { pagos: sanitized, ...deriveTopLevelFromPagos(sanitized) };
-    await update(COLLECTIONS.VENTAS, venta.id, updatePayload);
-    setVenta({ ...venta, pagos: sanitized, ...deriveTopLevelFromPagos(sanitized) } as VentaDoc);
-    setEditarPagoDialogOpen(false);
-    setPagoToEdit(null);
+    try {
+      console.log('[EditarPago] Updating pago:', pagoToEdit.id);
+      const metodoPagoSeleccionado = metodosPago.find((m) => m.id === data.metodoPagoId);
+      const descuentoNumero = Number(data.descuento) || 0;
+      const monto = Math.max(data.costo * (1 - descuentoNumero / 100), 0);
+
+      // Actualizar el pago en la colección pagosVenta
+      await update(COLLECTIONS.PAGOS_VENTA, pagoToEdit.id, {
+        monto,
+        metodoPago: metodoPagoSeleccionado?.nombre || venta.metodoPagoNombre,
+        cicloPago: data.periodoRenovacion as VentaDoc['cicloPago'],
+        fechaInicio: data.fechaInicio,
+        fechaVencimiento: data.fechaVencimiento,
+        notas: data.notas?.trim() || '',
+      });
+
+      // Verificar si este es el pago más reciente (index 0 en paymentRows)
+      const pagoEditadoIndex = paymentRows.findIndex(p => p.id === pagoToEdit.id);
+      const esPagoMasReciente = pagoEditadoIndex === 0;
+
+      // Si es el pago más reciente, actualizar las fechas de la venta
+      if (esPagoMasReciente) {
+        await update(COLLECTIONS.VENTAS, venta.id, {
+          fechaInicio: data.fechaInicio,
+          fechaFin: data.fechaVencimiento,
+        });
+
+        // Actualizar estado local
+        setVenta({
+          ...venta,
+          fechaInicio: data.fechaInicio,
+          fechaFin: data.fechaVencimiento,
+        });
+      }
+
+      console.log('[EditarPago] Successfully updated, refreshing...');
+
+      setEditarPagoDialogOpen(false);
+      setPagoToEdit(null);
+
+      // Recargar los pagos
+      refreshPagos();
+
+      toast.success('Pago actualizado exitosamente');
+    } catch (error) {
+      console.error('[EditarPago] Error actualizando pago:', error);
+      toast.error('Error al actualizar pago');
+    }
   };
 
   const handleConfirmDeletePago = async () => {
-    if (!venta || !pagoToDelete) return;
-    const pagos = venta.pagos ?? [];
-    const idx = pagos.findIndex((p) => p.id != null && p.id === pagoToDelete?.id);
-    if (idx < 0) {
-      setDeletePagoDialogOpen(false);
-      setPagoToDelete(null);
+    if (!venta || !pagoToDelete || !pagoToDelete.id) {
+      console.error('[DeletePago] Missing data:', { venta: !!venta, pagoToDelete: !!pagoToDelete, id: pagoToDelete?.id });
       return;
     }
-    const nuevosPagos = [...pagos];
-    nuevosPagos.splice(idx, 1);
 
-    const sanitized = nuevosPagos.map(sanitizePago);
-    const updatePayload: Record<string, unknown> = { pagos: sanitized, ...deriveTopLevelFromPagos(sanitized) };
-    await update(COLLECTIONS.VENTAS, venta.id, updatePayload);
-    setVenta({ ...venta, pagos: sanitized, ...deriveTopLevelFromPagos(sanitized) } as VentaDoc);
-    setDeletePagoDialogOpen(false);
-    setPagoToDelete(null);
+    try {
+      console.log('[DeletePago] Deleting pago:', pagoToDelete.id);
+
+      // Eliminar el pago de la colección pagosVenta
+      await remove(COLLECTIONS.PAGOS_VENTA, pagoToDelete.id);
+
+      // Recargar los pagos para obtener la lista actualizada
+      const pagosActualizados = await queryDocuments<PagoVenta>(COLLECTIONS.PAGOS_VENTA, [
+        { field: 'ventaId', operator: '==', value: venta.id }
+      ]);
+
+      // Ordenar por fecha (más reciente primero)
+      const sorted = pagosActualizados.sort((a, b) => {
+        const dateA = a.fecha instanceof Date ? a.fecha : new Date(a.fecha);
+        const dateB = b.fecha instanceof Date ? b.fecha : new Date(b.fecha);
+        return dateB.getTime() - dateA.getTime();
+      });
+
+      // El pago más reciente después de eliminar
+      const pagoMasReciente = sorted[0];
+
+      // Actualizar las fechas de la venta con las del pago más reciente
+      if (pagoMasReciente && pagoMasReciente.fechaInicio && pagoMasReciente.fechaVencimiento) {
+        await update(COLLECTIONS.VENTAS, venta.id, {
+          fechaInicio: pagoMasReciente.fechaInicio,
+          fechaFin: pagoMasReciente.fechaVencimiento,
+        });
+
+        // Actualizar estado local
+        setVenta({
+          ...venta,
+          fechaInicio: pagoMasReciente.fechaInicio,
+          fechaFin: pagoMasReciente.fechaVencimiento,
+        });
+      }
+
+      console.log('[DeletePago] Successfully deleted, refreshing...');
+
+      setDeletePagoDialogOpen(false);
+      setPagoToDelete(null);
+
+      // Recargar los pagos
+      refreshPagos();
+
+      toast.success('Pago eliminado exitosamente');
+    } catch (error) {
+      console.error('[DeletePago] Error eliminando pago:', error);
+      toast.error('Error al eliminar pago');
+    }
   };
 
   if (loading) {
@@ -375,7 +502,10 @@ function VentaDetallePageContent() {
             variant="default"
             size="sm"
             className="bg-purple-600 hover:bg-purple-700"
-            onClick={() => setRenovarDialogOpen(true)}
+            onClick={async () => {
+              await loadMetodosPago(); // Cargar métodos de pago solo cuando se necesite
+              setRenovarDialogOpen(true);
+            }}
           >
             <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
             Renovar
@@ -406,8 +536,8 @@ function VentaDetallePageContent() {
           <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr] gap-y-6 md:gap-x-64">
             <div>
               <p className="text-xs text-muted-foreground">Cliente</p>
-              {cliente ? (
-                <Link href={`/usuarios/${cliente.id}`} className="text-sm font-medium text-purple-500 hover:underline">
+              {venta.clienteId ? (
+                <Link href={`/usuarios/${venta.clienteId}`} className="text-sm font-medium text-purple-500 hover:underline">
                   {venta.clienteNombre}
                 </Link>
               ) : (
@@ -416,7 +546,7 @@ function VentaDetallePageContent() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Método de Pago</p>
-              <p className="text-sm font-medium text-purple-500">{metodoPago?.nombre || venta.metodoPagoNombre || 'Sin método'}</p>
+              <p className="text-sm font-medium text-purple-500">{venta.metodoPagoNombre || 'Sin método'}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Ciclo de pago</p>
@@ -424,7 +554,7 @@ function VentaDetallePageContent() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Categoría</p>
-              <p className="text-sm font-medium">{categoria?.nombre || 'Sin categoría'}</p>
+              <p className="text-sm font-medium">{venta.categoriaNombre || 'Sin categoría'}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Servicio</p>
@@ -432,7 +562,7 @@ function VentaDetallePageContent() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Contraseña</p>
-              <p className="text-sm font-medium">{servicio?.contrasena || '—'}</p>
+              <p className="text-sm font-medium">{servicioContrasena || '—'}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Perfil</p>
@@ -444,7 +574,7 @@ function VentaDetallePageContent() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Renovaciones</p>
-              <p className="text-sm font-medium">0</p>
+              <p className="text-sm font-medium">{renovaciones}</p>
             </div>
           </div>
 
@@ -531,7 +661,7 @@ function VentaDetallePageContent() {
           <VentaPagosTable
             pagos={paymentRows}
             moneda={venta.moneda}
-            canManagePagos={!!venta.pagos?.length}
+            canManagePagos={true}
             onEdit={handleEditarPago}
             onDelete={handleDeletePago}
           />
@@ -552,8 +682,8 @@ function VentaDetallePageContent() {
         onOpenChange={setRenovarDialogOpen}
         venta={venta}
         metodosPago={metodosPago}
-        categoriaPlanes={categoria?.planes}
-        tipoPlan={servicio?.tipo}
+        categoriaPlanes={undefined}
+        tipoPlan={undefined}
         onConfirm={handleConfirmRenovacion}
       />
 
@@ -565,8 +695,8 @@ function VentaDetallePageContent() {
         venta={venta}
         pago={pagoToEdit}
         metodosPago={metodosPago}
-        categoriaPlanes={categoria?.planes}
-        tipoPlan={servicio?.tipo}
+        categoriaPlanes={undefined}
+        tipoPlan={undefined}
         onConfirm={handleConfirmEditarPago}
       />
 

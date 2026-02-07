@@ -1,35 +1,51 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { UsuarioForm } from '@/components/usuarios/UsuarioForm';
-import { useUsuariosStore } from '@/store/usuariosStore';
-import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
+import { getById, COLLECTIONS } from '@/lib/firebase/firestore';
+import { useMetodosPagoStore } from '@/store/metodosPagoStore';
+import type { Usuario, MetodoPago } from '@/types';
+import { toast } from 'sonner';
 
 function EditarUsuarioPageContent() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
+  const { fetchMetodosPagoUsuarios } = useMetodosPagoStore();
 
-  const { usuarios, fetchUsuarios, isLoading: usuariosLoading } = useUsuariosStore();
-  const { metodosPago, fetchMetodosPago, isLoading: metodosLoading } = useMetodosPagoStore();
+  const [usuario, setUsuario] = useState<Usuario | null>(null);
+  const [metodosPago, setMetodosPago] = useState<MetodoPago[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchUsuarios();
-    fetchMetodosPago();
-  }, [fetchUsuarios, fetchMetodosPago]);
+    const loadData = async () => {
+      if (!id) return;
+      setLoading(true);
+      try {
+        const [usuarioData, metodosData] = await Promise.all([
+          getById<Usuario>(COLLECTIONS.USUARIOS, id),
+          fetchMetodosPagoUsuarios()
+        ]);
 
-  const usuario = useMemo(() => 
-    usuarios.find((u) => u.id === id) ?? null,
-    [usuarios, id]
-  );
+        setUsuario(usuarioData);
+        setMetodosPago(metodosData);
+      } catch (error) {
+        console.error('Error cargando datos:', error);
+        toast.error('Error cargando datos del usuario');
+        setUsuario(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [id, fetchMetodosPagoUsuarios]);
 
   const tipoUsuario = usuario?.tipo ?? 'cliente';
-  const loading = usuariosLoading || metodosLoading;
 
   const handleSuccess = () => {
     router.push('/usuarios');

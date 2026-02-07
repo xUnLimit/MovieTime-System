@@ -1,41 +1,55 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { LogTimeline } from '@/components/log-actividad/LogTimeline';
-import { useActivityLogStore } from '@/store/activityLogStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
+import { useServerPagination } from '@/hooks/useServerPagination';
+import { COLLECTIONS } from '@/lib/firebase/firestore';
+import { ActivityLog } from '@/types';
+import { FilterOption } from '@/lib/firebase/pagination';
 
 function LogActividadPageContent() {
-  const { logs, fetchLogs } = useActivityLogStore();
-
   const [searchTerm, setSearchTerm] = useState('');
   const [accionFilter, setAccionFilter] = useState('all');
   const [entidadFilter, setEntidadFilter] = useState('all');
   const [usuarioFilter, setUsuarioFilter] = useState('all');
 
-  useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs]);
+  // Construir filtros para Firestore
+  const filters = useMemo((): FilterOption[] => {
+    const f: FilterOption[] = [];
+    if (accionFilter !== 'all') {
+      f.push({ field: 'accion', operator: '==', value: accionFilter });
+    }
+    if (entidadFilter !== 'all') {
+      f.push({ field: 'entidad', operator: '==', value: entidadFilter });
+    }
+    if (usuarioFilter !== 'all') {
+      f.push({ field: 'usuarioId', operator: '==', value: usuarioFilter });
+    }
+    return f;
+  }, [accionFilter, entidadFilter, usuarioFilter]);
 
+  // Paginación server-side con 50 items por página
+  const { data: logs, isLoading, hasMore, page, hasPrevious, next, previous, refresh } = useServerPagination<ActivityLog>({
+    collectionName: COLLECTIONS.ACTIVITY_LOG,
+    filters,
+    pageSize: 50,
+    orderByField: 'timestamp',
+    orderDirection: 'desc',
+  });
+
+  // Filtrado client-side solo para búsqueda de texto (no se puede hacer en Firestore)
   const filteredLogs = useMemo(() => {
+    if (!searchTerm) return logs;
     return logs.filter((log) => {
-      const matchesSearch =
-        log.entidadNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.usuarioEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.detalles?.toLowerCase().includes(searchTerm.toLowerCase());
-
-      const matchesAccion = accionFilter === 'all' || log.accion === accionFilter;
-
-      const matchesEntidad =
-        entidadFilter === 'all' || log.entidad === entidadFilter;
-
-      const matchesUsuario =
-        usuarioFilter === 'all' || log.usuarioId === usuarioFilter;
-
-      return matchesSearch && matchesAccion && matchesEntidad && matchesUsuario;
+      return (
+        log.entidadNombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        log.usuarioEmail?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        log.detalles?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     });
-  }, [logs, searchTerm, accionFilter, entidadFilter, usuarioFilter]);
+  }, [logs, searchTerm]);
 
   return (
     <div className="space-y-4">
@@ -48,6 +62,7 @@ function LogActividadPageContent() {
 
       <LogTimeline
         logs={filteredLogs}
+        isLoading={isLoading}
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
         accionFilter={accionFilter}
@@ -56,6 +71,13 @@ function LogActividadPageContent() {
         setEntidadFilter={setEntidadFilter}
         usuarioFilter={usuarioFilter}
         setUsuarioFilter={setUsuarioFilter}
+        // Paginación
+        hasMore={hasMore}
+        hasPrevious={hasPrevious}
+        page={page}
+        onNext={next}
+        onPrevious={previous}
+        onRefresh={refresh}
       />
     </div>
   );

@@ -9,15 +9,16 @@ import { Card } from '@/components/ui/card';
 import { ArrowLeft, Pencil, Trash2, RefreshCw, User, ChevronDown, DollarSign, Monitor, Calendar, Tag } from 'lucide-react';
 import { useServiciosStore } from '@/store/serviciosStore';
 import { useCategoriasStore } from '@/store/categoriasStore';
-import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { PagoDialog } from '@/components/shared/PagoDialog';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { create, queryDocuments, remove, update, COLLECTIONS, timestampToDate, dateToTimestamp } from '@/lib/firebase/firestore';
-import { PagoServicio } from '@/types';
+import { create, queryDocuments, remove, update, COLLECTIONS, timestampToDate, dateToTimestamp, getById } from '@/lib/firebase/firestore';
+import { doc as firestoreDoc, updateDoc, increment } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
+import { PagoServicio, Servicio, Categoria, MetodoPago } from '@/types';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,9 +46,15 @@ function ServicioDetallePageContent() {
   const router = useRouter();
   const id = params.id as string;
 
-  const { servicios, fetchServicios, deleteServicio, updateServicio } = useServiciosStore();
-  const { categorias, fetchCategorias } = useCategoriasStore();
-  const { metodosPago, fetchMetodosPago } = useMetodosPagoStore();
+  const { deleteServicio, updateServicio, fetchCounts } = useServiciosStore();
+  const { fetchCategorias } = useCategoriasStore();
+
+  // Estados locales para los datos específicos de esta página
+  const [servicio, setServicio] = useState<Servicio | null>(null);
+  const [categoria, setCategoria] = useState<Categoria | null>(null);
+  const [metodoPago, setMetodoPago] = useState<MetodoPago | null>(null);
+  const [metodosPago, setMetodosPago] = useState<MetodoPago[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteRenovacionDialogOpen, setDeleteRenovacionDialogOpen] = useState(false);
@@ -60,11 +67,49 @@ function ServicioDetallePageContent() {
   const [expandedProfileIndex, setExpandedProfileIndex] = useState<number | null>(null);
   const [pagosHistorialLoading, setPagosHistorialLoading] = useState(true);
 
+  // Cargar solo el servicio (1 lectura única)
   useEffect(() => {
-    fetchServicios();
-    fetchCategorias();
-    fetchMetodosPago();
-  }, [fetchServicios, fetchCategorias, fetchMetodosPago]);
+    const loadData = async () => {
+      if (!id) return;
+      setIsLoadingData(true);
+      try {
+        // 1. Cargar el servicio (categoriaNombre ya está denormalizado)
+        const servicioData = await getById<Servicio>(COLLECTIONS.SERVICIOS, id);
+        if (!servicioData) {
+          toast.error('Servicio no encontrado');
+          setServicio(null);
+          return;
+        }
+        setServicio(servicioData);
+
+        // 2. Crear objeto de categoría sintético desde datos denormalizados
+        setCategoria({
+          id: servicioData.categoriaId,
+          nombre: servicioData.categoriaNombre,
+        } as Categoria);
+
+        // 3. Crear objeto sintético de metodoPago desde datos denormalizados
+        //    Ya no necesitamos cargar desde Firebase - todo está denormalizado
+        if (servicioData.metodoPagoId) {
+          setMetodoPago({
+            id: servicioData.metodoPagoId,
+            nombre: servicioData.metodoPagoNombre || '',
+            moneda: servicioData.moneda || 'USD',
+          } as MetodoPago);
+        }
+
+        // Nota: metodosPago (para dropdown) se carga en lazy load al abrir diálogo de renovación
+      } catch (error) {
+        console.error('Error cargando datos del servicio:', error);
+        toast.error('Error cargando datos del servicio');
+        setServicio(null);
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
+
+    loadData();
+  }, [id]);
 
   const loadPagos = async (): Promise<PagoServicio[]> => {
     if (!id) return [];
@@ -139,10 +184,6 @@ function ServicioDetallePageContent() {
     loadVentas();
   }, [id]);
 
-  const servicio = servicios.find((s) => s.id === id);
-  const categoria = categorias.find((c) => c.id === servicio?.categoriaId);
-  const metodoPago = metodosPago.find((m) => m.id === servicio?.metodoPagoId);
-
   const handleDelete = () => {
     setDeleteDialogOpen(true);
   };
@@ -151,6 +192,13 @@ function ServicioDetallePageContent() {
     try {
       await deleteServicio(id);
       toast.success('Servicio eliminado');
+
+      // Refrescar categorías y contadores de servicios para actualizar widgets
+      await Promise.all([
+        fetchCategorias(true),
+        fetchCounts(true), // Force refresh para actualizar inmediatamente
+      ]);
+
       router.push('/servicios');
     } catch (error) {
       toast.error('Error al eliminar servicio', { description: error instanceof Error ? error.message : undefined });
@@ -161,7 +209,22 @@ function ServicioDetallePageContent() {
     router.push(`/servicios/${id}/editar`);
   };
 
-  const handleRenovar = () => {
+  // Lazy load de métodos de pago (solo cuando se necesita renovar)
+  const loadMetodosPagoIfNeeded = async () => {
+    if (metodosPago.length > 0) return; // Ya están cargados
+    try {
+      const methods = await queryDocuments<MetodoPago>(COLLECTIONS.METODOS_PAGO, [
+        { field: 'asociadoA', operator: '==', value: 'servicio' }
+      ]);
+      setMetodosPago(methods);
+    } catch (error) {
+      console.error('Error cargando métodos de pago:', error);
+      setMetodosPago([]);
+    }
+  };
+
+  const handleRenovar = async () => {
+    await loadMetodosPagoIfNeeded(); // Cargar métodos de pago si no están cargados
     setRenovarDialogOpen(true);
   };
 
@@ -170,7 +233,8 @@ function ServicioDetallePageContent() {
     setDeleteRenovacionDialogOpen(true);
   };
 
-  const handleEditarPago = (pago: PagoServicio) => {
+  const handleEditarPago = async (pago: PagoServicio) => {
+    await loadMetodosPagoIfNeeded(); // Cargar métodos de pago si no están cargados
     setPagoToEdit(pago);
     setEditarPagoDialogOpen(true);
   };
@@ -186,6 +250,9 @@ function ServicioDetallePageContent() {
   }) => {
     if (!pagoToEdit) return;
     try {
+      // Calcular diferencia entre monto viejo y nuevo
+      const montoDiff = data.costo - (pagoToEdit.monto ?? 0);
+
       const metodoPagoSeleccionado = metodosPago.find((m) => m.id === data.metodoPagoId);
       await update(COLLECTIONS.PAGOS_SERVICIO, pagoToEdit.id, {
         fechaInicio: dateToTimestamp(data.fechaInicio),
@@ -193,9 +260,25 @@ function ServicioDetallePageContent() {
         monto: data.costo,
         cicloPago: data.periodoRenovacion as 'mensual' | 'trimestral' | 'semestral' | 'anual',
         metodoPagoId: data.metodoPagoId,
-        moneda: metodoPagoSeleccionado?.moneda,
+        metodoPagoNombre: (data as any).metodoPagoNombre || metodoPagoSeleccionado?.nombre,  // Denormalizado
+        moneda: (data as any).moneda || metodoPagoSeleccionado?.moneda,                      // Denormalizado
         isPagoInicial: false,
       });
+
+      // Ajustar gastosTotal del servicio y de la categoría con la diferencia si cambió el monto
+      if (montoDiff !== 0 && servicio) {
+        const servicioRef = firestoreDoc(db, COLLECTIONS.SERVICIOS, id);
+        await updateDoc(servicioRef, {
+          gastosTotal: increment(montoDiff)
+        });
+
+        // Actualizar gastosTotal de la categoría
+        const categoriaRef = firestoreDoc(db, COLLECTIONS.CATEGORIAS, servicio.categoriaId);
+        await updateDoc(categoriaRef, {
+          gastosTotal: increment(montoDiff)
+        });
+      }
+
       const esUltimoPago = pagosOrdenados[0]?.id === pagoToEdit.id;
       if (esUltimoPago) {
         await updateServicio(id, {
@@ -203,8 +286,16 @@ function ServicioDetallePageContent() {
           fechaVencimiento: data.fechaVencimiento,
           costoServicio: data.costo,
           metodoPagoId: data.metodoPagoId || undefined,
+          metodoPagoNombre: (data as any).metodoPagoNombre || metodoPagoSeleccionado?.nombre,  // Denormalizado
+          moneda: (data as any).moneda || metodoPagoSeleccionado?.moneda,                      // Denormalizado
           cicloPago: data.periodoRenovacion as 'mensual' | 'trimestral' | 'semestral' | 'anual',
         });
+
+        // Recargar el servicio actualizado para reflejar los cambios en la UI
+        const servicioActualizado = await getById<Servicio>(COLLECTIONS.SERVICIOS, id);
+        if (servicioActualizado) {
+          setServicio(servicioActualizado);
+        }
       }
       await loadPagos();
       toast.success('Pago actualizado correctamente');
@@ -219,8 +310,22 @@ function ServicioDetallePageContent() {
   const handleConfirmDeleteRenovacion = async () => {
     if (!pagoToDelete || !servicio) return;
     const eraUltimaRenovacion = pagosOrdenados[0]?.id === pagoToDelete.id;
+    const montoToRevert = pagoToDelete.monto ?? 0;
+
     try {
       await remove(COLLECTIONS.PAGOS_SERVICIO, pagoToDelete.id);
+
+      // Decrementar gastosTotal del servicio y de la categoría
+      const servicioRef = firestoreDoc(db, COLLECTIONS.SERVICIOS, id);
+      await updateDoc(servicioRef, {
+        gastosTotal: increment(-montoToRevert)
+      });
+
+      const categoriaRef = firestoreDoc(db, COLLECTIONS.CATEGORIAS, servicio.categoriaId);
+      await updateDoc(categoriaRef, {
+        gastosTotal: increment(-montoToRevert)
+      });
+
       const pagosActualizados = await loadPagos();
       if (eraUltimaRenovacion) {
         if (pagosActualizados.length > 0) {
@@ -232,6 +337,12 @@ function ServicioDetallePageContent() {
             metodoPagoId: anterior.metodoPagoId || undefined,
             cicloPago: anterior.cicloPago,
           });
+
+          // Recargar el servicio actualizado para reflejar los cambios en la UI
+          const servicioActualizado = await getById<Servicio>(COLLECTIONS.SERVICIOS, id);
+          if (servicioActualizado) {
+            setServicio(servicioActualizado);
+          }
         }
       }
       toast.success('Renovación eliminada');
@@ -266,17 +377,39 @@ function ServicioDetallePageContent() {
         fechaVencimiento: data.fechaVencimiento,
         monto: data.costo,
         metodoPagoId: data.metodoPagoId,
-        moneda: metodoPagoSeleccionado?.moneda,
+        metodoPagoNombre: (data as any).metodoPagoNombre || metodoPagoSeleccionado?.nombre,  // Denormalizado
+        moneda: (data as any).moneda || metodoPagoSeleccionado?.moneda,                      // Denormalizado
         isPagoInicial: false,
       });
+
+      // Incrementar gastosTotal del servicio y de la categoría
+      const servicioRef = firestoreDoc(db, COLLECTIONS.SERVICIOS, id);
+      await updateDoc(servicioRef, {
+        gastosTotal: increment(data.costo)
+      });
+
+      if (servicio) {
+        const categoriaRef = firestoreDoc(db, COLLECTIONS.CATEGORIAS, servicio.categoriaId);
+        await updateDoc(categoriaRef, {
+          gastosTotal: increment(data.costo)
+        });
+      }
 
       await updateServicio(id, {
         fechaInicio: data.fechaInicio,
         fechaVencimiento: data.fechaVencimiento,
         costoServicio: data.costo,
         metodoPagoId: data.metodoPagoId || undefined,
+        metodoPagoNombre: (data as any).metodoPagoNombre || metodoPagoSeleccionado?.nombre,  // Denormalizado
+        moneda: (data as any).moneda || metodoPagoSeleccionado?.moneda,                      // Denormalizado
         cicloPago: data.periodoRenovacion as 'mensual' | 'trimestral' | 'semestral' | 'anual',
       });
+
+      // Recargar el servicio actualizado para reflejar los cambios en la UI
+      const servicioActualizado = await getById<Servicio>(COLLECTIONS.SERVICIOS, id);
+      if (servicioActualizado) {
+        setServicio(servicioActualizado);
+      }
 
       const docs = await queryDocuments<Record<string, unknown>>(COLLECTIONS.PAGOS_SERVICIO, [
         { field: 'servicioId', operator: '==', value: id },
@@ -298,7 +431,6 @@ function ServicioDetallePageContent() {
       }));
       setPagosServicio(pagos.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()));
 
-      // No refetch servicios: el estado ya se actualizó en updateServicio preservando _inicial
       toast.success('Renovación registrada exitosamente');
       setRenovarDialogOpen(false);
     } catch (error) {
@@ -367,6 +499,27 @@ function ServicioDetallePageContent() {
     });
     return map;
   }, [ventasServicio]);
+
+  // Estado de carga
+  if (isLoadingData) {
+    return (
+      <div className="space-y-4">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight">Cargando servicio...</h1>
+          <p className="text-sm text-muted-foreground">
+            <Link href="/" className="hover:text-foreground transition-colors">Dashboard</Link>
+            {' / '}
+            <Link href="/servicios" className="hover:text-foreground transition-colors">Servicios</Link>
+            {' / '}
+            <span className="text-foreground">Detalles</span>
+          </p>
+        </div>
+        <div className="bg-card border border-border rounded-lg p-6">
+          <p className="text-muted-foreground">Cargando datos del servicio...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!servicio) {
     return (

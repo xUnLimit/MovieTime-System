@@ -13,12 +13,36 @@ import { useCategoriasStore } from '@/store/categoriasStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 
 function CategoriasPageContent() {
-  const { categorias, fetchCategorias } = useCategoriasStore();
+  const { categorias, fetchCategorias, fetchCounts } = useCategoriasStore();
   const [activeTab, setActiveTab] = useState('todos');
 
   useEffect(() => {
     fetchCategorias();
-  }, [fetchCategorias]);
+    fetchCounts();
+  }, [fetchCategorias, fetchCounts]);
+
+  // Escuchar cuando se elimina una categoría desde otra página
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'categoria-deleted') {
+        fetchCategorias(true);
+        fetchCounts();
+      }
+    };
+
+    const handleCategoriaDeleted = () => {
+      fetchCategorias(true);
+      fetchCounts();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('categoria-deleted', handleCategoriaDeleted);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('categoria-deleted', handleCategoriaDeleted);
+    };
+  }, [fetchCategorias, fetchCounts]);
 
   return (
     <div className="space-y-4">
@@ -37,7 +61,7 @@ function CategoriasPageContent() {
         </Link>
       </div>
 
-      <CategoriasMetrics categorias={categorias} />
+      <CategoriasMetrics />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-transparent rounded-none p-0 h-auto inline-flex border-b border-border">

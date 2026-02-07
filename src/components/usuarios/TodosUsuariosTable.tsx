@@ -79,7 +79,7 @@ export function TodosUsuariosTable({
       telefono: u.telefono,
       metodoPagoNombre: u.metodoPagoNombre,
       tipo: u.tipo === 'cliente' ? 'Cliente' : 'Revendedor',
-      serviciosActivos: u.tipo === 'cliente' ? (u.ventasActivas ?? 0) : 0,
+      serviciosActivos: u.tipo === 'cliente' ? (u.serviciosActivos ?? 0) : 0,
       montoSinConsumir: u.tipo === 'cliente' ? (ventasPorUsuario[u.id]?.montoSinConsumir ?? 0) : 0,
       original: u,
     }));
@@ -111,8 +111,14 @@ export function TodosUsuariosTable({
   const handleConfirmDelete = async () => {
     if (usuarioToDelete) {
       try {
-        await deleteUsuario(usuarioToDelete.original.id);
+        await deleteUsuario(usuarioToDelete.original.id, {
+          tipo: usuarioToDelete.original.tipo,
+          createdAt: usuarioToDelete.original.createdAt,
+          serviciosActivos: usuarioToDelete.original.serviciosActivos,
+        });
         toast.success(`${usuarioToDelete.tipo} eliminado`);
+        setDeleteDialogOpen(false);
+        setUsuarioToDelete(null);
         onRefresh();
       } catch (error) {
         toast.error(`Error al eliminar ${usuarioToDelete.tipo.toLowerCase()}`, { description: error instanceof Error ? error.message : undefined });
@@ -250,11 +256,13 @@ export function TodosUsuariosTable({
         </div>
 
         <DataTable
-            data={filteredUsuarios}
-            columns={columns}
-            loading={isLoading}
-            pagination={false}
-            actions={(item) => (
+          data={filteredUsuarios as unknown as Record<string, unknown>[]}
+          columns={columns as unknown as Column<Record<string, unknown>>[]}
+          loading={isLoading}
+          pagination={false}
+          actions={(item) => {
+            const usuario = item as unknown as UsuarioDisplay;
+            return (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -263,17 +271,17 @@ export function TodosUsuariosTable({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   {onView && (
-                    <DropdownMenuItem onClick={() => handleView(item)}>
+                    <DropdownMenuItem onClick={() => handleView(usuario)}>
                       <Eye className="h-4 w-4 mr-2" />
                       Ver detalles
                     </DropdownMenuItem>
                   )}
-                  <DropdownMenuItem onClick={() => handleEdit(item)}>
+                  <DropdownMenuItem onClick={() => handleEdit(usuario)}>
                     <Edit className="h-4 w-4 mr-2" />
                     Editar
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => handleDelete(item)}
+                    onClick={() => handleDelete(usuario)}
                     className="text-red-500 focus:text-red-500"
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
@@ -281,8 +289,9 @@ export function TodosUsuariosTable({
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            )}
-          />
+            );
+          }}
+        />
         <PaginationFooter {...pagination} />
       </Card>
 

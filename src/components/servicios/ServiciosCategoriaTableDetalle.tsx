@@ -3,6 +3,7 @@
 import { memo, useState } from 'react';
 import { Servicio } from '@/types';
 import { DataTable, Column } from '@/components/shared/DataTable';
+import { PaginationFooter } from '@/components/shared/PaginationFooter';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { MoreHorizontal, Pencil, Trash2, User, Search, RefreshCw, Eye } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, User, Search, RefreshCw, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useServiciosStore } from '@/store/serviciosStore';
+import { useCategoriasStore } from '@/store/categoriasStore';
 import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { toast } from 'sonner';
@@ -40,6 +42,13 @@ interface ServiciosCategoriaTableDetalleProps {
   onCicloChange: (value: string) => void;
   perfilFilter: string;
   onPerfilChange: (value: string) => void;
+  isLoading?: boolean;
+  hasMore?: boolean;
+  hasPrevious?: boolean;
+  page?: number;
+  onNext: () => void;
+  onPrevious: () => void;
+  onRefresh?: () => void;
 }
 
 export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTableDetalle({
@@ -53,17 +62,23 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
   onCicloChange,
   perfilFilter,
   onPerfilChange,
+  isLoading = false,
+  hasMore = false,
+  hasPrevious = false,
+  page = 1,
+  onNext,
+  onPrevious,
+  onRefresh,
 }: ServiciosCategoriaTableDetalleProps) {
-  const { deleteServicio } = useServiciosStore();
+  const { deleteServicio, fetchCounts } = useServiciosStore();
+  const { fetchCategorias } = useCategoriasStore();
   const { metodosPago } = useMetodosPagoStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [servicioToDelete, setServicioToDelete] = useState<Servicio | null>(null);
 
-  const getCurrencySymbol = (metodoPagoId?: string) => {
-    if (!metodoPagoId) return '$';
-    const metodoPago = metodosPago.find(m => m.id === metodoPagoId);
-    if (!metodoPago?.moneda) return '$';
-    return CURRENCY_SYMBOLS[metodoPago.moneda] || '$';
+  const getCurrencySymbol = (moneda?: string) => {
+    if (!moneda) return '$';
+    return CURRENCY_SYMBOLS[moneda] || '$';
   };
 
   const handleDelete = (servicio: Servicio) => {
@@ -76,6 +91,13 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
       try {
         await deleteServicio(servicioToDelete.id);
         toast.success('Servicio eliminado');
+
+        // Refrescar categorías y contadores de servicios para actualizar widgets
+        await Promise.all([
+          fetchCategorias(true),
+          fetchCounts(true), // Force refresh para actualizar inmediatamente
+        ]);
+
         setDeleteDialogOpen(false);
         setServicioToDelete(null);
       } catch (error) {
@@ -150,7 +172,7 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
       width: '7%',
       render: (item) => (
         <div className="flex items-center justify-center gap-1">
-          <span className="font-medium">{getCurrencySymbol(item.metodoPagoId)}</span>
+          <span className="font-medium">{getCurrencySymbol(item.moneda)}</span>
           <span className="font-medium">{(item.costoServicio || 0).toFixed(2)}</span>
         </div>
       ),
@@ -269,41 +291,55 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
           </Select>
         </div>
 
-        <DataTable
-          data={servicios}
-          columns={columns}
-          emptyMessage="No hay servicios para mostrar"
-          pagination={true}
-          itemsPerPageOptions={[10, 25, 50, 100]}
-          actions={(item) => (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {onView && (
-                  <DropdownMenuItem onClick={() => onView(item.id)}>
-                    <Eye className="h-4 w-4 mr-2" />
-                    Ver detalles
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem onClick={() => onEdit(item.id)}>
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Editar
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => handleDelete(item)}
-                  className="text-red-500 focus:text-red-500"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Eliminar
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-        />
+        <div>
+          <DataTable
+            data={servicios as unknown as Record<string, unknown>[]}
+            columns={columns as unknown as Column<Record<string, unknown>>[]}
+            emptyMessage="No hay servicios para mostrar"
+            loading={isLoading}
+            pagination={false}
+            actions={(item) => {
+              const servicio = item as unknown as Servicio;
+              return (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {onView && (
+                      <DropdownMenuItem onClick={() => onView(servicio.id)}>
+                        <Eye className="h-4 w-4 mr-2" />
+                        Ver detalles
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onClick={() => onEdit(servicio.id)}>
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Editar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleDelete(servicio)}
+                      className="text-red-500 focus:text-red-500"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Eliminar
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }}
+          />
+
+          <PaginationFooter
+            page={page}
+            totalPages={hasMore ? page + 1 : page}
+            hasPrevious={hasPrevious}
+            hasMore={hasMore}
+            onPrevious={onPrevious}
+            onNext={onNext}
+          />
+        </div>
       </Card>
 
       <ConfirmDialog

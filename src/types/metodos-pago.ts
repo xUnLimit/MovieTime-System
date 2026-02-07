@@ -20,8 +20,6 @@ export interface MetodoPago {
   notas?: string;
   activo: boolean;
   asociadoA?: AsociadoA; // Opcional para retrocompatibilidad
-  asociadoUsuarios: number;
-  asociadoServicios: number;
   // Campos para servicios
   email?: string;
   contrasena?: string;

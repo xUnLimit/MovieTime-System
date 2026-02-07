@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { UsuarioDetails } from '@/components/usuarios/UsuarioDetails';
@@ -10,24 +10,41 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, Pencil, Trash2 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { toast } from 'sonner';
-import { useState } from 'react';
+import { getById, COLLECTIONS } from '@/lib/firebase/firestore';
+import { Usuario } from '@/types';
 
 function UsuarioDetallesPageContent() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
 
-  const { usuarios, fetchUsuarios, deleteUsuario, isLoading } = useUsuariosStore();
+  const { deleteUsuario } = useUsuariosStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [usuario, setUsuario] = useState<Usuario | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
 
+  // Función para refrescar el usuario (llamada después de eliminar ventas)
+  const refreshUsuario = () => {
+    setRefreshKey(prev => prev + 1);
+  };
+
+  // Fetch solo este usuario por ID (1 lectura en lugar de N)
   useEffect(() => {
-    fetchUsuarios();
-  }, [fetchUsuarios]);
-
-  const usuario = useMemo(() => 
-    usuarios.find((u) => u.id === id) ?? null,
-    [usuarios, id]
-  );
+    const load = async () => {
+      setIsLoading(true);
+      try {
+        const user = await getById<Usuario>(COLLECTIONS.USUARIOS, id);
+        setUsuario(user);
+      } catch (error) {
+        console.error('Error loading usuario:', error);
+        setUsuario(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
+  }, [id, refreshKey]);
 
   if (isLoading) {
     return (
@@ -120,7 +137,7 @@ function UsuarioDetallesPageContent() {
           </div>
         </div>
 
-        <UsuarioDetails usuario={usuario} />
+        <UsuarioDetails usuario={usuario} onVentaDeleted={refreshUsuario} />
       </div>
 
       <ConfirmDialog

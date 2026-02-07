@@ -95,7 +95,14 @@ export function CategoriaDialog({
         await updateCategoria(categoria.id, data);
         toast.success('Categoría actualizada');
       } else {
-        await createCategoria(data);
+        // Inicializar campos denormalizados para nueva categoría
+        await createCategoria({
+          ...data,
+          totalServicios: 0,
+          serviciosActivos: 0,
+          perfilesDisponiblesTotal: 0,
+          gastosTotal: 0,
+        });
         toast.success('Categoría creada');
       }
       onOpenChange(false);

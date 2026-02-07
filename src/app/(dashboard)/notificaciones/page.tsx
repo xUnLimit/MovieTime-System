@@ -1,18 +1,20 @@
 'use client';
 
-import { useEffect } from 'react';
 import Link from 'next/link';
 import { NotificacionesTable } from '@/components/notificaciones/NotificacionesTable';
-import { useNotificacionesStore } from '@/store/notificacionesStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
+import { useServerPagination } from '@/hooks/useServerPagination';
+import { COLLECTIONS } from '@/lib/firebase/firestore';
+import type { Notificacion } from '@/types';
 
 function NotificacionesPageContent() {
-  const { notificaciones, fetchNotificaciones } =
-    useNotificacionesStore();
-
-  useEffect(() => {
-    fetchNotificaciones();
-  }, [fetchNotificaciones]);
+  const { data: notificaciones, isLoading, hasMore, hasPrevious, page, next, previous, refresh } = useServerPagination<Notificacion>({
+    collectionName: COLLECTIONS.NOTIFICACIONES,
+    filters: [],
+    pageSize: 50,
+    orderByField: 'fechaVencimiento',
+    orderDirection: 'asc',
+  });
 
   return (
     <div className="space-y-4">
@@ -25,7 +27,16 @@ function NotificacionesPageContent() {
         </div>
       </div>
 
-      <NotificacionesTable notificaciones={notificaciones} />
+      <NotificacionesTable
+        notificaciones={notificaciones}
+        isLoading={isLoading}
+        hasMore={hasMore}
+        hasPrevious={hasPrevious}
+        page={page}
+        onNext={next}
+        onPrevious={previous}
+        onRefresh={refresh}
+      />
     </div>
   );
 }

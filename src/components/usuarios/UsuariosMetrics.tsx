@@ -7,11 +7,11 @@ import { Users, Store, UserCheck, UserPlus } from 'lucide-react';
 interface UsuariosMetricsProps {
   totalClientes: number;
   totalRevendedores: number;
-  clientesActivos: number;
+  usuariosActivos: number;
   totalNuevosHoy: number;
 }
 
-export const UsuariosMetrics = memo(function UsuariosMetrics({ totalClientes, totalRevendedores, clientesActivos, totalNuevosHoy }: UsuariosMetricsProps) {
+export const UsuariosMetrics = memo(function UsuariosMetrics({ totalClientes, totalRevendedores, usuariosActivos, totalNuevosHoy }: UsuariosMetricsProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <MetricCard
@@ -29,8 +29,8 @@ export const UsuariosMetrics = memo(function UsuariosMetrics({ totalClientes, to
         underlineColor="bg-orange-500"
       />
       <MetricCard
-        title="Clientes Activos"
-        value={clientesActivos}
+        title="Usuarios Activos"
+        value={usuariosActivos}
         icon={UserCheck}
         iconColor="text-green-500"
         underlineColor="bg-green-500"

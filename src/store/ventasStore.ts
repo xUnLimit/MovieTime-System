@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import { VentaDoc } from '@/types';
-import { getAll, create as createDoc, update, remove, COLLECTIONS, logCacheHit, adjustVentasActivas } from '@/lib/firebase/firestore';
+import { VentaDoc, MetodoPago } from '@/types';
+import { getAll, getById, getCount, create as createDoc, update, remove, COLLECTIONS, logCacheHit, adjustVentasActivas } from '@/lib/firebase/firestore';
 
 interface VentasState {
   ventas: VentaDoc[];
@@ -10,8 +10,14 @@ interface VentasState {
   lastFetch: number | null;
   selectedVenta: VentaDoc | null;
 
+  // Counts for metrics (free queries)
+  totalVentas: number;
+  ventasActivas: number;
+  ventasInactivas: number;
+
   // Actions
   fetchVentas: (force?: boolean) => Promise<void>;
+  fetchCounts: () => Promise<void>;
   createVenta: (venta: Omit<VentaDoc, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateVenta: (id: string, updates: Partial<VentaDoc>) => Promise<void>;
   deleteVenta: (id: string, servicioId?: string, perfilNumero?: number | null) => Promise<void>;
@@ -30,6 +36,9 @@ export const useVentasStore = create<VentasState>()(
       error: null,
       lastFetch: null,
       selectedVenta: null,
+      totalVentas: 0,
+      ventasActivas: 0,
+      ventasInactivas: 0,
 
       fetchVentas: async (force = false) => {
         const { lastFetch } = get();
@@ -49,13 +58,49 @@ export const useVentasStore = create<VentasState>()(
         }
       },
 
+      fetchCounts: async () => {
+        try {
+          const [totalVentas, ventasActivas, ventasInactivas] = await Promise.all([
+            getCount(COLLECTIONS.VENTAS, []),
+            getCount(COLLECTIONS.VENTAS, [{ field: 'estado', operator: '==', value: 'activo' }]),
+            getCount(COLLECTIONS.VENTAS, [{ field: 'estado', operator: '==', value: 'inactivo' }]),
+          ]);
+          set({ totalVentas, ventasActivas, ventasInactivas });
+        } catch (error) {
+          console.error('Error fetching counts:', error);
+          set({ totalVentas: 0, ventasActivas: 0, ventasInactivas: 0 });
+        }
+      },
+
       createVenta: async (ventaData) => {
         try {
-          const id = await createDoc(COLLECTIONS.VENTAS, ventaData);
+          // Paso 1: Crear la venta (sin array de pagos)
+          const { pagos, ...ventaDataSinPagos } = ventaData;
+          const ventaId = await createDoc(COLLECTIONS.VENTAS, ventaDataSinPagos);
+
+          // Paso 2: Crear el pago inicial en la colección separada
+          if (pagos && pagos.length > 0) {
+            const pagoInicial = pagos[0];
+            await createDoc(COLLECTIONS.PAGOS_VENTA, {
+              ventaId,
+              clienteId: ventaData.clienteId || '',
+              clienteNombre: ventaData.clienteNombre,
+              fecha: pagoInicial.fecha || new Date(),
+              monto: pagoInicial.total || ventaData.precioFinal,
+              metodoPagoId: ventaData.metodoPagoId,       // Denormalizado
+              metodoPago: ventaData.metodoPagoNombre,
+              moneda: ventaData.moneda,                   // Denormalizado
+              notas: pagoInicial.notas || 'Pago inicial',
+              isPagoInicial: true,
+              cicloPago: ventaData.cicloPago,
+              fechaInicio: ventaData.fechaInicio,
+              fechaVencimiento: ventaData.fechaFin,
+            });
+          }
 
           const newVenta: VentaDoc = {
-            ...ventaData,
-            id,
+            ...ventaDataSinPagos,
+            id: ventaId,
             createdAt: new Date(),
             updatedAt: new Date()
           };
@@ -73,12 +118,27 @@ export const useVentasStore = create<VentasState>()(
 
       updateVenta: async (id, updates) => {
         try {
-          await update(COLLECTIONS.VENTAS, id, updates);
+          let finalUpdates = { ...updates };
+
+          // Si cambia metodoPagoId, actualizar campos denormalizados
+          if (updates.metodoPagoId !== undefined) {
+            const metodoPago = updates.metodoPagoId
+              ? await getById<MetodoPago>(COLLECTIONS.METODOS_PAGO, updates.metodoPagoId)
+              : null;
+
+            finalUpdates = {
+              ...finalUpdates,
+              metodoPagoNombre: metodoPago?.nombre,
+              moneda: metodoPago?.moneda,
+            };
+          }
+
+          await update(COLLECTIONS.VENTAS, id, finalUpdates);
 
           set((state) => ({
             ventas: state.ventas.map((venta) =>
               venta.id === id
-                ? { ...venta, ...updates, updatedAt: new Date() }
+                ? { ...venta, ...finalUpdates, updatedAt: new Date() }
                 : venta
             )
           }));
@@ -93,7 +153,16 @@ export const useVentasStore = create<VentasState>()(
       deleteVenta: async (id, servicioId?, perfilNumero?) => {
         // Save current state for rollback
         const currentVentas = get().ventas;
-        const ventaEliminada = currentVentas.find(v => v.id === id);
+
+        // Buscar la venta en memoria primero, si no está, buscar en Firestore
+        let ventaEliminada = currentVentas.find(v => v.id === id);
+        if (!ventaEliminada) {
+          // La página de ventas usa paginación, el store puede no tener la venta cargada
+          const ventaDoc = await getById<VentaDoc>(COLLECTIONS.VENTAS, id);
+          if (ventaDoc) {
+            ventaEliminada = ventaDoc;
+          }
+        }
 
         // Optimistic update
         set((state) => ({
@@ -109,9 +178,15 @@ export const useVentasStore = create<VentasState>()(
             await useServiciosStore.getState().updatePerfilOcupado(servicioId, false);
           }
 
-          // Decrementar ventasActivas si la venta eliminada era activa
+          // Decrementar serviciosActivos si la venta eliminada era activa
           if (ventaEliminada?.clienteId && (ventaEliminada.estado ?? 'activo') !== 'inactivo') {
-            adjustVentasActivas(ventaEliminada.clienteId, -1);
+            await adjustVentasActivas(ventaEliminada.clienteId, -1);
+          }
+
+          // Notificar que se eliminó una venta
+          if (typeof window !== 'undefined') {
+            window.localStorage.setItem('venta-deleted', Date.now().toString());
+            window.dispatchEvent(new Event('venta-deleted'));
           }
         } catch (error) {
           // Rollback on error

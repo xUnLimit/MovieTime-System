@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Table,
@@ -21,12 +21,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Monitor, Users, ShoppingCart, Eye, Search, ArrowUpDown, TrendingUp } from 'lucide-react';
-import { Categoria, PagoServicio, Servicio } from '@/types';
-import { COLLECTIONS, getAll, timestampToDate } from '@/lib/firebase/firestore';
+import { Categoria } from '@/types';
 
 interface CategoriasTableProps {
   categorias: Categoria[];
-  servicios: Servicio[];
   title?: string;
 }
 
@@ -44,7 +42,6 @@ interface CategoriaRow {
 
 export const CategoriasTable = memo(function CategoriasTable({
   categorias,
-  servicios,
   title = 'Todas las categorías',
 }: CategoriasTableProps) {
   const router = useRouter();
@@ -53,90 +50,31 @@ export const CategoriasTable = memo(function CategoriasTable({
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [sortKey, setSortKey] = useState<keyof CategoriaRow | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
-  const [pagosServicio, setPagosServicio] = useState<PagoServicio[]>([]);
 
   const handleViewCategoria = (categoriaId: string) => {
     router.push(`/servicios/${categoriaId}`);
   };
 
-  useEffect(() => {
-    let active = true;
-    const loadPagos = async () => {
-      try {
-        const docs = await getAll<Record<string, unknown>>(COLLECTIONS.PAGOS_SERVICIO);
-        const pagos: PagoServicio[] = docs.map((d) => ({
-          id: d.id as string,
-          servicioId: d.servicioId as string,
-          metodoPagoId: d.metodoPagoId as string | undefined,
-          moneda: d.moneda as string | undefined,
-          isPagoInicial: d.isPagoInicial as boolean | undefined,
-          fecha: timestampToDate(d.fecha),
-          descripcion: d.descripcion as string,
-          cicloPago: d.cicloPago as PagoServicio['cicloPago'],
-          fechaInicio: timestampToDate(d.fechaInicio),
-          fechaVencimiento: timestampToDate(d.fechaVencimiento),
-          monto: (d.monto as number) ?? 0,
-          createdAt: timestampToDate(d.createdAt),
-          updatedAt: timestampToDate(d.updatedAt),
-        }));
-        if (active) setPagosServicio(pagos);
-      } catch (error) {
-        console.error('Error cargando pagos de servicios:', error);
-        if (active) setPagosServicio([]);
-      }
-    };
-    loadPagos();
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const pagosPorServicio = useMemo(() => {
-    const map = new Map<string, number>();
-    pagosServicio.forEach((pago) => {
-      const monto = pago.monto || 0;
-      map.set(pago.servicioId, (map.get(pago.servicioId) || 0) + monto);
-    });
-    return map;
-  }, [pagosServicio]);
-
   const rows = useMemo(() => {
     const categoriaData: CategoriaRow[] = categorias
       .filter(cat => cat.activo)
       .map(categoria => {
-        // Filtrar servicios de esta categoría
-        const serviciosCategoria = servicios.filter(s => s.categoriaId === categoria.id);
-        const serviciosActivos = serviciosCategoria.filter(s => s.activo);
+        // Leer métricas directamente de los campos denormalizados
+        const totalServicios = categoria.totalServicios ?? 0;
+        const serviciosActivos = categoria.serviciosActivos ?? 0;
+        const perfilesDisponibles = categoria.perfilesDisponiblesTotal ?? 0;
+        const gastosTotal = categoria.gastosTotal ?? 0;
 
-        // Calcular totales
-        const totalServicios = serviciosCategoria.length;
-        const serviciosActivosCount = serviciosActivos.length;
-        const perfilesDisponibles = serviciosActivos.reduce((sum, s) => {
-          const total = s.perfilesDisponibles || 0;
-          const ocupados = s.perfilesOcupados || 0;
-          return sum + Math.max(total - ocupados, 0);
-        }, 0);
-        const suscripcionesTotales = 0; // Sin suscripciones
-
-        // Ingresos: 0 sin suscripciones
+        // Valores que no cambian (sin suscripciones)
+        const suscripcionesTotales = 0;
         const ingresoTotal = 0;
-
-        // Gastos: suma de pagos del historial de cada servicio de la categorÃ­a
-        const gastosTotal = serviciosCategoria.reduce(
-          (sum, s) => sum + (pagosPorServicio.get(s.id) || 0),
-          0
-        );
-
-        // Ganancia: ingresos - gastos
         const gananciaTotal = ingresoTotal - gastosTotal;
-
-        // Monto sin consumir: 0 sin suscripciones
         const montoSinConsumir = 0;
 
         return {
           categoria,
           totalServicios,
-          serviciosActivos: serviciosActivosCount,
+          serviciosActivos,
           perfilesDisponibles,
           suscripcionesTotales,
           ingresoTotal,
@@ -147,7 +85,7 @@ export const CategoriasTable = memo(function CategoriasTable({
       });
 
     return categoriaData;
-  }, [categorias, servicios, pagosPorServicio]);
+  }, [categorias]);
 
   // Filtrar por búsqueda
   const filteredRows = useMemo(() => {
@@ -423,14 +361,14 @@ export const CategoriasTable = memo(function CategoriasTable({
         </Table>
       </div>
 
-      <div className="flex items-center justify-between pt-4">
+      <div className="flex items-center justify-between px-2 py-4">
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Mostrar</span>
           <Select value={String(itemsPerPage)} onValueChange={(val) => {
             setItemsPerPage(Number(val));
             setCurrentPage(1);
           }}>
-            <SelectTrigger className="w-16">
+            <SelectTrigger className="w-[70px] h-8">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -441,26 +379,28 @@ export const CategoriasTable = memo(function CategoriasTable({
           </Select>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-          >
-            Anterior
-          </Button>
+        <div className="flex items-center gap-4">
           <span className="text-sm text-muted-foreground">
             Página {currentPage} de {totalPages || 1}
           </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages || totalPages === 0}
-          >
-            Siguiente
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages || totalPages === 0}
+            >
+              Siguiente
+            </Button>
+          </div>
         </div>
       </div>
     </Card>

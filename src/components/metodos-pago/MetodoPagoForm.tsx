@@ -115,7 +115,7 @@ interface MetodoPagoFormProps {
 
 export function MetodoPagoForm({ mode, metodoPago }: MetodoPagoFormProps) {
   const router = useRouter();
-  const { createMetodoPago, updateMetodoPago } = useMetodosPagoStore();
+  const { createMetodoPago, updateMetodoPago, fetchCounts } = useMetodosPagoStore();
   const [activeTab, setActiveTab] = useState('basica');
   const [paisSearch, setPaisSearch] = useState('');
   const [isBasicaTabComplete, setIsBasicaTabComplete] = useState(mode === 'edit');
@@ -304,7 +304,7 @@ export function MetodoPagoForm({ mode, metodoPago }: MetodoPagoFormProps) {
   const onSubmit = async (data: FormData) => {
     try {
       if (mode === 'create') {
-        const metodoPagoData: Omit<MetodoPago, 'id' | 'createdAt' | 'updatedAt' | 'asociadoUsuarios' | 'asociadoServicios'> = {
+        const metodoPagoData: Omit<MetodoPago, 'id' | 'createdAt' | 'updatedAt'> = {
           nombre: data.nombre,
           pais: data.pais,
           moneda: data.moneda,
@@ -326,6 +326,7 @@ export function MetodoPagoForm({ mode, metodoPago }: MetodoPagoFormProps) {
           if (data.fechaExpiracion) metodoPagoData.fechaExpiracion = data.fechaExpiracion;
         }
         await createMetodoPago(metodoPagoData);
+        await fetchCounts(); // Actualizar métricas
         toast.success('Método de pago creado exitosamente');
       } else if (metodoPago) {
         const updates: Partial<MetodoPago> = {
@@ -348,6 +349,7 @@ export function MetodoPagoForm({ mode, metodoPago }: MetodoPagoFormProps) {
           if (data.fechaExpiracion) updates.fechaExpiracion = data.fechaExpiracion;
         }
         await updateMetodoPago(metodoPago.id, updates);
+        await fetchCounts(); // Actualizar métricas
         toast.success('Método de pago actualizado exitosamente');
       }
       router.push('/metodos-pago');

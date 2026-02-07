@@ -67,7 +67,7 @@ const MemoizedTableRow = memo(function MemoizedTableRow<T extends Record<string,
           key={column.key}
           className={`${colIndex === 0 ? 'pl-6' : ''} ${column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : ''}`}
         >
-          {column.render ? column.render(item) : item[column.key]}
+          {column.render ? column.render(item) : (item[column.key] as React.ReactNode)}
         </TableCell>
       ))}
       {actions && (
@@ -116,8 +116,8 @@ function DataTableComponent<T extends Record<string, unknown>>({
     if (!sortKey || !sortDirection) return data;
 
     return [...data].sort((a, b) => {
-      const aValue = a[sortKey];
-      const bValue = b[sortKey];
+      const aValue = a[sortKey] as string | number | boolean;
+      const bValue = b[sortKey] as string | number | boolean;
 
       if (aValue === bValue) return 0;
 
@@ -207,7 +207,7 @@ function DataTableComponent<T extends Record<string, unknown>>({
             {displayData.length > 0 ? (
               displayData.map((item, index) => (
                 <MemoizedTableRow
-                  key={item.id || index}
+                  key={(item.id as string) || index}
                   item={item}
                   columns={columns as Column<Record<string, unknown>>[]}
                   actions={actions as ((item: Record<string, unknown>) => React.ReactNode) | undefined}

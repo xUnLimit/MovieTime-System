@@ -110,36 +110,39 @@ export function RevendedoresCategoriasTable({ categorias, title = 'Categorías d
         </div>
 
         <DataTable
-          data={filteredCategorias}
-          columns={columns}
+          data={filteredCategorias as unknown as Record<string, unknown>[]}
+          columns={columns as unknown as Column<Record<string, unknown>>[]}
           pagination={true}
           itemsPerPageOptions={[10, 25, 50, 100]}
-          actions={(item) => (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => router.push(`/categorias/${item.id}`)}>
-                  <Eye className="h-4 w-4 mr-2" />
-                  Ver detalles
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => router.push(`/categorias/${item.id}/editar`)}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Editar
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => handleDelete(item)}
-                  className="text-red-500 focus:text-red-500"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Eliminar
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+          actions={(item) => {
+            const categoria = item as unknown as Categoria;
+            return (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => router.push(`/categorias/${categoria.id}`)}>
+                    <Eye className="h-4 w-4 mr-2" />
+                    Ver detalles
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push(`/categorias/${categoria.id}/editar`)}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Editar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => handleDelete(categoria)}
+                    className="text-red-500 focus:text-red-500"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Eliminar
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            );
+          }}
         />
       </Card>
 

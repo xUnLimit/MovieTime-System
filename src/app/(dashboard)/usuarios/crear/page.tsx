@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { UsuarioForm } from '@/components/usuarios/UsuarioForm';
@@ -8,14 +8,23 @@ import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import type { MetodoPago } from '@/types';
 
 function CrearUsuarioPageContent() {
   const router = useRouter();
-  const { metodosPago, fetchMetodosPago } = useMetodosPagoStore();
+  const { fetchMetodosPagoUsuarios } = useMetodosPagoStore();
+  const [metodosPago, setMetodosPago] = useState<MetodoPago[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchMetodosPago();
-  }, [fetchMetodosPago]);
+    const loadMetodos = async () => {
+      setLoading(true);
+      const metodos = await fetchMetodosPagoUsuarios();
+      setMetodosPago(metodos);
+      setLoading(false);
+    };
+    loadMetodos();
+  }, [fetchMetodosPagoUsuarios]);
 
   const handleSuccess = () => {
     router.push('/usuarios');
@@ -44,13 +53,19 @@ function CrearUsuarioPageContent() {
       </div>
 
       <div className="bg-card border border-border rounded-lg p-6">
-        <UsuarioForm
-          tipoInicial="cliente"
-          metodosPago={metodosPago}
-          onSuccess={handleSuccess}
-          onCancel={handleCancel}
-          isPage={true}
-        />
+        {loading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="text-muted-foreground">Cargando...</div>
+          </div>
+        ) : (
+          <UsuarioForm
+            tipoInicial="cliente"
+            metodosPago={metodosPago}
+            onSuccess={handleSuccess}
+            onCancel={handleCancel}
+            isPage={true}
+          />
+        )}
       </div>
     </div>
   );

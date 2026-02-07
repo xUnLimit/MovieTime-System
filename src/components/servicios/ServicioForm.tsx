@@ -24,7 +24,7 @@ import { useServiciosStore } from '@/store/serviciosStore';
 import { useCategoriasStore } from '@/store/categoriasStore';
 import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { useRouter } from 'next/navigation';
-import { Servicio } from '@/types';
+import { Servicio, MetodoPago } from '@/types';
 import { addMonths } from 'date-fns';
 import { CURRENCY_SYMBOLS } from '@/lib/constants';
 
@@ -61,9 +61,10 @@ interface ServicioFormProps {
 
 export function ServicioForm({ servicio }: ServicioFormProps) {
   const router = useRouter();
-  const { createServicio, updateServicio } = useServiciosStore();
-  const { categorias } = useCategoriasStore();
-  const { metodosPago, fetchMetodosPago } = useMetodosPagoStore();
+  const { createServicio, updateServicio, fetchCounts } = useServiciosStore();
+  const { categorias, fetchCategorias } = useCategoriasStore();
+  const { fetchMetodosPagoServicios } = useMetodosPagoStore();
+  const [metodosPago, setMetodosPago] = useState<MetodoPago[]>([]);
   const [activeTab, setActiveTab] = useState('datos');
   const [isDatosTabComplete, setIsDatosTabComplete] = useState(false);
   const [manualFechaVencimiento, setManualFechaVencimiento] = useState(false);
@@ -71,10 +72,14 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
   const [openFechaVencimiento, setOpenFechaVencimiento] = useState(false);
   const prevCicloPagoRef = useRef(servicio?.cicloPago ?? 'mensual');
 
-  // Cargar métodos de pago al montar
+  // Cargar solo métodos de pago para servicios al montar
   useEffect(() => {
-    fetchMetodosPago();
-  }, [fetchMetodosPago]);
+    const loadMetodosPago = async () => {
+      const metodos = await fetchMetodosPagoServicios();
+      setMetodosPago(metodos);
+    };
+    loadMetodosPago();
+  }, [fetchMetodosPagoServicios]);
 
   const {
     register,
@@ -94,12 +99,12 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
       correo: servicio?.correo || '',
       contrasena: servicio?.contrasena || '',
       metodoPagoId: '',
-      costoServicio: '' as unknown as number,
-      perfilesDisponibles: '' as unknown as number,
+      costoServicio: '',
+      perfilesDisponibles: '',
       cicloPago: 'mensual' as 'mensual' | 'trimestral' | 'semestral' | 'anual',
       fechaInicio: new Date(),
       fechaVencimiento: addMonths(new Date(), 1),
-      estado: 'activo' as 'activo' | 'inactivo' | 'suspendido' | 'vencido',
+      estado: 'activo' as 'activo' | 'inactivo',
       notas: '',
     },
   });
@@ -265,6 +270,7 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
   const onSubmit = async (data: FormData) => {
     try {
       const categoria = categorias.find(c => c.id === data.categoriaId);
+      const metodoPagoSeleccionado = metodosPago.find(m => m.id === data.metodoPagoId);
 
       const servicioData = {
         nombre: data.nombre,
@@ -276,6 +282,8 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
         costoServicio: Number(data.costoServicio),
         perfilesDisponibles: Number(data.perfilesDisponibles),
         metodoPagoId: data.metodoPagoId,
+        metodoPagoNombre: metodoPagoSeleccionado?.nombre,  // Denormalizado
+        moneda: metodoPagoSeleccionado?.moneda,            // Denormalizado
         cicloPago: data.cicloPago,
         fechaInicio: data.fechaInicio,
         fechaVencimiento: data.fechaVencimiento,
@@ -283,6 +291,7 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
         activo: data.estado === 'activo',
         renovacionAutomatica: false,
         createdBy: 'admin',
+        gastosTotal: servicio?.gastosTotal ?? 0, // Preservar o inicializar campo denormalizado
       };
 
       if (servicio?.id) {
@@ -295,6 +304,13 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
         await createServicio(servicioData);
         toast.success('Servicio creado exitosamente');
       }
+
+      // Refrescar categorías y contadores de servicios para que se actualicen los widgets
+      await Promise.all([
+        fetchCategorias(true),
+        fetchCounts(true), // Force refresh para actualizar inmediatamente
+      ]);
+
       router.push('/servicios');
     } catch (error) {
       toast.error(servicio?.id ? 'Error al actualizar el servicio' : 'Error al crear el servicio', { description: error instanceof Error ? error.message : undefined });

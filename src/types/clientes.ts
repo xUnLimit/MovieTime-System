@@ -11,11 +11,11 @@ export interface Usuario {
   email?: string;
   metodoPagoId: string;
   metodoPagoNombre: string;
+  moneda?: string;                  // Denormalizado de MetodoPago
   montoSinConsumir: number;
   // Campos específicos por tipo (opcionales):
-  serviciosActivos?: number;        // Solo para clientes
-  ventasActivas?: number;           // Solo para clientes — denormalizado desde Ventas
-  suscripcionesTotales?: number;    // Solo para revendedores
+  serviciosActivos?: number;        // Solo para clientes — denormalizado desde Ventas (count de ventas activas)
+  suscripcionesTotales?: number;    // Solo para revendedores (campo legacy)
   active: boolean;
   createdAt: Date;
   updatedAt: Date;

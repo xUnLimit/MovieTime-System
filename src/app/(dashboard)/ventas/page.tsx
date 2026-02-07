@@ -1,23 +1,23 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
-import { VentasMetrics } from '@/components/ventas/VentasMetrics';
 import { VentasTable } from '@/components/ventas/VentasTable';
-import { useCategoriasStore } from '@/store/categoriasStore';
-import { useServiciosStore } from '@/store/serviciosStore';
+import { VentasMetrics } from '@/components/ventas/VentasMetrics';
+import { useServerPagination } from '@/hooks/useServerPagination';
 import { useVentasStore } from '@/store/ventasStore';
 import { toast } from 'sonner';
+import { COLLECTIONS } from '@/lib/firebase/firestore';
+import { VentaDoc } from '@/types';
+import { FilterOption } from '@/lib/firebase/pagination';
 
 function VentasPageContent() {
-  const { categorias, fetchCategorias } = useCategoriasStore();
-  const { fetchServicios } = useServiciosStore();
-  const { ventas, fetchVentas, deleteVenta } = useVentasStore();
+  const { deleteVenta, fetchCounts } = useVentasStore();
 
   const [activeTab, setActiveTab] = useState<'todas' | 'activas' | 'inactivas'>('todas');
   const [deleteVentaId, setDeleteVentaId] = useState<string | null>(null);
@@ -25,11 +25,24 @@ function VentasPageContent() {
   const [deleteVentaPerfilNumero, setDeleteVentaPerfilNumero] = useState<number | null | undefined>(undefined);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-  useEffect(() => {
-    fetchCategorias();
-    fetchServicios();
-    fetchVentas();
-  }, [fetchCategorias, fetchServicios, fetchVentas]);
+  // Construir filtros basados en el tab activo
+  const filters = useMemo((): FilterOption[] => {
+    if (activeTab === 'activas') {
+      return [{ field: 'estado', operator: '==', value: 'activo' }];
+    } else if (activeTab === 'inactivas') {
+      return [{ field: 'estado', operator: '==', value: 'inactivo' }];
+    }
+    return [];
+  }, [activeTab]);
+
+  // Paginación server-side
+  const { data: ventasPaginadas, isLoading, hasMore, page, hasPrevious, next, previous, refresh } = useServerPagination<VentaDoc>({
+    collectionName: COLLECTIONS.VENTAS,
+    filters,
+    pageSize: 10,
+    orderByField: 'createdAt',
+    orderDirection: 'desc',
+  });
 
   const tituloTab = useMemo(() => {
     switch (activeTab) {
@@ -58,6 +71,9 @@ function VentasPageContent() {
       setDeleteVentaServicioId(undefined);
       setDeleteVentaPerfilNumero(undefined);
       setDeleteDialogOpen(false);
+      // Refrescar la lista y las métricas después de eliminar
+      refresh();
+      fetchCounts();
     } catch (error) {
       console.error('Error eliminando venta:', error);
       toast.error('Error eliminando venta', { description: error instanceof Error ? error.message : undefined });
@@ -82,7 +98,7 @@ function VentasPageContent() {
         </Link>
       </div>
 
-      <VentasMetrics ventas={ventas} />
+      <VentasMetrics ventas={ventasPaginadas} />
 
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)}>
         <TabsList className="bg-transparent rounded-none p-0 h-auto inline-flex border-b border-border">
@@ -108,11 +124,17 @@ function VentasPageContent() {
 
         <TabsContent value={activeTab} className="space-y-4">
           <VentasTable
-            ventas={ventas}
-            categorias={categorias}
-            estadoFiltro={activeTab}
+            ventas={ventasPaginadas}
+            isLoading={isLoading}
             title={tituloTab}
             onDelete={handleDeleteVenta}
+            // Paginación
+            hasMore={hasMore}
+            hasPrevious={hasPrevious}
+            page={page}
+            onNext={next}
+            onPrevious={previous}
+            onRefresh={refresh}
           />
         </TabsContent>
       </Tabs>

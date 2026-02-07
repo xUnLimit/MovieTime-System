@@ -5,13 +5,16 @@ import { DataTable, Column } from '@/components/shared/DataTable';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { LogFilters } from './LogFilters';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useState } from 'react';
+import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 
 interface LogTimelineProps {
   logs: ActivityLog[];
+  isLoading: boolean;
   searchTerm: string;
   setSearchTerm: (value: string) => void;
   accionFilter: string;
@@ -20,10 +23,18 @@ interface LogTimelineProps {
   setEntidadFilter: (value: string) => void;
   usuarioFilter: string;
   setUsuarioFilter: (value: string) => void;
+  // Paginación
+  hasMore: boolean;
+  hasPrevious: boolean;
+  page: number;
+  onNext: () => void;
+  onPrevious: () => void;
+  onRefresh: () => void;
 }
 
 export function LogTimeline({
   logs,
+  isLoading,
   searchTerm,
   setSearchTerm,
   accionFilter,
@@ -32,6 +43,12 @@ export function LogTimeline({
   setEntidadFilter,
   usuarioFilter,
   setUsuarioFilter,
+  hasMore,
+  hasPrevious,
+  page,
+  onNext,
+  onPrevious,
+  onRefresh,
 }: LogTimelineProps) {
   const [selectedLogs, setSelectedLogs] = useState<Set<string>>(new Set());
 
@@ -185,18 +202,62 @@ export function LogTimeline({
         />
       </div>
 
-      <div>
-        {logs.length === 0 ? (
+      <div className="space-y-4">
+        {isLoading ? (
+          <div className="border border-border rounded-md p-12 text-center">
+            <p className="text-sm text-muted-foreground">Cargando logs...</p>
+          </div>
+        ) : logs.length === 0 ? (
           <div className="border border-border rounded-md p-12 text-center">
             <p className="text-sm text-muted-foreground">No hay actividad registrada</p>
           </div>
         ) : (
-          <DataTable
-            data={logs}
-            columns={columns}
-            pagination={true}
-            itemsPerPageOptions={[20, 50, 100]}
-          />
+          <>
+            <DataTable
+              data={logs as unknown as Record<string, unknown>[]}
+              columns={columns as unknown as Column<Record<string, unknown>>[]}
+              pagination={false}
+            />
+
+            {/* Controles de paginación server-side */}
+            <div className="flex items-center justify-between border-t border-border pt-4">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onRefresh}
+                  disabled={isLoading}
+                >
+                  <RefreshCw className="h-4 w-4 mr-1.5" />
+                  Actualizar
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  Página {page} • {logs.length} registros
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onPrevious}
+                  disabled={!hasPrevious || isLoading}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Anterior
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onNext}
+                  disabled={!hasMore || isLoading}
+                >
+                  Siguiente
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          </>
         )}
       </div>
     </Card>

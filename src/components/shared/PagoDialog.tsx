@@ -234,7 +234,14 @@ export function PagoDialog(props: PagoDialogProps) {
   ]);
 
   const onSubmit = async (data: PagoDialogFormData) => {
-    props.onConfirm(data);
+    // Agregar campos denormalizados del método de pago
+    const metodoPago = metodosPago.find(m => m.id === data.metodoPagoId);
+    const enrichedData = {
+      ...data,
+      metodoPagoNombre: metodoPago?.nombre,
+      moneda: metodoPago?.moneda,
+    };
+    props.onConfirm(enrichedData as any);
     props.onOpenChange(false);
   };
 

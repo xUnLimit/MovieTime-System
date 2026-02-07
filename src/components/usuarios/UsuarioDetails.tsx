@@ -22,21 +22,20 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
-import { useServiciosStore } from '@/store/serviciosStore';
-import { useCategoriasStore } from '@/store/categoriasStore';
 import { useVentasUsuario } from '@/hooks/use-ventas-usuario';
 import { getCurrencySymbol } from '@/lib/constants';
+import { queryDocuments, COLLECTIONS } from '@/lib/firebase/firestore';
 import { formatearFecha, formatearFechaHora } from '@/lib/utils/calculations';
 
 interface UsuarioDetailsProps {
   usuario: Usuario;
+  onVentaDeleted?: () => void;
 }
 
-export function UsuarioDetails({ usuario }: UsuarioDetailsProps) {
+export function UsuarioDetails({ usuario, onVentaDeleted }: UsuarioDetailsProps) {
   const isRevendedor = usuario.tipo === 'revendedor';
-  const { servicios, fetchServicios } = useServiciosStore();
-  const { categorias, fetchCategorias } = useCategoriasStore();
   const { ventas: ventasUsuario, renovacionesByServicio, deleteVenta } = useVentasUsuario(usuario.id);
+  const [servicios, setServicios] = useState<Record<string, { correo: string; contrasena: string; nombre: string }>>({});
 
   // Confirmación de eliminación
   const [deleteTarget, setDeleteTarget] = useState<{ ventaId: string; servicioId?: string; perfilNumero?: number | null } | null>(null);
@@ -45,6 +44,15 @@ export function UsuarioDetails({ usuario }: UsuarioDetailsProps) {
   const handleWhatsApp = () => {
     const phone = usuario.telefono.replace(/\D/g, '');
     window.open(`https://wa.me/${phone}`, '_blank');
+  };
+
+  const handleCopy = async (value: string) => {
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch (error) {
+      console.error('Error copiando:', error);
+    }
   };
 
   const handleDeleteVenta = (ventaId: string, servicioId?: string, perfilNumero?: number | null) => {
@@ -58,15 +66,60 @@ export function UsuarioDetails({ usuario }: UsuarioDetailsProps) {
       await deleteVenta(deleteTarget.ventaId, deleteTarget.servicioId, deleteTarget.perfilNumero);
       setDeleteTarget(null);
       setDeleteDialogOpen(false);
+      // Notificar al componente padre para que refresque el usuario
+      onVentaDeleted?.();
     } catch (error) {
       console.error('Error eliminando venta:', error);
     }
   };
 
+  // Query solo los servicios que el usuario tiene (en lugar de getAll)
   useEffect(() => {
-    fetchServicios();
-    fetchCategorias();
-  }, [fetchServicios, fetchCategorias]);
+    const servicioIds = Array.from(new Set(ventasUsuario.map(v => v.servicioId).filter(Boolean)));
+
+    if (servicioIds.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        // Chunks de 10 (limitación de 'in')
+        const chunks: string[][] = [];
+        for (let i = 0; i < servicioIds.length; i += 10) {
+          chunks.push(servicioIds.slice(i, i + 10));
+        }
+
+        const allServicios = await Promise.all(
+          chunks.map(chunk =>
+            queryDocuments<Record<string, unknown>>(COLLECTIONS.SERVICIOS, [
+              { field: '__name__', operator: 'in', value: chunk },
+            ])
+          )
+        );
+
+        if (cancelled) return;
+
+        const serviciosMap = allServicios.flat().reduce((acc, s) => {
+          acc[s.id as string] = {
+            correo: (s.correo as string) || '—',
+            contrasena: (s.contrasena as string) || '—',
+            nombre: (s.nombre as string) || 'Servicio',
+          };
+          return acc;
+        }, {} as Record<string, { correo: string; contrasena: string; nombre: string; }>);
+
+        setServicios(serviciosMap as Record<string, { correo: string; contrasena: string; nombre: string; }>);
+      } catch (error) {
+        console.error('Error cargando servicios:', error);
+        if (!cancelled) setServicios({});
+      }
+    };
+
+    load();
+    return () => { cancelled = true; };
+  }, [ventasUsuario]);
 
   const getCicloPagoLabel = (ciclo?: string) => {
     const labels: Record<string, string> = {
@@ -82,8 +135,7 @@ export function UsuarioDetails({ usuario }: UsuarioDetailsProps) {
   const rows = useMemo(() => {
     const now = new Date();
     return ventasUsuario.map((venta) => {
-      const servicio  = servicios.find((s) => s.id === venta.servicioId);
-      const categoria = categorias.find((c) => c.id === venta.categoriaId);
+      const servicio = servicios[venta.servicioId];
 
       const totalDias     = venta.fechaInicio && venta.fechaFin ? Math.max(differenceInCalendarDays(venta.fechaFin, venta.fechaInicio), 0) : 0;
       const diasRestantes = venta.fechaFin ? Math.max(differenceInCalendarDays(venta.fechaFin, now), 0) : 0;
@@ -92,7 +144,7 @@ export function UsuarioDetails({ usuario }: UsuarioDetailsProps) {
 
       return {
         id:              venta.id,
-        categoriaNombre: categoria?.nombre || 'Sin categoría',
+        categoriaNombre: venta.categoriaNombre, // ← Denormalizado
         servicioNombre:  servicio?.nombre  || venta.servicioNombre,
         servicioId:      venta.servicioId,
         correo:          venta.servicioCorreo !== '—' ? venta.servicioCorreo : (servicio?.correo || '—'),
@@ -108,7 +160,7 @@ export function UsuarioDetails({ usuario }: UsuarioDetailsProps) {
         perfilNumero:    venta.perfilNumero,
       };
     });
-  }, [ventasUsuario, servicios, categorias, renovacionesByServicio]);
+  }, [ventasUsuario, servicios, renovacionesByServicio]);
 
   return (
     <div className="space-y-6">
@@ -347,11 +399,3 @@ export function UsuarioDetails({ usuario }: UsuarioDetailsProps) {
     </div>
   );
 }
-  const handleCopy = async (value: string) => {
-    if (!value) return;
-    try {
-      await navigator.clipboard.writeText(value);
-    } catch (error) {
-      console.error('Error copiando:', error);
-    }
-  };

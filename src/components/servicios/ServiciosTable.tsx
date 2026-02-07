@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Edit, Trash2, Copy } from 'lucide-react';
 import { useServiciosStore } from '@/store/serviciosStore';
+import { useCategoriasStore } from '@/store/categoriasStore';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { toast } from 'sonner';
 
@@ -17,7 +18,8 @@ interface ServiciosTableProps {
 }
 
 export function ServiciosTable({ servicios, onEdit }: ServiciosTableProps) {
-  const { deleteServicio } = useServiciosStore();
+  const { deleteServicio, fetchCounts } = useServiciosStore();
+  const { fetchCategorias } = useCategoriasStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [servicioToDelete, setServicioToDelete] = useState<Servicio | null>(null);
 
@@ -31,6 +33,12 @@ export function ServiciosTable({ servicios, onEdit }: ServiciosTableProps) {
       try {
         await deleteServicio(servicioToDelete.id);
         toast.success('Servicio eliminado');
+
+        // Refrescar categorías y contadores de servicios para actualizar widgets
+        await Promise.all([
+          fetchCategorias(true),
+          fetchCounts(true), // Force refresh para actualizar inmediatamente
+        ]);
       } catch (error) {
         toast.error('Error al eliminar servicio', { description: error instanceof Error ? error.message : undefined });
       }
@@ -129,22 +137,25 @@ export function ServiciosTable({ servicios, onEdit }: ServiciosTableProps) {
   return (
     <>
       <DataTable
-        data={servicios}
-        columns={columns}
-        actions={(item) => (
-          <div className="flex gap-2">
-            <Button variant="ghost" size="icon" onClick={() => onEdit(item)}>
-              <Edit className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => handleDelete(item)}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
+        data={servicios as unknown as Record<string, unknown>[]}
+        columns={columns as unknown as Column<Record<string, unknown>>[]}
+        actions={(item) => {
+          const servicio = item as unknown as Servicio;
+          return (
+            <div className="flex gap-2">
+              <Button variant="ghost" size="icon" onClick={() => onEdit(servicio)}>
+                <Edit className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleDelete(servicio)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          );
+        }}
       />
 
       <ConfirmDialog

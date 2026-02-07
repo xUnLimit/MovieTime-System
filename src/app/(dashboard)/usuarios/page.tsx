@@ -13,6 +13,7 @@ import { UsuariosMetrics } from '@/components/usuarios/UsuariosMetrics';
 import { useUsuariosStore } from '@/store/usuariosStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 import { useServerPagination } from '@/hooks/useServerPagination';
+import { invalidateVentasPorUsuariosCache } from '@/hooks/use-ventas-por-usuarios';
 import { Usuario } from '@/types';
 import { COLLECTIONS } from '@/lib/firebase/firestore';
 import { FilterOption } from '@/lib/firebase/pagination';
@@ -21,7 +22,7 @@ const PAGE_SIZE = 10;
 
 function UsuariosPageContent() {
   const router = useRouter();
-  const { totalClientes, totalRevendedores, totalNuevosHoy, totalClientesActivos, fetchCounts } = useUsuariosStore();
+  const { totalClientes, totalRevendedores, totalNuevosHoy, totalUsuariosActivos, fetchCounts } = useUsuariosStore();
 
   const [activeTab, setActiveTab] = useState('todos');
 
@@ -48,6 +49,29 @@ function UsuariosPageContent() {
   useEffect(() => {
     fetchCounts();
   }, [fetchCounts]);
+
+  // Escuchar cuando se elimina una venta desde otra página/tab o misma página
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'venta-deleted') {
+        invalidateVentasPorUsuariosCache();
+        refresh();
+      }
+    };
+
+    const handleVentaDeleted = () => {
+      invalidateVentasPorUsuariosCache();
+      refresh();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('venta-deleted', handleVentaDeleted);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('venta-deleted', handleVentaDeleted);
+    };
+  }, [refresh]);
 
   const handleEdit = (usuario: Usuario) => {
     router.push(`/usuarios/editar/${usuario.id}`);
@@ -77,7 +101,7 @@ function UsuariosPageContent() {
       <UsuariosMetrics
         totalClientes={totalClientes}
         totalRevendedores={totalRevendedores}
-        clientesActivos={totalClientesActivos}
+        usuariosActivos={totalUsuariosActivos}
         totalNuevosHoy={totalNuevosHoy}
       />
 

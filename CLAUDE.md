@@ -8,6 +8,39 @@ MovieTime PTY is a subscription management system for streaming services in Pana
 
 **Note**: The legacy Subscriptions (Suscripciones) and Service Payments (Pagos de Servicios) modules were removed in January 2026 (commit db25141). They have been replaced by the **Ventas** (Sales) module and the **Servicios Detalle** payment/renewal system.
 
+## 🔥 CRITICAL OPTIMIZATION PATTERNS (Read First)
+
+### Server-Side Pagination Pattern — MANDATORY for all table modules
+
+**IMPORTANT**: Any module with a table listing documents MUST use server-side pagination with cursors to minimize Firebase reads.
+
+**Quick Decision Tree:**
+```
+Does your module have a table with >10 items?
+├─ YES → Use useServerPagination hook (see section below)
+│   ├─ Need counts for metrics? → Use getCount() in store (free on Spark)
+│   ├─ Need related data per row? → Create hook with module-level cache + enabled param
+│   └─ Field read often but changes rarely? → Denormalize + use increment()
+└─ NO → Can use getAll() but still consider pagination for future scaling
+```
+
+**Impact:** Usuarios module went from 50-100+ reads per session to **16 reads (first visit) → 0 reads (cached 5 min)** = **84% reduction**
+
+**Reference Implementation:** Usuarios module (`/usuarios` page)
+- Study files: `useServerPagination.ts`, `use-ventas-por-usuarios.ts`, `pagination.ts`, `usuariosStore.ts`
+- Complete guide: `docs/PAGINATION_AND_CACHE_PATTERN.md`
+
+**Key Rules:**
+1. ✅ Use `useServerPagination` for table data (not `getAll`)
+2. ✅ Use `getCount()` for metrics (not `getAll().length`)
+3. ✅ Module-level `Map` for cache (not `useRef`)
+4. ✅ `enabled: !isLoading` on secondary hooks
+5. ✅ Denormalize frequently-read fields + `increment()`
+
+See "Server-Side Pagination Pattern" section for full details.
+
+---
+
 ## Project Structure (Updated Feb 2026)
 
 ```
@@ -19,7 +52,18 @@ MovieTime System/
 ├── eslint.config.mjs         # ESLint configuration
 ├── .env.local                # Firebase credentials (not in repo)
 ├── .env.local.example        # Example environment variables
-├── docs/                      # Documentation (9 files)
+├── docs/                      # Documentation (11 files)
+│   ├── PAGINATION_AND_CACHE_PATTERN.md  # Server-side pagination guide
+│   ├── LOG_DEDUPLICATION.md             # Development logging system (NEW)
+│   ├── PERFORMANCE_OPTIMIZATIONS.md     # React optimization patterns
+│   ├── USUARIOS_MIGRATION.md            # Unified collection migration
+│   ├── DEVELOPER_GUIDE.md               # General development guide
+│   ├── IMPLEMENTATION_STATUS.md         # Feature completion status
+│   ├── IMPLEMENTATION_SUMMARY.md        # Architecture summary
+│   ├── QUICK_START.md                   # Getting started guide
+│   ├── FIREBASE_SETUP.md                # Firebase configuration
+│   ├── OPTIMIZATIONS_SUMMARY.md         # All optimizations overview
+│   └── FORMULARIO_CREAR_USUARIO.md      # User form implementation
 ├── public/                    # Static assets
 ├── tests/                     # Test files
 │   ├── unit/                 # Unit tests
@@ -45,8 +89,10 @@ MovieTime System/
     │   ├── env.ts           # Environment config
     │   └── site.ts          # Site metadata
     ├── hooks/                # Custom React hooks
-    │   ├── use-sidebar.ts   # Sidebar toggle state hook
-    │   └── useVentasMetrics.ts # Ventas metrics calculation hook
+    │   ├── use-sidebar.ts           # Sidebar toggle state hook
+    │   ├── useVentasMetrics.ts      # Ventas metrics calculation hook
+    │   ├── useServerPagination.ts   # Server-side pagination with cursors ← NEW
+    │   └── use-ventas-por-usuarios.ts # Secondary query with module-level cache ← NEW
     ├── lib/                  # Utilities and helpers
     │   ├── firebase/        # Firebase integration
     │   │   ├── auth.ts     # Authentication functions
@@ -138,14 +184,20 @@ NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
 ```
 
 **Firebase Functions** (`src/lib/firebase/firestore.ts`):
-- `getAll<T>(collection)` - Fetch all documents
-- `getById<T>(collection, id)` - Fetch single document
-- `queryDocuments<T>(collection, filters)` - Query with `where` filters ← NEW
+- `getAll<T>(collection)` - Fetch all documents (auto-converts Timestamps to Dates)
+- `getById<T>(collection, id)` - Fetch single document (auto-converts Timestamps to Dates)
+- `queryDocuments<T>(collection, filters)` - Query with `where` filters (auto-converts Timestamps to Dates)
+- `getCount(collection, filters)` - Count documents (does NOT cost doc-reads on Spark plan) ← NEW
 - `create<T>(collection, data)` - Create document (auto-adds `createdAt`/`updatedAt`)
 - `update<T>(collection, id, data)` - Update document (auto-updates `updatedAt`)
 - `remove(collection, id)` - Delete document
-- `timestampToDate(timestamp)` - Convert Firestore Timestamp → Date
+- `adjustVentasActivas(clienteId, delta)` - Atomically increment/decrement `ventasActivas` field ← NEW
+- `timestampToDate(timestamp)` - Convert Firestore Timestamp → Date (rarely needed now)
 - `dateToTimestamp(date)` - Convert Date → Firestore Timestamp
+- `convertTimestamps(data)` - Recursively convert Timestamps (auto-used in all queries)
+
+**Firebase Pagination** (`src/lib/firebase/pagination.ts`):
+- `getPaginated<T>(collection, options)` - Fetch paginated docs with cursor (costs `pageSize + 1` reads) ← NEW
 
 **Firebase Auth** (`src/lib/firebase/auth.ts`):
 - `signInUser()`, `signOutUser()`, `onAuthChange()`
@@ -556,6 +608,14 @@ try {
 
 11. **Profile occupancy**: ~~When creating or deleting a venta that occupies a service profile, always call `updatePerfilOcupado(servicioId, increment)` on `serviciosStore`.~~ **UPDATED**: This is now handled automatically by `ventasStore.deleteVenta()` method.
 
+12. **Pagination in tables**: Do NOT use `getAll()` for tables with more than 10 items. Use `useServerPagination` hook instead. See "Server-Side Pagination Pattern" section.
+
+13. **Cache for secondary queries**: When creating a hook for related data (like `use-ventas-por-usuarios`), ALWAYS use module-level `Map` for cache, NEVER `useRef`. Also ALWAYS use `enabled: !isLoading` parameter to avoid queries with stale IDs.
+
+14. **Count queries**: Use `getCount()` for metrics, NOT `getAll().length`. Count operations are free on Spark plan and don't cost document reads.
+
+15. **Denormalization strategy**: If a field is read on every page load but changes rarely (e.g., count of related docs), denormalize it into the main document and update atomically with `increment()`. See `ventasActivas` field in Usuario type.
+
 ## Firebase Best Practices
 
 1. **Use COLLECTIONS enum**: Always use `COLLECTIONS.ITEMS` instead of hardcoded strings
@@ -565,9 +625,122 @@ try {
 5. **Loading states**: Show loading indicators while Firebase operations are in progress
 6. **Optimistic updates**: Update local state immediately, then sync with Firebase. All delete operations now use optimistic updates with rollback on error.
 7. **Undefined fields**: The `create()` and `update()` functions automatically strip `undefined` values before writing to Firestore (via `removeUndefinedFields`)
-8. **Automatic timestamp conversion**: ✅ **NEW**: All Firebase CRUD functions (`getAll`, `getById`, `queryDocuments`) now automatically convert Firestore Timestamps to JavaScript Date objects. No need to manually call `timestampToDate()` in stores.
+8. **Automatic timestamp conversion**: ✅ All Firebase CRUD functions (`getAll`, `getById`, `queryDocuments`) now automatically convert Firestore Timestamps to JavaScript Date objects. No need to manually call `timestampToDate()` in stores.
 9. **Caching**: Stores now include 5-minute cache timeout to reduce unnecessary Firebase reads. Use `fetchItems(true)` to force refresh.
-10. **Pagination**: Use `getPaginated()` from `src/lib/firebase/pagination.ts` for large datasets (not yet enabled by default).
+10. **Pagination**: ✅ **CRITICAL PATTERN**: Use server-side pagination with cursors for tables. See "Server-Side Pagination Pattern" section below.
+11. **Denormalization**: ✅ For frequently-read fields that change rarely (e.g., `ventasActivas`), denormalize into the main document and update atomically with `increment()`.
+12. **Count queries**: Use `getCount()` for metrics — it does NOT count as document reads on Spark plan (free).
+13. **Development Logging**: ✅ All Firebase operations and cache hits are logged in development using `devLogger` system with automatic deduplication for React Strict Mode. See `docs/LOG_DEDUPLICATION.md` for details.
+
+## Server-Side Pagination Pattern ✅ **CRITICAL FOR NEW MODULES**
+
+**IMPORTANT**: Any new module with a table listing documents MUST follow this pattern to minimize Firebase reads.
+
+### Quick Reference
+
+| What | Tool | Cost |
+|------|------|------|
+| Paginated docs | `useServerPagination` + `getPaginated` | `pageSize + 1` reads |
+| Count for metrics | `getCount()` in store | 0 doc-reads (free on Spark) |
+| Related data per row | Custom hook with module-level cache | ≤ pageSize reads (cached 5 min) |
+| Field read often | Denormalize + `increment()` | 0 extra reads |
+
+### Pattern Components
+
+1. **Pagination Hook** — `useServerPagination` (exists in `src/hooks/`)
+   - Fetches exactly `pageSize + 1` docs per page (the +1 detects `hasMore`)
+   - Uses cursors to navigate forward/backward without re-querying
+   - Auto-resets when filters change (e.g., switching tabs)
+   - Returns: `{ data, isLoading, hasMore, hasPrevious, page, next, previous, refresh }`
+
+2. **Count Queries** — `getCount()` in your store
+   - Does NOT cost document reads (free on Spark plan)
+   - Use for "Total X", "Total Y" metrics
+   - Example: `getCount(COLLECTIONS.USUARIOS, [{ field: 'tipo', operator: '==', value: 'cliente' }])`
+
+3. **Secondary Data Hook** — Custom hook with module-level cache
+   - For data that requires a separate query per row (e.g., "monto sin consumir" from ventas)
+   - **Must use module-level `Map` for cache** (not `useRef`, which is destroyed on remount)
+   - **Must use `enabled: !isLoading` parameter** to avoid queries with stale IDs during tab switches
+   - Cache TTL: 5 minutes
+   - Limitation: Firestore `in` operator accepts max 10 values → `pageSize` must be ≤ 10
+
+4. **Denormalized Fields** — For fields read often, changed rarely
+   - Store directly in the document (e.g., `ventasActivas` in usuario doc)
+   - Update atomically with `increment()` on mutations
+   - No extra query needed → read from paginated doc
+
+### Implementation Checklist
+
+When creating a new module with a table:
+
+- [ ] Use `useServerPagination` for the table data
+- [ ] Add `fetchCounts()` to store using `getCount()` for metrics
+- [ ] If you need related data per row:
+  - [ ] Create a custom hook with **module-level cache Map**
+  - [ ] Use `enabled: !isLoading` to avoid stale ID queries
+  - [ ] Handle empty results gracefully (default to 0)
+- [ ] If a field is read frequently but changes rarely:
+  - [ ] Denormalize into the main document
+  - [ ] Update with `increment()` in all mutation points
+- [ ] Set `pageSize ≤ 10` if using secondary data hook with `in` query
+- [ ] Pass `isLoading` and `onRefresh` to table component
+
+### Complete Example: Usuarios Module
+
+The Usuarios module is the **reference implementation**. Study these files:
+
+| File | Purpose |
+|------|---------|
+| `src/hooks/useServerPagination.ts` | Generic pagination hook |
+| `src/hooks/use-ventas-por-usuarios.ts` | Secondary data with module-level cache |
+| `src/lib/firebase/pagination.ts` | `getPaginated()` implementation |
+| `src/store/usuariosStore.ts` | Store with `fetchCounts()` |
+| `src/app/(dashboard)/usuarios/page.tsx` | Page orchestrator with dynamic filters |
+| `src/components/usuarios/ClientesTable.tsx` | Table consuming both hooks |
+| `src/components/shared/PaginationFooter.tsx` | Reusable pagination UI |
+
+### Full Documentation
+
+**See:** `docs/PAGINATION_AND_CACHE_PATTERN.md` for complete step-by-step guide with:
+- Detailed explanation of each component
+- Copy-paste templates for hooks
+- Common pitfalls and solutions
+- Real code examples from Usuarios module
+
+### Performance Impact
+
+**Before optimization** (Usuarios with 50 docs):
+- `getAll()` → 50 document reads per visit
+- No caching → repeated queries on tab switches
+- Total: ~50-100+ reads per session
+
+**After optimization** (Usuarios with 50 docs, pageSize=10):
+- Paginated query → 11 reads (10 + 1 for `hasMore`)
+- Secondary query → 5 reads (only users with ventas)
+- Counts → 0 reads (free)
+- Cache → 0 reads on repeated visits (5 min TTL)
+- **Total: 16 reads first visit, 0 reads next 5 minutes** → **84% reduction**
+
+### Common Mistakes to Avoid
+
+1. ❌ **Using `useRef` for cache** → destroyed on component remount (Next.js tabs)
+   ✅ Use module-level `Map` instead
+
+2. ❌ **Not using `enabled` parameter** → queries fire with stale IDs during tab switch
+   ✅ Pass `{ enabled: !isLoading }` to secondary hook
+
+3. ❌ **Using `getAll()` in tables** → fetches entire collection
+   ✅ Use `useServerPagination` instead
+
+4. ❌ **Using document reads for counts** → expensive and unnecessary
+   ✅ Use `getCount()` which is free on Spark
+
+5. ❌ **Querying related data inside render loop** → N+1 query problem
+   ✅ Single query with `in [ids]` in dedicated hook
+
+6. ❌ **Not denormalizing frequently-read fields** → extra query per row
+   ✅ Store in main doc + update with `increment()`
 
 ## shadcn/ui Components
 
@@ -691,6 +864,54 @@ The system has been fully migrated from mock data to Firebase:
 - New detail page (`/usuarios/[id]`) with `UsuarioDetails` component showing user's ventas
 - New edit page (`/usuarios/editar/[id]`)
 
+### Server-Side Pagination + Cache Pattern (Feb 5, 2026) ✅ **CRITICAL**
+**Major Firebase read optimization — 84% reduction in document reads:**
+
+1. **Pagination with Cursors**:
+   - Created `useServerPagination` hook — fetches only `pageSize + 1` docs per page
+   - Uses Firestore cursors for forward/backward navigation
+   - Auto-resets on filter changes (e.g., tab switches)
+   - Implemented in: `src/hooks/useServerPagination.ts`
+
+2. **Module-Level Cache for Secondary Queries**:
+   - Created `use-ventas-por-usuarios` hook with module-level cache `Map`
+   - Survives component remount/unmount (unlike `useRef`)
+   - 5-minute TTL, cache key = `clienteIds.join(',')`
+   - Uses `enabled: !isLoading` parameter to avoid stale ID queries
+   - Logs cache HIT in dev mode (green console badge)
+
+3. **Count Queries (Free on Spark)**:
+   - Added `fetchCounts()` to `usuariosStore` using `getCount()`
+   - Count operations do NOT cost document reads on Spark plan
+   - Used for: totalClientes, totalRevendedores, totalNuevosHoy, totalClientesActivos
+
+4. **Denormalized Fields**:
+   - Added `ventasActivas` field to usuario docs (updated atomically with `increment()`)
+   - Eliminates need for separate query to count active ventas per user
+   - Updated in all venta mutation points (create/delete/update estado)
+
+5. **Performance Results** (Usuarios module, pageSize=10):
+   - Before: ~50-100+ document reads per session
+   - After: 16 reads first visit, 0 reads for next 5 minutes
+   - Reduction: **84% fewer Firebase reads**
+
+6. **Documentation**:
+   - Created `docs/PAGINATION_AND_CACHE_PATTERN.md` — complete replication guide
+   - Added "Server-Side Pagination Pattern" section to CLAUDE.md
+   - Template code for replicating pattern in other modules
+   - Usuarios module is the reference implementation
+
+7. **Files Created/Modified**:
+   - `src/hooks/useServerPagination.ts` — pagination hook
+   - `src/hooks/use-ventas-por-usuarios.ts` — secondary query with cache
+   - `src/lib/firebase/pagination.ts` — `getPaginated()` function
+   - `src/components/shared/PaginationFooter.tsx` — reusable UI
+   - `src/store/usuariosStore.ts` — added `fetchCounts()` with `getCount()`
+   - `src/app/(dashboard)/usuarios/page.tsx` — orchestrator with dynamic filters
+   - All 3 tables: `ClientesTable`, `RevendedoresTable`, `TodosUsuariosTable` — use hooks
+
+**CRITICAL**: All new modules with tables MUST follow this pattern. See docs/PAGINATION_AND_CACHE_PATTERN.md.
+
 ### Servicios Enhancements
 - New detail page (`/servicios/detalle/[id]`) with full payment/renovation history
 - `PagoServicio` type and `COLLECTIONS.PAGOS_SERVICIO` collection added
@@ -711,3 +932,244 @@ The system has been fully migrated from mock data to Firebase:
 - **Removed** (commit db25141): Suscripciones module, Pagos de Servicios module
 - **Restored** (commit 8b4072d): Dashboard UI components with placeholder data
 - **Fixed** (commit 9feb52b, d99fae7): Cleaned up imports and references to removed modules
+
+---
+
+## Quick Reference Guide
+
+### Most Common Tasks
+
+#### Creating a New Module with a Table
+
+1. **Create types** in `src/types/[module].ts`
+2. **Add collection** to `COLLECTIONS` enum in `firestore.ts`
+3. **Create store** with `fetchCounts()` using `getCount()`:
+   ```typescript
+   fetchCounts: async () => {
+     const [total, totalActive] = await Promise.all([
+       getCount(COLLECTIONS.MY_ITEMS),
+       getCount(COLLECTIONS.MY_ITEMS, [{ field: 'estado', operator: '==', value: 'active' }]),
+     ]);
+     set({ total, totalActive });
+   }
+   ```
+4. **Create page** with `useServerPagination`:
+   ```typescript
+   const { data, isLoading, hasMore, page, next, previous, refresh } = useServerPagination({
+     collectionName: COLLECTIONS.MY_ITEMS,
+     filters,
+     pageSize: 10,
+   });
+   ```
+5. **If you need related data per row**, create custom hook:
+   ```typescript
+   // Module-level cache
+   const cache = new Map();
+   export function useRelatedData(ids: string[], { enabled = true } = {}) {
+     // Check cache → query if miss → save to cache
+   }
+   ```
+6. **Create table component** with `PaginationFooter`
+7. **Add route** to sidebar
+8. **Test** pagination, caching, and CRUD ops
+
+#### Adding a New Field to Existing Type
+
+1. **Update interface** in `src/types/[module].ts`
+2. **Update form schema** (Zod validation)
+3. **Update form UI** (add input field)
+4. **Update table columns** (if displayed)
+5. **Update store** create/update methods if needed
+6. **Test** create/edit operations
+
+#### Creating a Form Dialog
+
+```typescript
+// 1. Schema
+const schema = z.object({
+  nombre: z.string().min(2),
+  // ... fields
+});
+
+// 2. Form
+const { register, handleSubmit, formState: { errors } } = useForm({
+  resolver: zodResolver(schema)
+});
+
+// 3. Submit
+const onSubmit = async (data) => {
+  try {
+    await createItem(data);
+    toast.success('Created');
+    onOpenChange(false);
+  } catch (error) {
+    toast.error('Error');
+  }
+};
+```
+
+### Firebase Cheat Sheet
+
+| Task | Function | Cost |
+|------|----------|------|
+| Get all docs | `getAll<T>(collection)` | N reads |
+| Get paginated | `getPaginated<T>(collection, options)` | pageSize + 1 reads |
+| Count docs | `getCount(collection, filters)` | 0 reads (free on Spark) |
+| Query with filters | `queryDocuments<T>(collection, filters)` | Matching docs |
+| Get single doc | `getById<T>(collection, id)` | 1 read |
+| Create doc | `create(collection, data)` | 1 write |
+| Update doc | `update(collection, id, data)` | 1 write |
+| Delete doc | `remove(collection, id)` | 1 write |
+| Atomic increment | `adjustVentasActivas(id, delta)` | 1 write |
+
+### Common Code Patterns
+
+#### Zustand Store with Firebase
+
+```typescript
+export const useMyStore = create<State>()(
+  devtools((set, get) => ({
+    items: [],
+    isLoading: false,
+    error: null,
+    lastFetch: null,
+
+    fetchItems: async (force = false) => {
+      if (!force && get().lastFetch && Date.now() - get().lastFetch < 300000) {
+        logCacheHit(COLLECTIONS.ITEMS);
+        return;
+      }
+      set({ isLoading: true, error: null });
+      try {
+        const items = await getAll<Item>(COLLECTIONS.ITEMS);
+        set({ items, isLoading: false, lastFetch: Date.now() });
+      } catch (error) {
+        set({ error: error.message, isLoading: false });
+      }
+    },
+
+    deleteItem: async (id) => {
+      const prev = get().items;
+      set({ items: prev.filter(i => i.id !== id) }); // Optimistic
+      try {
+        await remove(COLLECTIONS.ITEMS, id);
+      } catch (error) {
+        set({ items: prev, error: error.message }); // Rollback
+        throw error;
+      }
+    },
+  }))
+);
+```
+
+#### Custom Hook with Module-Level Cache
+
+```typescript
+const CACHE_TTL = 5 * 60 * 1000;
+const cache = new Map<string, { data: Record<string, Stats>; ts: number }>();
+
+export function useMyStats(ids: string[], { enabled = true } = {}) {
+  const [stats, setStats] = useState<Record<string, Stats>>({});
+  const idsKey = ids.join(',');
+
+  useEffect(() => {
+    if (!enabled || ids.length === 0) return;
+
+    const cached = cache.get(idsKey);
+    if (cached && Date.now() - cached.ts < CACHE_TTL) {
+      setStats(cached.data);
+      return;
+    }
+
+    let cancelled = false;
+    const load = async () => {
+      const docs = await queryDocuments(COLLECTION, [
+        { field: 'refId', operator: 'in', value: ids }
+      ]);
+      if (cancelled) return;
+      const result = {}; // Calculate stats
+      cache.set(idsKey, { data: result, ts: Date.now() });
+      setStats(result);
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [idsKey, enabled]);
+
+  return { stats };
+}
+```
+
+#### React Component with Memoization
+
+```typescript
+export const MyMetrics = memo(function MyMetrics({ items }) {
+  const metrics = useMemo(() => {
+    // Single-pass calculation
+    let total = 0, active = 0;
+    items.forEach(item => {
+      total++;
+      if (item.active) active++;
+    });
+    return { total, active };
+  }, [items]);
+
+  return (
+    <div className="grid grid-cols-2 gap-4">
+      <MetricCard title="Total" value={metrics.total} />
+      <MetricCard title="Active" value={metrics.active} />
+    </div>
+  );
+});
+```
+
+### Debugging Tips
+
+#### Check Firebase Reads
+
+Open browser console and look for:
+- `[Firestore] paginated (collection) → N docs · Xms` (blue badge)
+- `[Firestore] query (collection where ...) → N docs · Xms` (blue badge)
+- `[VentasCache] HIT · N IDs · age Xs` (green badge)
+- `[Cache] HIT · collection` (green badge)
+
+#### Force Refresh Cache
+
+```typescript
+// In store:
+fetchItems(true); // force = true bypasses cache
+
+// In component:
+const { refresh } = useServerPagination(...);
+refresh(); // Forces re-fetch of current page
+```
+
+#### Test Pagination
+
+1. Add 15+ items to collection
+2. Set `pageSize = 10`
+3. Navigate to page 2 → should see "Página 2 de 2"
+4. Check console → should see 11 reads (10 + 1 for hasMore)
+5. Go back to page 1 → should use cached cursor (no new reads)
+
+### Performance Monitoring
+
+| Metric | Tool | Target |
+|--------|------|--------|
+| Firebase reads per visit | Browser console | <20 first visit, 0 cached |
+| Component re-renders | React DevTools Profiler | Only changed components |
+| Time to Interactive | Lighthouse | <3s |
+| Total Bundle Size | `npm run build` output | <500KB gzipped |
+
+### Documentation Shortcuts
+
+| Need | Read |
+|------|------|
+| Pagination pattern | `docs/PAGINATION_AND_CACHE_PATTERN.md` |
+| React optimizations | `docs/PERFORMANCE_OPTIMIZATIONS.md` |
+| Firebase setup | `docs/FIREBASE_SETUP.md` |
+| Project overview | This file (CLAUDE.md) |
+
+---
+
+**Last Updated:** February 5, 2026
+**Version:** 2.1.0

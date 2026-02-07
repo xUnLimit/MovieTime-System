@@ -22,7 +22,11 @@
       "Bash(node:*)",
       "Bash(git checkout:*)",
       "Bash(powershell:*)",
-      "WebFetch(domain:console.firebase.google.com)"
+      "WebFetch(domain:console.firebase.google.com)",
+      "Bash(grep:*)",
+      "Bash(npx tsx:*)",
+      "Bash(test:*)",
+      "Bash(cd:*)"
     ]
   }
 }

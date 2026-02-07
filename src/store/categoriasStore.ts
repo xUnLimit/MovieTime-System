@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { Categoria } from '@/types';
-import { getAll, create as createDoc, update, remove, COLLECTIONS, logCacheHit } from '@/lib/firebase/firestore';
+import { getAll, getCount, create as createDoc, update, remove, COLLECTIONS, logCacheHit } from '@/lib/firebase/firestore';
 
 interface CategoriasState {
   categorias: Categoria[];
@@ -10,8 +10,14 @@ interface CategoriasState {
   lastFetch: number | null;
   selectedCategoria: Categoria | null;
 
+  // Counts for metrics (free queries)
+  totalCategorias: number;
+  categoriasClientes: number;
+  categoriasRevendedores: number;
+
   // Actions
   fetchCategorias: (force?: boolean) => Promise<void>;
+  fetchCounts: () => Promise<void>;
   createCategoria: (categoria: Omit<Categoria, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateCategoria: (id: string, updates: Partial<Categoria>) => Promise<void>;
   deleteCategoria: (id: string) => Promise<void>;
@@ -30,6 +36,9 @@ export const useCategoriasStore = create<CategoriasState>()(
       error: null,
       lastFetch: null,
       selectedCategoria: null,
+      totalCategorias: 0,
+      categoriasClientes: 0,
+      categoriasRevendedores: 0,
 
       fetchCategorias: async (force = false) => {
         const { lastFetch } = get();
@@ -49,12 +58,35 @@ export const useCategoriasStore = create<CategoriasState>()(
         }
       },
 
+      fetchCounts: async () => {
+        try {
+          const [totalCategorias, categoriasClientes, categoriasRevendedores] = await Promise.all([
+            getCount(COLLECTIONS.CATEGORIAS, []),
+            getCount(COLLECTIONS.CATEGORIAS, [{ field: 'tipo', operator: 'in', value: ['cliente', 'ambos'] }]),
+            getCount(COLLECTIONS.CATEGORIAS, [{ field: 'tipo', operator: 'in', value: ['revendedor', 'ambos'] }]),
+          ]);
+          set({ totalCategorias, categoriasClientes, categoriasRevendedores });
+        } catch (error) {
+          console.error('Error fetching counts:', error);
+          set({ totalCategorias: 0, categoriasClientes: 0, categoriasRevendedores: 0 });
+        }
+      },
+
       createCategoria: async (categoriaData) => {
         try {
-          const id = await createDoc(COLLECTIONS.CATEGORIAS, categoriaData);
+          // Inicializar contadores denormalizados en 0 para nueva categoría
+          const categoriaConContadores = {
+            ...categoriaData,
+            totalServicios: 0,
+            serviciosActivos: 0,
+            perfilesDisponiblesTotal: 0,
+            gastosTotal: 0,
+          };
+
+          const id = await createDoc(COLLECTIONS.CATEGORIAS, categoriaConContadores as Omit<Categoria, 'id'>);
 
           const newCategoria: Categoria = {
-            ...categoriaData,
+            ...categoriaConContadores,
             id,
             createdAt: new Date(),
             updatedAt: new Date()
@@ -102,6 +134,13 @@ export const useCategoriasStore = create<CategoriasState>()(
 
         try {
           await remove(COLLECTIONS.CATEGORIAS, id);
+
+          // Notificar a otras páginas que se eliminó una categoría
+          if (typeof window !== 'undefined') {
+            window.localStorage.setItem('categoria-deleted', Date.now().toString());
+            window.dispatchEvent(new Event('categoria-deleted'));
+          }
+
           set({ error: null });
         } catch (error) {
           // Rollback on error

@@ -22,14 +22,14 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, ChevronDown, MessageCircle, Plus, Trash2, User } from 'lucide-react';
+import { CalendarIcon, ChevronDown, MessageCircle, Plus, Trash2, User, Search } from 'lucide-react';
 import { useCategoriasStore } from '@/store/categoriasStore';
-import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { useServiciosStore } from '@/store/serviciosStore';
 import { useUsuariosStore } from '@/store/usuariosStore';
 import { useTemplatesStore } from '@/store/templatesStore';
+import { useVentasStore } from '@/store/ventasStore';
 import { toast } from 'sonner';
-import { COLLECTIONS, create, queryDocuments, adjustVentasActivas } from '@/lib/firebase/firestore';
+import { COLLECTIONS, queryDocuments, adjustVentasActivas } from '@/lib/firebase/firestore';
 import { Switch } from '@/components/ui/switch';
 import { formatearFechaWhatsApp, getSaludo } from '@/lib/utils/whatsapp';
 import { getCurrencySymbol } from '@/lib/constants';
@@ -53,6 +53,7 @@ interface VentaItem {
   itemId: string;
   tipo: TipoItem;
   categoriaId: string;
+  categoriaNombre: string; // ← Denormalizar nombre de categoría
   servicioId: string;
   servicioNombre: string;
   servicioCorreo?: string;
@@ -87,11 +88,18 @@ const MESES_POR_CICLO: Record<string, number> = {
 export function VentasForm() {
   const router = useRouter();
   const { categorias, fetchCategorias } = useCategoriasStore();
-  const { metodosPago, fetchMetodosPago } = useMetodosPagoStore();
-  const { servicios, fetchServicios, updatePerfilOcupado } = useServiciosStore();
+  const { updatePerfilOcupado } = useServiciosStore();
   const { usuarios, fetchUsuarios } = useUsuariosStore();
+  const { createVenta } = useVentasStore();
   const fetchTemplates = useTemplatesStore((state) => state.fetchTemplates);
   const templateNotificacion = useTemplatesStore((state) => state.getTemplateByTipo('suscripcion'));
+
+  // Estado local para métodos de pago filtrados (solo usuarios)
+  const [metodosPagoUsuarios, setMetodosPagoUsuarios] = useState<Array<{ id: string; nombre: string; asociadoA: string; moneda: string }>>([]);
+
+  // Estado local para servicios (cargados solo cuando se selecciona categoría)
+  const [serviciosCategoria, setServiciosCategoria] = useState<Array<{ id: string; nombre: string; tipo: string; categoriaId: string; perfilesDisponibles?: number; perfilesOcupados?: number; correo?: string; contrasena?: string; cicloPago?: string }>>([]);
+  const [loadingServicios, setLoadingServicios] = useState(false);
 
   const [activeTab, setActiveTab] = useState<'datos' | 'preview'>('datos');
   const [isDatosTabComplete, setIsDatosTabComplete] = useState(false);
@@ -110,6 +118,7 @@ export function VentasForm() {
   const [fechaFinOpen, setFechaFinOpen] = useState(false);
   const [perfilesOcupadosVenta, setPerfilesOcupadosVenta] = useState<Record<string, Set<number>>>({});
   const [notifyCliente, setNotifyCliente] = useState(false);
+  const [searchCliente, setSearchCliente] = useState('');
 
   const {
     register,
@@ -141,13 +150,60 @@ export function VentasForm() {
     }
   }, [estadoValue, notifyCliente]);
 
+  // Efecto inicial: solo cargar datos que no dependen de selección
   useEffect(() => {
     fetchCategorias();
-    fetchMetodosPago();
-    fetchServicios();
     fetchUsuarios();
     fetchTemplates();
-  }, [fetchCategorias, fetchMetodosPago, fetchServicios, fetchUsuarios, fetchTemplates]);
+
+    // Cargar métodos de pago filtrados (solo usuarios)
+    const loadMetodosPagoUsuarios = async () => {
+      try {
+        const metodos = await queryDocuments<{ id: string; nombre: string; asociadoA: string; moneda: string }>(
+          COLLECTIONS.METODOS_PAGO,
+          [{ field: 'asociadoA', operator: '==', value: 'usuario' }]
+        );
+        setMetodosPagoUsuarios(metodos);
+      } catch (error) {
+        console.error('Error cargando métodos de pago:', error);
+        setMetodosPagoUsuarios([]);
+      }
+    };
+    loadMetodosPagoUsuarios();
+  }, [fetchCategorias, fetchUsuarios, fetchTemplates]);
+
+  // Efecto para cargar servicios cuando se selecciona una categoría
+  useEffect(() => {
+    if (!categoriaId) {
+      setServiciosCategoria([]);
+      return;
+    }
+
+    const loadServiciosCategoria = async () => {
+      setLoadingServicios(true);
+      try {
+        const servicios = await queryDocuments<{
+          id: string;
+          nombre: string;
+          tipo: string;
+          categoriaId: string;
+          perfilesDisponibles?: number;
+          perfilesOcupados?: number;
+          correo?: string;
+          cicloPago?: string;
+        }>(COLLECTIONS.SERVICIOS, [
+          { field: 'categoriaId', operator: '==', value: categoriaId },
+        ]);
+        setServiciosCategoria(servicios);
+      } catch (error) {
+        console.error('Error cargando servicios:', error);
+        setServiciosCategoria([]);
+      } finally {
+        setLoadingServicios(false);
+      }
+    };
+    loadServiciosCategoria();
+  }, [categoriaId]);
 
   useEffect(() => {
     setPlanId('');
@@ -188,20 +244,36 @@ export function VentasForm() {
     [categorias, categoriaId]
   );
 
-  const clientes = useMemo(() => usuarios.filter((u) => u.tipo === 'cliente'), [usuarios]);
+  // Usuarios (clientes + revendedores) ordenados por fecha de creación (más reciente primero)
+  const usuariosOrdenados = useMemo(() => {
+    return [...usuarios].sort((a, b) => {
+      const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return bDate - aDate; // Más reciente primero
+    });
+  }, [usuarios]);
+
+  // Usuarios filtrados por búsqueda
+  const usuariosFiltrados = useMemo(() => {
+    if (!searchCliente) return usuariosOrdenados;
+    const search = searchCliente.toLowerCase().trim();
+    return usuariosOrdenados.filter((u) => {
+      const nombreCompleto = `${u.nombre} ${u.apellido || ''}`.toLowerCase();
+      return nombreCompleto.includes(search);
+    });
+  }, [usuariosOrdenados, searchCliente]);
+
   const categoriasOrdenadas = useMemo(
     () => [...categorias].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
     [categorias]
   );
   const metodosPagoOrdenados = useMemo(
-    () => metodosPago
-      .filter((m) => m.activo && m.asociadoA === 'usuario')
-      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
-    [metodosPago]
+    () => [...metodosPagoUsuarios].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
+    [metodosPagoUsuarios]
   );
-  const clienteSeleccionado = clientes.find((c) => c.id === clienteIdValue);
-  const metodoPagoSeleccionado = metodosPago.find((m) => m.id === metodoPagoIdValue);
-  const servicioSeleccionado = servicios.find((s) => s.id === servicioId);
+  const clienteSeleccionado = usuariosOrdenados.find((c) => c.id === clienteIdValue);
+  const metodoPagoSeleccionado = metodosPagoUsuarios.find((m) => m.id === metodoPagoIdValue);
+  const servicioSeleccionado = serviciosCategoria.find((s) => s.id === servicioId);
 
   const tipoItem = useMemo<TipoItem | null>(() => {
     if (!servicioSeleccionado?.tipo) return null;
@@ -238,20 +310,10 @@ export function VentasForm() {
     setValue('fechaFin', addMonths(new Date(fechaInicioValue), meses));
   }, [planSeleccionado, fechaInicioValue, setValue]);
 
-  const serviciosFiltrados = useMemo(() => {
-    return servicios.filter((s) => {
-      if (categoriaId && s.categoriaId !== categoriaId) return false;
-      return true;
-    });
-  }, [servicios, categoriaId]);
-
+  // Ya no necesitamos serviciosFiltrados porque serviciosCategoria ya está filtrado
   const serviciosOrdenados = useMemo(() => {
-    return [...serviciosFiltrados].sort((a, b) => {
-      const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return bDate - aDate;
-    });
-  }, [serviciosFiltrados]);
+    return [...serviciosCategoria].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  }, [serviciosCategoria]);
 
   const perfilesUsados = useMemo(() => {
     return items.reduce<Record<string, Set<number>>>((acc, item) => {
@@ -263,7 +325,7 @@ export function VentasForm() {
   }, [items]);
 
   const getSlotsDisponibles = (servicioIdValue: string) => {
-    const servicio = servicios.find((s) => s.id === servicioIdValue);
+    const servicio = serviciosCategoria.find((s) => s.id === servicioIdValue);
     if (!servicio) return 0;
     const ocupadosActual = servicio.perfilesOcupados || 0;
     const ocupadosEnVenta = perfilesUsados[servicioIdValue]?.size || 0;
@@ -278,7 +340,7 @@ export function VentasForm() {
   const subtotal = useMemo(() => items.reduce((sum, item) => sum + item.precio, 0), [items]);
   const previewItem = items[0];
   const previewServicio = previewItem
-    ? servicios.find((s) => s.id === previewItem.servicioId)
+    ? serviciosCategoria.find((s) => s.id === previewItem.servicioId)
     : servicioSeleccionado;
   const previewCategoria = previewItem
     ? categorias.find((c) => c.id === previewItem.categoriaId)
@@ -325,7 +387,7 @@ export function VentasForm() {
     if (blockMatch) {
       const block = blockMatch[1].replace(/^\s*\n/, '').replace(/\n\s*$/, '');
       const renderedItems = items.map((item) => {
-        const servicio = servicios.find((s) => s.id === item.servicioId);
+        const servicio = serviciosCategoria.find((s) => s.id === item.servicioId);
         const categoria = categorias.find((c) => c.id === item.categoriaId);
         const itemValues: Record<string, string> = {
           '{servicio}': item.servicioNombre || servicio?.nombre || 'Servicio',
@@ -342,7 +404,7 @@ export function VentasForm() {
       content = content.replace(blockMatch[0], renderedItems);
     }
     return replaceAllPlaceholders(content, globals);
-  }, [items, servicios, categorias]);
+  }, [items, serviciosCategoria, categorias]);
   const previewMessage = useMemo(() => {
     const content = templateNotificacion?.contenido || 'No hay plantilla de Notificación de Suscripción configurada.';
     const placeholders: Record<string, string> = {
@@ -417,6 +479,7 @@ export function VentasForm() {
       itemId,
       tipo: tipoItem,
       categoriaId: categoria.id,
+      categoriaNombre: categoria.nombre, // ← Denormalizar nombre
         servicioId,
         servicioNombre: servicioSeleccionado?.nombre || plan.nombre,
         servicioCorreo: servicioSeleccionado?.correo,
@@ -497,7 +560,7 @@ export function VentasForm() {
     try {
       setSaving(true);
       const writes = items.map((item) =>
-        create(COLLECTIONS.VENTAS, {
+        createVenta({
           clienteId: clienteIdValue,
           clienteNombre,
           metodoPagoId: metodoPagoIdValue,
@@ -510,6 +573,7 @@ export function VentasForm() {
           estado: estadoVenta || 'activo',
           notas: item.notas || '',
           categoriaId: item.categoriaId,
+          categoriaNombre: item.categoriaNombre, // ← Guardar nombre denormalizado
           servicioId: item.servicioId,
           servicioNombre: item.servicioNombre,
           servicioCorreo: item.servicioCorreo ?? '',
@@ -624,30 +688,66 @@ export function VentasForm() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-1">
               <div className="space-y-2">
-                <Label>Cliente</Label>
+                <Label>Cliente / Revendedor</Label>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" type="button" className="w-full justify-between">
-                      {clienteSeleccionado ? `${clienteSeleccionado.nombre} ${clienteSeleccionado.apellido}` : 'Seleccionar cliente'}
+                      {clienteSeleccionado ? (
+                        <span>
+                          {clienteSeleccionado.nombre} {clienteSeleccionado.apellido}
+                          <span className="text-xs text-muted-foreground ml-2">
+                            ({clienteSeleccionado.tipo === 'cliente' ? 'Cliente' : 'Revendedor'})
+                          </span>
+                        </span>
+                      ) : (
+                        'Seleccionar usuario'
+                      )}
                       <ChevronDown className="h-4 w-4 opacity-50" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                    {clientes.map((cliente) => (
-                      <DropdownMenuItem
-                        key={cliente.id}
-                        onClick={() => {
-                          setValue('clienteId', cliente.id);
-                          clearErrors('clienteId');
-                          if (cliente.metodoPagoId) {
-                            setValue('metodoPagoId', cliente.metodoPagoId);
-                            clearErrors('metodoPagoId');
-                          }
-                        }}
-                      >
-                        {cliente.nombre} {cliente.apellido}
-                      </DropdownMenuItem>
-                    ))}
+                  <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]" onCloseAutoFocus={(e) => e.preventDefault()}>
+                    <div className="p-2 border-b" onKeyDown={(e) => e.stopPropagation()}>
+                      <div className="relative">
+                        <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          placeholder="Buscar usuario..."
+                          value={searchCliente}
+                          onChange={(e) => setSearchCliente(e.target.value)}
+                          onKeyDown={(e) => e.stopPropagation()}
+                          className="h-8 pl-8"
+                          autoFocus
+                        />
+                      </div>
+                    </div>
+                    <div className="max-h-[300px] overflow-y-auto">
+                      {usuariosFiltrados.length === 0 ? (
+                        <div className="p-4 text-center text-sm text-muted-foreground">
+                          No se encontraron usuarios
+                        </div>
+                      ) : (
+                        usuariosFiltrados.map((usuario) => (
+                          <DropdownMenuItem
+                            key={usuario.id}
+                            onClick={() => {
+                              setValue('clienteId', usuario.id);
+                              clearErrors('clienteId');
+                              if (usuario.metodoPagoId) {
+                                setValue('metodoPagoId', usuario.metodoPagoId);
+                                clearErrors('metodoPagoId');
+                              }
+                              setSearchCliente(''); // Limpiar búsqueda después de seleccionar
+                            }}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span>{usuario.nombre} {usuario.apellido}</span>
+                              <span className="text-xs text-muted-foreground">
+                                ({usuario.tipo === 'cliente' ? 'Cliente' : 'Revendedor'})
+                              </span>
+                            </div>
+                          </DropdownMenuItem>
+                        ))
+                      )}
+                    </div>
                   </DropdownMenuContent>
                 </DropdownMenu>
                 {errors.clienteId && <p className="text-sm text-red-500">{errors.clienteId.message}</p>}
@@ -722,9 +822,11 @@ export function VentasForm() {
                   <Label>Servicio</Label>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="outline" type="button" className="w-full justify-between" disabled={!categoriaId}>
-                        {servicioId
-                          ? `${servicios.find((s) => s.id === servicioId)?.nombre} - ${servicios.find((s) => s.id === servicioId)?.correo}`
+                      <Button variant="outline" type="button" className="w-full justify-between" disabled={!categoriaId || loadingServicios}>
+                        {loadingServicios
+                          ? 'Cargando servicios...'
+                          : servicioId
+                          ? `${serviciosCategoria.find((s) => s.id === servicioId)?.nombre} - ${serviciosCategoria.find((s) => s.id === servicioId)?.correo}`
                           : categoriaId
                             ? 'Seleccionar servicio'
                             : 'Primero selecciona categoria'}

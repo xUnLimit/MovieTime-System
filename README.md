@@ -285,6 +285,42 @@ Para preguntas o problemas, contactar al equipo de desarrollo.
 
 ## 📚 Documentación Adicional
 
+### Documentación General
 - **IMPLEMENTATION_SUMMARY.md** - Resumen detallado de la implementación
 - **DEVELOPER_GUIDE.md** - Guía de referencia rápida para desarrolladores
 - **README.md** - Este archivo (guía general del proyecto)
+
+### Optimización y Monitoreo
+- **FIREBASE_READS_MONITORING.md** - 🔥 **Guía completa de monitoreo de lecturas Firebase**
+- **PAGINATION_AND_CACHE_PATTERN.md** - Patrón de paginación y cache (reduce 90-96% lecturas)
+- **firebase-monitor.js** - Script para consola del navegador (contador global de lecturas)
+
+### 🔍 Cómo Verificar las Optimizaciones
+
+El proyecto incluye un sistema completo de logging para monitorear las lecturas de Firebase en tiempo real:
+
+**Opción 1: Logs Automáticos en Consola**
+1. Abre la consola del navegador (F12)
+2. Filtra por "Firestore" para ver solo operaciones relevantes
+3. Cada operación se registra con colores:
+   - 🟢 Verde: `getAll`, `getById`, `query`
+   - 🔵 Azul: `paginated` (paginación optimizada)
+   - 🟣 Morado: `count` (0 lecturas, gratis en Spark)
+   - 🟠 Naranja: Cache hits (0 lecturas)
+
+**Opción 2: Monitor Avanzado**
+1. Copia el contenido de `docs/firebase-monitor.js`
+2. Pégalo en la consola del navegador
+3. Navega por la app
+4. Ejecuta `firestoreMonitor.report()` para ver el resumen completo
+
+**Ejemplo de output esperado (módulo Usuarios optimizado):**
+```
+[Firestore] paginated (usuarios) → 10 docs · 85ms
+[Firestore] count (usuarios) → 50 · 25ms
+[Firestore] count (usuarios where tipo == cliente) → 35 · 20ms
+[Firestore] count (usuarios where tipo == revendedor) → 15 · 18ms
+```
+**Total: 11 lecturas** (vs ~100+ sin optimización)
+
+Ver `docs/FIREBASE_READS_MONITORING.md` para guía completa con escenarios de prueba.

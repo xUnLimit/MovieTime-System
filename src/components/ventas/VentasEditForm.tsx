@@ -27,6 +27,7 @@ import { useCategoriasStore } from '@/store/categoriasStore';
 import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { useServiciosStore } from '@/store/serviciosStore';
 import { useUsuariosStore } from '@/store/usuariosStore';
+import { MetodoPago, PagoVenta, Servicio } from '@/types';
 import { toast } from 'sonner';
 import { getCurrencySymbol } from '@/lib/constants';
 import { formatearFecha } from '@/lib/utils/calculations';
@@ -99,22 +100,35 @@ interface VentasEditFormProps {
 export function VentasEditForm({ venta }: VentasEditFormProps) {
   const router = useRouter();
   const { categorias, fetchCategorias } = useCategoriasStore();
-  const { metodosPago, fetchMetodosPago } = useMetodosPagoStore();
-  const { servicios, fetchServicios, updatePerfilOcupado } = useServiciosStore();
+  const { fetchMetodosPagoUsuarios } = useMetodosPagoStore();
+  const { updatePerfilOcupado } = useServiciosStore();
   const { usuarios, fetchUsuarios } = useUsuariosStore();
+
+  const [metodosPago, setMetodosPago] = useState<MetodoPago[]>([]);
+
+  // Estado local para servicios (cargados solo cuando se selecciona categoría)
+  const [serviciosCategoria, setServiciosCategoria] = useState<Servicio[]>([]);
+  const [loadingServicios, setLoadingServicios] = useState(false);
 
   const [activeTab, setActiveTab] = useState<'datos' | 'preview'>('datos');
   const [isDatosTabComplete, setIsDatosTabComplete] = useState(false);
   const [fechaInicioOpen, setFechaInicioOpen] = useState(false);
   const [fechaFinOpen, setFechaFinOpen] = useState(false);
   const [perfilesOcupadosVenta, setPerfilesOcupadosVenta] = useState<Record<string, Set<number>>>({});
+  const [fechasInicializadas, setFechasInicializadas] = useState(false);
 
+  // Efecto inicial: solo cargar datos que no dependen de selección
   useEffect(() => {
-    fetchCategorias();
-    fetchMetodosPago();
-    fetchServicios();
-    fetchUsuarios();
-  }, [fetchCategorias, fetchMetodosPago, fetchServicios, fetchUsuarios]);
+    const loadData = async () => {
+      fetchCategorias();
+      fetchUsuarios();
+
+      // Cargar solo métodos de pago de usuarios
+      const metodos = await fetchMetodosPagoUsuarios();
+      setMetodosPago(metodos);
+    };
+    loadData();
+  }, [fetchCategorias, fetchMetodosPagoUsuarios, fetchUsuarios]);
 
   const {
     register,
@@ -163,32 +177,58 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
   const clienteSeleccionado = clientes.find((c) => c.id === clienteIdValue);
   const metodoPagoSeleccionado = metodosPago.find((m) => m.id === metodoPagoIdValue);
 
+  // Efecto para cargar servicios cuando se selecciona una categoría
+  useEffect(() => {
+    if (!categoriaIdValue) {
+      setServiciosCategoria([]);
+      return;
+    }
+
+    const loadServiciosCategoria = async () => {
+      setLoadingServicios(true);
+      try {
+        const servicios = await queryDocuments<Servicio>(COLLECTIONS.SERVICIOS, [
+          { field: 'categoriaId', operator: '==', value: categoriaIdValue },
+        ]);
+        setServiciosCategoria(servicios);
+      } catch (error) {
+        console.error('Error cargando servicios:', error);
+        setServiciosCategoria([]);
+      } finally {
+        setLoadingServicios(false);
+      }
+    };
+    loadServiciosCategoria();
+  }, [categoriaIdValue]);
+
   const categoriaSeleccionada = useMemo(
     () => categorias.find((c) => c.id === categoriaIdValue),
     [categorias, categoriaIdValue]
   );
 
-  const serviciosFiltrados = useMemo(() => {
-    return servicios.filter((s) => {
-      if (categoriaIdValue && s.categoriaId !== categoriaIdValue) return false;
-      return true;
-    });
-  }, [servicios, categoriaIdValue]);
-
   const serviciosOrdenados = useMemo(() => {
-    return [...serviciosFiltrados].sort((a, b) => {
+    return [...serviciosCategoria].sort((a, b) => {
       const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       return bDate - aDate;
     });
-  }, [serviciosFiltrados]);
+  }, [serviciosCategoria]);
 
-  const tipoPlanFiltro = tipoItem === 'cuenta' ? 'cuenta_completa' : 'perfiles';
+  const servicioSeleccionado = serviciosCategoria.find((s) => s.id === servicioIdValue);
+
+  const tipoItem = useMemo<'cuenta' | 'perfil' | null>(() => {
+    if (!servicioSeleccionado?.tipo) return null;
+    return servicioSeleccionado.tipo === 'cuenta_completa' ? 'cuenta' : 'perfil';
+  }, [servicioSeleccionado?.tipo]);
 
   const planesDisponibles = useMemo(() => {
-    if (!categoriaSeleccionada?.planes) return [];
-    return categoriaSeleccionada.planes.filter((plan) => plan.tipoPlan === tipoPlanFiltro);
-  }, [categoriaSeleccionada, tipoPlanFiltro]);
+    if (!categoriaSeleccionada?.planes || !servicioSeleccionado?.tipo) return [];
+    return categoriaSeleccionada.planes.filter((plan) =>
+      servicioSeleccionado.tipo === 'cuenta_completa'
+        ? plan.tipoPlan === 'cuenta_completa'
+        : plan.tipoPlan === 'perfiles'
+    );
+  }, [categoriaSeleccionada, servicioSeleccionado?.tipo]);
 
   const planSeleccionado = useMemo(
     () => planesDisponibles.find((plan) => plan.id === planIdValue),
@@ -201,11 +241,26 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
     }
   }, [planSeleccionado, setValue]);
 
+  // Marcar las fechas como inicializadas una vez que se cargan desde la venta
   useEffect(() => {
+    if (fechaInicioValue && fechaFinValue && !fechasInicializadas) {
+      setFechasInicializadas(true);
+    }
+  }, [fechaInicioValue, fechaFinValue, fechasInicializadas]);
+
+  useEffect(() => {
+    // NO auto-calcular si las fechas ya fueron inicializadas desde la venta
+    if (fechasInicializadas) return;
     if (!planSeleccionado || !fechaInicioValue) return;
+
     const meses = MESES_POR_CICLO[planSeleccionado.cicloPago] ?? 1;
-    setValue('fechaFin', addMonths(new Date(fechaInicioValue), meses));
-  }, [planSeleccionado, fechaInicioValue, setValue]);
+    const fechaCalculada = addMonths(new Date(fechaInicioValue), meses);
+
+    // Solo actualizar si es diferente (evitar loops)
+    if (!fechaFinValue || Math.abs(fechaCalculada.getTime() - fechaFinValue.getTime()) > 86400000) {
+      setValue('fechaFin', fechaCalculada);
+    }
+  }, [planSeleccionado, fechaInicioValue, setValue, fechasInicializadas, fechaFinValue]);
 
   useEffect(() => {
     if (!planIdValue && planesDisponibles.length > 0) {
@@ -239,8 +294,6 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
 
     loadPerfilesOcupados();
   }, [servicioIdValue, venta.id]);
-
-  const servicioSeleccionado = servicios.find((s) => s.id === servicioIdValue);
 
   const slotsDisponibles = useMemo(() => {
     if (!servicioSeleccionado) return 0;
@@ -343,7 +396,7 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
 
   const onSubmit = async (data: VentaEditFormData) => {
     try {
-      const servicio = servicios.find((s) => s.id === data.servicioId);
+      const servicio = serviciosCategoria.find((s) => s.id === data.servicioId);
       const categoria = categorias.find((c) => c.id === data.categoriaId);
       const plan = categoria?.planes?.find((p) => p.id === data.planId);
       const precio = Number(data.precio) || 0;
@@ -372,6 +425,27 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
         estado: data.estado || 'activo',
         notas: data.notas || '',
       });
+
+      // Si las fechas cambiaron, actualizar también el pago inicial en pagosVenta
+      const fechasHanCambiado =
+        data.fechaInicio.getTime() !== venta.fechaInicio.getTime() ||
+        data.fechaFin.getTime() !== venta.fechaFin.getTime();
+
+      if (fechasHanCambiado) {
+        // Buscar el pago inicial
+        const pagos = await queryDocuments<PagoVenta>(COLLECTIONS.PAGOS_VENTA, [
+          { field: 'ventaId', operator: '==', value: venta.id },
+          { field: 'isPagoInicial', operator: '==', value: true }
+        ]);
+
+        if (pagos.length > 0) {
+          const pagoInicial = pagos[0];
+          await update(COLLECTIONS.PAGOS_VENTA, pagoInicial.id, {
+            fechaInicio: data.fechaInicio,
+            fechaVencimiento: data.fechaFin,
+          });
+        }
+      }
 
       const prevPerfil = venta.perfilNumero ?? null;
       const nextPerfil = Number(data.perfilNumero) || null;
@@ -464,19 +538,17 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                  {metodosPago
-                    .filter((m) => m.activo && m.asociadoA === 'usuario')
-                    .map((metodo) => (
-                      <DropdownMenuItem
-                        key={metodo.id}
-                        onClick={() => {
-                          setValue('metodoPagoId', metodo.id);
-                          clearErrors('metodoPagoId');
-                        }}
-                      >
-                        {metodo.nombre}
-                      </DropdownMenuItem>
-                    ))}
+                  {metodosPago.map((metodo) => (
+                    <DropdownMenuItem
+                      key={metodo.id}
+                      onClick={() => {
+                        setValue('metodoPagoId', metodo.id);
+                        clearErrors('metodoPagoId');
+                      }}
+                    >
+                      {metodo.nombre}
+                    </DropdownMenuItem>
+                  ))}
                 </DropdownMenuContent>
               </DropdownMenu>
               {errors.metodoPagoId && <p className="text-sm text-red-500">{errors.metodoPagoId.message}</p>}
@@ -517,9 +589,11 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
               <Label>Servicio</Label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" type="button" className="w-full justify-between" disabled={!categoriaIdValue}>
-                    {servicioIdValue
-                      ? `${servicios.find((s) => s.id === servicioIdValue)?.nombre} - ${servicios.find((s) => s.id === servicioIdValue)?.correo}`
+                  <Button variant="outline" type="button" className="w-full justify-between" disabled={!categoriaIdValue || loadingServicios}>
+                    {loadingServicios
+                      ? 'Cargando servicios...'
+                      : servicioIdValue
+                      ? `${serviciosCategoria.find((s) => s.id === servicioIdValue)?.nombre} - ${serviciosCategoria.find((s) => s.id === servicioIdValue)?.correo}`
                       : categoriaIdValue
                         ? 'Seleccionar servicio'
                         : 'Primero selecciona categoría'}

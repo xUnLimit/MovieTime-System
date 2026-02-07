@@ -4,6 +4,17 @@ import { useCallback, useEffect, useState } from 'react';
 import { COLLECTIONS, queryDocuments, remove, timestampToDate, adjustVentasActivas } from '@/lib/firebase/firestore';
 import { useServiciosStore } from '@/store/serviciosStore';
 
+// ── Cache a nivel de módulo ────────────────────────────────
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+
+interface CachedVentas {
+  data: VentaUsuarioDoc[];
+  renovaciones: Record<string, number>;
+  ts: number;
+}
+
+const ventasCache = new Map<string, CachedVentas>();
+
 /**
  * Venta tal como la devuelve Firestore, con timestamps
  * convertidos a Date para consumo directo en componentes.
@@ -12,6 +23,7 @@ export interface VentaUsuarioDoc {
   id: string;
   clienteId: string;
   categoriaId: string;
+  categoriaNombre: string; // ← Denormalizado (guardado en el doc de Venta)
   servicioId: string;
   servicioNombre: string;
   servicioCorreo: string;
@@ -31,6 +43,8 @@ export interface VentaUsuarioDoc {
  * Carga las ventas de un solo usuario, el historial de renovaciones
  * de los servicios asociados, y expone una función para eliminar ventas.
  *
+ * Cache: 5 minutos. Query de renovaciones optimizada (single query con 'in').
+ *
  * @param usuarioId  – id del usuario cuyas ventas se carga
  */
 export function useVentasUsuario(usuarioId: string) {
@@ -40,21 +54,52 @@ export function useVentasUsuario(usuarioId: string) {
   const [renovacionesByServicio, setRenovacionesByServicio] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading]                     = useState(true);
 
-  /* ── 1. Ventas del usuario ──────────────────────── */
+  /* ── 1. Ventas del usuario + renovaciones (con cache) ── */
   useEffect(() => {
-    if (!usuarioId) return;
+    if (!usuarioId) {
+      setVentas([]);
+      setRenovacionesByServicio({});
+      setIsLoading(false);
+      return;
+    }
+
+    // Cache hit
+    const cached = ventasCache.get(usuarioId);
+    if (cached && Date.now() - cached.ts < CACHE_TTL) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log(
+          '%c[VentasUsuarioCache]%c HIT · user ' + usuarioId.slice(0, 8) + ' · age ' + Math.round((Date.now() - cached.ts) / 1000) + 's',
+          'background:#4CAF50;color:#fff;padding:2px 6px;border-radius:3px;font-weight:600',
+          'color:#4CAF50;font-weight:600'
+        );
+      }
+      setVentas(cached.data);
+      setRenovacionesByServicio(cached.renovaciones);
+      setIsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
 
     const load = async () => {
       setIsLoading(true);
       try {
+        // Query 1: Ventas del usuario
         const docs = await queryDocuments<Record<string, unknown>>(COLLECTIONS.VENTAS, [
           { field: 'clienteId', operator: '==', value: usuarioId },
         ]);
+
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[useVentasUsuario] Loaded ${docs.length} ventas for user ${usuarioId.slice(0, 8)}`);
+        }
+
+        if (cancelled) return;
 
         const mapped: VentaUsuarioDoc[] = docs.map((doc) => ({
           id:              doc.id as string,
           clienteId:       doc.clienteId as string,
           categoriaId:     (doc.categoriaId as string)  || '',
+          categoriaNombre: (doc.categoriaNombre as string) || 'Sin categoría', // ← Leer denormalizado
           servicioId:      (doc.servicioId as string)   || '',
           servicioNombre:  (doc.servicioNombre as string) || 'Servicio',
           servicioCorreo:  (doc.servicioCorreo as string) || '—',
@@ -68,68 +113,96 @@ export function useVentasUsuario(usuarioId: string) {
           moneda:          doc.moneda as string | undefined,
         }));
 
+        // Query 2: Renovaciones (single query con 'in' en lugar de N queries)
+        const servicioIds = Array.from(new Set(mapped.map((v) => v.servicioId).filter(Boolean)));
+
+        let renovaciones: Record<string, number> = {};
+        if (servicioIds.length > 0) {
+          // Firestore 'in' acepta max 10 valores — si hay más, partir en chunks
+          const chunks: string[][] = [];
+          for (let i = 0; i < servicioIds.length; i += 10) {
+            chunks.push(servicioIds.slice(i, i + 10));
+          }
+
+          const allPagos = await Promise.all(
+            chunks.map(chunk =>
+              queryDocuments<Record<string, unknown>>(COLLECTIONS.PAGOS_SERVICIO, [
+                { field: 'servicioId', operator: 'in', value: chunk },
+              ])
+            )
+          );
+
+          const pagos = allPagos.flat();
+
+          // Contar renovaciones por servicio
+          const renovacionesMap: Record<string, number> = {};
+          pagos.forEach((pago) => {
+            const sid = pago.servicioId as string;
+            if (!sid) return;
+            const isRenovacion = !pago.isPagoInicial && pago.descripcion !== 'Pago inicial';
+            if (isRenovacion) {
+              renovacionesMap[sid] = (renovacionesMap[sid] || 0) + 1;
+            }
+          });
+          renovaciones = renovacionesMap;
+        }
+
+        if (cancelled) return;
+
+        // Guardar en cache
+        ventasCache.set(usuarioId, { data: mapped, renovaciones, ts: Date.now() });
+
         setVentas(mapped);
+        setRenovacionesByServicio(renovaciones);
       } catch (error) {
-        console.error('Error cargando ventas del usuario:', error);
-        setVentas([]);
+        console.error('Error cargando datos del usuario:', error);
+        if (!cancelled) {
+          setVentas([]);
+          setRenovacionesByServicio({});
+        }
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     };
 
     load();
+    return () => { cancelled = true; };
   }, [usuarioId]);
 
-  /* ── 2. Renovaciones por servicio (depende de ventas) ── */
-  useEffect(() => {
-    const servicioIds = Array.from(
-      new Set(ventas.map((v) => v.servicioId).filter(Boolean))
-    );
-
-    if (servicioIds.length === 0) {
-      setRenovacionesByServicio({});
-      return;
-    }
-
-    const load = async () => {
-      try {
-        const entries = await Promise.all(
-          servicioIds.map(async (servicioId) => {
-            const pagos = await queryDocuments<Record<string, unknown>>(COLLECTIONS.PAGOS_SERVICIO, [
-              { field: 'servicioId', operator: '==', value: servicioId },
-            ]);
-            const renovaciones = pagos.filter(
-              (pago) => !pago.isPagoInicial && pago.descripcion !== 'Pago inicial'
-            ).length;
-            return [servicioId, renovaciones] as const;
-          })
-        );
-        setRenovacionesByServicio(Object.fromEntries(entries));
-      } catch (error) {
-        console.error('Error cargando renovaciones:', error);
-        setRenovacionesByServicio({});
-      }
-    };
-
-    load();
-  }, [ventas]);
-
-  /* ── 3. Eliminar venta ──────────────────────────── */
+  /* ── 2. Eliminar venta ──────────────────────────── */
   const deleteVenta = useCallback(async (ventaId: string, servicioId?: string, perfilNumero?: number | null) => {
     const ventaEliminada = ventas.find(v => v.id === ventaId);
 
-    await remove(COLLECTIONS.VENTAS, ventaId);
-
-    if (servicioId && perfilNumero) {
-      updatePerfilOcupado(servicioId, false);
-    }
-
-    // Decrementar ventasActivas si la venta eliminada era activa
-    if (ventaEliminada && (ventaEliminada.estado ?? 'activo') !== 'inactivo') {
-      adjustVentasActivas(usuarioId, -1);
-    }
-
+    // Optimistic update en UI
     setVentas((prev) => prev.filter((v) => v.id !== ventaId));
+
+    try {
+      await remove(COLLECTIONS.VENTAS, ventaId);
+
+      if (servicioId && perfilNumero) {
+        updatePerfilOcupado(servicioId, false);
+      }
+
+      // Decrementar ventasActivas si la venta eliminada era activa
+      if (ventaEliminada && (ventaEliminada.estado ?? 'activo') !== 'inactivo') {
+        await adjustVentasActivas(usuarioId, -1);
+      }
+
+      // Invalidar cache
+      ventasCache.delete(usuarioId);
+
+      // Notificar a otras ventanas/tabs que se eliminó una venta
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('venta-deleted', Date.now().toString());
+        window.dispatchEvent(new Event('venta-deleted'));
+      }
+    } catch (error) {
+      // Rollback en caso de error
+      if (ventaEliminada) {
+        setVentas((prev) => [...prev, ventaEliminada].sort((a, b) => a.id.localeCompare(b.id)));
+      }
+      throw error;
+    }
   }, [updatePerfilOcupado, ventas, usuarioId]);
 
   return {

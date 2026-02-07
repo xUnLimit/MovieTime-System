@@ -291,37 +291,40 @@ export const ServiciosProximosPagarTable = memo(function ServiciosProximosPagarT
       </div>
 
       <DataTable
-        data={filteredRows}
-        columns={columns}
+        data={filteredRows as unknown as Record<string, unknown>[]}
+        columns={columns as unknown as Column<Record<string, unknown>>[]}
         pagination={true}
         itemsPerPageOptions={[10, 25, 50, 100]}
-        actions={(item) => (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={() => copyToClipboard(item.email)}
-              >
-                <Copy className="h-4 w-4 mr-2" />
-                Copiar email
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  const subject = `Datos de acceso - ${item.servicioNombre}`;
-                  const body = `Email: ${item.email}\nContraseña: ${item.contrasena}`;
-                  window.location.href = `mailto:${item.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-                }}
-              >
-                <Mail className="h-4 w-4 mr-2" />
-                Enviar por email
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+        actions={(item) => {
+          const row = item as unknown as ServicioProximoPagarRow;
+          return (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() => copyToClipboard(row.email)}
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copiar email
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    const subject = `Datos de acceso - ${row.servicioNombre}`;
+                    const body = `Email: ${row.email}\nContraseña: ${row.contrasena}`;
+                    window.location.href = `mailto:${row.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                  }}
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  Enviar por email
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          );
+        }}
       />
     </Card>
   );
