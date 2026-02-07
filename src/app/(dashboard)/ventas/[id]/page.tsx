@@ -22,7 +22,7 @@ import { useServiciosStore } from '@/store/serviciosStore';
 import { COLLECTIONS, getById, remove, timestampToDate, update, adjustVentasActivas, queryDocuments } from '@/lib/firebase/firestore';
 import { toast } from 'sonner';
 import { PagoDialog } from '@/components/shared/PagoDialog';
-import { formatearFecha, deriveTopLevelFromPagos } from '@/lib/utils/calculations';
+import { formatearFecha } from '@/lib/utils/calculations';
 import { VentaDoc, VentaPago, PagoVenta, MetodoPago } from '@/types';
 import { VentaPagosTable } from '@/components/ventas/VentaPagosTable';
 import { usePagosVenta } from '@/hooks/use-pagos-venta';
@@ -241,23 +241,6 @@ function VentaDetallePageContent() {
     }
   };
 
-  const sanitizePago = (pago: VentaPago) => ({
-    id: pago.id || crypto.randomUUID(),
-    fecha: pago.fecha ?? null,
-    descripcion: pago.descripcion ?? 'Pago',
-    precio: pago.precio ?? 0,
-    descuento: pago.descuento ?? 0,
-    total: pago.total ?? 0,
-    metodoPagoId: pago.metodoPagoId ?? null,
-    metodoPagoNombre: pago.metodoPagoNombre ?? 'Sin método',
-    moneda: pago.moneda ?? 'USD',
-    isPagoInicial: pago.isPagoInicial ?? false,
-    cicloPago: pago.cicloPago ?? null,
-    fechaInicio: pago.fechaInicio ?? null,
-    fechaVencimiento: pago.fechaVencimiento ?? null,
-    notas: pago.notas ?? '',
-  });
-
   const handleConfirmRenovacion = async (data: {
     periodoRenovacion: string;
     metodoPagoId: string;
@@ -266,6 +249,7 @@ function VentaDetallePageContent() {
     fechaInicio: Date;
     fechaVencimiento: Date;
     notas?: string;
+    moneda?: string;
   }) => {
     if (!venta) return;
     try {
@@ -280,8 +264,8 @@ function VentaDetallePageContent() {
         venta.clienteNombre,
         monto,
         metodoPagoSeleccionado?.nombre || venta.metodoPagoNombre,
-        (data as any).metodoPagoId || data.metodoPagoId,                      // Denormalizado
-        (data as any).moneda || metodoPagoSeleccionado?.moneda || venta.moneda, // Denormalizado
+        data.metodoPagoId,                      // Denormalizado
+        data.moneda || metodoPagoSeleccionado?.moneda || venta.moneda, // Denormalizado
         data.periodoRenovacion as VentaDoc['cicloPago'],
         data.notas?.trim(),
         data.fechaInicio,

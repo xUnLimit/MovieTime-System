@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, MoreHorizontal, Bell, Trash2, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, MoreHorizontal, Bell, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useNotificacionesStore } from '@/store/notificacionesStore';
 import { toast } from 'sonner';
@@ -33,7 +33,6 @@ interface NotificacionesTableProps {
   page: number;
   onNext: () => void;
   onPrevious: () => void;
-  onRefresh: () => void;
 }
 
 interface NotificacionRow {
@@ -55,7 +54,6 @@ export const NotificacionesTable = memo(function NotificacionesTable({
   page,
   onNext,
   onPrevious,
-  onRefresh,
 }: NotificacionesTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [estadoFilter, setEstadoFilter] = useState('todos');

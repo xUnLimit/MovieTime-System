@@ -36,6 +36,11 @@ const pagoDialogSchema = z.object({
 
 type PagoDialogFormData = z.infer<typeof pagoDialogSchema>;
 
+type EnrichedPagoDialogFormData = PagoDialogFormData & {
+  metodoPagoNombre?: string;
+  moneda?: string;
+};
+
 type PagoDialogMode = 'edit' | 'renew';
 
 interface BaseProps {
@@ -43,7 +48,7 @@ interface BaseProps {
   onOpenChange: (open: boolean) => void;
   metodosPago: MetodoPago[];
   mode: PagoDialogMode;
-  onConfirm: (data: PagoDialogFormData) => void;
+  onConfirm: (data: EnrichedPagoDialogFormData) => void;
   categoriaPlanes?: Plan[];
   tipoPlan?: Plan['tipoPlan'];
 }
@@ -241,7 +246,7 @@ export function PagoDialog(props: PagoDialogProps) {
       metodoPagoNombre: metodoPago?.nombre,
       moneda: metodoPago?.moneda,
     };
-    props.onConfirm(enrichedData as any);
+    props.onConfirm(enrichedData);
     props.onOpenChange(false);
   };
 

@@ -41,6 +41,18 @@ interface PerfilVenta {
   moneda?: string;
 }
 
+interface PagoFormData {
+  periodoRenovacion: string;
+  metodoPagoId: string;
+  costo: number;
+  descuento?: number;
+  fechaInicio: Date;
+  fechaVencimiento: Date;
+  notas?: string;
+  metodoPagoNombre?: string;
+  moneda?: string;
+}
+
 function ServicioDetallePageContent() {
   const params = useParams();
   const router = useRouter();
@@ -239,15 +251,7 @@ function ServicioDetallePageContent() {
     setEditarPagoDialogOpen(true);
   };
 
-  const handleConfirmEditarPago = async (data: {
-    periodoRenovacion: string;
-    metodoPagoId: string;
-    costo: number;
-    descuento?: number;
-    fechaInicio: Date;
-    fechaVencimiento: Date;
-    notas?: string;
-  }) => {
+  const handleConfirmEditarPago = async (data: PagoFormData) => {
     if (!pagoToEdit) return;
     try {
       // Calcular diferencia entre monto viejo y nuevo
@@ -260,8 +264,8 @@ function ServicioDetallePageContent() {
         monto: data.costo,
         cicloPago: data.periodoRenovacion as 'mensual' | 'trimestral' | 'semestral' | 'anual',
         metodoPagoId: data.metodoPagoId,
-        metodoPagoNombre: (data as any).metodoPagoNombre || metodoPagoSeleccionado?.nombre,  // Denormalizado
-        moneda: (data as any).moneda || metodoPagoSeleccionado?.moneda,                      // Denormalizado
+        metodoPagoNombre: data.metodoPagoNombre || metodoPagoSeleccionado?.nombre,  // Denormalizado
+        moneda: data.moneda || metodoPagoSeleccionado?.moneda,                      // Denormalizado
         isPagoInicial: false,
       });
 
@@ -286,8 +290,8 @@ function ServicioDetallePageContent() {
           fechaVencimiento: data.fechaVencimiento,
           costoServicio: data.costo,
           metodoPagoId: data.metodoPagoId || undefined,
-          metodoPagoNombre: (data as any).metodoPagoNombre || metodoPagoSeleccionado?.nombre,  // Denormalizado
-          moneda: (data as any).moneda || metodoPagoSeleccionado?.moneda,                      // Denormalizado
+          metodoPagoNombre: data.metodoPagoNombre || metodoPagoSeleccionado?.nombre,  // Denormalizado
+          moneda: data.moneda || metodoPagoSeleccionado?.moneda,                      // Denormalizado
           cicloPago: data.periodoRenovacion as 'mensual' | 'trimestral' | 'semestral' | 'anual',
         });
 
@@ -353,15 +357,7 @@ function ServicioDetallePageContent() {
     }
   };
 
-  const handleConfirmRenovacion = async (data: {
-    periodoRenovacion: string;
-    metodoPagoId: string;
-    costo: number;
-    descuento?: number;
-    fechaInicio: Date;
-    fechaVencimiento: Date;
-    notas?: string;
-  }) => {
+  const handleConfirmRenovacion = async (data: PagoFormData) => {
     try {
       const metodoPagoSeleccionado = metodosPago.find((m) => m.id === data.metodoPagoId);
       const numeroRenovacion = pagosServicio.filter((p) => !p.isPagoInicial && p.descripcion !== 'Pago inicial').length + 1;
@@ -377,8 +373,8 @@ function ServicioDetallePageContent() {
         fechaVencimiento: data.fechaVencimiento,
         monto: data.costo,
         metodoPagoId: data.metodoPagoId,
-        metodoPagoNombre: (data as any).metodoPagoNombre || metodoPagoSeleccionado?.nombre,  // Denormalizado
-        moneda: (data as any).moneda || metodoPagoSeleccionado?.moneda,                      // Denormalizado
+        metodoPagoNombre: data.metodoPagoNombre || metodoPagoSeleccionado?.nombre,  // Denormalizado
+        moneda: data.moneda || metodoPagoSeleccionado?.moneda,                      // Denormalizado
         isPagoInicial: false,
       });
 
@@ -400,8 +396,8 @@ function ServicioDetallePageContent() {
         fechaVencimiento: data.fechaVencimiento,
         costoServicio: data.costo,
         metodoPagoId: data.metodoPagoId || undefined,
-        metodoPagoNombre: (data as any).metodoPagoNombre || metodoPagoSeleccionado?.nombre,  // Denormalizado
-        moneda: (data as any).moneda || metodoPagoSeleccionado?.moneda,                      // Denormalizado
+        metodoPagoNombre: data.metodoPagoNombre || metodoPagoSeleccionado?.nombre,  // Denormalizado
+        moneda: data.moneda || metodoPagoSeleccionado?.moneda,                      // Denormalizado
         cicloPago: data.periodoRenovacion as 'mensual' | 'trimestral' | 'semestral' | 'anual',
       });
 

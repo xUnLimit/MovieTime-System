@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { MoreHorizontal, Pencil, Trash2, User, Search, RefreshCw, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, User, Search, RefreshCw, Eye } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,7 +24,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useServiciosStore } from '@/store/serviciosStore';
 import { useCategoriasStore } from '@/store/categoriasStore';
-import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -48,7 +47,6 @@ interface ServiciosCategoriaTableDetalleProps {
   page?: number;
   onNext: () => void;
   onPrevious: () => void;
-  onRefresh?: () => void;
 }
 
 export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTableDetalle({
@@ -68,11 +66,9 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
   page = 1,
   onNext,
   onPrevious,
-  onRefresh,
 }: ServiciosCategoriaTableDetalleProps) {
   const { deleteServicio, fetchCounts } = useServiciosStore();
   const { fetchCategorias } = useCategoriasStore();
-  const { metodosPago } = useMetodosPagoStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [servicioToDelete, setServicioToDelete] = useState<Servicio | null>(null);
 

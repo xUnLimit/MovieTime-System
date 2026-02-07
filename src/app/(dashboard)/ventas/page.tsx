@@ -98,7 +98,7 @@ function VentasPageContent() {
         </Link>
       </div>
 
-      <VentasMetrics ventas={ventasPaginadas} />
+      <VentasMetrics />
 
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)}>
         <TabsList className="bg-transparent rounded-none p-0 h-auto inline-flex border-b border-border">
@@ -134,7 +134,6 @@ function VentasPageContent() {
             page={page}
             onNext={next}
             onPrevious={previous}
-            onRefresh={refresh}
           />
         </TabsContent>
       </Tabs>

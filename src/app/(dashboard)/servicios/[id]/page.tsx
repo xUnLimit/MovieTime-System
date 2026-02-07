@@ -173,7 +173,6 @@ function ServiciosCategoriaPageContent() {
         page={page}
         onNext={next}
         onPrevious={previous}
-        onRefresh={refresh}
       />
     </div>
   );

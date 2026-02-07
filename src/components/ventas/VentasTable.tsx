@@ -30,7 +30,6 @@ interface VentasTableProps {
   page: number;
   onNext: () => void;
   onPrevious: () => void;
-  onRefresh: () => void;
 }
 
 interface VentaRow {
@@ -74,7 +73,6 @@ export function VentasTable({
   page,
   onNext,
   onPrevious,
-  onRefresh,
 }: VentasTableProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');

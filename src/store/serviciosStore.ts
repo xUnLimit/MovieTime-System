@@ -211,7 +211,6 @@ export const useServiciosStore = create<ServiciosState>()(
           if (!servicio) throw new Error('Servicio not found');
 
           // Optimistic update del store local (si existe)
-          const currentServicios = get().servicios;
           set((state) => ({
             servicios: state.servicios.filter((s) => s.id !== id)
           }));

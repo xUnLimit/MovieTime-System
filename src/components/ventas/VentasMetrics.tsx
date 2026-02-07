@@ -4,13 +4,7 @@ import { memo, useEffect } from 'react';
 import { MetricCard } from '@/components/shared/MetricCard';
 import { useVentasStore } from '@/store/ventasStore';
 import { CreditCard, DollarSign, CalendarRange, Wallet, CheckCircle2, XCircle } from 'lucide-react';
-import { VentaDoc } from '@/types';
-
-interface VentasMetricsProps {
-  ventas: VentaDoc[];
-}
-
-export const VentasMetrics = memo(function VentasMetrics({ ventas }: VentasMetricsProps) {
+export const VentasMetrics = memo(function VentasMetrics() {
   const { totalVentas, ventasActivas, ventasInactivas, fetchCounts } = useVentasStore();
 
   useEffect(() => {

@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { QueryDocumentSnapshot, DocumentData, collection, query, where, orderBy, onSnapshot, Query } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
+import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { getPaginated, FilterOption } from '@/lib/firebase/pagination';
 
 interface UseServerPaginationOptions {
