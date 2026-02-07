@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-MovieTime PTY is a subscription management system for streaming services in Panama. It manages clients, resellers, services (Netflix, Disney+, etc.), sales, categories, payment methods, and automatic notifications. The system is integrated with **Firebase** (Authentication + Firestore) for data persistence.
+MovieTime PTY is a subscription management system for streaming services in Panama. It manages clients, resellers, services (Netflix, Disney+, etc.), sales, categories, payment methods, and automatic notifications. The system is integrated with **Firebase** (Authentication + Firestore + Analytics) for data persistence and tracking.
 
 **Note**: The legacy Subscriptions (Suscripciones) and Service Payments (Pagos de Servicios) modules were removed in January 2026 (commit db25141). They have been replaced by the **Ventas** (Sales) module and the **Servicios Detalle** payment/renewal system.
 
@@ -47,23 +47,42 @@ See "Server-Side Pagination Pattern" section for full details.
 MovieTime System/
 ├── proxy.ts                   # Next.js 16 Edge Runtime proxy (root level)
 ├── vitest.config.ts          # Test configuration
-├── next.config.ts            # Next.js configuration
+├── next.config.ts            # Next.js configuration (with FIREBASE_WEBAPP_CONFIG support)
 ├── components.json           # shadcn/ui configuration
 ├── eslint.config.mjs         # ESLint configuration
+├── firebase.json             # Firebase project config (Firestore rules + indexes)
+├── firestore.rules           # Firestore security rules (role-based access)
+├── firestore.indexes.json    # Composite indexes for optimized queries
+├── .firebaserc               # Firebase project alias
 ├── .env.local                # Firebase credentials (not in repo)
 ├── .env.local.example        # Example environment variables
-├── docs/                      # Documentation (11 files)
+├── scripts/                   # Migration & utility scripts
+│   └── migrate-metodopago-denormalization.ts  # MetodoPago denormalization migration
+├── docs/                      # Documentation (24 files)
 │   ├── PAGINATION_AND_CACHE_PATTERN.md  # Server-side pagination guide
-│   ├── LOG_DEDUPLICATION.md             # Development logging system (NEW)
+│   ├── LOG_DEDUPLICATION.md             # Development logging system
 │   ├── PERFORMANCE_OPTIMIZATIONS.md     # React optimization patterns
 │   ├── USUARIOS_MIGRATION.md            # Unified collection migration
-│   ├── DEVELOPER_GUIDE.md               # General development guide
+│   ├── DEVELOPER_GUIDE.md              # General development guide
 │   ├── IMPLEMENTATION_STATUS.md         # Feature completion status
 │   ├── IMPLEMENTATION_SUMMARY.md        # Architecture summary
 │   ├── QUICK_START.md                   # Getting started guide
-│   ├── FIREBASE_SETUP.md                # Firebase configuration
+│   ├── FIREBASE_SETUP.md               # Firebase configuration
+│   ├── FIREBASE_READS_MONITORING.md     # Firebase reads monitoring guide
 │   ├── OPTIMIZATIONS_SUMMARY.md         # All optimizations overview
-│   └── FORMULARIO_CREAR_USUARIO.md      # User form implementation
+│   ├── FORMULARIO_CREAR_USUARIO.md      # User form implementation
+│   ├── ARCHITECTURE.md                  # System architecture overview
+│   ├── C4_DIAGRAMS.md                   # C4 architecture diagrams
+│   ├── ACTION_PLAN.md                   # Development action plan
+│   ├── EVALUATION_SUMMARY.md            # Architecture evaluation
+│   ├── DENORMALIZATION_ANALYSIS_PROCESS.md  # Denormalization strategy
+│   ├── SERVICIOS_OPTIMIZATION.md        # Servicios module optimization
+│   ├── SERVICIOS_DETALLE_OPTIMIZATION.md # Servicios Detalle optimization
+│   ├── METODOS_PAGO_OPTIMIZATION.md     # Métodos de Pago optimization
+│   ├── NUEVA_VENTA_FORM_OPTIMIZATION.md # Venta form optimization
+│   ├── DESARROLLO_LOG_DEDUPLICATION_SUMMARY.md # Log dedup dev summary
+│   ├── DETALLE_PAGES_OPTIMIZATION.md    # Detail pages optimization
+│   └── README_DOCUMENTATION.md          # README docs
 ├── public/                    # Static assets
 ├── tests/                     # Test files
 │   ├── unit/                 # Unit tests
@@ -73,56 +92,61 @@ MovieTime System/
     ├── app/                  # Next.js App Router
     ├── components/           # React components by feature
     │   ├── layout/          # Sidebar, Header, NotificationBell, ThemeProvider, ThemeToggle, UserMenu
-    │   ├── dashboard/       # Dashboard metrics & charts
-    │   ├── servicios/       # Services components (13 files)
-    │   ├── ventas/          # Sales components (6 files) ← NEW
+    │   ├── dashboard/       # Dashboard metrics & charts (5 files)
+    │   ├── servicios/       # Services components (14 files, includes ServicioDetailMetrics)
+    │   ├── ventas/          # Sales components (5 files: VentasForm, VentasEditForm, VentasTable, VentasMetrics, VentaPagosTable)
     │   ├── usuarios/        # Clients & Resellers components (6 files)
     │   ├── categorias/      # Categories components (7 files)
     │   ├── metodos-pago/    # Payment methods components (6 files)
     │   ├── notificaciones/  # Notifications components (4 files)
     │   ├── editor-mensajes/ # WhatsApp template editor (4 files)
     │   ├── log-actividad/   # Activity log components (2 files)
-    │   ├── shared/          # Shared components (7 files)
+    │   ├── shared/          # Shared components (9 files, includes MetricCard, ModuleErrorBoundary)
     │   └── ui/              # shadcn/ui components (21 files)
     ├── config/               # Configuration files
     │   ├── constants.ts      # App constants
     │   ├── env.ts           # Environment config
     │   └── site.ts          # Site metadata
-    ├── hooks/                # Custom React hooks
+    ├── hooks/                # Custom React hooks (6 hooks)
     │   ├── use-sidebar.ts           # Sidebar toggle state hook
     │   ├── useVentasMetrics.ts      # Ventas metrics calculation hook
-    │   ├── useServerPagination.ts   # Server-side pagination with cursors ← NEW
-    │   └── use-ventas-por-usuarios.ts # Secondary query with module-level cache ← NEW
+    │   ├── useServerPagination.ts   # Server-side pagination with cursors
+    │   ├── use-ventas-por-usuarios.ts # Secondary query with module-level cache
+    │   ├── use-ventas-usuario.ts    # Single user's ventas + renovaciones (module-level cache)
+    │   └── use-pagos-venta.ts       # Pagos de una venta específica
     ├── lib/                  # Utilities and helpers
     │   ├── firebase/        # Firebase integration
     │   │   ├── auth.ts     # Authentication functions
-    │   │   ├── config.ts   # Firebase initialization
+    │   │   ├── config.ts   # Firebase initialization (Auth + Firestore + Analytics)
     │   │   ├── firestore.ts # Generic CRUD + COLLECTIONS + queryDocuments (with auto timestamp conversion)
     │   │   └── pagination.ts # Pagination utilities
     │   ├── services/        # Business logic layer
-    │   │   ├── metricsService.ts # Metrics calculations
-    │   │   └── ventasService.ts  # Ventas business logic
+    │   │   ├── metricsService.ts     # Metrics calculations
+    │   │   └── pagosVentaService.ts  # Pagos de venta CRUD (create initial, renewal, query)
     │   ├── utils/           # Utility functions
     │   │   ├── calculations.ts # Business logic
-    │   │   ├── whatsapp.ts    # WhatsApp utilities (expanded)
+    │   │   ├── whatsapp.ts    # WhatsApp utilities
+    │   │   ├── analytics.ts   # Firebase Analytics wrappers (track ventas, usuarios, errors)
+    │   │   ├── devLogger.ts   # Dev-only logging with deduplication (React Strict Mode safe)
     │   │   ├── cn.ts          # Class utilities
     │   │   └── index.ts       # Exports
     │   └── constants/       # Application constants (includes CYCLE_MONTHS)
-    ├── store/                # Zustand stores (Firebase-integrated)
+    ├── store/                # Zustand stores (Firebase-integrated, 10 stores)
     ├── test/                 # Test utilities
     │   ├── setup.ts         # Test setup
     │   └── utils.ts         # Test helpers
     └── types/                # TypeScript types (separated by domain)
         ├── index.ts         # Barrel export
         ├── auth.ts          # Authentication types
-        ├── categorias.ts    # Category types
-        ├── clientes.ts      # Usuario / Cliente / Revendedor types (unified)
-        ├── common.ts        # Shared types
+        ├── categorias.ts    # Category types (Categoria + Plan interfaces)
+        ├── clientes.ts      # Usuario type (unified cliente + revendedor)
+        ├── common.ts        # Shared types (ActivityLog, Configuracion, Gasto, TemplateMensaje)
         ├── dashboard.ts     # Dashboard types
-        ├── metodos-pago.ts  # Payment method types
+        ├── metodos-pago.ts  # Payment method types (MetodoPago + asociadoA)
         ├── notificaciones.ts # Notification types
-        ├── servicios.ts     # Service + PagoServicio types
-        └── whatsapp.ts      # WhatsApp types (expanded)
+        ├── servicios.ts     # Servicio + PagoServicio types
+        ├── ventas.ts        # VentaDoc + PagoVenta + VentaPago (deprecated) types
+        └── whatsapp.ts      # WhatsApp types
 ```
 
 ## Common Commands
@@ -140,6 +164,11 @@ npm run test:ui      # Run Vitest with UI
 npm run test:watch   # Run tests in watch mode
 npm run test:coverage # Run tests with coverage
 
+# Firebase Deployment
+firebase deploy --only firestore:rules    # Deploy security rules
+firebase deploy --only firestore:indexes  # Deploy composite indexes
+firebase deploy                           # Deploy everything
+
 # Firebase Authentication
 # Configure test credentials in Firebase Console
 # Default: admin@movietime.com / any 6+ character password
@@ -149,58 +178,90 @@ npm run test:coverage # Run tests with coverage
 
 ### Firebase Integration
 
-The app uses **Firebase** for authentication and data persistence:
+The app uses **Firebase** for authentication, data persistence, and analytics:
 
 **Firestore Collections** (defined in `src/lib/firebase/firestore.ts`):
 ```typescript
 export const COLLECTIONS = {
-  USUARIOS: 'usuarios',                  // Unified users collection (clientes + revendedores)
-  /** @deprecated Usar USUARIOS con filtro tipo='cliente' */
-  CLIENTES: 'clientes',
-  /** @deprecated Usar USUARIOS con filtro tipo='revendedor' */
-  REVENDEDORES: 'revendedores',
+  USUARIOS: 'usuarios',           // Unified users (clientes + revendedores)
   SERVICIOS: 'servicios',
   CATEGORIAS: 'categorias',
-  SUSCRIPCIONES: 'suscripciones',        // Defined but not used in UI (legacy)
   NOTIFICACIONES: 'notificaciones',
   METODOS_PAGO: 'metodosPago',
   ACTIVITY_LOG: 'activityLog',
   CONFIG: 'config',
   GASTOS: 'gastos',
   TEMPLATES: 'templates',
-  PAGOS_SERVICIO: 'pagosServicio',       // Payment history per service ← NEW
-  VENTAS: 'Ventas',                      // Sales records ← NEW
-}
+  PAGOS_SERVICIO: 'pagosServicio', // Payment history per service
+  VENTAS: 'ventas',               // Sales records
+  PAGOS_VENTA: 'pagosVenta',      // Payment history per venta (separate collection)
+} as const;
 ```
 
-**Firebase Configuration** (`.env.local` - not in repo):
+**Firebase Configuration** (`.env.local` or `FIREBASE_WEBAPP_CONFIG` JSON env):
 ```bash
+# Option A: Individual env vars
 NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_auth_domain
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_storage_bucket
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=your_measurement_id
+
+# Option B: Single JSON env var (for deployment platforms like Firebase Hosting)
+FIREBASE_WEBAPP_CONFIG='{"apiKey":"...","authDomain":"...","projectId":"...",...}'
 ```
 
 **Firebase Functions** (`src/lib/firebase/firestore.ts`):
 - `getAll<T>(collection)` - Fetch all documents (auto-converts Timestamps to Dates)
 - `getById<T>(collection, id)` - Fetch single document (auto-converts Timestamps to Dates)
 - `queryDocuments<T>(collection, filters)` - Query with `where` filters (auto-converts Timestamps to Dates)
-- `getCount(collection, filters)` - Count documents (does NOT cost doc-reads on Spark plan) ← NEW
+- `getCount(collection, filters)` - Count documents (does NOT cost doc-reads on Spark plan)
 - `create<T>(collection, data)` - Create document (auto-adds `createdAt`/`updatedAt`)
 - `update<T>(collection, id, data)` - Update document (auto-updates `updatedAt`)
 - `remove(collection, id)` - Delete document
-- `adjustVentasActivas(clienteId, delta)` - Atomically increment/decrement `ventasActivas` field ← NEW
+- `adjustServiciosActivos(clienteId, delta)` - Atomically increment/decrement `serviciosActivos` field
+- `adjustVentasActivas()` - **@deprecated** alias for `adjustServiciosActivos`
 - `timestampToDate(timestamp)` - Convert Firestore Timestamp → Date (rarely needed now)
 - `dateToTimestamp(date)` - Convert Date → Firestore Timestamp
 - `convertTimestamps(data)` - Recursively convert Timestamps (auto-used in all queries)
+- `logCacheHit(collection)` - Dev-only: log when cache avoids a Firestore read
 
 **Firebase Pagination** (`src/lib/firebase/pagination.ts`):
-- `getPaginated<T>(collection, options)` - Fetch paginated docs with cursor (costs `pageSize + 1` reads) ← NEW
+- `getPaginated<T>(collection, options)` - Fetch paginated docs with cursor (costs `pageSize + 1` reads)
 
 **Firebase Auth** (`src/lib/firebase/auth.ts`):
 - `signInUser()`, `signOutUser()`, `onAuthChange()`
+
+**Firebase Analytics** (`src/lib/utils/analytics.ts`):
+- `trackVentaCreada(data)` - Track sale creation
+- `trackUsuarioCreado(tipo)` - Track user creation
+- `trackServicioCreado(data)` - Track service creation
+- `trackBusqueda(modulo, termino)` - Track searches
+- `trackEliminacion(entidad)` - Track deletions
+- `trackError(errorType, errorMessage)` - Track app errors
+- Analytics is initialized only on client-side in production
+
+### Firebase Security Rules
+
+Security rules are defined in `firestore.rules` with role-based access:
+- **Helper functions**: `isAuthenticated()`, `isAdmin()`, `isOwner()`, `isOperador()`, `hasRequiredFields()`
+- **Admin via Custom Claims**: `request.auth.token.admin == true` (set via Firebase Admin SDK)
+- **Read access**: All authenticated users can read all collections
+- **Write access**: Admins have full write access; operadores can create ventas and notifications, update own profile
+- **Activity Log**: Write-only audit trail (no updates or deletes allowed)
+- **Legacy collections** (`clientes`, `revendedores`, `suscripciones`): Read-only, writes blocked
+
+### Firestore Composite Indexes
+
+Indexes are defined in `firestore.indexes.json` for optimized queries:
+- `ventas`: clienteId+estado+fechaFin, servicioId+estado, estado+fechaFin, clienteId+createdAt
+- `usuarios`: tipo+createdAt, tipo+ventasActivas
+- `servicios`: categoriaId+createdAt, tipo+fechaVencimiento
+- `notificaciones`: prioridad+fechaCreacion, leida+fechaCreacion
+- `pagosServicio`: servicioId+fechaPago
+- `activityLog`: usuario+fecha
 
 ### State Management with Zustand
 
@@ -208,19 +269,24 @@ The app uses **Zustand** stores (not Redux) with **Firebase integration**:
 
 - All stores are in `src/store/` directory
 - Each store uses Firebase Firestore for data persistence
-- Stores handle loading states during async Firebase operations
+- Stores handle loading states, error states, and caching (5-minute TTL)
 - Only `authStore` and `templatesStore` persist to localStorage
 - All CRUD operations are async and update Firestore
-- **Ventas** module does NOT have a dedicated store; it calls Firestore CRUD functions directly from page/component level
+- All stores include `fetchCounts()` for metrics using `getCount()` (free queries)
+- All delete operations use optimistic updates with rollback on error
 
 **Critical Store Pattern:**
 ```typescript
 // Always use this pattern in stores
-fetchItems: async () => {
+fetchItems: async (force = false) => {
+  if (!force && lastFetch && Date.now() - lastFetch < 300000) {
+    logCacheHit(COLLECTIONS.ITEMS);
+    return;
+  }
   set({ isLoading: true, error: null });
   try {
     const items = await getAll<Item>(COLLECTIONS.ITEMS);
-    set({ items, isLoading: false });
+    set({ items, isLoading: false, error: null, lastFetch: Date.now() });
   } catch (error) {
     set({ error: error.message, isLoading: false });
   }
@@ -232,33 +298,29 @@ fetchItems: async () => {
 All stores in `src/store/` are Firebase-integrated with **error states**, **caching**, and **optimistic updates**:
 
 1. **authStore.ts** - Firebase authentication + localStorage persistence
-2. **usuariosStore.ts** - Manages both clients and resellers in a single `usuarios` collection. Supports `fetchUsuarios()`, `fetchClientes()`, `fetchRevendedores()` (the latter two use `queryDocuments` with `tipo` filter). Has `getClientes()` / `getRevendedores()` selectors. ✅ Includes error state and optimistic deletes.
-3. **serviciosStore.ts** - Services management. Creates an initial `PagoServicio` record in `COLLECTIONS.PAGOS_SERVICIO` when a service is created. Includes `updatePerfilOcupado()` for profile occupancy tracking. ✅ Includes error state and optimistic deletes.
-4. **ventasStore.ts** - **NEW**: Sales management with caching (5-minute timeout), error states, and optimistic updates. Handles profile occupancy updates automatically on delete.
-5. **categoriasStore.ts** - Categories (Firebase) ✅ Includes error state and optimistic deletes.
-6. **metodosPagoStore.ts** - Payment methods (Firebase) ✅ Includes error state.
-7. **notificacionesStore.ts** - Notifications (Firebase) ✅ Includes error state.
-8. **activityLogStore.ts** - Activity logs (Firebase) ✅ Includes error state.
-9. **configStore.ts** - Configuration settings (Firebase) ✅ Includes error state.
-10. **templatesStore.ts** - Message templates (localStorage persistence) ✅ Includes error state.
-
-**Removed/Deprecated:**
-- ❌ **clientesStore.ts** - Deprecated wrapper (removed)
-- ❌ **revendedoresStore.ts** - Deprecated wrapper (removed)
-- ❌ **templatesMensajesStore.ts** - Consolidated into templatesStore
+2. **usuariosStore.ts** - Manages both clients and resellers in unified `usuarios` collection. Has `fetchCounts()` for metrics (totalClientes, totalRevendedores, totalNuevosHoy, totalUsuariosActivos). `getClientes()` / `getRevendedores()` selectors. ✅ Error state + optimistic deletes with rollback.
+3. **serviciosStore.ts** - Services management. Creates initial `PagoServicio` record on service creation. Manages category counters atomically with `increment()` (totalServicios, serviciosActivos, perfilesDisponiblesTotal, gastosTotal). Has `fetchCounts()` for metrics + `updatePerfilOcupado()`. Denormalizes `metodoPagoNombre` and `moneda` from MetodoPago. ✅ Error state + optimistic deletes.
+4. **ventasStore.ts** - Sales management with caching (5-minute timeout), error states, and optimistic updates. Creates `PagoVenta` records in separate collection on venta creation. Handles profile occupancy + `serviciosActivos` counter updates on delete. Has `fetchCounts()`.
+5. **categoriasStore.ts** - Categories with denormalized counters (initialized at 0 on creation). Has `fetchCounts()` for metrics (totalCategorias, categoriasClientes, categoriasRevendedores). ✅ Error state + optimistic deletes.
+6. **metodosPagoStore.ts** - Payment methods with `asociadoA` segregation. Has `fetchMetodosPagoUsuarios()`, `fetchMetodosPagoServicios()`, `toggleActivo()`, `fetchCounts()` for metrics. ✅ Error state.
+7. **notificacionesStore.ts** - Notifications (Firebase) ✅ Error state.
+8. **activityLogStore.ts** - Activity logs (Firebase) ✅ Error state.
+9. **configStore.ts** - Configuration settings (Firebase) ✅ Error state.
+10. **templatesStore.ts** - Message templates (localStorage persistence) ✅ Error state.
 
 ### Type System
 
 Types are **organized by domain** in `src/types/` directory:
 - `auth.ts` - User, authentication, role-based access
-- `categorias.ts` - Categories
-- `clientes.ts` - Unified `Usuario` type with `tipo: 'cliente' | 'revendedor'`. Contains `Cliente` and `Revendedor` as deprecated type aliases. Type guards `esCliente()` / `esRevendedor()` available. Legacy `suscripcionesTotales` field remains on the interface.
+- `categorias.ts` - `Categoria` interface with denormalized counters (`totalServicios`, `serviciosActivos`, `perfilesDisponiblesTotal`, `gastosTotal`), `Plan` interface (name, price, cycle, type), optional fields (`tipoCategoria`, `planes`, `iconUrl`, `color`)
+- `clientes.ts` - Unified `Usuario` type with `tipo: 'cliente' | 'revendedor'`. Fields: `serviciosActivos` (denormalized count of active ventas, updated via `increment()`), `montoSinConsumir`, `moneda` (denormalized from MetodoPago). Type guards `esCliente()` / `esRevendedor()`. Legacy `suscripcionesTotales` field for revendedores.
 - `common.ts` - Shared types (ActivityLog, Configuracion, Gasto, TemplateMensaje)
 - `dashboard.ts` - Dashboard metrics (contains legacy `suscripcionesActivas` field)
-- `metodos-pago.ts` - Payment methods
+- `metodos-pago.ts` - `MetodoPago` with `asociadoA: 'usuario' | 'servicio'` field for segregation. Types: `TipoMetodoPago`, `TipoCuenta`, `AsociadoA`. Service-specific fields: `email`, `contrasena`, `numeroTarjeta`, `fechaExpiracion`.
 - `notificaciones.ts` - Notifications
-- `servicios.ts` - `Servicio` interface (with `cicloPago` now including `semestral`) + `PagoServicio` interface (payment history per service) + `ServicioFormData`
-- `whatsapp.ts` - `WhatsAppData` interface — expanded with `servicio`, `perfilNombre`, `codigo`, `items` fields
+- `servicios.ts` - `Servicio` interface (with `gastosTotal` accumulated sum, denormalized `metodoPagoNombre` + `moneda`) + `PagoServicio` interface (payment history per service, with denormalized `metodoPagoNombre` + `moneda`) + `ServicioFormData`
+- `ventas.ts` - `VentaDoc` (sale document, with denormalized `categoriaNombre`, `servicioContrasena`), `PagoVenta` (payment in separate `pagosVenta` collection, with denormalized `clienteId`, `clienteNombre`, `metodoPagoId`, `metodoPago`, `moneda`), `VentaPago` (@deprecated, legacy embedded payment format)
+- `whatsapp.ts` - `WhatsAppData` interface
 - `index.ts` - Barrel export (imports work from `@/types`)
 
 Key concepts:
@@ -281,16 +343,36 @@ All business logic calculations are in `src/lib/utils/calculations.ts`:
 
 WhatsApp utilities in `src/lib/utils/whatsapp.ts`:
 
-- `getSaludo()` - Returns time-based greeting (Buenos días/tardes/noches)
+- `getSaludo()` - Returns time-based greeting (Buenos dias/tardes/noches)
 - `replacePlaceholders(template, data)` - Replaces template variables using `WhatsAppData`
 - `generateWhatsAppLink(phone, message)` - Creates `wa.me` links with pre-filled messages
-- `openWhatsApp(phone, message)` - Opens WhatsApp in a new window ← NEW
-- `formatearFechaWhatsApp(fecha)` - Formats a Date as "d de MMMM de yyyy" in Spanish ← NEW
-- `generarMensajeVenta(template, venta)` - Generates a complete WhatsApp message for a sale using a template ← NEW
+- `openWhatsApp(phone, message)` - Opens WhatsApp in a new window
+- `formatearFechaWhatsApp(fecha)` - Formats a Date as "d de MMMM de yyyy" in Spanish
+- `generarMensajeVenta(template, venta)` - Generates a complete WhatsApp message for a sale using a template
 
 **Available Placeholders**: `{saludo}`, `{cliente}`, `{servicio}`, `{perfil_nombre}`, `{categoria}`, `{correo}`, `{contrasena}`, `{vencimiento}`, `{monto}`, `{codigo}`, `{items}`, `{diasRetraso}`
 
 Templates are managed in `templatesStore` and persisted to localStorage.
+
+### Development Logging (devLogger)
+
+`src/lib/utils/devLogger.ts` provides dev-only logging with automatic deduplication for React Strict Mode:
+
+- `logCacheHit(collection, details?)` - Orange badge: `[Cache] Hit (collection)`
+- `logFirestoreOp(operation, collection, details, duration)` - Colored badge by operation type (getAll=green, query=green, paginated=blue, count=purple)
+- `logVentasCacheHit(clientCount, ageSeconds)` - Green badge for ventas cache hits
+- Debounce window: 500ms (captures React Strict Mode double-fires)
+- See `docs/LOG_DEDUPLICATION.md` for details
+
+### Pagos de Venta Service
+
+`src/lib/services/pagosVentaService.ts` encapsulates venta payment operations:
+
+- `crearPagoInicial(ventaId, clienteId, clienteNombre, monto, ...)` - Creates initial payment record in `pagosVenta` collection
+- `crearPagoRenovacion(ventaId, clienteId, clienteNombre, monto, ...)` - Creates renewal payment record
+- `obtenerPagosDeVenta(ventaId)` - Get all payments for a specific venta
+- `contarRenovacionesDeVenta(ventaId)` - Count non-initial payments
+- `obtenerPagosDeVariasVentas(ventaIds)` - Batch query with automatic chunking (Firestore `in` max 10)
 
 ## Module Architecture
 
@@ -307,14 +389,14 @@ src/app/
 │   │   ├── [id]/
 │   │   │   ├── page.tsx      # Service overview
 │   │   │   └── editar/       # Edit service
-│   │   └── detalle/[id]/     # Service detail with payment history & renewals ← NEW
+│   │   └── detalle/[id]/     # Service detail with payment history & renewals
 │   ├── usuarios/    # Clients & Resellers (tabs)
 │   │   ├── crear/   # Create user
-│   │   ├── [id]/    # User detail (shows their ventas) ← NEW
-│   │   └── editar/[id]/  # Edit user ← NEW
-│   ├── ventas/      # Sales management ← NEW MODULE
+│   │   ├── [id]/    # User detail (shows their ventas)
+│   │   └── editar/[id]/  # Edit user
+│   ├── ventas/      # Sales management
 │   │   ├── crear/   # Create sale (multi-item form)
-│   │   ├── [id]/    # Sale detail with payment history
+│   │   ├── [id]/    # Sale detail with payment history (pagosVenta collection)
 │   │   └── [id]/editar/  # Edit sale
 │   ├── notificaciones/
 │   ├── editor-mensajes/  # WhatsApp template editor
@@ -330,19 +412,19 @@ src/app/
 ```
 
 **REMOVED ROUTES** (commit db25141):
-- ❌ `/suscripciones` - Subscriptions module completely removed
-- ❌ `/pagos-servicios` - Service payments module removed (replaced by Servicios Detalle + Ventas)
+- `/suscripciones` - Subscriptions module completely removed
+- `/pagos-servicios` - Service payments module removed (replaced by Servicios Detalle + Ventas)
 
 **KNOWN ISSUES**:
-- ⚠️ `/configuracion` - Link exists in sidebar but route doesn't exist (will cause 404)
+- `/configuracion` - Link exists in sidebar but route doesn't exist (will cause 404)
 
 ### Sidebar Navigation Structure
 
 The sidebar (`src/components/layout/Sidebar.tsx`) organizes routes into sections:
-- **GESTIÓN**: Usuarios, Servicios, Ventas
-- **ADMINISTRACIÓN**: Notificaciones, Categorías, Métodos de Pago
+- **GESTION**: Usuarios, Servicios, Ventas
+- **ADMINISTRACION**: Notificaciones, Categorias, Metodos de Pago
 - **OTROS**: Editor de Mensajes, Log de Actividad
-- **Footer**: Tema toggle, Colapsar, Configuración (broken), Cerrar Sesión
+- **Footer**: Tema toggle, Colapsar, Configuracion (broken), Cerrar Sesion
 
 Keyboard shortcut `Ctrl/Cmd + B` toggles the sidebar collapse.
 
@@ -355,6 +437,19 @@ Every module follows this structure:
 3. **Filters** (`*Filters.tsx`): Search + dropdowns for filtering
 4. **Table** (`*Table.tsx`): Data table with actions
 5. **Dialog** (`*Dialog.tsx`): Form for create/edit with React Hook Form + Zod
+6. **Form** (`*Form.tsx`): Standalone form pages (create/edit routes)
+
+**Shared Components** (`src/components/shared/`):
+- `PaginationFooter` - Reusable pagination UI with page navigation
+- `MetricCard` - Reusable metric card component
+- `DataTable` - Generic data table wrapper
+- `ConfirmDialog` - Confirmation dialog
+- `EmptyState` - Empty state placeholder
+- `LoadingSpinner` - Loading indicator
+- `ErrorBoundary` - React error boundary
+- `ModuleErrorBoundary` - Module-level error boundary
+- `DashboardErrorFallback` - Dashboard error fallback UI
+- `PagoDialog` - Payment dialog (shared between servicios and ventas)
 
 **Dashboard Components** (Restored UI, placeholder data):
 - `DashboardMetrics.tsx` - 4 metric cards (placeholder values)
@@ -375,7 +470,7 @@ All forms use:
 **Standard Form Pattern:**
 ```typescript
 const schema = z.object({
-  nombre: z.string().min(2, 'Mínimo 2 caracteres'),
+  nombre: z.string().min(2, 'Minimo 2 caracteres'),
   // ... other fields
 });
 
@@ -404,46 +499,78 @@ const onSubmit = async (data: FormData) => {
 - Track `perfilesOcupados` vs `perfilesDisponibles`
 - Show progress bar for occupancy percentage
 - Managed in Firebase `servicios` collection
+- **Denormalized fields**: `metodoPagoNombre`, `moneda` (from MetodoPago), `gastosTotal` (accumulated sum of all payments)
+- **Category counter management**: On create/delete/toggle, `serviciosStore` atomically updates the parent category's counters (`totalServicios`, `serviciosActivos`, `perfilesDisponiblesTotal`, `gastosTotal`) using `increment()`
 - **Payment history**: Each service has records in `pagosServicio` collection. On creation, `serviciosStore.createServicio()` automatically creates the initial `PagoServicio` record.
-- **Servicios Detalle page** (`/servicios/detalle/[id]`): Full detail view showing service info, payment/renovation history, and profile occupancy per venta. Contains:
-  - `RenovarServicioDialog` - Renew a service (creates new `PagoServicio` record, updates `fechaVencimiento`)
-  - `EditarPagoServicioDialog` - Edit an existing payment record in the history
+- **Servicios Detalle page** (`/servicios/detalle/[id]`): Full detail view showing service info, payment/renovation history, and profile occupancy per venta.
+- **`ServicioDetailMetrics`**: Metric cards for service detail pages
 - **Category views**: The servicios list page includes a tab/view showing services grouped by category, with `ServiciosCategoriaFilters`, `ServiciosCategoriaMetrics`, `ServiciosCategoriaTable`, and `ServiciosCategoriaTableDetalle` components.
+- **Cross-module notifications**: On delete, dispatches `window.dispatchEvent(new Event('servicio-deleted'))` for other pages to react.
 
-### Ventas (Sales) ← NEW MODULE
+### Ventas (Sales)
 
 The Ventas module manages the sale of service profiles to users. It is the primary way clients acquire access to streaming services.
 
-- **No dedicated Zustand store**: Ventas uses `getAll`, `create`, `remove`, `queryDocuments` from `src/lib/firebase/firestore.ts` directly at the page/component level. State is managed with local `useState`.
-- **Collection**: `COLLECTIONS.VENTAS` (`'Ventas'`)
-- **VentaDoc structure** (exported from `VentasMetrics.tsx`):
-  - `clienteNombre`, `servicioId`, `servicioNombre`, `servicioCorreo`
-  - `categoriaId`, `metodoPagoNombre`, `moneda`
+- **Dedicated store**: `ventasStore` with caching (5-min TTL), error states, optimistic updates, and `fetchCounts()`.
+- **Collection**: `COLLECTIONS.VENTAS` (`'ventas'`)
+- **Payments collection**: `COLLECTIONS.PAGOS_VENTA` (`'pagosVenta'`) — payments stored in a **separate collection** (not embedded arrays). Each payment has a `ventaId` reference.
+- **VentaDoc structure** (defined in `src/types/ventas.ts`):
+  - `clienteId`, `clienteNombre`, `servicioId`, `servicioNombre`, `servicioCorreo`, `servicioContrasena`
+  - `categoriaId`, `categoriaNombre` (denormalized), `metodoPagoId`, `metodoPagoNombre`, `moneda`
   - `fechaInicio`, `fechaFin`, `cicloPago`
   - `estado`: `'activo' | 'inactivo'`
-  - `precio`, `descuento`, `precioFinal`
-  - `perfilNumero` - which profile slot of the service this sale occupies
-- **Create form** (`VentasForm.tsx`): Multi-item form. The user selects a client, payment method, and dates, then adds service items (cuentas completas or perfiles). Each item has its own category, service, cycle, dates, and pricing. Supports discount and WhatsApp message generation.
-- **Detail page** (`/ventas/[id]`): Shows venta info, payment history (`pagos` array embedded in the document), and actions (edit, renew, delete).
-- **Renew/Edit payment dialogs**: `RenovarVentaDialog` and `EditarPagoVentaDialog` — analogous to the Servicios versions but for ventas.
-- **Profile occupancy**: When a venta is deleted, `updatePerfilOcupado(servicioId, false)` is called on `serviciosStore` to decrement the occupied profile count.
-- **Metrics** (`VentasMetrics.tsx`): 6 cards — Ventas Totales, Ingreso Total, Ingreso Mensual Esperado, Monto Sin Consumir, Ventas Activas, Ventas Inactivas.
+  - `precio`, `descuento`, `precioFinal`, `totalVenta`
+  - `perfilNumero`, `perfilNombre`, `codigo`, `notas`
+  - `pagos` (@deprecated, legacy embedded array — use `pagosVenta` collection instead)
+- **PagoVenta structure** (separate collection `pagosVenta`):
+  - `ventaId`, `clienteId`, `clienteNombre` (denormalized)
+  - `fecha`, `monto`, `metodoPagoId`, `metodoPago`, `moneda` (denormalized)
+  - `isPagoInicial`, `cicloPago`, `fechaInicio`, `fechaVencimiento`, `notas`
+- **Create flow**: `ventasStore.createVenta()` creates the venta doc (without pagos array) + creates the initial `PagoVenta` record in separate collection.
+- **Create form** (`VentasForm.tsx`): Multi-item form. The user selects a client, payment method, and dates, then adds service items. Supports discount and WhatsApp message generation.
+- **Detail page** (`/ventas/[id]`): Shows venta info, payment history (via `usePagosVenta` hook querying `pagosVenta` collection), and actions (edit, renew, delete).
+- **`VentaPagosTable`**: Displays payment history for a venta.
+- **Hooks**:
+  - `use-pagos-venta.ts` — Loads pagos for a specific venta from `pagosVenta` collection
+  - `use-ventas-usuario.ts` — Loads all ventas + renovaciones for a single user (module-level cache, 5-min TTL)
+- **Profile occupancy**: When a venta is deleted, `updatePerfilOcupado(servicioId, false)` is called automatically.
+- **`serviciosActivos` counter**: On delete, `adjustServiciosActivos(clienteId, -1)` decrements the user's counter.
+- **Cross-module notifications**: On delete, dispatches `window.dispatchEvent(new Event('venta-deleted'))`.
+- **Metrics** (`VentasMetrics.tsx`): Cards for Ventas Totales, Ingreso Total, Ingreso Mensual Esperado, Monto Sin Consumir, Ventas Activas, Ventas Inactivas.
 - **Table** (`VentasTable.tsx`): Filterable by estado (todas/activas/inactivas). Columns include consumption percentage and remaining amount calculated client-side.
+
+### Categorias (Categories)
+
+- **Denormalized counters**: Each category document maintains counters updated atomically by `serviciosStore`:
+  - `totalServicios` - Total services in this category
+  - `serviciosActivos` - Active services count
+  - `perfilesDisponiblesTotal` - Sum of available (unoccupied) profiles across active services
+  - `gastosTotal` - Sum of `gastosTotal` from all services
+- **Plans**: Categories can have `planes: Plan[]` — each plan has `nombre`, `precio`, `cicloPago`, `tipoPlan`
+- **Types**: `tipoCategoria: 'plataforma_streaming' | 'otros'`
+- **Store**: `categoriasStore` with `fetchCounts()` for metrics
+
+### Metodos de Pago (Payment Methods)
+
+- **`asociadoA` field**: `'usuario' | 'servicio'` — segregates payment methods between users and services
+- **Store**: `metodosPagoStore` with `fetchMetodosPagoUsuarios()`, `fetchMetodosPagoServicios()` (filtered queries), `toggleActivo()`, `fetchCounts()`
+- **Service-specific fields**: `email`, `contrasena`, `numeroTarjeta`, `fechaExpiracion` (for payment methods used by services)
+- **Denormalization**: When a service or venta uses a payment method, `metodoPagoNombre` and `moneda` are denormalized into the document
 
 ### Usuarios (Clients & Resellers)
 
 - **Unified collection**: All users (clients and resellers) live in a single `usuarios` Firestore collection, distinguished by `tipo: 'cliente' | 'revendedor'`.
-- **Single store**: `usuariosStore` manages both types. `fetchClientes()` and `fetchRevendedores()` use `queryDocuments` to filter by `tipo`.
-- **Deprecated stores**: `clientesStore` and `revendedoresStore` are thin wrappers that subscribe to `usuariosStore` and re-expose filtered data. They exist for backward compatibility only — prefer `usuariosStore` directly.
-- **Unified type**: `Usuario` with `tipo` discriminator. `Cliente` and `Revendedor` are deprecated type aliases.
+- **Single store**: `usuariosStore` manages both types. Has `getClientes()` / `getRevendedores()` selectors and `fetchCounts()` for metrics.
+- **Denormalized fields**: `serviciosActivos` (count of active ventas, updated atomically via `adjustServiciosActivos()`), `moneda` (from MetodoPago), `metodoPagoNombre` (from MetodoPago)
+- **Unified type**: `Usuario` with `tipo` discriminator. Type guards `esCliente()` / `esRevendedor()`.
 - **Pages**: Single `/usuarios` page with tabs (Todos / Clientes / Revendedores). Detail page at `/usuarios/[id]` and edit page at `/usuarios/editar/[id]`.
-- **UsuarioDetails component**: Displays a user's profile info and their associated ventas (queried via `queryDocuments` on `COLLECTIONS.VENTAS`). Supports deleting ventas and sending WhatsApp messages directly.
+- **UsuarioDetails component**: Displays a user's profile info and their associated ventas (via `useVentasUsuario` hook with module-level cache). Supports deleting ventas and sending WhatsApp messages directly.
 - **Tables**: `ClientesTable`, `RevendedoresTable`, `TodosUsuariosTable`
 
 ### Notifications
 
 - Generated automatically based on expiration dates
-- Priority increases as expiration approaches (100 days = baja, 1 day = crítica)
+- Priority increases as expiration approaches (100 days = baja, 1 day = critica)
 - `estado` field maps to notification thresholds: '100_dias', '11_dias', '8_dias', '7_dias', '3_dias', '2_dias', '1_dia', 'vencido'
 - Stored in Firebase `notificaciones` collection
 
@@ -469,11 +596,13 @@ The Ventas module manages the sale of service profiles to users. It is the prima
 
 ## Data Flow
 
-1. **On mount**: Pages call `fetchItems()` from store (or call `getAll()` directly for modules without a store, like Ventas)
-2. **Firebase fetch**: Store / page calls Firebase `getAll()` or `queryDocuments()` function
+1. **On mount**: Pages call `fetchItems()` from store, which checks 5-min cache before hitting Firebase
+2. **Firebase fetch**: Store calls Firebase functions with auto timestamp conversion
 3. **Local filtering**: Use `useMemo` to filter store data locally (no server calls)
-4. **CRUD operations**: Call store methods (or Firestore functions directly), which update Firebase + local state + show toast
-5. **Persistence**: All changes saved to Firebase (except auth & templates use localStorage)
+4. **CRUD operations**: Call store methods, which update Firebase + local state + show toast
+5. **Denormalized counters**: On mutations, stores atomically update related documents' counters using `increment()`
+6. **Cross-module notifications**: Stores dispatch `window.dispatchEvent()` for other pages to react to deletions
+7. **Persistence**: All changes saved to Firebase (except auth & templates use localStorage)
 
 **Error Handling Pattern:**
 ```typescript
@@ -497,18 +626,13 @@ try {
 
 **Font Usage Rules:**
 ```typescript
-// ✅ CORRECT - Use default Inter font
+// CORRECT - Use default Inter font
 <span className="font-medium">{text}</span>
 <span className="text-sm">{identifier}</span>
 
-// ❌ WRONG - Never use font-mono
+// WRONG - Never use font-mono
 <span className="font-mono text-sm">{identifier}</span>
 ```
-
-**When creating new components:**
-- Do NOT add `font-mono` to any elements (numbers, codes, identifiers, etc.)
-- Use `font-medium` or `font-semibold` for emphasis, never change font family
-- Keep consistent typography across all modules
 
 ## UI/UX Conventions
 
@@ -524,7 +648,7 @@ try {
   - Baja: blue
   - Media: yellow
   - Alta: orange
-  - Crítica: red
+  - Critica: red
 
 - **Expiration Warnings**:
   - <1 day: red-600
@@ -581,58 +705,60 @@ useEffect(() => {
 
 5. **Zustand updates**: Always return new objects/arrays, never mutate:
 ```typescript
-// ✅ Correct
+// Correct
 set((state) => ({ items: [...state.items, newItem] }))
 
-// ❌ Wrong
+// Wrong
 state.items.push(newItem)
 ```
 
-6. **Firebase errors**: Always wrap Firebase calls in try-catch blocks:
-```typescript
-try {
-  await create(COLLECTIONS.ITEMS, data);
-} catch (error) {
-  console.error('Firebase error:', error);
-  toast.error('Error creating item');
-}
-```
+6. **Firebase errors**: Always wrap Firebase calls in try-catch blocks.
 
-7. **Environment variables**: Ensure `.env.local` exists with Firebase credentials before running the app.
+7. **Environment variables**: Ensure `.env.local` exists with Firebase credentials before running the app. Alternatively, set `FIREBASE_WEBAPP_CONFIG` as a JSON string (used for Firebase Hosting deployment).
 
 8. **Removed modules**: Do not reference `/suscripciones` or `/pagos-servicios` routes - they were permanently removed.
 
-9. **Usuarios stores**: ~~Do not create new code that uses `clientesStore` or `revendedoresStore` directly.~~ These stores have been removed. Use `usuariosStore` and filter by `tipo` instead.
+9. **Usuarios stores**: The deprecated `clientesStore` and `revendedoresStore` have been removed. Use `usuariosStore` and filter by `tipo` instead.
 
-10. **Ventas store**: ~~The Ventas module calls Firestore functions directly.~~ **UPDATED**: Ventas now uses `ventasStore` for consistent state management with caching and error handling. Use `useVentasStore()` hook in components.
+10. **Ventas store**: Use `useVentasStore()` hook in components. The store handles caching, error states, and counter updates on mutations.
 
-11. **Profile occupancy**: ~~When creating or deleting a venta that occupies a service profile, always call `updatePerfilOcupado(servicioId, increment)` on `serviciosStore`.~~ **UPDATED**: This is now handled automatically by `ventasStore.deleteVenta()` method.
+11. **Profile occupancy**: This is handled automatically by `ventasStore.deleteVenta()` and `serviciosStore.updatePerfilOcupado()`.
 
-12. **Pagination in tables**: Do NOT use `getAll()` for tables with more than 10 items. Use `useServerPagination` hook instead. See "Server-Side Pagination Pattern" section.
+12. **Pagination in tables**: Do NOT use `getAll()` for tables with more than 10 items. Use `useServerPagination` hook instead.
 
-13. **Cache for secondary queries**: When creating a hook for related data (like `use-ventas-por-usuarios`), ALWAYS use module-level `Map` for cache, NEVER `useRef`. Also ALWAYS use `enabled: !isLoading` parameter to avoid queries with stale IDs.
+13. **Cache for secondary queries**: When creating a hook for related data, ALWAYS use module-level `Map` for cache, NEVER `useRef`. Also ALWAYS use `enabled: !isLoading` parameter.
 
-14. **Count queries**: Use `getCount()` for metrics, NOT `getAll().length`. Count operations are free on Spark plan and don't cost document reads.
+14. **Count queries**: Use `getCount()` for metrics, NOT `getAll().length`. Count operations are free on Spark plan.
 
-15. **Denormalization strategy**: If a field is read on every page load but changes rarely (e.g., count of related docs), denormalize it into the main document and update atomically with `increment()`. See `ventasActivas` field in Usuario type.
+15. **Denormalization strategy**: If a field is read on every page load but changes rarely, denormalize it into the main document and update atomically with `increment()`. Examples: `serviciosActivos` in Usuario, `totalServicios`/`serviciosActivos`/`perfilesDisponiblesTotal`/`gastosTotal` in Categoria.
+
+16. **Venta payments**: Payments are stored in the **separate `pagosVenta` collection** (not as embedded arrays in the venta document). The `pagos` field on `VentaDoc` is @deprecated. Use `usePagosVenta(ventaId)` hook or `pagosVentaService` functions.
+
+17. **MetodoPago segregation**: Payment methods have `asociadoA: 'usuario' | 'servicio'`. Use `fetchMetodosPagoUsuarios()` or `fetchMetodosPagoServicios()` to get the correct subset.
+
+18. **Category counters**: Never update category counters manually. They are managed atomically by `serviciosStore` on service create/delete/toggle operations.
+
+19. **`adjustServiciosActivos` (not `adjustVentasActivas`)**: The function was renamed. `adjustVentasActivas` still works as a deprecated alias but new code should use `adjustServiciosActivos`.
 
 ## Firebase Best Practices
 
 1. **Use COLLECTIONS enum**: Always use `COLLECTIONS.ITEMS` instead of hardcoded strings
 2. **Generic CRUD functions**: Use `getAll()`, `getById()`, `queryDocuments()`, `create()`, `update()`, `remove()` from `src/lib/firebase/firestore.ts`
 3. **Type safety**: Pass type parameter to generic functions: `getAll<Servicio>(COLLECTIONS.SERVICIOS)`
-4. **Error handling**: Firebase operations can fail - always handle errors gracefully. All stores now include `error: string | null` state.
+4. **Error handling**: Firebase operations can fail - always handle errors gracefully. All stores include `error: string | null` state.
 5. **Loading states**: Show loading indicators while Firebase operations are in progress
-6. **Optimistic updates**: Update local state immediately, then sync with Firebase. All delete operations now use optimistic updates with rollback on error.
+6. **Optimistic updates**: Update local state immediately, then sync with Firebase. All delete operations use optimistic updates with rollback on error.
 7. **Undefined fields**: The `create()` and `update()` functions automatically strip `undefined` values before writing to Firestore (via `removeUndefinedFields`)
-8. **Automatic timestamp conversion**: ✅ All Firebase CRUD functions (`getAll`, `getById`, `queryDocuments`) now automatically convert Firestore Timestamps to JavaScript Date objects. No need to manually call `timestampToDate()` in stores.
-9. **Caching**: Stores now include 5-minute cache timeout to reduce unnecessary Firebase reads. Use `fetchItems(true)` to force refresh.
-10. **Pagination**: ✅ **CRITICAL PATTERN**: Use server-side pagination with cursors for tables. See "Server-Side Pagination Pattern" section below.
-11. **Denormalization**: ✅ For frequently-read fields that change rarely (e.g., `ventasActivas`), denormalize into the main document and update atomically with `increment()`.
-12. **Count queries**: Use `getCount()` for metrics — it does NOT count as document reads on Spark plan (free).
-13. **Development Logging**: ✅ All Firebase operations and cache hits are logged in development using `devLogger` system with automatic deduplication for React Strict Mode. See `docs/LOG_DEDUPLICATION.md` for details.
+8. **Automatic timestamp conversion**: All Firebase CRUD functions auto-convert Firestore Timestamps to JavaScript Date objects.
+9. **Caching**: All stores include 5-minute cache timeout. Use `fetchItems(true)` to force refresh.
+10. **Pagination**: Use server-side pagination with cursors for tables. See "Server-Side Pagination Pattern" section.
+11. **Denormalization**: For frequently-read fields that change rarely, denormalize into the main document and update atomically with `increment()`.
+12. **Count queries**: Use `getCount()` for metrics — free on Spark plan.
+13. **Development Logging**: All Firebase operations and cache hits are logged via `devLogger` system with automatic deduplication.
+14. **Composite Indexes**: Ensure required indexes exist in `firestore.indexes.json` for compound queries. Deploy with `firebase deploy --only firestore:indexes`.
+15. **Security Rules**: Rules are in `firestore.rules`. Deploy with `firebase deploy --only firestore:rules`.
 
-## Server-Side Pagination Pattern ✅ **CRITICAL FOR NEW MODULES**
+## Server-Side Pagination Pattern — CRITICAL FOR NEW MODULES
 
 **IMPORTANT**: Any new module with a table listing documents MUST follow this pattern to minimize Firebase reads.
 
@@ -642,7 +768,7 @@ try {
 |------|------|------|
 | Paginated docs | `useServerPagination` + `getPaginated` | `pageSize + 1` reads |
 | Count for metrics | `getCount()` in store | 0 doc-reads (free on Spark) |
-| Related data per row | Custom hook with module-level cache | ≤ pageSize reads (cached 5 min) |
+| Related data per row | Custom hook with module-level cache | <= pageSize reads (cached 5 min) |
 | Field read often | Denormalize + `increment()` | 0 extra reads |
 
 ### Pattern Components
@@ -656,19 +782,17 @@ try {
 2. **Count Queries** — `getCount()` in your store
    - Does NOT cost document reads (free on Spark plan)
    - Use for "Total X", "Total Y" metrics
-   - Example: `getCount(COLLECTIONS.USUARIOS, [{ field: 'tipo', operator: '==', value: 'cliente' }])`
 
 3. **Secondary Data Hook** — Custom hook with module-level cache
    - For data that requires a separate query per row (e.g., "monto sin consumir" from ventas)
    - **Must use module-level `Map` for cache** (not `useRef`, which is destroyed on remount)
    - **Must use `enabled: !isLoading` parameter** to avoid queries with stale IDs during tab switches
    - Cache TTL: 5 minutes
-   - Limitation: Firestore `in` operator accepts max 10 values → `pageSize` must be ≤ 10
+   - Limitation: Firestore `in` operator accepts max 10 values -> `pageSize` must be <= 10
 
 4. **Denormalized Fields** — For fields read often, changed rarely
-   - Store directly in the document (e.g., `ventasActivas` in usuario doc)
+   - Store directly in the document (e.g., `serviciosActivos` in usuario doc)
    - Update atomically with `increment()` on mutations
-   - No extra query needed → read from paginated doc
 
 ### Implementation Checklist
 
@@ -683,7 +807,7 @@ When creating a new module with a table:
 - [ ] If a field is read frequently but changes rarely:
   - [ ] Denormalize into the main document
   - [ ] Update with `increment()` in all mutation points
-- [ ] Set `pageSize ≤ 10` if using secondary data hook with `in` query
+- [ ] Set `pageSize <= 10` if using secondary data hook with `in` query
 - [ ] Pass `isLoading` and `onRefresh` to table component
 
 ### Complete Example: Usuarios Module
@@ -702,45 +826,21 @@ The Usuarios module is the **reference implementation**. Study these files:
 
 ### Full Documentation
 
-**See:** `docs/PAGINATION_AND_CACHE_PATTERN.md` for complete step-by-step guide with:
-- Detailed explanation of each component
-- Copy-paste templates for hooks
-- Common pitfalls and solutions
-- Real code examples from Usuarios module
+**See:** `docs/PAGINATION_AND_CACHE_PATTERN.md` for complete step-by-step guide.
 
 ### Performance Impact
 
 **Before optimization** (Usuarios with 50 docs):
-- `getAll()` → 50 document reads per visit
-- No caching → repeated queries on tab switches
+- `getAll()` -> 50 document reads per visit
+- No caching -> repeated queries on tab switches
 - Total: ~50-100+ reads per session
 
 **After optimization** (Usuarios with 50 docs, pageSize=10):
-- Paginated query → 11 reads (10 + 1 for `hasMore`)
-- Secondary query → 5 reads (only users with ventas)
-- Counts → 0 reads (free)
-- Cache → 0 reads on repeated visits (5 min TTL)
-- **Total: 16 reads first visit, 0 reads next 5 minutes** → **84% reduction**
-
-### Common Mistakes to Avoid
-
-1. ❌ **Using `useRef` for cache** → destroyed on component remount (Next.js tabs)
-   ✅ Use module-level `Map` instead
-
-2. ❌ **Not using `enabled` parameter** → queries fire with stale IDs during tab switch
-   ✅ Pass `{ enabled: !isLoading }` to secondary hook
-
-3. ❌ **Using `getAll()` in tables** → fetches entire collection
-   ✅ Use `useServerPagination` instead
-
-4. ❌ **Using document reads for counts** → expensive and unnecessary
-   ✅ Use `getCount()` which is free on Spark
-
-5. ❌ **Querying related data inside render loop** → N+1 query problem
-   ✅ Single query with `in [ids]` in dedicated hook
-
-6. ❌ **Not denormalizing frequently-read fields** → extra query per row
-   ✅ Store in main doc + update with `increment()`
+- Paginated query -> 11 reads (10 + 1 for `hasMore`)
+- Secondary query -> 5 reads (only users with ventas)
+- Counts -> 0 reads (free)
+- Cache -> 0 reads on repeated visits (5 min TTL)
+- **Total: 16 reads first visit, 0 reads next 5 minutes** -> **84% reduction**
 
 ## shadcn/ui Components
 
@@ -761,16 +861,18 @@ When adding features:
 
 1. Update type in `src/types/[domain].ts`
 2. Add Firestore collection to `COLLECTIONS` enum (if new entity)
-3. Create store in `src/store/` using Firebase CRUD functions (or use direct Firestore calls if the module is simple, like Ventas)
+3. Create store in `src/store/` with caching, error states, `fetchCounts()`, and optimistic updates
 4. Create page in `src/app/(dashboard)/`
-5. Create components (Dialog, Table, Filters, Metrics, etc.)
-6. Update form schema in Dialog/Form component with Zod
-7. Add form fields to Dialog/Form UI
+5. Create components (Dialog, Table, Filters, Metrics, Form, etc.)
+6. Update form schema with Zod
+7. Add form fields to UI
 8. Update table columns
 9. Add filtering logic if needed
 10. Add route to Sidebar if it's a top-level module
-11. Test CRUD operations with Firebase
-12. Test error handling and loading states
+11. If the new entity has denormalized counters, update related stores to maintain them atomically
+12. Add composite indexes to `firestore.indexes.json` if needed
+13. Test CRUD operations with Firebase
+14. Test error handling and loading states
 
 ## Testing
 
@@ -782,231 +884,45 @@ When adding features:
 
 ## Known Issues & Technical Debt
 
-1. **Configuracion Route**: Link exists in sidebar footer (`src/components/layout/Sidebar.tsx`) but route doesn't exist — will cause 404
+1. **Configuracion Route**: Link exists in sidebar footer but route doesn't exist — will cause 404
 2. **Subscription References**: Some types (`dashboard.ts`, `clientes.ts`) contain subscription-related fields (`suscripcionesTotales`, `suscripcionesActivas`) for historical data compatibility
 3. **Dashboard Placeholder Data**: Dashboard UI restored but contains placeholder/static data (not connected to backend logic)
-4. **SUSCRIPCIONES Collection**: Defined in Firestore COLLECTIONS enum but not used in UI (reserved for future use)
-5. ~~**Deprecated Stores**: `clientesStore` and `revendedoresStore` are deprecated wrappers~~ ✅ **RESOLVED**: Deprecated stores have been removed.
-6. ~~**VentaDoc type location**: The `VentaDoc` interface is exported from `src/components/ventas/VentasMetrics.tsx`~~ ✅ **RESOLVED**: `VentaDoc` now properly defined in `src/types/ventas.ts`.
+4. **Legacy `pagos` array in VentaDoc**: The `pagos` field on `VentaDoc` is @deprecated. Payments should be queried from the `pagosVenta` collection. Some old venta documents may still have embedded `pagos` arrays.
 
-## Deployment Considerations
+## Deployment
 
-When deploying to production:
+### Firebase Hosting / App Hosting
 
-1. **Firebase Configuration**: Ensure production Firebase credentials are in environment variables
-2. **Firebase Security Rules**: Configure Firestore security rules for production
-3. **Authentication**: Implement proper user management (not just admin@ email check)
+The project includes Firebase deployment configuration:
+- `firebase.json` - Firebase project config (Firestore rules + indexes, location: `nam5`)
+- `.firebaserc` - Firebase project alias
+- `firestore.rules` - Security rules with role-based access
+- `firestore.indexes.json` - Composite indexes for optimized queries
+
+**Deploy commands:**
+```bash
+firebase deploy --only firestore:rules    # Deploy security rules
+firebase deploy --only firestore:indexes  # Deploy composite indexes
+firebase deploy                           # Deploy everything
+```
+
+**Environment Configuration for Deployment:**
+- `FIREBASE_WEBAPP_CONFIG` env var (JSON string) is supported as an alternative to individual `NEXT_PUBLIC_FIREBASE_*` vars
+- `next.config.ts` parses `FIREBASE_WEBAPP_CONFIG` and maps it to individual env vars
+- `src/lib/firebase/config.ts` uses the same fallback pattern
+
+### Production Considerations
+
+1. **Firebase Configuration**: Ensure production Firebase credentials in environment variables
+2. **Firebase Security Rules**: Rules are defined in `firestore.rules` — review before production
+3. **Authentication**: Implement proper user management (not just admin@ email check). Set admin Custom Claims via Firebase Admin SDK.
 4. **Server-Side Proxy**: Implement JWT/cookie validation in `proxy.ts` for server-side auth
 5. **Error Tracking**: Add error monitoring service (Sentry, etc.)
-6. **Performance**: Enable Firebase caching and optimize queries
+6. **Performance**: Caching is implemented (5-min TTL in all stores)
 7. **Backup**: Implement Firestore backup strategy
-
-## Migration from Mock Data (Completed)
-
-The system has been fully migrated from mock data to Firebase:
-
-- ✅ All stores use Firebase Firestore
-- ✅ Authentication uses Firebase Auth
-- ✅ No more simulated delays (real async operations)
-- ✅ Data persists across sessions
-- ✅ Templates use localStorage (templatesStore)
-- ✅ Auth state uses localStorage (authStore)
-- ✅ All CRUD operations update Firebase
-
-## Recent Changes (Feb 2026)
-
-### Architecture Refactoring (Feb 4, 2026) ✅ **NEW**
-**Major improvements to architecture, performance, and code quality:**
-
-1. **Standardized Data Fetching**:
-   - Created `ventasStore` with caching (5-minute timeout), error states, and optimistic updates
-   - All stores now follow consistent pattern with error handling
-   - Removed direct Firebase calls from components
-
-2. **Error Handling**:
-   - Added `error: string | null` state to all 10 stores
-   - Implemented `DashboardErrorFallback` component
-   - Added `ErrorBoundary` to dashboard layout for better error recovery
-
-3. **Service Layer**:
-   - Created `src/lib/services/` directory for business logic
-   - `metricsService.ts` - Extracted metrics calculations from components
-   - `ventasService.ts` - Encapsulates venta deletion with profile occupancy updates
-   - Created `useVentasMetrics` custom hook
-
-4. **Performance Optimizations**:
-   - Added 5-minute caching to all stores (reduces Firebase reads)
-   - Implemented optimistic updates with rollback for all delete operations
-   - Created pagination utilities in `src/lib/firebase/pagination.ts` (ready for future use)
-   - Fixed unnecessary re-renders in `VentasMetrics` component
-
-5. **Firebase Layer Improvements**:
-   - Automatic timestamp conversion in `getAll()`, `getById()`, `queryDocuments()`
-   - No need to manually call `timestampToDate()` in stores anymore
-   - Cleaner, more maintainable code
-
-6. **Constants Cleanup**:
-   - Added `CYCLE_MONTHS` constant with proper typing
-   - Updated `CICLOS_PAGO` to include `semestral` option
-   - Eliminated magic numbers throughout codebase
-
-### Ventas Module (NEW)
-- Full sales module: pages (`/ventas`, `/ventas/crear`, `/ventas/[id]`, `/ventas/[id]/editar`)
-- Components: `VentasForm`, `VentasEditForm`, `VentasTable`, `VentasMetrics`, `RenovarVentaDialog`, `EditarPagoVentaDialog`
-- Multi-item sale creation with per-item pricing, discounts, cycles, and WhatsApp message generation
-- ~~No dedicated store~~ **UPDATED**: Now uses `ventasStore` with full error handling and caching
-- Added to sidebar under GESTIÓN section
-
-### Usuarios Migration (Unified Collection)
-- Clients and resellers now stored in a single `usuarios` Firestore collection (previously separate `clientes` / `revendedores` collections)
-- `usuariosStore` is the primary store; `clientesStore` / `revendedoresStore` are deprecated wrappers with subscriptions
-- `Usuario` type unified with `tipo` discriminator; `Cliente` / `Revendedor` are deprecated aliases
-- New detail page (`/usuarios/[id]`) with `UsuarioDetails` component showing user's ventas
-- New edit page (`/usuarios/editar/[id]`)
-
-### Server-Side Pagination + Cache Pattern (Feb 5, 2026) ✅ **CRITICAL**
-**Major Firebase read optimization — 84% reduction in document reads:**
-
-1. **Pagination with Cursors**:
-   - Created `useServerPagination` hook — fetches only `pageSize + 1` docs per page
-   - Uses Firestore cursors for forward/backward navigation
-   - Auto-resets on filter changes (e.g., tab switches)
-   - Implemented in: `src/hooks/useServerPagination.ts`
-
-2. **Module-Level Cache for Secondary Queries**:
-   - Created `use-ventas-por-usuarios` hook with module-level cache `Map`
-   - Survives component remount/unmount (unlike `useRef`)
-   - 5-minute TTL, cache key = `clienteIds.join(',')`
-   - Uses `enabled: !isLoading` parameter to avoid stale ID queries
-   - Logs cache HIT in dev mode (green console badge)
-
-3. **Count Queries (Free on Spark)**:
-   - Added `fetchCounts()` to `usuariosStore` using `getCount()`
-   - Count operations do NOT cost document reads on Spark plan
-   - Used for: totalClientes, totalRevendedores, totalNuevosHoy, totalClientesActivos
-
-4. **Denormalized Fields**:
-   - Added `ventasActivas` field to usuario docs (updated atomically with `increment()`)
-   - Eliminates need for separate query to count active ventas per user
-   - Updated in all venta mutation points (create/delete/update estado)
-
-5. **Performance Results** (Usuarios module, pageSize=10):
-   - Before: ~50-100+ document reads per session
-   - After: 16 reads first visit, 0 reads for next 5 minutes
-   - Reduction: **84% fewer Firebase reads**
-
-6. **Documentation**:
-   - Created `docs/PAGINATION_AND_CACHE_PATTERN.md` — complete replication guide
-   - Added "Server-Side Pagination Pattern" section to CLAUDE.md
-   - Template code for replicating pattern in other modules
-   - Usuarios module is the reference implementation
-
-7. **Files Created/Modified**:
-   - `src/hooks/useServerPagination.ts` — pagination hook
-   - `src/hooks/use-ventas-por-usuarios.ts` — secondary query with cache
-   - `src/lib/firebase/pagination.ts` — `getPaginated()` function
-   - `src/components/shared/PaginationFooter.tsx` — reusable UI
-   - `src/store/usuariosStore.ts` — added `fetchCounts()` with `getCount()`
-   - `src/app/(dashboard)/usuarios/page.tsx` — orchestrator with dynamic filters
-   - All 3 tables: `ClientesTable`, `RevendedoresTable`, `TodosUsuariosTable` — use hooks
-
-**CRITICAL**: All new modules with tables MUST follow this pattern. See docs/PAGINATION_AND_CACHE_PATTERN.md.
-
-### Servicios Enhancements
-- New detail page (`/servicios/detalle/[id]`) with full payment/renovation history
-- `PagoServicio` type and `COLLECTIONS.PAGOS_SERVICIO` collection added
-- `RenovarServicioDialog` and `EditarPagoServicioDialog` for managing payment history
-- Category-level views: `ServiciosMetrics`, `CategoriasTable`, `ServiciosCategoriaFilters`, `ServiciosCategoriaMetrics`, `ServiciosCategoriaTableDetalle`
-- `cicloPago` now supports `semestral` in addition to `mensual`, `trimestral`, `anual`
-
-### WhatsApp Utilities Expanded
-- New functions: `openWhatsApp()`, `formatearFechaWhatsApp()`, `generarMensajeVenta()`
-- New placeholders: `{servicio}`, `{perfil_nombre}`, `{codigo}`, `{items}`
-- `WhatsAppData` type expanded with matching fields
-
-### Firestore Layer
-- `queryDocuments<T>()` function added — supports `where` filters with `WhereFilterOp`
-- `COLLECTIONS` updated: added `USUARIOS`, `PAGOS_SERVICIO`, `VENTAS`; `CLIENTES`/`REVENDEDORES` marked deprecated
-
-### Previous Changes
-- **Removed** (commit db25141): Suscripciones module, Pagos de Servicios module
-- **Restored** (commit 8b4072d): Dashboard UI components with placeholder data
-- **Fixed** (commit 9feb52b, d99fae7): Cleaned up imports and references to removed modules
-
----
+8. **Analytics**: Firebase Analytics is enabled in production (client-side only)
 
 ## Quick Reference Guide
-
-### Most Common Tasks
-
-#### Creating a New Module with a Table
-
-1. **Create types** in `src/types/[module].ts`
-2. **Add collection** to `COLLECTIONS` enum in `firestore.ts`
-3. **Create store** with `fetchCounts()` using `getCount()`:
-   ```typescript
-   fetchCounts: async () => {
-     const [total, totalActive] = await Promise.all([
-       getCount(COLLECTIONS.MY_ITEMS),
-       getCount(COLLECTIONS.MY_ITEMS, [{ field: 'estado', operator: '==', value: 'active' }]),
-     ]);
-     set({ total, totalActive });
-   }
-   ```
-4. **Create page** with `useServerPagination`:
-   ```typescript
-   const { data, isLoading, hasMore, page, next, previous, refresh } = useServerPagination({
-     collectionName: COLLECTIONS.MY_ITEMS,
-     filters,
-     pageSize: 10,
-   });
-   ```
-5. **If you need related data per row**, create custom hook:
-   ```typescript
-   // Module-level cache
-   const cache = new Map();
-   export function useRelatedData(ids: string[], { enabled = true } = {}) {
-     // Check cache → query if miss → save to cache
-   }
-   ```
-6. **Create table component** with `PaginationFooter`
-7. **Add route** to sidebar
-8. **Test** pagination, caching, and CRUD ops
-
-#### Adding a New Field to Existing Type
-
-1. **Update interface** in `src/types/[module].ts`
-2. **Update form schema** (Zod validation)
-3. **Update form UI** (add input field)
-4. **Update table columns** (if displayed)
-5. **Update store** create/update methods if needed
-6. **Test** create/edit operations
-
-#### Creating a Form Dialog
-
-```typescript
-// 1. Schema
-const schema = z.object({
-  nombre: z.string().min(2),
-  // ... fields
-});
-
-// 2. Form
-const { register, handleSubmit, formState: { errors } } = useForm({
-  resolver: zodResolver(schema)
-});
-
-// 3. Submit
-const onSubmit = async (data) => {
-  try {
-    await createItem(data);
-    toast.success('Created');
-    onOpenChange(false);
-  } catch (error) {
-    toast.error('Error');
-  }
-};
-```
 
 ### Firebase Cheat Sheet
 
@@ -1020,117 +936,19 @@ const onSubmit = async (data) => {
 | Create doc | `create(collection, data)` | 1 write |
 | Update doc | `update(collection, id, data)` | 1 write |
 | Delete doc | `remove(collection, id)` | 1 write |
-| Atomic increment | `adjustVentasActivas(id, delta)` | 1 write |
-
-### Common Code Patterns
-
-#### Zustand Store with Firebase
-
-```typescript
-export const useMyStore = create<State>()(
-  devtools((set, get) => ({
-    items: [],
-    isLoading: false,
-    error: null,
-    lastFetch: null,
-
-    fetchItems: async (force = false) => {
-      if (!force && get().lastFetch && Date.now() - get().lastFetch < 300000) {
-        logCacheHit(COLLECTIONS.ITEMS);
-        return;
-      }
-      set({ isLoading: true, error: null });
-      try {
-        const items = await getAll<Item>(COLLECTIONS.ITEMS);
-        set({ items, isLoading: false, lastFetch: Date.now() });
-      } catch (error) {
-        set({ error: error.message, isLoading: false });
-      }
-    },
-
-    deleteItem: async (id) => {
-      const prev = get().items;
-      set({ items: prev.filter(i => i.id !== id) }); // Optimistic
-      try {
-        await remove(COLLECTIONS.ITEMS, id);
-      } catch (error) {
-        set({ items: prev, error: error.message }); // Rollback
-        throw error;
-      }
-    },
-  }))
-);
-```
-
-#### Custom Hook with Module-Level Cache
-
-```typescript
-const CACHE_TTL = 5 * 60 * 1000;
-const cache = new Map<string, { data: Record<string, Stats>; ts: number }>();
-
-export function useMyStats(ids: string[], { enabled = true } = {}) {
-  const [stats, setStats] = useState<Record<string, Stats>>({});
-  const idsKey = ids.join(',');
-
-  useEffect(() => {
-    if (!enabled || ids.length === 0) return;
-
-    const cached = cache.get(idsKey);
-    if (cached && Date.now() - cached.ts < CACHE_TTL) {
-      setStats(cached.data);
-      return;
-    }
-
-    let cancelled = false;
-    const load = async () => {
-      const docs = await queryDocuments(COLLECTION, [
-        { field: 'refId', operator: 'in', value: ids }
-      ]);
-      if (cancelled) return;
-      const result = {}; // Calculate stats
-      cache.set(idsKey, { data: result, ts: Date.now() });
-      setStats(result);
-    };
-    load();
-    return () => { cancelled = true; };
-  }, [idsKey, enabled]);
-
-  return { stats };
-}
-```
-
-#### React Component with Memoization
-
-```typescript
-export const MyMetrics = memo(function MyMetrics({ items }) {
-  const metrics = useMemo(() => {
-    // Single-pass calculation
-    let total = 0, active = 0;
-    items.forEach(item => {
-      total++;
-      if (item.active) active++;
-    });
-    return { total, active };
-  }, [items]);
-
-  return (
-    <div className="grid grid-cols-2 gap-4">
-      <MetricCard title="Total" value={metrics.total} />
-      <MetricCard title="Active" value={metrics.active} />
-    </div>
-  );
-});
-```
+| Atomic increment | `adjustServiciosActivos(id, delta)` | 1 write |
 
 ### Debugging Tips
 
 #### Check Firebase Reads
 
 Open browser console and look for:
-- `[Firestore] paginated (collection) → N docs · Xms` (blue badge)
-- `[Firestore] query (collection where ...) → N docs · Xms` (blue badge)
-- `[VentasCache] HIT · N IDs · age Xs` (green badge)
-- `[Cache] HIT · collection` (green badge)
+- `[Firestore] getAll (collection) -> N docs` (green badge)
+- `[Firestore] query (collection where ...) -> N docs` (green badge)
+- `[Firestore] paginated (collection) -> N docs` (blue badge)
+- `[Firestore] count (collection) -> N` (purple badge)
+- `[Cache] Hit (collection) -> sin lectura a Firestore` (orange badge)
+- `[VentasCache] HIT` (green badge)
 
 #### Force Refresh Cache
 
@@ -1143,23 +961,6 @@ const { refresh } = useServerPagination(...);
 refresh(); // Forces re-fetch of current page
 ```
 
-#### Test Pagination
-
-1. Add 15+ items to collection
-2. Set `pageSize = 10`
-3. Navigate to page 2 → should see "Página 2 de 2"
-4. Check console → should see 11 reads (10 + 1 for hasMore)
-5. Go back to page 1 → should use cached cursor (no new reads)
-
-### Performance Monitoring
-
-| Metric | Tool | Target |
-|--------|------|--------|
-| Firebase reads per visit | Browser console | <20 first visit, 0 cached |
-| Component re-renders | React DevTools Profiler | Only changed components |
-| Time to Interactive | Lighthouse | <3s |
-| Total Bundle Size | `npm run build` output | <500KB gzipped |
-
 ### Documentation Shortcuts
 
 | Need | Read |
@@ -1167,9 +968,34 @@ refresh(); // Forces re-fetch of current page
 | Pagination pattern | `docs/PAGINATION_AND_CACHE_PATTERN.md` |
 | React optimizations | `docs/PERFORMANCE_OPTIMIZATIONS.md` |
 | Firebase setup | `docs/FIREBASE_SETUP.md` |
+| Firebase reads monitoring | `docs/FIREBASE_READS_MONITORING.md` |
+| System architecture | `docs/ARCHITECTURE.md` |
+| C4 diagrams | `docs/C4_DIAGRAMS.md` |
+| Denormalization analysis | `docs/DENORMALIZATION_ANALYSIS_PROCESS.md` |
+| Servicios optimization | `docs/SERVICIOS_OPTIMIZATION.md` |
+| Metodos Pago optimization | `docs/METODOS_PAGO_OPTIMIZATION.md` |
 | Project overview | This file (CLAUDE.md) |
+
+### Tech Stack Summary
+
+| Category | Technology | Version |
+|----------|-----------|---------|
+| Framework | Next.js | 16.1.6 |
+| Language | TypeScript | 5.x |
+| UI | React | 19.2.3 |
+| Styling | Tailwind CSS | 4.x |
+| Component Library | shadcn/ui + Radix UI | Latest |
+| State Management | Zustand | 5.0.10 |
+| Forms | React Hook Form + Zod | 7.71.1 / 4.3.6 |
+| Backend | Firebase (Auth + Firestore + Analytics) | 12.8.0 |
+| Charts | Recharts | 3.7.0 |
+| Date Utils | date-fns | 4.1.0 |
+| Toasts | Sonner | 2.0.7 |
+| Icons | lucide-react | 0.563.0 |
+| Testing | Vitest | 4.0.18 |
+| Themes | next-themes | 0.4.6 |
 
 ---
 
-**Last Updated:** February 5, 2026
-**Version:** 2.1.0
+**Last Updated:** February 7, 2026
+**Version:** 2.2.0
