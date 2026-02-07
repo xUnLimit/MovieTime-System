@@ -1,0 +1,234 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============================================================================
+    // HELPER FUNCTIONS
+    // ============================================================================
+
+    /**
+     * Check if user is authenticated
+     */
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    /**
+     * Check if user has admin role (via Custom Claims)
+     * NOTE: Must be set via Firebase Admin SDK
+     */
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+
+    /**
+     * Check if user is the owner of a resource
+     */
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    /**
+     * Check if user has operador role (default for non-admins)
+     */
+    function isOperador() {
+      return request.auth != null && request.auth.token.admin != true;
+    }
+
+    /**
+     * Validate required fields exist in document
+     */
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // ============================================================================
+    // USUARIOS COLLECTION (Unified: Clientes + Revendedores)
+    // ============================================================================
+
+    match /usuarios/{userId} {
+      // Anyone authenticated can read usuarios (for dropdowns, tables)
+      allow read: if isAuthenticated();
+
+      // Any authenticated user can create usuarios
+      // TODO: In production, restrict to admin only
+      allow create: if isAuthenticated() && hasRequiredFields(['nombre', 'tipo', 'telefono']);
+
+      // Users can update their own profile, admins can update any
+      allow update: if isAuthenticated() && (isOwner(userId) || isAdmin());
+
+      // Only admins can delete usuarios
+      allow delete: if isAdmin();
+    }
+
+    // ============================================================================
+    // VENTAS COLLECTION (Sales)
+    // ============================================================================
+
+    match /ventas/{ventaId} {
+      // Anyone authenticated can read ventas
+      allow read: if isAuthenticated();
+
+      // Only authenticated users can create ventas
+      allow create: if isAuthenticated() && hasRequiredFields([
+        'clienteId', 'servicioId', 'estado', 'fechaInicio', 'fechaFin', 'precioFinal'
+      ]);
+
+      // Only admins can update/delete ventas
+      // Operadores can view but not modify
+      allow update, delete: if isAdmin();
+    }
+
+    // ============================================================================
+    // SERVICIOS COLLECTION (Streaming Services)
+    // ============================================================================
+
+    match /servicios/{servicioId} {
+      // Anyone authenticated can read servicios
+      allow read: if isAuthenticated();
+
+      // Only admins can create/update/delete servicios
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ============================================================================
+    // PAGOS_SERVICIO COLLECTION (Service Payment History)
+    // ============================================================================
+
+    match /pagosServicio/{pagoId} {
+      // Anyone authenticated can read payment history
+      allow read: if isAuthenticated();
+
+      // Only admins can create/update/delete payments
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ============================================================================
+    // CATEGORIAS COLLECTION (Service Categories)
+    // ============================================================================
+
+    match /categorias/{categoriaId} {
+      // Anyone authenticated can read categories
+      allow read: if isAuthenticated();
+
+      // Only admins can modify categories
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ============================================================================
+    // METODOS_PAGO COLLECTION (Payment Methods)
+    // ============================================================================
+
+    match /metodosPago/{metodoId} {
+      // Anyone authenticated can read payment methods
+      allow read: if isAuthenticated();
+
+      // Only admins can modify payment methods
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ============================================================================
+    // NOTIFICACIONES COLLECTION (Notifications)
+    // ============================================================================
+
+    match /notificaciones/{notificacionId} {
+      // Anyone authenticated can read notifications
+      allow read: if isAuthenticated();
+
+      // Anyone authenticated can create notifications (auto-generated)
+      allow create: if isAuthenticated();
+
+      // Anyone authenticated can mark as read (update leida field only)
+      allow update: if isAuthenticated() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['leida', 'updatedAt']);
+
+      // Only admins can delete notifications
+      allow delete: if isAdmin();
+    }
+
+    // ============================================================================
+    // ACTIVITY_LOG COLLECTION (Audit Trail)
+    // ============================================================================
+
+    match /activityLog/{logId} {
+      // Only admins can read activity logs
+      allow read: if isAdmin();
+
+      // Anyone authenticated can create logs (write-only for audit)
+      allow create: if isAuthenticated() && hasRequiredFields([
+        'accion', 'usuario', 'fecha'
+      ]);
+
+      // No updates or deletes allowed (immutable audit trail)
+      allow update, delete: if false;
+    }
+
+    // ============================================================================
+    // CONFIG COLLECTION (System Configuration)
+    // ============================================================================
+
+    match /config/{configId} {
+      // Anyone authenticated can read config
+      allow read: if isAuthenticated();
+
+      // Only admins can modify config
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ============================================================================
+    // TEMPLATES COLLECTION (WhatsApp Message Templates)
+    // ============================================================================
+
+    match /templates/{templateId} {
+      // Anyone authenticated can read templates
+      allow read: if isAuthenticated();
+
+      // Only admins can modify templates
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ============================================================================
+    // GASTOS COLLECTION (Expenses - if used)
+    // ============================================================================
+
+    match /gastos/{gastoId} {
+      // Anyone authenticated can read gastos
+      allow read: if isAuthenticated();
+
+      // Only admins can modify gastos
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ============================================================================
+    // LEGACY COLLECTIONS (Deprecated but kept for data migration)
+    // ============================================================================
+
+    match /clientes/{clienteId} {
+      // Read-only access for data migration
+      allow read: if isAuthenticated();
+      allow write: if false;  // Prevent new writes
+    }
+
+    match /revendedores/{revendedorId} {
+      // Read-only access for data migration
+      allow read: if isAuthenticated();
+      allow write: if false;  // Prevent new writes
+    }
+
+    match /suscripciones/{suscripcionId} {
+      // Read-only access for historical data
+      allow read: if isAuthenticated();
+      allow write: if false;  // Prevent new writes
+    }
+
+    // ============================================================================
+    // DENY ALL OTHER COLLECTIONS
+    // ============================================================================
+
+    // Explicitly deny access to any undefined collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
