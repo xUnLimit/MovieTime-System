@@ -19,7 +19,7 @@ interface UsuariosState {
   // Actions
   fetchUsuarios: (force?: boolean) => Promise<void>;
   fetchCounts: () => Promise<void>;
-  createUsuario: (usuario: Omit<Usuario, 'id' | 'createdAt' | 'updatedAt' | 'montoSinConsumir' | 'serviciosActivos' | 'suscripcionesTotales'>) => Promise<void>;
+  createUsuario: (usuario: Omit<Usuario, 'id' | 'createdAt' | 'updatedAt' | 'serviciosActivos' | 'suscripcionesTotales'>) => Promise<void>;
   updateUsuario: (id: string, updates: Partial<Usuario>) => Promise<void>;
   deleteUsuario: (id: string, usuarioData?: { tipo: 'cliente' | 'revendedor'; createdAt?: Date; serviciosActivos?: number }) => Promise<void>;
   setSelectedUsuario: (usuario: Usuario | null) => void;
@@ -89,23 +89,16 @@ export const useUsuariosStore = create<UsuariosState>()(
 
       createUsuario: async (usuarioData) => {
         try {
-          const tipoFields =
-            usuarioData.tipo === 'cliente'
-              ? { serviciosActivos: 0 }
-              : { suscripcionesTotales: 0 };
-
           const id = await createDoc(COLLECTIONS.USUARIOS, {
             ...usuarioData,
-            montoSinConsumir: 0,
-            ...tipoFields,
+            serviciosActivos: 0,
             active: true,
           });
 
           const newUsuario: Usuario = {
             ...usuarioData,
             id,
-            montoSinConsumir: 0,
-            ...tipoFields,
+            serviciosActivos: 0,
             active: true,
             createdAt: new Date(),
             updatedAt: new Date(),
@@ -129,16 +122,54 @@ export const useUsuariosStore = create<UsuariosState>()(
 
       updateUsuario: async (id, updates) => {
         try {
+          const oldUsuario = get().usuarios.find(u => u.id === id);
+          const cambioTipo = oldUsuario && updates.tipo && oldUsuario.tipo !== updates.tipo;
+          const cambioServiciosActivos = oldUsuario && updates.serviciosActivos !== undefined && oldUsuario.serviciosActivos !== updates.serviciosActivos;
+
           await update(COLLECTIONS.USUARIOS, id, updates);
 
-          set((state) => ({
-            usuarios: state.usuarios.map((usuario) =>
+          set((state) => {
+            const updatedUsuarios = state.usuarios.map((usuario) =>
               usuario.id === id
                 ? { ...usuario, ...updates, updatedAt: new Date() }
                 : usuario
-            ),
-            error: null
-          }));
+            );
+
+            // Actualizar contadores si hubo cambio de tipo
+            let newTotalClientes = state.totalClientes;
+            let newTotalRevendedores = state.totalRevendedores;
+            let newTotalUsuariosActivos = state.totalUsuariosActivos;
+
+            if (cambioTipo && oldUsuario) {
+              if (oldUsuario.tipo === 'cliente' && updates.tipo === 'revendedor') {
+                newTotalClientes--;
+                newTotalRevendedores++;
+              } else if (oldUsuario.tipo === 'revendedor' && updates.tipo === 'cliente') {
+                newTotalClientes++;
+                newTotalRevendedores--;
+              }
+            }
+
+            // Actualizar contador de usuarios activos si cambió serviciosActivos
+            if (cambioServiciosActivos && oldUsuario) {
+              const oldActivo = (oldUsuario.serviciosActivos ?? 0) > 0;
+              const newActivo = (updates.serviciosActivos ?? 0) > 0;
+
+              if (oldActivo && !newActivo) {
+                newTotalUsuariosActivos--;
+              } else if (!oldActivo && newActivo) {
+                newTotalUsuariosActivos++;
+              }
+            }
+
+            return {
+              usuarios: updatedUsuarios,
+              totalClientes: newTotalClientes,
+              totalRevendedores: newTotalRevendedores,
+              totalUsuariosActivos: newTotalUsuariosActivos,
+              error: null
+            };
+          });
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Error al actualizar usuario';
           set({ error: errorMessage });

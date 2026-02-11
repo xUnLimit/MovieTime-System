@@ -123,6 +123,7 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
   const estadoValue = watch('estado');
   const notasValue = watch('notas');
 
+
   // Detectar si hay cambios en el formulario
   const hasChanges = useMemo(() => {
     if (!servicio?.id) return true; // Si es nuevo, siempre permitir guardar
@@ -193,6 +194,12 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
   }, [nombreValue, errors.nombre, clearErrors]);
 
   useEffect(() => {
+    if (correoValue && correoValue.includes('@') && correoValue.includes('.') && errors.correo) {
+      clearErrors('correo');
+    }
+  }, [correoValue, errors.correo, clearErrors]);
+
+  useEffect(() => {
     if (contrasenaValue && contrasenaValue.length >= 6 && errors.contrasena) {
       clearErrors('contrasena');
     }
@@ -215,6 +222,18 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
       clearErrors('metodoPagoId');
     }
   }, [metodoPagoIdValue, errors.metodoPagoId, clearErrors]);
+
+  useEffect(() => {
+    if (costoServicioValue && !isNaN(Number(costoServicioValue)) && Number(costoServicioValue) > 0 && errors.costoServicio) {
+      clearErrors('costoServicio');
+    }
+  }, [costoServicioValue, errors.costoServicio, clearErrors]);
+
+  useEffect(() => {
+    if (perfilesDisponiblesValue && !isNaN(Number(perfilesDisponiblesValue)) && Number(perfilesDisponiblesValue) >= 1 && Number.isInteger(Number(perfilesDisponiblesValue)) && errors.perfilesDisponibles) {
+      clearErrors('perfilesDisponibles');
+    }
+  }, [perfilesDisponiblesValue, errors.perfilesDisponibles, clearErrors]);
 
   // Al editar: nunca recalcular por efecto (respeta la fecha de vencimiento guardada o manual)
   // Al crear: auto-calcular fecha de vencimiento cuando cambia el ciclo o la fecha de inicio
@@ -384,7 +403,10 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
     () => categorias.filter((c) => c.activo).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
     [categorias]
   );
-  const metodosPagoActivos = metodosPago.filter(m => m.activo && (!m.asociadoA || m.asociadoA === 'servicio'));
+  const metodosPagoActivos = useMemo(
+    () => metodosPago.filter(m => m.activo && (!m.asociadoA || m.asociadoA === 'servicio')).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
+    [metodosPago]
+  );
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
@@ -573,11 +595,11 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                  <DropdownMenuItem onClick={() => setValue('tipoPlan', 'cuenta_completa')}>
-                    Cuenta Completa
-                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setValue('tipoPlan', 'perfiles')}>
                     Perfiles
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setValue('tipoPlan', 'cuenta_completa')}>
+                    Cuenta Completa
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

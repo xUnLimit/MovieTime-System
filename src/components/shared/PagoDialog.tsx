@@ -141,6 +141,13 @@ export function PagoDialog(props: PagoDialogProps) {
     if (props.context === 'venta') {
       if (isEdit) {
         if (props.pago) {
+          console.log('[PagoDialog] EDIT MODE - Datos del pago recibido:', {
+            id: props.pago.id,
+            descripcion: props.pago.descripcion,
+            fechaInicio: props.pago.fechaInicio,
+            fechaVencimiento: props.pago.fechaVencimiento,
+            fullPago: props.pago
+          });
           reset({
             periodoRenovacion: props.pago.cicloPago || '',
             metodoPagoId: (props.pago.metodoPagoId as string) || venta?.metodoPagoId || '',
@@ -201,7 +208,8 @@ export function PagoDialog(props: PagoDialogProps) {
       fechaVencimiento: fechaVencimientoActual,
       notas: '',
     });
-  }, [isEdit, props.pago, reset, servicio, venta, props.context]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, props.pago]);
 
   useEffect(() => {
     if (fechaInicioValue && periodoValue && periodoValue !== '') {

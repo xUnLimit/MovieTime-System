@@ -97,7 +97,8 @@ export function ServiciosCategoriaTable({ servicios }: ServiciosCategoriaTablePr
                 const diasRestantes = calcularDiasRestantes(servicio.fechaVencimiento);
                 const badgeColor = getBadgeColor(diasRestantes);
                 const perfilesOcupados = servicio.perfilesOcupados || 0;
-                const perfilesLibres = servicio.perfilesDisponibles - perfilesOcupados;
+                // Si el servicio está inactivo, mostrar 0 perfiles disponibles
+                const perfilesLibres = !servicio.activo ? 0 : (servicio.perfilesDisponibles - perfilesOcupados);
 
                 return (
                   <TableRow key={servicio.id}>
@@ -130,12 +131,12 @@ export function ServiciosCategoriaTable({ servicios }: ServiciosCategoriaTablePr
                         <div className="flex -space-x-2">
                           {Array.from({ length: servicio.perfilesDisponibles }).map((_, i) => {
                             const isOcupado = i < perfilesOcupados;
+                            // Si el servicio está inactivo, todos los iconos son grises
+                            const iconColor = !servicio.activo ? 'bg-gray-600' : (isOcupado ? 'bg-red-600' : 'bg-green-600');
                             return (
                               <div
                                 key={i}
-                                className={`w-6 h-6 rounded-full border-2 border-background flex items-center justify-center ${
-                                  isOcupado ? 'bg-red-600' : 'bg-green-600'
-                                }`}
+                                className={`w-6 h-6 rounded-full border-2 border-background flex items-center justify-center ${iconColor}`}
                               >
                                 <Users className="h-3 w-3 text-white" />
                               </div>

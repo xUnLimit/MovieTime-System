@@ -8,6 +8,8 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -71,6 +73,7 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
   const { fetchCategorias } = useCategoriasStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [servicioToDelete, setServicioToDelete] = useState<Servicio | null>(null);
+  const [deletePayments, setDeletePayments] = useState(false);
 
   const getCurrencySymbol = (moneda?: string) => {
     if (!moneda) return '$';
@@ -79,14 +82,20 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
 
   const handleDelete = (servicio: Servicio) => {
     setServicioToDelete(servicio);
+    setDeletePayments(false); // Reset checkbox
     setDeleteDialogOpen(true);
   };
 
   const handleConfirmDelete = async () => {
     if (servicioToDelete) {
       try {
-        await deleteServicio(servicioToDelete.id);
-        toast.success('Servicio eliminado');
+        await deleteServicio(servicioToDelete.id, deletePayments);
+
+        if (deletePayments) {
+          toast.success('Servicio y registros de pago eliminados');
+        } else {
+          toast.success('Servicio eliminado (registros de pago conservados)');
+        }
 
         // Refrescar categorías y contadores de servicios para actualizar widgets
         await Promise.all([
@@ -180,6 +189,11 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
       align: 'center',
       width: '11%',
       render: (item) => {
+        // Si el servicio está inactivo, mostrar solo un guion
+        if (!item.activo) {
+          return <span className="text-muted-foreground">-</span>;
+        }
+
         const dias = calcularDiasRestantes(item.fechaVencimiento);
         return (
           <Badge
@@ -213,13 +227,16 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
       render: (item) => {
         const ocupados = item.perfilesOcupados || 0;
         const disponibles = item.perfilesDisponibles || 0;
-        const libres = disponibles - ocupados;
+        // Si el servicio está inactivo, mostrar 0 perfiles disponibles
+        const libres = !item.activo ? 0 : (disponibles - ocupados);
         const icons = [];
         for (let i = 0; i < disponibles; i++) {
+          // Si el servicio está inactivo, todos los iconos son grises
+          const iconColor = !item.activo ? 'text-gray-600' : (i < ocupados ? 'text-red-500' : 'text-green-500');
           icons.push(
             <User
               key={i}
-              className={`h-4 w-4 ${i < ocupados ? 'text-red-500' : 'text-green-500'}`}
+              className={`h-4 w-4 ${iconColor}`}
             />
           );
         }
@@ -346,7 +363,26 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
         description={`¿Estás seguro de que quieres eliminar el servicio "${servicioToDelete?.nombre}"? Esta acción no se puede deshacer.`}
         confirmText="Eliminar"
         variant="danger"
-      />
+      >
+        <div className="flex items-start space-x-2">
+          <Checkbox
+            id="delete-payments"
+            checked={deletePayments}
+            onCheckedChange={(checked) => setDeletePayments(checked as boolean)}
+          />
+          <div className="grid gap-1.5 leading-none">
+            <Label
+              htmlFor="delete-payments"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+            >
+              Eliminar también los registros de pago
+            </Label>
+            <p className="text-sm text-muted-foreground">
+              Al marcar esta opción, se eliminarán todos los registros de pago de la base de datos. Si no se marca, se conservarán para historial.
+            </p>
+          </div>
+        </div>
+      </ConfirmDialog>
     </>
   );
 });

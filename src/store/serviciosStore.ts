@@ -23,7 +23,7 @@ interface ServiciosState {
   fetchCounts: (force?: boolean) => Promise<void>;
   createServicio: (servicio: Omit<Servicio, 'id' | 'createdAt' | 'updatedAt' | 'perfilesOcupados'>) => Promise<void>;
   updateServicio: (id: string, updates: Partial<Servicio>) => Promise<void>;
-  deleteServicio: (id: string) => Promise<void>;
+  deleteServicio: (id: string, deletePayments?: boolean) => Promise<void>;
   setSelectedServicio: (servicio: Servicio | null) => void;
   getServicio: (id: string) => Servicio | undefined;
   getServiciosByCategoria: (categoriaId: string) => Servicio[];
@@ -114,6 +114,7 @@ export const useServiciosStore = create<ServiciosState>()(
           // Create initial PagoServicio record
           await createDoc(COLLECTIONS.PAGOS_SERVICIO, {
             servicioId: id,
+            categoriaId: servicioData.categoriaId,  // Denormalizado para queries eficientes
             metodoPagoId: servicioData.metodoPagoId,
             metodoPagoNombre,  // Denormalizado
             moneda,
@@ -126,13 +127,13 @@ export const useServiciosStore = create<ServiciosState>()(
             monto: servicioData.costoServicio ?? 0,
           });
 
-          // Actualizar contadores de la categoría
+          // Actualizar contadores de la categoría (sin gastosTotal - ya no se usa)
           const categoriaRef = firestoreDoc(db, COLLECTIONS.CATEGORIAS, servicioData.categoriaId);
           await updateDoc(categoriaRef, {
             totalServicios: increment(1),
             serviciosActivos: increment(1),
             perfilesDisponiblesTotal: increment(servicioData.perfilesDisponibles ?? 0),
-            gastosTotal: increment(servicioData.costoServicio ?? 0),
+            // gastosTotal: ya no se actualiza - se calcula desde pagosServicio
           });
 
           const newServicio: Servicio = {
@@ -179,12 +180,16 @@ export const useServiciosStore = create<ServiciosState>()(
 
           await update(COLLECTIONS.SERVICIOS, id, finalUpdates);
 
-          // Si se cambia el estado activo, actualizar contador de categoría
+          // Si se cambia el estado activo, actualizar contadores de categoría
           if (updates.activo !== undefined && updates.activo !== servicio.activo) {
             const categoriaRef = firestoreDoc(db, COLLECTIONS.CATEGORIAS, servicio.categoriaId);
             const delta = updates.activo ? 1 : -1;
+            // Calcular perfiles disponibles (total - ocupados)
+            const perfilesLibres = Math.max((servicio.perfilesDisponibles || 0) - (servicio.perfilesOcupados || 0), 0);
             await updateDoc(categoriaRef, {
               serviciosActivos: increment(delta),
+              // Si se desactiva, restar perfiles disponibles. Si se activa, sumarlos.
+              perfilesDisponiblesTotal: increment(updates.activo ? perfilesLibres : -perfilesLibres),
             });
           }
 
@@ -204,7 +209,7 @@ export const useServiciosStore = create<ServiciosState>()(
         }
       },
 
-      deleteServicio: async (id) => {
+      deleteServicio: async (id, deletePayments = false) => {
         try {
           // Obtener el servicio directamente de Firestore (no del store local)
           const servicio = await getById<Servicio>(COLLECTIONS.SERVICIOS, id);
@@ -215,17 +220,28 @@ export const useServiciosStore = create<ServiciosState>()(
             servicios: state.servicios.filter((s) => s.id !== id)
           }));
 
-          // Eliminar de Firestore
+          // Si se solicita, eliminar todos los pagos del servicio
+          if (deletePayments) {
+            const { queryDocuments, remove: removeDoc } = await import('@/lib/firebase/firestore');
+            const pagos = await queryDocuments<{ id: string }>(COLLECTIONS.PAGOS_SERVICIO, [
+              { field: 'servicioId', operator: '==', value: id }
+            ]);
+
+            // Eliminar todos los pagos en paralelo
+            await Promise.all(pagos.map(pago => removeDoc(COLLECTIONS.PAGOS_SERVICIO, pago.id)));
+          }
+
+          // Eliminar el servicio de Firestore
           await remove(COLLECTIONS.SERVICIOS, id);
 
-          // Decrementar contadores de la categoría
+          // Decrementar contadores de la categoría (sin gastosTotal - ya no se usa)
           const categoriaRef = firestoreDoc(db, COLLECTIONS.CATEGORIAS, servicio.categoriaId);
           const perfilesDisponibles = Math.max((servicio.perfilesDisponibles || 0) - (servicio.perfilesOcupados || 0), 0);
           await updateDoc(categoriaRef, {
             totalServicios: increment(-1),
             serviciosActivos: increment(servicio.activo ? -1 : 0),
             perfilesDisponiblesTotal: increment(-perfilesDisponibles),
-            gastosTotal: increment(-(servicio.gastosTotal ?? 0)),
+            // gastosTotal: ya no se actualiza - se calcula desde pagosServicio
           });
 
           // Notificar a otras páginas que se eliminó un servicio

@@ -1,8 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { COLLECTIONS, queryDocuments, remove, timestampToDate, adjustVentasActivas } from '@/lib/firebase/firestore';
+import { COLLECTIONS, queryDocuments, remove, adjustVentasActivas, adjustCategoriaSuscripciones } from '@/lib/firebase/firestore';
 import { useServiciosStore } from '@/store/serviciosStore';
+import { getVentasConUltimoPago } from '@/lib/services/ventaSyncService';
+import type { VentaDoc } from '@/types';
 
 // ── Cache a nivel de módulo ────────────────────────────────
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
@@ -84,33 +86,38 @@ export function useVentasUsuario(usuarioId: string) {
     const load = async () => {
       setIsLoading(true);
       try {
-        // Query 1: Ventas del usuario
-        const docs = await queryDocuments<Record<string, unknown>>(COLLECTIONS.VENTAS, [
+        // Paso 1: Cargar ventas base (solo metadatos)
+        const ventasBase = await queryDocuments<VentaDoc>(COLLECTIONS.VENTAS, [
           { field: 'clienteId', operator: '==', value: usuarioId },
         ]);
 
         if (process.env.NODE_ENV === 'development') {
-          console.log(`[useVentasUsuario] Loaded ${docs.length} ventas for user ${usuarioId.slice(0, 8)}`);
+          console.log(`[useVentasUsuario] Loaded ${ventasBase.length} ventas for user ${usuarioId.slice(0, 8)}`);
         }
 
         if (cancelled) return;
 
-        const mapped: VentaUsuarioDoc[] = docs.map((doc) => ({
-          id:              doc.id as string,
-          clienteId:       doc.clienteId as string,
-          categoriaId:     (doc.categoriaId as string)  || '',
-          categoriaNombre: (doc.categoriaNombre as string) || 'Sin categoría', // ← Leer denormalizado
-          servicioId:      (doc.servicioId as string)   || '',
-          servicioNombre:  (doc.servicioNombre as string) || 'Servicio',
-          servicioCorreo:  (doc.servicioCorreo as string) || '—',
-          perfilNumero:    (doc.perfilNumero as number | null | undefined) ?? null,
-          cicloPago:       doc.cicloPago as string | undefined,
-          fechaInicio:     doc.fechaInicio ? timestampToDate(doc.fechaInicio) : null,
-          fechaFin:        doc.fechaFin    ? timestampToDate(doc.fechaFin)    : null,
-          precio:          (doc.precio as number)      ?? 0,
-          precioFinal:     (doc.precioFinal as number) ?? (doc.precio as number) ?? 0,
-          estado:          (doc.estado as string)      ?? 'activo',
-          moneda:          doc.moneda as string | undefined,
+        // Paso 2: Cargar datos actuales desde PagoVenta (fuente de verdad)
+        const ventasConDatos = await getVentasConUltimoPago(ventasBase);
+
+        if (cancelled) return;
+
+        const mapped: VentaUsuarioDoc[] = ventasConDatos.map((venta) => ({
+          id:              venta.id,
+          clienteId:       venta.clienteId || '',
+          categoriaId:     venta.categoriaId,
+          categoriaNombre: venta.categoriaNombre || 'Sin categoría',
+          servicioId:      venta.servicioId,
+          servicioNombre:  venta.servicioNombre,
+          servicioCorreo:  venta.servicioCorreo || '—',
+          perfilNumero:    venta.perfilNumero ?? null,
+          cicloPago:       venta.cicloPago,
+          fechaInicio:     venta.fechaInicio ?? null,
+          fechaFin:        venta.fechaFin ?? null,
+          precio:          venta.precio ?? 0,
+          precioFinal:     venta.precioFinal ?? venta.precio ?? 0,
+          estado:          venta.estado ?? 'activo',
+          moneda:          venta.moneda,
         }));
 
         // Query 2: Renovaciones (single query con 'in' en lugar de N queries)
@@ -177,8 +184,19 @@ export function useVentasUsuario(usuarioId: string) {
     setVentas((prev) => prev.filter((v) => v.id !== ventaId));
 
     try {
+      // Eliminar todos los pagos asociados primero
+      const pagosVenta = await queryDocuments<{ id: string }>(COLLECTIONS.PAGOS_VENTA, [
+        { field: 'ventaId', operator: '==', value: ventaId }
+      ]);
+
+      await Promise.all(
+        pagosVenta.map(pago => remove(COLLECTIONS.PAGOS_VENTA, pago.id))
+      );
+
+      // Eliminar la venta
       await remove(COLLECTIONS.VENTAS, ventaId);
 
+      // Actualizar perfil ocupado del servicio
       if (servicioId && perfilNumero) {
         updatePerfilOcupado(servicioId, false);
       }
@@ -186,6 +204,15 @@ export function useVentasUsuario(usuarioId: string) {
       // Decrementar ventasActivas si la venta eliminada era activa
       if (ventaEliminada && (ventaEliminada.estado ?? 'activo') !== 'inactivo') {
         await adjustVentasActivas(usuarioId, -1);
+      }
+
+      // Decrementar contadores de la categoría
+      if (ventaEliminada?.categoriaId && ventaEliminada?.precioFinal) {
+        await adjustCategoriaSuscripciones(
+          ventaEliminada.categoriaId,
+          -1,
+          -ventaEliminada.precioFinal
+        );
       }
 
       // Invalidar cache

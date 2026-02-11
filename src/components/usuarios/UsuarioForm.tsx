@@ -33,6 +33,36 @@ const usuarioSchema = z.object({
 
 type UsuarioFormData = z.infer<typeof usuarioSchema>;
 
+/**
+ * Formatea un teléfono al guardar:
+ * - "66894143" o "6689-4143" → "+507 6689-4143"
+ * - "+91 12345678" → "+91 1234-5678" (respeta código de país)
+ * - "+507 6689-4143" → sin cambios
+ */
+function formatearTelefono(raw: string): string {
+  const trimmed = raw.trim();
+  // Si ya tiene código de país (+...), extraer código y número local
+  if (trimmed.startsWith('+')) {
+    const sinPlus = trimmed.slice(1);
+    const digits = sinPlus.replace(/\D/g, '');
+    // Si tiene más de 8 dígitos, los últimos 8 son el número local
+    if (digits.length > 8) {
+      const countryCode = digits.slice(0, digits.length - 8);
+      const local = digits.slice(digits.length - 8);
+      return '+' + countryCode + ' ' + local.slice(0, 4) + '-' + local.slice(4);
+    }
+    // Si tiene 8 o menos después del +, devolver tal cual formateado
+    return trimmed;
+  }
+  // Sin código de país: extraer solo dígitos y asumir Panamá (+507)
+  const digits = trimmed.replace(/\D/g, '');
+  if (digits.length === 8) {
+    return '+507 ' + digits.slice(0, 4) + '-' + digits.slice(4);
+  }
+  // Si no son exactamente 8 dígitos, devolver lo que escribió sin modificar
+  return trimmed;
+}
+
 interface UsuarioFormProps {
   usuario?: Usuario | null;
   tipoInicial?: 'cliente' | 'revendedor';
@@ -163,11 +193,13 @@ export function UsuarioForm({
     try {
       const metodoPago = metodosPago.find((m) => m.id === data.metodoPagoId);
       
+      const telefonoFormateado = formatearTelefono(data.telefono);
+
       const usuarioData = {
         nombre: data.nombre,
         apellido: data.apellido,
         tipo: data.tipoUsuario,
-        telefono: data.telefono,
+        telefono: telefonoFormateado,
         metodoPagoId: data.metodoPagoId,
         metodoPagoNombre: metodoPago?.nombre || '',
         active: true,
@@ -292,17 +324,6 @@ export function UsuarioForm({
                 id="telefono"
                 {...register('telefono')}
                 placeholder="+507 6000-0000"
-                onKeyDown={(e) => {
-                  // Permitir: números, backspace, delete, tab, escape, enter, +, -, (, ), espacios
-                  const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight'];
-                  const allowedChars = /[0-9+\-() ]/;
-
-                  if (allowedKeys.includes(e.key) || allowedChars.test(e.key)) {
-                    return;
-                  }
-
-                  e.preventDefault();
-                }}
               />
               {errors.telefono && (
                 <p className="text-sm text-red-500">{errors.telefono.message}</p>

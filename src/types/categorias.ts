@@ -21,11 +21,12 @@ export interface Categoria {
   color?: string;
   activo: boolean;
 
-  // Campos denormalizados (actualizados automáticamente por serviciosStore)
+  // Campos denormalizados (actualizados automáticamente por serviciosStore y ventasStore)
   totalServicios: number;           // Total de servicios en esta categoría
   serviciosActivos: number;         // Servicios con activo=true
   perfilesDisponiblesTotal: number; // Suma de (perfilesDisponibles - perfilesOcupados) de servicios activos
-  gastosTotal: number;              // Suma de gastosTotal de todos los servicios
+  ventasTotales: number;            // Total de ventas (suscripciones) asociadas a servicios de esta categoría
+  ingresosTotales: number;          // Suma total de ingresos de ventas de esta categoría
 
   createdAt: Date;
   updatedAt: Date;

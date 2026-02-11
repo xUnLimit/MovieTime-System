@@ -262,6 +262,29 @@ export async function adjustServiciosActivos(clienteId: string, delta: number): 
 export const adjustVentasActivas = adjustServiciosActivos;
 
 /**
+ * Incrementa o decrementa los contadores de ventas e ingresos de una categoría de forma atómica.
+ * @param categoriaId – id del documento en la colección `categorias`
+ * @param ventasDelta – +1 al crear venta, -1 al eliminar
+ * @param ingresosDelta – monto a sumar/restar
+ */
+export async function adjustCategoriaSuscripciones(
+  categoriaId: string,
+  ventasDelta: number,
+  ingresosDelta: number
+): Promise<void> {
+  if (!categoriaId) return;
+  try {
+    const docRef = doc(db, COLLECTIONS.CATEGORIAS, categoriaId);
+    await updateDoc(docRef, {
+      ventasTotales: increment(ventasDelta),
+      ingresosTotales: increment(ingresosDelta),
+    });
+  } catch (error) {
+    console.error(`Error ajustando contadores para categoría ${categoriaId}:`, error);
+  }
+}
+
+/**
  * Collection names constants
  */
 export const COLLECTIONS = {

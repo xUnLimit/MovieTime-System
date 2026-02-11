@@ -63,12 +63,12 @@ export function TodosUsuariosTable({
   const [usuarioToDelete, setUsuarioToDelete] = useState<UsuarioDisplay | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [metodoPagoFilter, setMetodoPagoFilter] = useState('todos');
-  // Solo IDs de clientes de la página actual (máx 10) para la query de ventas
-  const clienteIds = useMemo(
-    () => usuarios.filter(u => u.tipo === 'cliente').map(u => u.id),
+  // IDs de todos los usuarios (clientes Y revendedores) de la página actual (máx 10) para la query de ventas
+  const usuarioIds = useMemo(
+    () => usuarios.map(u => u.id),
     [usuarios]
   );
-  const { stats: ventasPorUsuario } = useVentasPorUsuarios(clienteIds, { enabled: !isLoading });
+  const { stats: ventasPorUsuario } = useVentasPorUsuarios(usuarioIds, { enabled: !isLoading });
 
   // Mapear usuarios a formato display
   const usuariosDisplay: UsuarioDisplay[] = useMemo(() => {
@@ -79,8 +79,8 @@ export function TodosUsuariosTable({
       telefono: u.telefono,
       metodoPagoNombre: u.metodoPagoNombre,
       tipo: u.tipo === 'cliente' ? 'Cliente' : 'Revendedor',
-      serviciosActivos: u.tipo === 'cliente' ? (u.serviciosActivos ?? 0) : 0,
-      montoSinConsumir: u.tipo === 'cliente' ? (ventasPorUsuario[u.id]?.montoSinConsumir ?? 0) : 0,
+      serviciosActivos: u.serviciosActivos ?? 0,
+      montoSinConsumir: ventasPorUsuario[u.id]?.montoSinConsumir ?? 0,
       original: u,
     }));
   }, [usuarios, ventasPorUsuario]);

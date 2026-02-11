@@ -80,7 +80,8 @@ export const useCategoriasStore = create<CategoriasState>()(
             totalServicios: 0,
             serviciosActivos: 0,
             perfilesDisponiblesTotal: 0,
-            gastosTotal: 0,
+            ventasTotales: 0,
+            ingresosTotales: 0,
           };
 
           const id = await createDoc(COLLECTIONS.CATEGORIAS, categoriaConContadores as Omit<Categoria, 'id'>);
@@ -106,16 +107,48 @@ export const useCategoriasStore = create<CategoriasState>()(
 
       updateCategoria: async (id, updates) => {
         try {
+          const oldCategoria = get().categorias.find(c => c.id === id);
+          const cambioTipo = oldCategoria && updates.tipoCategoria && oldCategoria.tipoCategoria !== updates.tipoCategoria;
+
           await update(COLLECTIONS.CATEGORIAS, id, updates);
 
-          set((state) => ({
-            categorias: state.categorias.map((cat) =>
+          set((state) => {
+            const updatedCategorias = state.categorias.map((cat) =>
               cat.id === id
                 ? { ...cat, ...updates, updatedAt: new Date() }
                 : cat
-            ),
-            error: null
-          }));
+            );
+
+            // Actualizar contadores si cambió el tipo
+            let newCategoriasClientes = state.categoriasClientes;
+            let newCategoriasRevendedores = state.categoriasRevendedores;
+
+            if (cambioTipo && oldCategoria) {
+              const oldTipo = oldCategoria.tipoCategoria;
+              const newTipo = updates.tipoCategoria;
+
+              // Decrementar contador del tipo anterior
+              if (oldTipo === 'plataforma_streaming') {
+                newCategoriasClientes--;
+              } else if (oldTipo === 'otros') {
+                newCategoriasRevendedores--;
+              }
+
+              // Incrementar contador del tipo nuevo
+              if (newTipo === 'plataforma_streaming') {
+                newCategoriasClientes++;
+              } else if (newTipo === 'otros') {
+                newCategoriasRevendedores++;
+              }
+            }
+
+            return {
+              categorias: updatedCategorias,
+              categoriasClientes: newCategoriasClientes,
+              categoriasRevendedores: newCategoriasRevendedores,
+              error: null
+            };
+          });
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Error al actualizar categoría';
           set({ error: errorMessage });

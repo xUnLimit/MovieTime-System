@@ -312,7 +312,7 @@ All stores in `src/store/` are Firebase-integrated with **error states**, **cach
 
 Types are **organized by domain** in `src/types/` directory:
 - `auth.ts` - User, authentication, role-based access
-- `categorias.ts` - `Categoria` interface with denormalized counters (`totalServicios`, `serviciosActivos`, `perfilesDisponiblesTotal`, `gastosTotal`), `Plan` interface (name, price, cycle, type), optional fields (`tipoCategoria`, `planes`, `iconUrl`, `color`)
+- `categorias.ts` - `Categoria` interface with denormalized counters (`totalServicios`, `serviciosActivos`, `perfilesDisponiblesTotal`), `Plan` interface (name, price, cycle, type), optional fields (`tipoCategoria`, `planes`, `iconUrl`, `color`)
 - `clientes.ts` - Unified `Usuario` type with `tipo: 'cliente' | 'revendedor'`. Fields: `serviciosActivos` (denormalized count of active ventas, updated via `increment()`), `montoSinConsumir`, `moneda` (denormalized from MetodoPago). Type guards `esCliente()` / `esRevendedor()`. Legacy `suscripcionesTotales` field for revendedores.
 - `common.ts` - Shared types (ActivityLog, Configuracion, Gasto, TemplateMensaje)
 - `dashboard.ts` - Dashboard metrics (contains legacy `suscripcionesActivas` field)
@@ -500,7 +500,7 @@ const onSubmit = async (data: FormData) => {
 - Show progress bar for occupancy percentage
 - Managed in Firebase `servicios` collection
 - **Denormalized fields**: `metodoPagoNombre`, `moneda` (from MetodoPago), `gastosTotal` (accumulated sum of all payments)
-- **Category counter management**: On create/delete/toggle, `serviciosStore` atomically updates the parent category's counters (`totalServicios`, `serviciosActivos`, `perfilesDisponiblesTotal`, `gastosTotal`) using `increment()`
+- **Category counter management**: On create/delete/toggle, `serviciosStore` atomically updates the parent category's counters (`totalServicios`, `serviciosActivos`, `perfilesDisponiblesTotal`) using `increment()`
 - **Payment history**: Each service has records in `pagosServicio` collection. On creation, `serviciosStore.createServicio()` automatically creates the initial `PagoServicio` record.
 - **Servicios Detalle page** (`/servicios/detalle/[id]`): Full detail view showing service info, payment/renovation history, and profile occupancy per venta.
 - **`ServicioDetailMetrics`**: Metric cards for service detail pages
@@ -545,7 +545,7 @@ The Ventas module manages the sale of service profiles to users. It is the prima
   - `totalServicios` - Total services in this category
   - `serviciosActivos` - Active services count
   - `perfilesDisponiblesTotal` - Sum of available (unoccupied) profiles across active services
-  - `gastosTotal` - Sum of `gastosTotal` from all services
+  - **Note**: `gastosTotal` is NOT denormalized; it's calculated in real-time from `pagosServicio` collection
 - **Plans**: Categories can have `planes: Plan[]` — each plan has `nombre`, `precio`, `cicloPago`, `tipoPlan`
 - **Types**: `tipoCategoria: 'plataforma_streaming' | 'otros'`
 - **Store**: `categoriasStore` with `fetchCounts()` for metrics
@@ -730,7 +730,7 @@ state.items.push(newItem)
 
 14. **Count queries**: Use `getCount()` for metrics, NOT `getAll().length`. Count operations are free on Spark plan.
 
-15. **Denormalization strategy**: If a field is read on every page load but changes rarely, denormalize it into the main document and update atomically with `increment()`. Examples: `serviciosActivos` in Usuario, `totalServicios`/`serviciosActivos`/`perfilesDisponiblesTotal`/`gastosTotal` in Categoria.
+15. **Denormalization strategy**: If a field is read on every page load but changes rarely, denormalize it into the main document and update atomically with `increment()`. Examples: `serviciosActivos` in Usuario, `totalServicios`/`serviciosActivos`/`perfilesDisponiblesTotal` in Categoria. Note: `gastosTotal` for categories is NOT denormalized—it's calculated in real-time from `pagosServicio` collection.
 
 16. **Venta payments**: Payments are stored in the **separate `pagosVenta` collection** (not as embedded arrays in the venta document). The `pagos` field on `VentaDoc` is @deprecated. Use `usePagosVenta(ventaId)` hook or `pagosVentaService` functions.
 

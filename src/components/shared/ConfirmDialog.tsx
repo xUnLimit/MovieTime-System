@@ -22,6 +22,7 @@ interface ConfirmDialogProps {
   cancelText?: string;
   variant?: 'warning' | 'danger' | 'info';
   loading?: boolean;
+  children?: React.ReactNode;
 }
 
 export function ConfirmDialog({
@@ -34,6 +35,7 @@ export function ConfirmDialog({
   cancelText = 'Cancelar',
   variant = 'warning',
   loading = false,
+  children,
 }: ConfirmDialogProps) {
   const handleConfirm = async () => {
     await onConfirm();
@@ -75,6 +77,7 @@ export function ConfirmDialog({
             {description}
           </AlertDialogDescription>
         </AlertDialogHeader>
+        {children && <div className="py-4">{children}</div>}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={loading}>{cancelText}</AlertDialogCancel>
           <AlertDialogAction

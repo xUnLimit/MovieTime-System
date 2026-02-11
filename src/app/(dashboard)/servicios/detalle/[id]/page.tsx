@@ -18,7 +18,8 @@ import { es } from 'date-fns/locale';
 import { create, queryDocuments, remove, update, COLLECTIONS, timestampToDate, dateToTimestamp, getById } from '@/lib/firebase/firestore';
 import { doc as firestoreDoc, updateDoc, increment } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
-import { PagoServicio, Servicio, Categoria, MetodoPago } from '@/types';
+import { PagoServicio, Servicio, Categoria, MetodoPago, VentaDoc } from '@/types';
+import { getVentasConUltimoPago } from '@/lib/services/ventaSyncService';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -133,6 +134,7 @@ function ServicioDetallePageContent() {
       const pagos: PagoServicio[] = docs.map((d) => ({
         id: d.id as string,
         servicioId: d.servicioId as string,
+        categoriaId: d.categoriaId as string || '', // Puede faltar en datos migrados antiguos
         metodoPagoId: d.metodoPagoId as string | undefined,
         moneda: d.moneda as string | undefined,
         isPagoInicial: d.isPagoInicial as boolean | undefined,
@@ -167,23 +169,28 @@ function ServicioDetallePageContent() {
     const loadVentas = async () => {
       if (!id) return;
       try {
-        const docs = await queryDocuments<Record<string, unknown>>(COLLECTIONS.VENTAS, [
+        // Paso 1: Cargar ventas base (solo metadatos)
+        const ventasBase = await queryDocuments<VentaDoc>(COLLECTIONS.VENTAS, [
           { field: 'servicioId', operator: '==', value: id },
         ]);
-        const ventas = docs
-          .filter((doc) => ((doc.estado as string | undefined) ?? 'activo') !== 'inactivo')
-          .map((doc) => ({
-          perfilNumero: (doc.perfilNumero as number | null | undefined) ?? null,
-          clienteNombre: (doc.clienteNombre as string) || undefined,
-          createdAt: timestampToDate(doc.createdAt),
-          precioFinal: (doc.precioFinal as number) ?? (doc.precio as number) ?? 0,
-          descuento: (doc.descuento as number) ?? 0,
-          fechaInicio: timestampToDate(doc.fechaInicio),
-          fechaFin: timestampToDate(doc.fechaFin),
-          notas: (doc.notas as string) || '',
-          servicioNombre: (doc.servicioNombre as string) || '',
-          servicioCorreo: (doc.servicioCorreo as string) || '',
-          moneda: (doc.moneda as string) || undefined,
+
+        // Paso 2: Cargar datos actuales desde PagoVenta (fuente de verdad)
+        const ventasConDatos = await getVentasConUltimoPago(ventasBase);
+
+        const ventas = ventasConDatos
+          .filter((venta) => (venta.estado ?? 'activo') !== 'inactivo')
+          .map((venta) => ({
+          perfilNumero: venta.perfilNumero ?? null,
+          clienteNombre: venta.clienteNombre || undefined,
+          createdAt: venta.createdAt,
+          precioFinal: venta.precioFinal ?? venta.precio ?? 0,
+          descuento: venta.descuento ?? 0,
+          fechaInicio: venta.fechaInicio ?? undefined,
+          fechaFin: venta.fechaFin ?? undefined,
+          notas: venta.notas || '',
+          servicioNombre: venta.servicioNombre,
+          servicioCorreo: venta.servicioCorreo || '',
+          moneda: venta.moneda || undefined,
         }));
         setVentasServicio(ventas);
       } catch (error) {
@@ -269,16 +276,10 @@ function ServicioDetallePageContent() {
         isPagoInicial: false,
       });
 
-      // Ajustar gastosTotal del servicio y de la categoría con la diferencia si cambió el monto
+      // Ajustar gastosTotal del servicio con la diferencia si cambió el monto
       if (montoDiff !== 0 && servicio) {
         const servicioRef = firestoreDoc(db, COLLECTIONS.SERVICIOS, id);
         await updateDoc(servicioRef, {
-          gastosTotal: increment(montoDiff)
-        });
-
-        // Actualizar gastosTotal de la categoría
-        const categoriaRef = firestoreDoc(db, COLLECTIONS.CATEGORIAS, servicio.categoriaId);
-        await updateDoc(categoriaRef, {
           gastosTotal: increment(montoDiff)
         });
       }
@@ -319,14 +320,9 @@ function ServicioDetallePageContent() {
     try {
       await remove(COLLECTIONS.PAGOS_SERVICIO, pagoToDelete.id);
 
-      // Decrementar gastosTotal del servicio y de la categoría
+      // Decrementar gastosTotal del servicio
       const servicioRef = firestoreDoc(db, COLLECTIONS.SERVICIOS, id);
       await updateDoc(servicioRef, {
-        gastosTotal: increment(-montoToRevert)
-      });
-
-      const categoriaRef = firestoreDoc(db, COLLECTIONS.CATEGORIAS, servicio.categoriaId);
-      await updateDoc(categoriaRef, {
         gastosTotal: increment(-montoToRevert)
       });
 
@@ -366,6 +362,7 @@ function ServicioDetallePageContent() {
 
       await create(COLLECTIONS.PAGOS_SERVICIO, {
         servicioId: id,
+        categoriaId: servicio?.categoriaId || '',  // Denormalizado para queries eficientes
         fecha: fechaRegistro,
         descripcion,
         cicloPago: data.periodoRenovacion as 'mensual' | 'trimestral' | 'semestral' | 'anual',
@@ -378,18 +375,11 @@ function ServicioDetallePageContent() {
         isPagoInicial: false,
       });
 
-      // Incrementar gastosTotal del servicio y de la categoría
+      // Incrementar gastosTotal del servicio
       const servicioRef = firestoreDoc(db, COLLECTIONS.SERVICIOS, id);
       await updateDoc(servicioRef, {
         gastosTotal: increment(data.costo)
       });
-
-      if (servicio) {
-        const categoriaRef = firestoreDoc(db, COLLECTIONS.CATEGORIAS, servicio.categoriaId);
-        await updateDoc(categoriaRef, {
-          gastosTotal: increment(data.costo)
-        });
-      }
 
       await updateServicio(id, {
         fechaInicio: data.fechaInicio,
@@ -413,6 +403,7 @@ function ServicioDetallePageContent() {
       const pagos: PagoServicio[] = docs.map((d) => ({
         id: d.id as string,
         servicioId: d.servicioId as string,
+        categoriaId: d.categoriaId as string || '', // Puede faltar en datos migrados antiguos
         metodoPagoId: d.metodoPagoId as string | undefined,
         moneda: d.moneda as string | undefined,
         isPagoInicial: d.isPagoInicial as boolean | undefined,
@@ -547,9 +538,11 @@ function ServicioDetallePageContent() {
   const perfilesArray = Array.from({ length: servicio.perfilesDisponibles }, (_, i) => {
     const numero = i + 1;
     const venta = ventasPorPerfil.get(numero);
+    // Si el servicio está inactivo, todos los perfiles se muestran como inactivos
+    const estado = !servicio.activo ? 'inactivo' : (venta ? 'ocupado' : 'disponible');
     return {
       nombre: `Perfil ${numero}`,
-      estado: venta ? 'ocupado' : 'disponible',
+      estado,
       clienteNombre: venta?.clienteNombre,
       venta,
     };
@@ -725,24 +718,35 @@ function ServicioDetallePageContent() {
                   <div
                     key={index}
                     className={`rounded-lg border px-4 py-3 ${
-                      perfil.estado === 'ocupado' ? 'bg-green-950/30 border-green-900/50' : 'bg-muted/50 border-border'
+                      perfil.estado === 'ocupado' ? 'bg-green-950/30 border-green-900/50' :
+                      perfil.estado === 'inactivo' ? 'bg-muted/30 border-muted opacity-50' :
+                      'bg-muted/50 border-border'
                     }`}
                   >
                     <button
                       type="button"
                       onClick={() => perfil.estado === 'ocupado' && toggleProfile(index)}
                       className="w-full flex items-center justify-between"
+                      disabled={perfil.estado === 'inactivo'}
                     >
                       <div className="flex items-center gap-3">
-                        <User className={`h-5 w-5 ${perfil.estado === 'ocupado' ? 'text-green-500' : 'text-blue-500'}`} />
-                        <span className="font-medium">
+                        <User className={`h-5 w-5 ${
+                          perfil.estado === 'ocupado' ? 'text-green-500' :
+                          perfil.estado === 'inactivo' ? 'text-gray-600' :
+                          'text-blue-500'
+                        }`} />
+                        <span className={`font-medium ${perfil.estado === 'inactivo' ? 'text-gray-600' : ''}`}>
                           {perfil.estado === 'ocupado' && perfil.clienteNombre
                             ? perfil.clienteNombre
                             : perfil.nombre}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        {perfil.estado === 'disponible' ? (
+                        {perfil.estado === 'inactivo' ? (
+                          <Badge variant="secondary" className="bg-gray-700 text-gray-400 hover:bg-gray-700">
+                            Inactivo
+                          </Badge>
+                        ) : perfil.estado === 'disponible' ? (
                           <Badge variant="secondary" className="bg-green-600 text-white hover:bg-green-700">
                             Disponible
                           </Badge>
@@ -819,9 +823,15 @@ function ServicioDetallePageContent() {
                     <div className="w-3 h-3 rounded-full bg-blue-600"></div>
                     <span className="text-muted-foreground">Disponible</span>
                   </div>
+                  {!servicio.activo && (
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-gray-600"></div>
+                      <span className="text-muted-foreground">Inactivo</span>
+                    </div>
+                  )}
                 </div>
                 <span className="text-muted-foreground">
-                  {perfilesDisponibles} de {servicio.perfilesDisponibles} perfiles disponibles
+                  {servicio.activo ? `${perfilesDisponibles} de ${servicio.perfilesDisponibles} perfiles disponibles` : 'Servicio inactivo'}
                 </span>
               </div>
             </Card>

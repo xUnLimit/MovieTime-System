@@ -139,7 +139,6 @@ export function CategoriaForm({ mode, categoria }: CategoriaFormProps) {
           totalServicios: 0,
           serviciosActivos: 0,
           perfilesDisponiblesTotal: 0,
-          gastosTotal: 0,
         });
         toast.success('Categoría creada exitosamente');
       } else if (categoria) {

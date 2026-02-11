@@ -29,6 +29,7 @@ import { useUsuariosStore } from '@/store/usuariosStore';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useVentasStore } from '@/store/ventasStore';
 import { toast } from 'sonner';
+import type { Servicio } from '@/types/servicios';
 import { COLLECTIONS, queryDocuments, adjustVentasActivas } from '@/lib/firebase/firestore';
 import { Switch } from '@/components/ui/switch';
 import { formatearFechaWhatsApp, getSaludo } from '@/lib/utils/whatsapp';
@@ -98,7 +99,7 @@ export function VentasForm() {
   const [metodosPagoUsuarios, setMetodosPagoUsuarios] = useState<Array<{ id: string; nombre: string; asociadoA: string; moneda: string }>>([]);
 
   // Estado local para servicios (cargados solo cuando se selecciona categoría)
-  const [serviciosCategoria, setServiciosCategoria] = useState<Array<{ id: string; nombre: string; tipo: string; categoriaId: string; perfilesDisponibles?: number; perfilesOcupados?: number; correo?: string; contrasena?: string; cicloPago?: string }>>([]);
+  const [serviciosCategoria, setServiciosCategoria] = useState<Servicio[]>([]);
   const [loadingServicios, setLoadingServicios] = useState(false);
 
   const [activeTab, setActiveTab] = useState<'datos' | 'preview'>('datos');
@@ -182,18 +183,10 @@ export function VentasForm() {
     const loadServiciosCategoria = async () => {
       setLoadingServicios(true);
       try {
-        const servicios = await queryDocuments<{
-          id: string;
-          nombre: string;
-          tipo: string;
-          categoriaId: string;
-          perfilesDisponibles?: number;
-          perfilesOcupados?: number;
-          correo?: string;
-          cicloPago?: string;
-        }>(COLLECTIONS.SERVICIOS, [
-          { field: 'categoriaId', operator: '==', value: categoriaId },
-        ]);
+        const servicios = await queryDocuments<Servicio>(
+          COLLECTIONS.SERVICIOS,
+          [{ field: 'categoriaId', operator: '==', value: categoriaId }]
+        );
         setServiciosCategoria(servicios);
       } catch (error) {
         console.error('Error cargando servicios:', error);
@@ -323,6 +316,21 @@ export function VentasForm() {
       return acc;
     }, {});
   }, [items]);
+
+  // Filtrar servicios: solo activos con perfiles disponibles
+  const serviciosFiltrados = useMemo(() => {
+    return serviciosOrdenados.filter((servicio) => {
+      // Debe estar activo
+      if (!servicio.activo) return false;
+
+      // Debe tener perfiles disponibles (considerando los ya ocupados en la venta actual)
+      const ocupadosActual = servicio.perfilesOcupados || 0;
+      const ocupadosEnVenta = perfilesUsados[servicio.id]?.size || 0;
+      const disponibles = (servicio.perfilesDisponibles || 0) - ocupadosActual - ocupadosEnVenta;
+
+      return disponibles > 0;
+    });
+  }, [serviciosOrdenados, perfilesUsados]);
 
   const getSlotsDisponibles = (servicioIdValue: string) => {
     const servicio = serviciosCategoria.find((s) => s.id === servicioIdValue);
@@ -834,18 +842,24 @@ export function VentasForm() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                      {serviciosOrdenados.map((servicio) => (
-                        <DropdownMenuItem
-                          key={servicio.id}
-                          onClick={() => {
-                            setServicioId(servicio.id);
-                            setPerfilNumero('');
-                            setItemErrors((prev) => ({ ...prev, servicio: undefined }));
-                          }}
-                        >
-                          {servicio.nombre} - {servicio.correo}
+                      {serviciosFiltrados.length > 0 ? (
+                        serviciosFiltrados.map((servicio) => (
+                          <DropdownMenuItem
+                            key={servicio.id}
+                            onClick={() => {
+                              setServicioId(servicio.id);
+                              setPerfilNumero('');
+                              setItemErrors((prev) => ({ ...prev, servicio: undefined }));
+                            }}
+                          >
+                            {servicio.nombre} - {servicio.correo}
+                          </DropdownMenuItem>
+                        ))
+                      ) : (
+                        <DropdownMenuItem disabled className="text-muted-foreground">
+                          No hay servicios disponibles
                         </DropdownMenuItem>
-                      ))}
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                   {itemErrors.servicio && <p className="text-sm text-red-500">{itemErrors.servicio}</p>}

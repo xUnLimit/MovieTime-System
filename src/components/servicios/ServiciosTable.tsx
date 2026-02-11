@@ -6,6 +6,8 @@ import { DataTable, Column } from '@/components/shared/DataTable';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { Edit, Trash2, Copy } from 'lucide-react';
 import { useServiciosStore } from '@/store/serviciosStore';
 import { useCategoriasStore } from '@/store/categoriasStore';
@@ -22,17 +24,24 @@ export function ServiciosTable({ servicios, onEdit }: ServiciosTableProps) {
   const { fetchCategorias } = useCategoriasStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [servicioToDelete, setServicioToDelete] = useState<Servicio | null>(null);
+  const [deletePayments, setDeletePayments] = useState(false);
 
   const handleDelete = (servicio: Servicio) => {
     setServicioToDelete(servicio);
+    setDeletePayments(false); // Reset checkbox
     setDeleteDialogOpen(true);
   };
 
   const handleConfirmDelete = async () => {
     if (servicioToDelete) {
       try {
-        await deleteServicio(servicioToDelete.id);
-        toast.success('Servicio eliminado');
+        await deleteServicio(servicioToDelete.id, deletePayments);
+
+        if (deletePayments) {
+          toast.success('Servicio y registros de pago eliminados');
+        } else {
+          toast.success('Servicio eliminado (registros de pago conservados)');
+        }
 
         // Refrescar categorías y contadores de servicios para actualizar widgets
         await Promise.all([
@@ -76,18 +85,23 @@ export function ServiciosTable({ servicios, onEdit }: ServiciosTableProps) {
     {
       key: 'perfiles',
       header: 'Perfiles',
-      render: (item) => (
-        <div className="w-32">
-          <div className="flex justify-between text-sm mb-1">
-            <span>{item.perfilesOcupados}</span>
-            <span className="text-muted-foreground">de {item.perfilesDisponibles}</span>
+      render: (item) => {
+        // Si el servicio está inactivo, mostrar barra vacía y 0 disponibles
+        const ocupados = !item.activo ? 0 : item.perfilesOcupados;
+        const porcentaje = !item.activo ? 0 : ((item.perfilesOcupados / item.perfilesDisponibles) * 100);
+        return (
+          <div className="w-32">
+            <div className="flex justify-between text-sm mb-1">
+              <span className={!item.activo ? 'text-gray-600' : ''}>{ocupados}</span>
+              <span className={!item.activo ? 'text-gray-600' : 'text-muted-foreground'}>de {item.perfilesDisponibles}</span>
+            </div>
+            <Progress
+              value={porcentaje}
+              className={`h-2 ${!item.activo ? 'opacity-50' : ''}`}
+            />
           </div>
-          <Progress
-            value={(item.perfilesOcupados / item.perfilesDisponibles) * 100}
-            className="h-2"
-          />
-        </div>
-      ),
+        );
+      },
     },
     {
       key: 'correo',
@@ -166,7 +180,26 @@ export function ServiciosTable({ servicios, onEdit }: ServiciosTableProps) {
         description={`¿Estás seguro de que quieres eliminar el servicio "${servicioToDelete?.nombre}"? Esta acción no se puede deshacer.`}
         confirmText="Eliminar"
         variant="danger"
-      />
+      >
+        <div className="flex items-start space-x-2">
+          <Checkbox
+            id="delete-payments"
+            checked={deletePayments}
+            onCheckedChange={(checked) => setDeletePayments(checked as boolean)}
+          />
+          <div className="grid gap-1.5 leading-none">
+            <Label
+              htmlFor="delete-payments"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+            >
+              Eliminar también los registros de pago
+            </Label>
+            <p className="text-sm text-muted-foreground">
+              Al marcar esta opción, se eliminarán todos los registros de pago de la base de datos. Si no se marca, se conservarán para historial.
+            </p>
+          </div>
+        </div>
+      </ConfirmDialog>
     </>
   );
 }

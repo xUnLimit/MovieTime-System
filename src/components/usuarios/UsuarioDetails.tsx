@@ -43,7 +43,7 @@ export function UsuarioDetails({ usuario, onVentaDeleted }: UsuarioDetailsProps)
 
   const handleWhatsApp = () => {
     const phone = usuario.telefono.replace(/\D/g, '');
-    window.open(`https://wa.me/${phone}`, '_blank');
+    window.open(`https://web.whatsapp.com/send?phone=${phone}`, '_blank');
   };
 
   const handleCopy = async (value: string) => {

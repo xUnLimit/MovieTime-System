@@ -101,7 +101,6 @@ export function CategoriaDialog({
           totalServicios: 0,
           serviciosActivos: 0,
           perfilesDisponiblesTotal: 0,
-          gastosTotal: 0,
         });
         toast.success('Categoría creada');
       }

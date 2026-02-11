@@ -17,7 +17,7 @@ import {
 import { VentaDoc } from '@/types';
 import { cn } from '@/lib/utils';
 import { getCurrencySymbol } from '@/lib/constants';
-import { formatearFecha } from '@/lib/utils/calculations';
+import { formatearFecha, calcularMontoSinConsumir } from '@/lib/utils/calculations';
 
 interface VentasTableProps {
   ventas: VentaDoc[];
@@ -43,7 +43,7 @@ interface VentaRow {
   fechaVencimiento?: Date;
   monto: number;
   consumoPorcentaje: number;
-  montoRestante: number;
+  montoSinConsumir: number;
   moneda: string;
   estado: 'activa' | 'suspendida' | 'inactiva';
   categoriaId?: string;
@@ -60,9 +60,6 @@ const getCicloPagoLabel = (ciclo?: string) => {
   return ciclo ? labels[ciclo] || ciclo : '—';
 };
 
-
-const clamp = (value: number, min = 0, max = 1) => Math.min(Math.max(value, min), max);
-
 export function VentasTable({
   ventas,
   isLoading,
@@ -78,20 +75,23 @@ export function VentasTable({
   const [searchQuery, setSearchQuery] = useState('');
 
   const rows = useMemo(() => {
-    const hoy = new Date();
-
     return ventas.map((venta) => {
       const moneda = venta.moneda || 'USD';
-
-      const fechaInicio = venta.fechaInicio ? new Date(venta.fechaInicio) : undefined;
-      const fechaVencimiento = venta.fechaFin ? new Date(venta.fechaFin) : undefined;
-
-      const totalMs = fechaInicio && fechaVencimiento ? fechaVencimiento.getTime() - fechaInicio.getTime() : 0;
-      const elapsedMs = fechaInicio ? hoy.getTime() - fechaInicio.getTime() : 0;
-      const ratio = totalMs > 0 ? clamp(elapsedMs / totalMs) : 0;
-      const consumoPorcentaje = Math.round(ratio * 100);
       const monto = venta.precioFinal ?? 0;
-      const montoRestante = Math.max(monto * (1 - ratio), 0);
+
+      // Calcular monto sin consumir usando función estandarizada
+      const montoSinConsumir = venta.fechaInicio && venta.fechaFin
+        ? calcularMontoSinConsumir(
+            new Date(venta.fechaInicio),
+            new Date(venta.fechaFin),
+            monto
+          )
+        : 0;
+
+      // Calcular consumo porcentaje para display
+      const consumoPorcentaje = monto > 0
+        ? Math.round(((monto - montoSinConsumir) / monto) * 100)
+        : 0;
       const inactivaPorEstado = venta.estado === 'inactivo';
       const estado: VentaRow['estado'] = inactivaPorEstado ? 'inactiva' : 'activa';
 
@@ -102,11 +102,11 @@ export function VentasTable({
         servicio: venta.servicioNombre,
         servicioDetalle: venta.servicioCorreo || 'Sin correo',
         cicloPago: getCicloPagoLabel(venta.cicloPago),
-        fechaInicio,
-        fechaVencimiento,
+        fechaInicio: venta.fechaInicio ? new Date(venta.fechaInicio) : undefined,
+        fechaVencimiento: venta.fechaFin ? new Date(venta.fechaFin) : undefined,
         monto,
         consumoPorcentaje,
-        montoRestante,
+        montoSinConsumir,
         moneda,
         estado,
         categoriaId: venta.categoriaId,
@@ -235,15 +235,15 @@ export function VentasTable({
       ),
     },
     {
-      key: 'montoRestante',
-      header: 'Monto Restante',
+      key: 'montoSinConsumir',
+      header: 'Monto Sin Consumir',
       sortable: true,
       width: '12%',
       align: 'center',
       render: (item) => (
         <div className="text-center font-medium">
           <span className="text-green-500">{getCurrencySymbol(item.moneda)}</span>
-          <span className="text-foreground"> {item.montoRestante.toFixed(2)}</span>
+          <span className="text-foreground"> {item.montoSinConsumir.toFixed(2)}</span>
         </div>
       ),
     },

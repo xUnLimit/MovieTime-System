@@ -124,15 +124,38 @@ export const useMetodosPagoStore = create<MetodosPagoState>()(
 
       updateMetodoPago: async (id, updates) => {
         try {
+          const oldMetodo = get().metodosPago.find(m => m.id === id);
+          const cambioAsociado = oldMetodo && updates.asociadoA && oldMetodo.asociadoA !== updates.asociadoA;
+
           await update(COLLECTIONS.METODOS_PAGO, id, updates);
 
-          set((state) => ({
-            metodosPago: state.metodosPago.map((metodo) =>
+          set((state) => {
+            const updatedMetodos = state.metodosPago.map((metodo) =>
               metodo.id === id
                 ? { ...metodo, ...updates, updatedAt: new Date() }
                 : metodo
-            )
-          }));
+            );
+
+            // Actualizar contadores si cambió el asociadoA
+            let newMetodosUsuarios = state.metodosUsuarios;
+            let newMetodosServicios = state.metodosServicios;
+
+            if (cambioAsociado && oldMetodo) {
+              if (oldMetodo.asociadoA === 'usuario' && updates.asociadoA === 'servicio') {
+                newMetodosUsuarios--;
+                newMetodosServicios++;
+              } else if (oldMetodo.asociadoA === 'servicio' && updates.asociadoA === 'usuario') {
+                newMetodosUsuarios++;
+                newMetodosServicios--;
+              }
+            }
+
+            return {
+              metodosPago: updatedMetodos,
+              metodosUsuarios: newMetodosUsuarios,
+              metodosServicios: newMetodosServicios
+            };
+          });
         } catch (error) {
           console.error('Error updating metodo pago:', error);
           throw error;

@@ -26,7 +26,8 @@
       "Bash(grep:*)",
       "Bash(npx tsx:*)",
       "Bash(test:*)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(npx eslint:*)"
     ]
   }
 }

@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
-import { ChevronDown, Search, Eye, EyeOff } from 'lucide-react';
+import { ChevronDown, Search } from 'lucide-react';
 import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { useRouter } from 'next/navigation';
 import { MetodoPago } from '@/types';
@@ -119,7 +119,6 @@ export function MetodoPagoForm({ mode, metodoPago }: MetodoPagoFormProps) {
   const [activeTab, setActiveTab] = useState('basica');
   const [paisSearch, setPaisSearch] = useState('');
   const [isBasicaTabComplete, setIsBasicaTabComplete] = useState(mode === 'edit');
-  const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
@@ -670,26 +669,12 @@ export function MetodoPagoForm({ mode, metodoPago }: MetodoPagoFormProps) {
                 {/* Contraseña */}
                 <div className="space-y-2">
                   <Label htmlFor="contrasena">Contraseña</Label>
-                  <div className="relative">
-                    <Input
-                      id="contrasena"
-                      type={showPassword ? 'text' : 'password'}
-                      {...register('contrasena')}
-                      placeholder="Ingrese la contraseña"
-                      className="pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </button>
-                  </div>
+                  <Input
+                    id="contrasena"
+                    type="text"
+                    {...register('contrasena')}
+                    placeholder="Ingrese la contraseña"
+                  />
                   {errors.contrasena && (
                     <p className="text-sm text-red-500">{errors.contrasena.message}</p>
                   )}

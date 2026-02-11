@@ -90,6 +90,14 @@
       ]
     },
     {
+      "collectionGroup": "pagosServicio",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "categoriaId", "order": "ASCENDING" },
+        { "fieldPath": "fecha", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "activityLog",
       "queryScope": "COLLECTION",
       "fields": [

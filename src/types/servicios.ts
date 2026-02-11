@@ -34,6 +34,7 @@ export interface Servicio {
 export interface PagoServicio {
   id: string;
   servicioId: string;
+  categoriaId: string;  // Denormalizado de Servicio para queries eficientes
   metodoPagoId?: string;
   metodoPagoNombre?: string;  // Denormalizado de MetodoPago
   moneda?: string;

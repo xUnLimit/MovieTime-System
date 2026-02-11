@@ -1,11 +1,11 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { ConfirmDeleteVentaDialog } from '@/components/shared/ConfirmDeleteVentaDialog';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 import { VentasTable } from '@/components/ventas/VentasTable';
 import { VentasMetrics } from '@/components/ventas/VentasMetrics';
@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { COLLECTIONS } from '@/lib/firebase/firestore';
 import { VentaDoc } from '@/types';
 import { FilterOption } from '@/lib/firebase/pagination';
+import { getVentasConUltimoPago, VentaConUltimoPago } from '@/lib/services/ventaSyncService';
 
 function VentasPageContent() {
   const { deleteVenta, fetchCounts } = useVentasStore();
@@ -44,6 +45,32 @@ function VentasPageContent() {
     orderDirection: 'desc',
   });
 
+  // Cargar datos del último pago desde PagoVenta
+  const [ventasConUltimoPago, setVentasConUltimoPago] = useState<VentaConUltimoPago[]>([]);
+  const [loadingDatos, setLoadingDatos] = useState(false);
+
+  useEffect(() => {
+    const cargarDatosUltimoPago = async () => {
+      if (ventasPaginadas.length === 0) {
+        setVentasConUltimoPago([]);
+        return;
+      }
+
+      setLoadingDatos(true);
+      try {
+        const ventasConPagoActual = await getVentasConUltimoPago(ventasPaginadas);
+        setVentasConUltimoPago(ventasConPagoActual);
+      } catch (error) {
+        console.error('Error cargando datos del último pago de ventas:', error);
+        setVentasConUltimoPago(ventasPaginadas as VentaConUltimoPago[]);
+      } finally {
+        setLoadingDatos(false);
+      }
+    };
+
+    cargarDatosUltimoPago();
+  }, [ventasPaginadas]);
+
   const tituloTab = useMemo(() => {
     switch (activeTab) {
       case 'activas':
@@ -62,11 +89,11 @@ function VentasPageContent() {
     setDeleteDialogOpen(true);
   };
 
-  const handleConfirmDeleteVenta = async () => {
+  const handleConfirmDeleteVenta = async (deletePagos: boolean) => {
     if (!deleteVentaId) return;
     try {
-      await deleteVenta(deleteVentaId, deleteVentaServicioId, deleteVentaPerfilNumero);
-      toast.success('Venta eliminada correctamente');
+      await deleteVenta(deleteVentaId, deleteVentaServicioId, deleteVentaPerfilNumero, deletePagos);
+      toast.success(deletePagos ? 'Venta y pagos eliminados correctamente' : 'Venta eliminada correctamente');
       setDeleteVentaId(null);
       setDeleteVentaServicioId(undefined);
       setDeleteVentaPerfilNumero(undefined);
@@ -124,8 +151,8 @@ function VentasPageContent() {
 
         <TabsContent value={activeTab} className="space-y-4">
           <VentasTable
-            ventas={ventasPaginadas}
-            isLoading={isLoading}
+            ventas={ventasConUltimoPago}
+            isLoading={isLoading || loadingDatos}
             title={tituloTab}
             onDelete={handleDeleteVenta}
             // Paginación
@@ -138,7 +165,7 @@ function VentasPageContent() {
         </TabsContent>
       </Tabs>
     </div>
-    <ConfirmDialog
+    <ConfirmDeleteVentaDialog
         open={deleteDialogOpen}
         onOpenChange={(open) => {
           setDeleteDialogOpen(open);
@@ -149,10 +176,6 @@ function VentasPageContent() {
           }
         }}
         onConfirm={handleConfirmDeleteVenta}
-        title="Eliminar Venta"
-        description="¿Estás seguro de que quieres eliminar esta venta? Esta acción no se puede deshacer."
-        confirmText="Eliminar"
-        variant="danger"
       />
     </>
   );

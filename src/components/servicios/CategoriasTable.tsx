@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useMemo, useState } from 'react';
+import { memo, useMemo, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Table,
@@ -21,7 +21,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Monitor, Users, ShoppingCart, Eye, Search, ArrowUpDown, TrendingUp } from 'lucide-react';
-import { Categoria } from '@/types';
+import { Categoria, Servicio, PagoServicio, VentaDoc, PagoVenta } from '@/types';
+import { queryDocuments, COLLECTIONS } from '@/lib/firebase/firestore';
+import { calcularMontoSinConsumir } from '@/lib/utils/calculations';
+import { getVentasConUltimoPago } from '@/lib/services/ventaSyncService';
 
 interface CategoriasTableProps {
   categorias: Categoria[];
@@ -50,10 +53,77 @@ export const CategoriasTable = memo(function CategoriasTable({
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [sortKey, setSortKey] = useState<keyof CategoriaRow | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
+  const [gastosMap, setGastosMap] = useState<Map<string, number>>(new Map());
+  const [ventasMap, setVentasMap] = useState<Map<string, VentaDoc[]>>(new Map());
 
   const handleViewCategoria = (categoriaId: string) => {
     router.push(`/servicios/${categoriaId}`);
   };
+
+  // Cargar gastos desde pagosServicio (historial permanente)
+  // Query DIRECTA por categoriaId - sin necesidad de cargar todos los servicios
+  useEffect(() => {
+    const fetchGastos = async () => {
+      const gastosTemp = new Map<string, number>();
+
+      for (const categoria of categorias.filter(c => c.activo)) {
+        try {
+          // Query DIRECTA: obtener todos los pagos de esta categoría
+          // Gracias al campo denormalizado categoriaId en PagoServicio
+          const pagos = await queryDocuments<PagoServicio>(
+            COLLECTIONS.PAGOS_SERVICIO,
+            [{ field: 'categoriaId', operator: '==', value: categoria.id }]
+          );
+
+          const totalGastos = pagos.reduce((sum, pago) => sum + (pago.monto || 0), 0);
+          gastosTemp.set(categoria.id, totalGastos);
+        } catch (error) {
+          console.error(`Error cargando gastos de categoría ${categoria.nombre}:`, error);
+          gastosTemp.set(categoria.id, 0);
+        }
+      }
+
+      setGastosMap(gastosTemp);
+    };
+
+    if (categorias.length > 0) {
+      fetchGastos();
+    }
+  }, [categorias]);
+
+  // Cargar ventas activas por categoría para calcular monto sin consumir
+  useEffect(() => {
+    const fetchVentas = async () => {
+      const ventasTemp = new Map<string, VentaDoc[]>();
+
+      for (const categoria of categorias.filter(c => c.activo)) {
+        try {
+          // Query: obtener todas las ventas de esta categoría (sin filtro de estado)
+          const todasVentas = await queryDocuments<VentaDoc>(
+            COLLECTIONS.VENTAS,
+            [{ field: 'categoriaId', operator: '==', value: categoria.id }]
+          );
+
+          // Filtrar manualmente las ventas activas
+          const ventasActivas = todasVentas.filter(v => (v.estado ?? 'activo') !== 'inactivo');
+
+          // Cargar datos actuales desde PagoVenta (fuente de verdad para fechas y precios)
+          const ventasConDatos = await getVentasConUltimoPago(ventasActivas);
+
+          ventasTemp.set(categoria.id, ventasConDatos);
+        } catch (error) {
+          console.error(`Error cargando ventas de categoría ${categoria.nombre}:`, error);
+          ventasTemp.set(categoria.id, []);
+        }
+      }
+
+      setVentasMap(ventasTemp);
+    };
+
+    if (categorias.length > 0) {
+      fetchVentas();
+    }
+  }, [categorias]);
 
   const rows = useMemo(() => {
     const categoriaData: CategoriaRow[] = categorias
@@ -62,14 +132,26 @@ export const CategoriasTable = memo(function CategoriasTable({
         // Leer métricas directamente de los campos denormalizados
         const totalServicios = categoria.totalServicios ?? 0;
         const serviciosActivos = categoria.serviciosActivos ?? 0;
-        const perfilesDisponibles = categoria.perfilesDisponiblesTotal ?? 0;
-        const gastosTotal = categoria.gastosTotal ?? 0;
+        const perfilesDisponibles = Math.max(0, categoria.perfilesDisponiblesTotal ?? 0);
 
-        // Valores que no cambian (sin suscripciones)
-        const suscripcionesTotales = 0;
-        const ingresoTotal = 0;
+        // Calcular gastosTotal desde pagosServicio (historial permanente)
+        const gastosTotal = gastosMap.get(categoria.id) ?? 0;
+
+        // Leer ventas e ingresos desde campos denormalizados
+        const suscripcionesTotales = categoria.ventasTotales ?? 0;
+        const ingresoTotal = categoria.ingresosTotales ?? 0;
         const gananciaTotal = ingresoTotal - gastosTotal;
-        const montoSinConsumir = 0;
+
+        // Calcular monto sin consumir desde ventas activas
+        const ventasActivas = ventasMap.get(categoria.id) ?? [];
+        const montoSinConsumir = ventasActivas.reduce((sum, venta) => {
+          if (!venta.fechaInicio || !venta.fechaFin) return sum;
+          return sum + calcularMontoSinConsumir(
+            new Date(venta.fechaInicio),
+            new Date(venta.fechaFin),
+            venta.precioFinal || 0
+          );
+        }, 0);
 
         return {
           categoria,
@@ -85,7 +167,7 @@ export const CategoriasTable = memo(function CategoriasTable({
       });
 
     return categoriaData;
-  }, [categorias]);
+  }, [categorias, gastosMap, ventasMap]);
 
   // Filtrar por búsqueda
   const filteredRows = useMemo(() => {
@@ -339,7 +421,7 @@ export const CategoriasTable = memo(function CategoriasTable({
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <span className={`${row.montoSinConsumir === 0 ? 'text-muted-foreground' : ''}`}>$</span>
+                        <span className={`${row.montoSinConsumir === 0 ? 'text-muted-foreground' : 'text-orange-500'}`}>$</span>
                         <span className={`${row.montoSinConsumir === 0 ? 'text-muted-foreground' : ''}`}>{row.montoSinConsumir.toFixed(2)}</span>
                       </div>
                     </TableCell>

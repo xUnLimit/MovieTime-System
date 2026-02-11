@@ -235,11 +235,37 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
     [planesDisponibles, planIdValue]
   );
 
+  // Track if the form has been manually initialized to avoid overwriting custom prices
+  const [precioInicializado, setPrecioInicializado] = useState(false);
+
+  // Track if plan was manually initialized to avoid overwriting manual changes
+  const [planInicializado, setPlanInicializado] = useState(false);
+
+  // Track the last plan ID to detect manual changes
+  const [lastPlanId, setLastPlanId] = useState<string | null>(null);
+
+  // Inicializar el precio desde la venta una sola vez
   useEffect(() => {
-    if (planSeleccionado) {
+    if (!precioInicializado && venta.precio > 0) {
+      setValue('precio', venta.precio.toFixed(2));
+      setPrecioInicializado(true);
+    }
+  }, [venta.precio, precioInicializado, setValue]);
+
+  // Auto-calcular precio cuando el usuario cambia manualmente el plan
+  useEffect(() => {
+    // Si no hay plan seleccionado, no hacer nada
+    if (!planSeleccionado) return;
+
+    // Detectar si el plan cambió manualmente
+    const planCambio = lastPlanId !== null && lastPlanId !== planIdValue;
+
+    // Si el plan cambió manualmente, actualizar el precio
+    // Si aún no está inicializado, también actualizar (primera vez)
+    if (planCambio || !precioInicializado) {
       setValue('precio', planSeleccionado.precio.toFixed(2));
     }
-  }, [planSeleccionado, setValue]);
+  }, [planSeleccionado, setValue, precioInicializado, planIdValue, lastPlanId]);
 
   // Marcar las fechas como inicializadas una vez que se cargan desde la venta
   useEffect(() => {
@@ -249,25 +275,45 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
   }, [fechaInicioValue, fechaFinValue, fechasInicializadas]);
 
   useEffect(() => {
-    // NO auto-calcular si las fechas ya fueron inicializadas desde la venta
-    if (fechasInicializadas) return;
+    // Solo calcular si hay un plan seleccionado y una fecha de inicio
     if (!planSeleccionado || !fechaInicioValue) return;
 
-    const meses = MESES_POR_CICLO[planSeleccionado.cicloPago] ?? 1;
-    const fechaCalculada = addMonths(new Date(fechaInicioValue), meses);
+    // Detectar si el plan cambió manualmente
+    const planCambio = lastPlanId !== null && lastPlanId !== planIdValue;
 
-    // Solo actualizar si es diferente (evitar loops)
-    if (!fechaFinValue || Math.abs(fechaCalculada.getTime() - fechaFinValue.getTime()) > 86400000) {
-      setValue('fechaFin', fechaCalculada);
+    // Si el plan cambió manualmente O no ha sido inicializado aún, recalcular
+    if (!planInicializado || planCambio) {
+      const meses = MESES_POR_CICLO[planSeleccionado.cicloPago] ?? 1;
+      const fechaCalculada = addMonths(new Date(fechaInicioValue), meses);
+
+      // Solo actualizar si es diferente (evitar loops)
+      if (!fechaFinValue || Math.abs(fechaCalculada.getTime() - fechaFinValue.getTime()) > 86400000) {
+        setValue('fechaFin', fechaCalculada);
+      }
     }
-  }, [planSeleccionado, fechaInicioValue, setValue, fechasInicializadas, fechaFinValue]);
 
+    // Actualizar el último plan ID
+    setLastPlanId(planIdValue);
+  }, [planSeleccionado, fechaInicioValue, setValue, fechaFinValue, planInicializado, planIdValue, lastPlanId]);
+
+  // Efecto para pre-seleccionar el plan cuando los planes están disponibles (solo una vez)
   useEffect(() => {
-    if (!planIdValue && planesDisponibles.length > 0) {
-      const match = planesDisponibles.find((p) => p.cicloPago === venta.cicloPago) || planesDisponibles[0];
-      setValue('planId', match.id);
+    // Solo ejecutar si NO ha sido inicializado y hay planes disponibles y la venta tiene un cicloPago definido
+    if (!planInicializado && planesDisponibles.length > 0 && venta.cicloPago) {
+      // Buscar el plan que coincida con el cicloPago de la venta
+      const match = planesDisponibles.find((p) => p.cicloPago === venta.cicloPago);
+      if (match) {
+        setValue('planId', match.id);
+        setLastPlanId(match.id);
+        setPlanInicializado(true);
+      } else if (!planIdValue) {
+        // Si no hay coincidencia exacta y no hay plan seleccionado, seleccionar el primero
+        setValue('planId', planesDisponibles[0].id);
+        setLastPlanId(planesDisponibles[0].id);
+        setPlanInicializado(true);
+      }
     }
-  }, [planesDisponibles, planIdValue, setValue, venta.cicloPago]);
+  }, [planesDisponibles, planIdValue, setValue, venta.cicloPago, planInicializado]);
 
   useEffect(() => {
     const loadPerfilesOcupados = async () => {
@@ -403,48 +449,48 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
       const descuento = Number(data.descuento) || 0;
       const precioFinalValue = Math.max(precio * (1 - descuento / 100), 0);
 
+      // Actualizar SOLO metadatos en VentaDoc (NO datos de pago)
       await update(COLLECTIONS.VENTAS, venta.id, {
         clienteId: data.clienteId,
         clienteNombre: clienteSeleccionado ? `${clienteSeleccionado.nombre} ${clienteSeleccionado.apellido}` : venta.clienteNombre,
-        metodoPagoId: data.metodoPagoId,
-        metodoPagoNombre: metodoPagoSeleccionado?.nombre || venta.metodoPagoNombre,
-        moneda: metodoPagoSeleccionado?.moneda || venta.moneda,
         categoriaId: data.categoriaId,
         servicioId: data.servicioId,
         servicioNombre: servicio?.nombre || venta.servicioNombre,
         servicioCorreo: servicio?.correo || venta.servicioCorreo,
-        cicloPago: plan?.cicloPago || venta.cicloPago,
         perfilNumero: Number(data.perfilNumero) || null,
         perfilNombre: data.perfilNombre?.trim() || '',
-        precio,
-        descuento,
-        precioFinal: precioFinalValue,
-        fechaInicio: data.fechaInicio,
-        fechaFin: data.fechaFin,
         codigo: data.codigo || '',
         estado: data.estado || 'activo',
         notas: data.notas || '',
       });
 
-      // Si las fechas cambiaron, actualizar también el pago inicial en pagosVenta
-      const fechasHanCambiado =
-        data.fechaInicio.getTime() !== venta.fechaInicio.getTime() ||
-        data.fechaFin.getTime() !== venta.fechaFin.getTime();
+      // Actualizar el pago más reciente (fuente de verdad para datos de pago)
+      const todosLosPagos = await queryDocuments<PagoVenta>(COLLECTIONS.PAGOS_VENTA, [
+        { field: 'ventaId', operator: '==', value: venta.id }
+      ]);
 
-      if (fechasHanCambiado) {
-        // Buscar el pago inicial
-        const pagos = await queryDocuments<PagoVenta>(COLLECTIONS.PAGOS_VENTA, [
-          { field: 'ventaId', operator: '==', value: venta.id },
-          { field: 'isPagoInicial', operator: '==', value: true }
-        ]);
+      if (todosLosPagos.length > 0) {
+        // Ordenar por fecha descendente para encontrar el más reciente
+        const sorted = todosLosPagos.sort((a, b) => {
+          const dateA = a.fecha instanceof Date ? a.fecha : new Date(a.fecha);
+          const dateB = b.fecha instanceof Date ? b.fecha : new Date(b.fecha);
+          return dateB.getTime() - dateA.getTime();
+        });
 
-        if (pagos.length > 0) {
-          const pagoInicial = pagos[0];
-          await update(COLLECTIONS.PAGOS_VENTA, pagoInicial.id, {
-            fechaInicio: data.fechaInicio,
-            fechaVencimiento: data.fechaFin,
-          });
-        }
+        const pagoMasReciente = sorted[0];
+
+        // Actualizar TODOS los campos de pago (sin condicionales)
+        await update(COLLECTIONS.PAGOS_VENTA, pagoMasReciente.id, {
+          precio,
+          descuento,
+          monto: precioFinalValue,
+          metodoPagoId: data.metodoPagoId,
+          metodoPago: metodoPagoSeleccionado?.nombre || venta.metodoPagoNombre || '',
+          moneda: metodoPagoSeleccionado?.moneda || venta.moneda || 'USD',
+          cicloPago: plan?.cicloPago || venta.cicloPago,
+          fechaInicio: data.fechaInicio,
+          fechaVencimiento: data.fechaFin,
+        });
       }
 
       const prevPerfil = venta.perfilNumero ?? null;
@@ -473,7 +519,7 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
       }
 
       toast.success('Venta actualizada');
-      router.push('/ventas');
+      router.push(`/ventas/${venta.id}`);
     } catch (error) {
       console.error('Error actualizando venta:', error);
       toast.error('Error al actualizar la venta', { description: error instanceof Error ? error.message : undefined });

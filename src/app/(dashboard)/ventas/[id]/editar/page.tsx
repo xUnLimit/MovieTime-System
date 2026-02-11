@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { VentasEditForm, VentaEditData } from '@/components/ventas/VentasEditForm';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 import { COLLECTIONS, getById, timestampToDate } from '@/lib/firebase/firestore';
+import { getVentaConUltimoPago } from '@/lib/services/ventaSyncService';
+import { VentaDoc } from '@/types';
 import { toast } from 'sonner';
 
 function EditarVentaPageContent() {
@@ -23,28 +25,33 @@ function EditarVentaPageContent() {
           setVenta(null);
           return;
         }
-        setVenta({
+        // Crear VentaDoc base (sin datos de pago)
+        const ventaBase: VentaDoc = {
           id: doc.id as string,
           clienteId: (doc.clienteId as string) || '',
           clienteNombre: (doc.clienteNombre as string) || 'Sin cliente',
-          metodoPagoId: (doc.metodoPagoId as string) || '',
-          metodoPagoNombre: (doc.metodoPagoNombre as string) || 'Sin método',
-          moneda: (doc.moneda as string) || 'USD',
           categoriaId: (doc.categoriaId as string) || '',
           servicioId: (doc.servicioId as string) || '',
           servicioNombre: (doc.servicioNombre as string) || 'Servicio',
           servicioCorreo: (doc.servicioCorreo as string) || '',
           perfilNumero: (doc.perfilNumero as number | null | undefined) ?? null,
           perfilNombre: (doc.perfilNombre as string) || '',
-          cicloPago: (doc.cicloPago as VentaEditData['cicloPago']) ?? undefined,
-          fechaInicio: timestampToDate(doc.fechaInicio),
-          fechaFin: timestampToDate(doc.fechaFin),
           codigo: (doc.codigo as string) || '',
           estado: (doc.estado as 'activo' | 'inactivo') || 'activo',
-          precio: (doc.precio as number) ?? 0,
-          descuento: (doc.descuento as number) ?? 0,
-          precioFinal: (doc.precioFinal as number) ?? (doc.precio as number) ?? 0,
           notas: (doc.notas as string) || '',
+        };
+
+        // Obtener datos actuales desde PagoVenta (fuente de verdad)
+        const ventaConDatos = await getVentaConUltimoPago(ventaBase);
+
+        // Convertir a VentaEditData
+        setVenta({
+          ...ventaConDatos,
+          clienteId: ventaConDatos.clienteId || '',
+          metodoPagoId: ventaConDatos.metodoPagoId || '',
+          categoriaId: ventaConDatos.categoriaId || '',
+          servicioId: ventaConDatos.servicioId || '',
+          servicioCorreo: ventaConDatos.servicioCorreo || '',
         });
       } catch (error) {
         console.error('Error cargando venta:', error);

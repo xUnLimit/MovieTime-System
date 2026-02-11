@@ -23,8 +23,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { differenceInDays } from 'date-fns';
-import { getAll, COLLECTIONS, timestampToDate } from '@/lib/firebase/firestore';
+import { getAll, COLLECTIONS } from '@/lib/firebase/firestore';
 import { VentaDoc } from '@/types';
+import { getVentasConUltimoPago } from '@/lib/services/ventaSyncService';
 
 interface ServicioProximoPagarRow {
   id: string;
@@ -47,26 +48,13 @@ export const ServiciosProximosPagarTable = memo(function ServiciosProximosPagarT
   useEffect(() => {
     const load = async () => {
       try {
-        const data = await getAll<Record<string, unknown>>(COLLECTIONS.VENTAS);
-        const mapped: VentaDoc[] = data.map((item) => ({
-          id: item.id as string,
-          clienteNombre: (item.clienteNombre as string) || '',
-          metodoPagoNombre: (item.metodoPagoNombre as string) || '',
-          moneda: (item.moneda as string) || 'USD',
-          fechaInicio: item.fechaInicio ? timestampToDate(item.fechaInicio) : new Date(),
-          fechaFin: item.fechaFin ? timestampToDate(item.fechaFin) : new Date(),
-          estado: (item.estado as 'activo' | 'inactivo') || 'activo',
-          cicloPago: item.cicloPago as VentaDoc['cicloPago'],
-          categoriaId: (item.categoriaId as string) || '',
-          servicioId: (item.servicioId as string) || '',
-          servicioNombre: (item.servicioNombre as string) || '',
-          servicioCorreo: (item.servicioCorreo as string) || '',
-          perfilNumero: item.perfilNumero as number | null | undefined,
-          precio: (item.precio as number) || 0,
-          descuento: (item.descuento as number) || 0,
-          precioFinal: (item.precioFinal as number) || 0,
-        }));
-        setVentas(mapped);
+        // Paso 1: Cargar ventas base (solo metadatos)
+        const ventasBase = await getAll<VentaDoc>(COLLECTIONS.VENTAS);
+
+        // Paso 2: Cargar datos actuales desde PagoVenta (fuente de verdad)
+        const ventasConDatos = await getVentasConUltimoPago(ventasBase);
+
+        setVentas(ventasConDatos);
       } catch (error) {
         console.error('Error cargando ventas:', error);
       }
@@ -96,19 +84,21 @@ export const ServiciosProximosPagarTable = memo(function ServiciosProximosPagarT
     return ventas
       .filter((venta) => {
         if (venta.estado === 'inactivo') return false;
+        if (!venta.fechaFin) return false;
         const diasRestantes = differenceInDays(new Date(venta.fechaFin), hoy);
         return diasRestantes <= 100;
       })
       .map((venta) => {
         const servicio = servicios.find((s) => s.id === venta.servicioId);
-        const diasRestantes = differenceInDays(new Date(venta.fechaFin), hoy);
+        const fechaFin = venta.fechaFin ?? new Date();
+        const diasRestantes = differenceInDays(new Date(fechaFin), hoy);
 
         return {
           id: venta.id,
           servicioNombre: venta.servicioNombre || servicio?.nombre || 'N/A',
           email: venta.servicioCorreo || servicio?.correo || 'N/A',
           contrasena: servicio?.contrasena || '',
-          fechaVencimiento: new Date(venta.fechaFin).toLocaleDateString('es-ES', {
+          fechaVencimiento: new Date(fechaFin).toLocaleDateString('es-ES', {
             year: 'numeric',
             month: 'long',
             day: 'numeric',

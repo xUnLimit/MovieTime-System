@@ -27,7 +27,9 @@ export interface PagoVenta {
   clienteId: string;                  // Denormalizado para queries
   clienteNombre: string;              // Denormalizado
   fecha: Date;                        // Fecha en que se realizó el pago
-  monto: number;
+  monto: number;                      // Monto final (después de descuento)
+  precio?: number;                    // Precio original antes de descuento
+  descuento?: number;                 // Porcentaje de descuento (0-100)
   metodoPagoId?: string;              // Referencia al método de pago
   metodoPago: string;                 // Nombre del método de pago (denormalizado)
   moneda?: string;                    // Denormalizado de MetodoPago
@@ -40,7 +42,12 @@ export interface PagoVenta {
 }
 
 /**
- * Documento de venta en la colección ventas (sin array de pagos embebido)
+ * Documento de venta en la colección ventas
+ *
+ * ARQUITECTURA: Single Source of Truth
+ * - Este documento NO almacena datos de pago (precio, descuento, fechas, etc.)
+ * - Esos datos viven en la colección `pagosVenta`
+ * - Para obtener datos actuales, usar `getVentaConUltimoPago()` de ventaSyncService
  */
 export interface VentaDoc {
   id: string;
@@ -52,23 +59,37 @@ export interface VentaDoc {
   servicioContrasena?: string;        // Denormalizado (opcional para mostrar en detalles)
   categoriaId: string;
   categoriaNombre?: string;           // Denormalizado
-  metodoPagoId?: string;
-  metodoPagoNombre: string;
-  moneda: string;
-  fechaInicio: Date;
-  fechaFin: Date;
   estado?: 'activo' | 'inactivo';
-  cicloPago?: 'mensual' | 'trimestral' | 'semestral' | 'anual';
   perfilNumero?: number | null;
   perfilNombre?: string;
   codigo?: string;
   notas?: string;
-  precio: number;
-  descuento: number;
-  precioFinal: number;
+
+  // ⚠️ CAMPOS DEPRECADOS - Mantener por compatibilidad con datos existentes
+  // Usar getVentaConUltimoPago() para obtener valores actuales desde pagosVenta
+  /** @deprecated Leer desde PagoVenta más reciente */
+  metodoPagoId?: string;
+  /** @deprecated Leer desde PagoVenta más reciente */
+  metodoPagoNombre?: string;
+  /** @deprecated Leer desde PagoVenta más reciente */
+  moneda?: string;
+  /** @deprecated Leer desde PagoVenta más reciente */
+  fechaInicio?: Date;
+  /** @deprecated Leer desde PagoVenta más reciente */
+  fechaFin?: Date;
+  /** @deprecated Leer desde PagoVenta más reciente */
+  cicloPago?: 'mensual' | 'trimestral' | 'semestral' | 'anual';
+  /** @deprecated Leer desde PagoVenta más reciente */
+  precio?: number;
+  /** @deprecated Leer desde PagoVenta más reciente */
+  descuento?: number;
+  /** @deprecated Leer desde PagoVenta más reciente */
+  precioFinal?: number;
+  /** @deprecated No usado */
   totalVenta?: number;
   /** @deprecated Los pagos ahora se guardan en la colección pagosVenta */
-  pagos?: VentaPago[];                // Mantener para compatibilidad pero no usar
+  pagos?: VentaPago[];
+
   createdAt?: Date;
   updatedAt?: Date;
   itemId?: string;

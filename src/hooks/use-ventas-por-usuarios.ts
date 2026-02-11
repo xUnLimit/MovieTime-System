@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { differenceInCalendarDays } from 'date-fns';
 import { COLLECTIONS, queryDocuments } from '@/lib/firebase/firestore';
 import { logVentasCacheHit } from '@/lib/utils/devLogger';
+import { getVentasConUltimoPago } from '@/lib/services/ventaSyncService';
+import type { VentaDoc } from '@/types';
 
 /**
  * Resultado agregado por usuario: monto sin consumir calculado
@@ -65,27 +67,32 @@ export function useVentasPorUsuarios(clienteIds: string[], { enabled = true } = 
     const load = async () => {
       setIsLoading(true);
       try {
-        // Una sola query: todas las ventas activas de estos clientes
-        const ventas = await queryDocuments<Record<string, unknown>>(COLLECTIONS.VENTAS, [
+        // Paso 1: Cargar ventas base (solo metadatos)
+        const ventasBase = await queryDocuments<VentaDoc>(COLLECTIONS.VENTAS, [
           { field: 'clienteId', operator: 'in', value: clienteIds },
         ]);
+
+        if (cancelled) return;
+
+        // Paso 2: Cargar datos actuales desde PagoVenta (fuente de verdad)
+        const ventasConDatos = await getVentasConUltimoPago(ventasBase);
 
         if (cancelled) return;
 
         const now = new Date();
         const result: Record<string, VentasUsuarioStats> = {};
 
-        ventas.forEach((venta) => {
-          const clienteId = venta.clienteId as string | undefined;
+        ventasConDatos.forEach((venta) => {
+          const clienteId = venta.clienteId;
           if (!clienteId) return;
 
           // Solo ventas activas contribuyen al monto
-          const isActivo = ((venta.estado as string) ?? 'activo') !== 'inactivo';
+          const isActivo = (venta.estado ?? 'activo') !== 'inactivo';
           if (!isActivo) return;
 
           const fechaInicio = venta.fechaInicio instanceof Date ? venta.fechaInicio : null;
           const fechaFin    = venta.fechaFin    instanceof Date ? venta.fechaFin    : null;
-          const precioFinal = (venta.precioFinal as number) ?? (venta.precio as number) ?? 0;
+          const precioFinal = venta.precioFinal ?? venta.precio ?? 0;
 
           const totalDias     = fechaInicio && fechaFin ? Math.max(differenceInCalendarDays(fechaFin, fechaInicio), 0) : 0;
           const diasRestantes = fechaFin ? Math.max(differenceInCalendarDays(fechaFin, now), 0) : 0;

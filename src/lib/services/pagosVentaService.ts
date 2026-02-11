@@ -54,7 +54,9 @@ export async function crearPagoRenovacion(
   cicloPago?: 'mensual' | 'trimestral' | 'semestral' | 'anual',
   notas?: string,
   fechaInicio?: Date,
-  fechaVencimiento?: Date
+  fechaVencimiento?: Date,
+  precio?: number,          // Precio original
+  descuento?: number        // Porcentaje de descuento
 ): Promise<string> {
   const pagoId = await createDoc(COLLECTIONS.PAGOS_VENTA, {
     ventaId,
@@ -62,6 +64,8 @@ export async function crearPagoRenovacion(
     clienteNombre,
     fecha: new Date(),
     monto,
+    precio,                // Precio original antes de descuento
+    descuento,             // Porcentaje de descuento
     metodoPagoId,          // Denormalizado
     metodoPago,
     moneda,                // Denormalizado

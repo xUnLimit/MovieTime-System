@@ -12,14 +12,15 @@ export interface Usuario {
   metodoPagoId: string;
   metodoPagoNombre: string;
   moneda?: string;                  // Denormalizado de MetodoPago
-  montoSinConsumir: number;
   // Campos específicos por tipo (opcionales):
-  serviciosActivos?: number;        // Solo para clientes — denormalizado desde Ventas (count de ventas activas)
+  serviciosActivos?: number;        // Denormalizado — count de ventas activas (se actualiza con increment())
   suscripcionesTotales?: number;    // Solo para revendedores (campo legacy)
   active: boolean;
   createdAt: Date;
   updatedAt: Date;
   createdBy: string;
+  // NOTA: montoSinConsumir NO se guarda en Firestore
+  // Se calcula dinámicamente en el cliente usando useVentasPorUsuarios
 }
 
 // Type guards para facilitar discriminación

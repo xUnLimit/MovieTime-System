@@ -1,4 +1,4 @@
-import { addMonths, differenceInDays, format } from 'date-fns';
+import { addMonths, differenceInDays, differenceInCalendarDays, format } from 'date-fns';
 import { es } from 'date-fns/locale';
 type CicloPago = 'mensual' | 'trimestral' | 'semestral' | 'anual';
 type EstadoSuscripcion = 'activa' | 'suspendida' | 'inactiva' | 'vencida';
@@ -22,8 +22,8 @@ export function calcularConsumo(
   fechaVencimiento: Date
 ): number {
   const hoy = new Date();
-  const totalDias = differenceInDays(fechaVencimiento, fechaInicio);
-  const diasTranscurridos = differenceInDays(hoy, fechaInicio);
+  const totalDias = differenceInCalendarDays(fechaVencimiento, fechaInicio);
+  const diasTranscurridos = differenceInCalendarDays(hoy, fechaInicio);
 
   if (totalDias === 0) return 0;
   if (diasTranscurridos <= 0) return 0;
@@ -40,6 +40,30 @@ export function calcularMontoRestante(
   consumoPorcentaje: number
 ): number {
   return montoTotal * (1 - consumoPorcentaje / 100);
+}
+
+/**
+ * Calcula el monto sin consumir de una venta basado en días calendar
+ * Usa differenceInCalendarDays para consistencia con módulo de Usuarios
+ */
+export function calcularMontoSinConsumir(
+  fechaInicio: Date,
+  fechaFin: Date,
+  montoTotal: number
+): number {
+  const hoy = new Date();
+
+  // Calcular días usando differenceInCalendarDays (días completos)
+  const totalDias = Math.max(differenceInCalendarDays(fechaFin, fechaInicio), 0);
+  const diasRestantes = Math.max(differenceInCalendarDays(fechaFin, hoy), 0);
+
+  if (totalDias === 0) return 0;
+  if (diasRestantes <= 0) return 0;
+  if (diasRestantes >= totalDias) return montoTotal;
+
+  // Calcular ratio restante (no consumido)
+  const ratioRestante = diasRestantes / totalDias;
+  return Math.max(montoTotal * ratioRestante, 0);
 }
 
 /**
