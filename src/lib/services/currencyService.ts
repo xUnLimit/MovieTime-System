@@ -21,7 +21,7 @@ export interface ExchangeRateAPIResponse {
   time_next_update_unix: number;
   time_next_update_utc: string;
   base_code: string;
-  conversion_rates: Record<string, number>;
+  rates: Record<string, number>; // Note: open.er-api.com uses 'rates', not 'conversion_rates'
 }
 
 // ===========================
@@ -175,9 +175,14 @@ class CurrencyService {
         throw new Error(`API returned error: ${data.result}`);
       }
 
+      // Validate that rates exists
+      if (!data.rates || typeof data.rates !== 'object') {
+        throw new Error('API response missing rates');
+      }
+
       // Convert API response to our cache format
       const rates: Record<string, number> = {};
-      Object.entries(data.conversion_rates).forEach(([currency, rate]) => {
+      Object.entries(data.rates).forEach(([currency, rate]) => {
         rates[`USD_${currency}`] = rate;
       });
 
