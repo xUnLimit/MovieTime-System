@@ -30,7 +30,7 @@ export interface ExchangeRateAPIResponse {
 
 const CACHE_TTL_HOURS = 24;
 const EXCHANGE_RATES_DOC_ID = 'exchange_rates';
-const API_BASE_URL = 'https://v6.exchangerate-api.com/v6';
+const API_BASE_URL = 'https://open.er-api.com/v6'; // Public endpoint, no API key required
 
 // ===========================
 // CURRENCY SERVICE CLASS
@@ -38,15 +38,10 @@ const API_BASE_URL = 'https://v6.exchangerate-api.com/v6';
 
 class CurrencyService {
   private memoryCache: CachedRates | null = null;
-  private apiKey: string | null = null;
 
   constructor() {
-    // Get API key from environment
-    this.apiKey = process.env.NEXT_PUBLIC_EXCHANGE_RATE_API_KEY || null;
-
-    if (!this.apiKey && typeof window !== 'undefined') {
-      console.warn('[CurrencyService] No API key found. Set NEXT_PUBLIC_EXCHANGE_RATE_API_KEY in .env.local');
-    }
+    // No API key required for open.er-api.com public endpoint
+    console.log('[CurrencyService] Using open.er-api.com public endpoint (no API key required)');
   }
 
   /**
@@ -165,14 +160,10 @@ class CurrencyService {
    * Fetch fresh rates from API and cache in Firebase
    */
   async refreshExchangeRates(): Promise<void> {
-    if (!this.apiKey) {
-      throw new Error('Exchange rate API key not configured');
-    }
-
     try {
-      console.log('[CurrencyService] Fetching fresh rates from API...');
+      console.log('[CurrencyService] Fetching fresh rates from open.er-api.com...');
 
-      const response = await fetch(`${API_BASE_URL}/${this.apiKey}/latest/USD`);
+      const response = await fetch(`${API_BASE_URL}/latest/USD`);
 
       if (!response.ok) {
         throw new Error(`API request failed: ${response.status} ${response.statusText}`);
@@ -193,7 +184,7 @@ class CurrencyService {
       const cachedRates: CachedRates = {
         rates,
         lastUpdated: new Date(),
-        source: 'exchangerate-api.io',
+        source: 'open.er-api.com',
         apiVersion: 'v6'
       };
 

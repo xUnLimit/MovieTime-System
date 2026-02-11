@@ -767,7 +767,7 @@ Currency Service (API fetch + Firebase cache with 24h TTL)
 **Currency Service** (`src/lib/services/currencyService.ts`):
 - `getExchangeRate(from, to)` - Get exchange rate between currencies
 - `convertToUSD(amount, from)` - Convert amount to USD
-- `refreshExchangeRates()` - Fetch fresh rates from API
+- `refreshExchangeRates()` - Fetch fresh rates from open.er-api.com (public, no API key)
 - Caches rates in `config/exchange_rates` Firestore document
 - Falls back to stale cache if API fails
 
@@ -824,12 +824,8 @@ When adding new financial aggregations:
 
 ### Configuration
 
-**Environment Variable** (`.env.local`):
-```bash
-NEXT_PUBLIC_EXCHANGE_RATE_API_KEY=your-api-key-here
-```
-
-Get free API key from [exchangerate-api.io](https://www.exchangerate-api.com/) (1,500 requests/month)
+**No API Key Required!**
+The system uses [open.er-api.com](https://open.er-api.com/) public endpoint - completely free with no registration or API key needed.
 
 **Cache Structure** (Firestore `config/exchange_rates`):
 ```typescript
@@ -841,16 +837,17 @@ Get free API key from [exchangerate-api.io](https://www.exchangerate-api.com/) (
     // ... all currencies
   },
   lastUpdated: Timestamp,
-  source: 'exchangerate-api.io'
+  source: 'open.er-api.com'
 }
 ```
 
 ### Performance
 
-- **API calls**: ~30 per month (with 24h caching)
+- **API calls**: ~30 per month (with 24h caching) - 100% free, no limits
 - **Firebase reads**: +1 per page load (for exchange_rates document)
 - **Conversion time**: < 100ms for 100 items
 - **Cache TTL**: 24 hours with stale fallback
+- **API source**: open.er-api.com (public endpoint, no registration required)
 
 ### Modified Components
 

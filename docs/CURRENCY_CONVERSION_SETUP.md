@@ -36,24 +36,11 @@ The MovieTime system now correctly handles multi-currency payments by converting
 
 ## 🔧 Setup Instructions
 
-### Step 1: Get Exchange Rate API Key
+### ✅ No Setup Required!
 
-1. Go to [exchangerate-api.io](https://www.exchangerate-api.com/)
-2. Sign up for a **free account** (1,500 requests/month)
-3. Copy your API key
+The system uses **open.er-api.com** public endpoint - completely free with no API key or registration needed.
 
-### Step 2: Configure Environment Variable
-
-Add the API key to your `.env.local` file:
-
-```bash
-# Exchange Rate API (exchangerate-api.io)
-NEXT_PUBLIC_EXCHANGE_RATE_API_KEY=your-api-key-here
-```
-
-**Important:** Replace `your-api-key-here` with your actual API key.
-
-### Step 3: Restart Development Server
+### Just Start the Development Server
 
 ```bash
 npm run dev
@@ -187,21 +174,23 @@ Open Firebase Console → Firestore → `config` collection → `exchange_rates`
 
 ### Problem: Shows $0.00 USD for all totals
 
-**Cause:** API key not configured or invalid
+**Cause:** No exchange rates cached yet or API error
 
 **Solution:**
-1. Check `.env.local` has correct `NEXT_PUBLIC_EXCHANGE_RATE_API_KEY`
-2. Restart dev server: `npm run dev`
-3. Check browser console for errors
+1. Check browser console for errors
+2. Verify internet connection (system needs to fetch rates on first load)
+3. Check Firebase `config/exchange_rates` document exists after first load
+4. System automatically creates cache on first API call
 
 ### Problem: Console shows API error
 
-**Cause:** API rate limit exceeded or network issue
+**Cause:** Network issue or API temporarily unavailable
 
 **Solution:**
 - System uses stale cache automatically (up to several days old)
-- Check Firebase `config/exchange_rates` exists
-- Free tier: 1,500 requests/month, system uses ~30/month
+- Check Firebase `config/exchange_rates` document exists
+- No API key or rate limits - completely free
+- If first time using: needs internet to fetch initial rates
 
 ### Problem: Individual rows show USD instead of original currency
 
