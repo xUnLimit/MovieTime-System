@@ -54,6 +54,8 @@ export const CategoriasTable = memo(function CategoriasTable({
   const [sortKey, setSortKey] = useState<keyof CategoriaRow | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
   const [gastosMap, setGastosMap] = useState<Map<string, number>>(new Map());
+  const [ingresosMap, setIngresosMap] = useState<Map<string, number>>(new Map());
+  const [ventasCountMap, setVentasCountMap] = useState<Map<string, number>>(new Map());
   const [ventasMap, setVentasMap] = useState<Map<string, VentaDoc[]>>(new Map());
 
   const handleViewCategoria = (categoriaId: string) => {
@@ -91,10 +93,42 @@ export const CategoriasTable = memo(function CategoriasTable({
     }
   }, [categorias]);
 
+  // Cargar ingresos desde pagosVenta (historial permanente)
+  // Query DIRECTA por categoriaId - gracias al campo denormalizado
+  useEffect(() => {
+    const fetchIngresos = async () => {
+      const ingresosTemp = new Map<string, number>();
+
+      for (const categoria of categorias.filter(c => c.activo)) {
+        try {
+          // Query DIRECTA: obtener todos los pagos de esta categoría
+          // Funciona incluso si las ventas fueron eliminadas
+          const pagos = await queryDocuments<PagoVenta>(
+            COLLECTIONS.PAGOS_VENTA,
+            [{ field: 'categoriaId', operator: '==', value: categoria.id }]
+          );
+
+          const totalIngresos = pagos.reduce((sum, pago) => sum + (pago.monto || 0), 0);
+          ingresosTemp.set(categoria.id, totalIngresos);
+        } catch (error) {
+          console.error(`Error cargando ingresos de categoría ${categoria.nombre}:`, error);
+          ingresosTemp.set(categoria.id, 0);
+        }
+      }
+
+      setIngresosMap(ingresosTemp);
+    };
+
+    if (categorias.length > 0) {
+      fetchIngresos();
+    }
+  }, [categorias]);
+
   // Cargar ventas activas por categoría para calcular monto sin consumir
   useEffect(() => {
     const fetchVentas = async () => {
       const ventasTemp = new Map<string, VentaDoc[]>();
+      const ventasCountTemp = new Map<string, number>();
 
       for (const categoria of categorias.filter(c => c.activo)) {
         try {
@@ -103,6 +137,9 @@ export const CategoriasTable = memo(function CategoriasTable({
             COLLECTIONS.VENTAS,
             [{ field: 'categoriaId', operator: '==', value: categoria.id }]
           );
+
+          // Guardar el conteo total de ventas (para "Suscripciones Totales")
+          ventasCountTemp.set(categoria.id, todasVentas.length);
 
           // Filtrar manualmente las ventas activas
           const ventasActivas = todasVentas.filter(v => (v.estado ?? 'activo') !== 'inactivo');
@@ -114,10 +151,12 @@ export const CategoriasTable = memo(function CategoriasTable({
         } catch (error) {
           console.error(`Error cargando ventas de categoría ${categoria.nombre}:`, error);
           ventasTemp.set(categoria.id, []);
+          ventasCountTemp.set(categoria.id, 0);
         }
       }
 
       setVentasMap(ventasTemp);
+      setVentasCountMap(ventasCountTemp);
     };
 
     if (categorias.length > 0) {
@@ -137,9 +176,11 @@ export const CategoriasTable = memo(function CategoriasTable({
         // Calcular gastosTotal desde pagosServicio (historial permanente)
         const gastosTotal = gastosMap.get(categoria.id) ?? 0;
 
-        // Leer ventas e ingresos desde campos denormalizados
-        const suscripcionesTotales = categoria.ventasTotales ?? 0;
-        const ingresoTotal = categoria.ingresosTotales ?? 0;
+        // Calcular ingresoTotal desde pagosVenta (historial permanente)
+        const ingresoTotal = ingresosMap.get(categoria.id) ?? 0;
+
+        // Calcular suscripcionesTotales desde conteo real de ventas
+        const suscripcionesTotales = ventasCountMap.get(categoria.id) ?? 0;
         const gananciaTotal = ingresoTotal - gastosTotal;
 
         // Calcular monto sin consumir desde ventas activas
@@ -167,7 +208,7 @@ export const CategoriasTable = memo(function CategoriasTable({
       });
 
     return categoriaData;
-  }, [categorias, gastosMap, ventasMap]);
+  }, [categorias, gastosMap, ingresosMap, ventasCountMap, ventasMap]);
 
   // Filtrar por búsqueda
   const filteredRows = useMemo(() => {
@@ -403,7 +444,7 @@ export const CategoriasTable = memo(function CategoriasTable({
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <span className={`${row.ingresoTotal === 0 ? 'text-muted-foreground' : ''}`}>$</span>
+                        <span className={`${row.ingresoTotal === 0 ? 'text-muted-foreground' : 'text-blue-500'}`}>$</span>
                         <span className={`${row.ingresoTotal === 0 ? 'text-muted-foreground' : ''}`}>{row.ingresoTotal.toFixed(2)}</span>
                       </div>
                     </TableCell>

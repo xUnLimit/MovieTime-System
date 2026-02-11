@@ -12,6 +12,7 @@ export async function crearPagoInicial(
   ventaId: string,
   clienteId: string,
   clienteNombre: string,
+  categoriaId: string,      // Denormalizado para queries
   monto: number,
   metodoPago: string,
   metodoPagoId?: string,    // Denormalizado
@@ -25,6 +26,7 @@ export async function crearPagoInicial(
     ventaId,
     clienteId,
     clienteNombre,
+    categoriaId,           // Denormalizado
     fecha: new Date(),
     monto,
     metodoPagoId,          // Denormalizado
@@ -47,6 +49,7 @@ export async function crearPagoRenovacion(
   ventaId: string,
   clienteId: string,
   clienteNombre: string,
+  categoriaId: string,      // Denormalizado para queries
   monto: number,
   metodoPago: string,
   metodoPagoId?: string,    // Denormalizado
@@ -62,6 +65,7 @@ export async function crearPagoRenovacion(
     ventaId,
     clienteId,
     clienteNombre,
+    categoriaId,           // Denormalizado
     fecha: new Date(),
     monto,
     precio,                // Precio original antes de descuento

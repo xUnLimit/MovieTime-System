@@ -318,6 +318,7 @@ function VentaDetallePageContent() {
         venta.id,
         venta.clienteId || '',
         venta.clienteNombre,
+        venta.categoriaId,                      // Denormalizado para queries
         monto,
         metodoPagoSeleccionado?.nombre || venta.metodoPagoNombre || '',
         data.metodoPagoId,                      // Denormalizado
@@ -333,9 +334,35 @@ function VentaDetallePageContent() {
       // ✅ NO actualizar VentaDoc - los datos de pago viven solo en PagoVenta
       // El nuevo pago de renovación es ahora la fuente de verdad
 
-      // Recargar los pagos Y la venta con datos del nuevo último pago
+      // Recargar la venta actualizada (sin loading screen)
+      if (id && venta) {
+        const doc = await getById<Record<string, unknown>>(COLLECTIONS.VENTAS, id);
+        if (doc) {
+          const ventaBase: VentaDoc = {
+            id: doc.id as string,
+            clienteId: (doc.clienteId as string) || '',
+            clienteNombre: (doc.clienteNombre as string) || 'Sin cliente',
+            categoriaId: (doc.categoriaId as string) || '',
+            categoriaNombre: (doc.categoriaNombre as string) || undefined,
+            servicioId: (doc.servicioId as string) || '',
+            servicioNombre: (doc.servicioNombre as string) || 'Servicio',
+            servicioCorreo: (doc.servicioCorreo as string) || undefined,
+            servicioContrasena: (doc.servicioContrasena as string) || undefined,
+            estado: (doc.estado as VentaDoc['estado']) ?? 'activo',
+            perfilNumero: (doc.perfilNumero as number) ?? null,
+            perfilNombre: (doc.perfilNombre as string) || undefined,
+            codigo: (doc.codigo as string) || undefined,
+            notas: (doc.notas as string) || undefined,
+            createdAt: (doc.createdAt as Date) || undefined,
+            updatedAt: (doc.updatedAt as Date) || undefined,
+          };
+          const ventaActualizada = await getVentaConUltimoPago(ventaBase);
+          setVenta(ventaActualizada);
+        }
+      }
+
+      // Recargar los pagos
       refreshPagos();
-      await loadVenta(); // Recargar venta para obtener datos del nuevo último pago
 
       // Cerrar el diálogo
       setRenovarDialogOpen(false);
@@ -409,9 +436,35 @@ function VentaDetallePageContent() {
       setEditarPagoDialogOpen(false);
       setPagoToEdit(null);
 
-      // Recargar los pagos Y la venta con datos del último pago actualizado
+      // Recargar la venta actualizada (sin loading screen)
+      if (id && venta) {
+        const doc = await getById<Record<string, unknown>>(COLLECTIONS.VENTAS, id);
+        if (doc) {
+          const ventaBase: VentaDoc = {
+            id: doc.id as string,
+            clienteId: (doc.clienteId as string) || '',
+            clienteNombre: (doc.clienteNombre as string) || 'Sin cliente',
+            categoriaId: (doc.categoriaId as string) || '',
+            categoriaNombre: (doc.categoriaNombre as string) || undefined,
+            servicioId: (doc.servicioId as string) || '',
+            servicioNombre: (doc.servicioNombre as string) || 'Servicio',
+            servicioCorreo: (doc.servicioCorreo as string) || undefined,
+            servicioContrasena: (doc.servicioContrasena as string) || undefined,
+            estado: (doc.estado as VentaDoc['estado']) ?? 'activo',
+            perfilNumero: (doc.perfilNumero as number) ?? null,
+            perfilNombre: (doc.perfilNombre as string) || undefined,
+            codigo: (doc.codigo as string) || undefined,
+            notas: (doc.notas as string) || undefined,
+            createdAt: (doc.createdAt as Date) || undefined,
+            updatedAt: (doc.updatedAt as Date) || undefined,
+          };
+          const ventaActualizada = await getVentaConUltimoPago(ventaBase);
+          setVenta(ventaActualizada);
+        }
+      }
+
+      // Recargar los pagos
       refreshPagos();
-      await loadVenta();
 
       toast.success('Pago actualizado exitosamente');
     } catch (error) {
@@ -440,9 +493,35 @@ function VentaDetallePageContent() {
       setDeletePagoDialogOpen(false);
       setPagoToDelete(null);
 
-      // Recargar los pagos Y la venta con datos del nuevo último pago
+      // Recargar la venta actualizada (sin loading screen)
+      if (id && venta) {
+        const doc = await getById<Record<string, unknown>>(COLLECTIONS.VENTAS, id);
+        if (doc) {
+          const ventaBase: VentaDoc = {
+            id: doc.id as string,
+            clienteId: (doc.clienteId as string) || '',
+            clienteNombre: (doc.clienteNombre as string) || 'Sin cliente',
+            categoriaId: (doc.categoriaId as string) || '',
+            categoriaNombre: (doc.categoriaNombre as string) || undefined,
+            servicioId: (doc.servicioId as string) || '',
+            servicioNombre: (doc.servicioNombre as string) || 'Servicio',
+            servicioCorreo: (doc.servicioCorreo as string) || undefined,
+            servicioContrasena: (doc.servicioContrasena as string) || undefined,
+            estado: (doc.estado as VentaDoc['estado']) ?? 'activo',
+            perfilNumero: (doc.perfilNumero as number) ?? null,
+            perfilNombre: (doc.perfilNombre as string) || undefined,
+            codigo: (doc.codigo as string) || undefined,
+            notas: (doc.notas as string) || undefined,
+            createdAt: (doc.createdAt as Date) || undefined,
+            updatedAt: (doc.updatedAt as Date) || undefined,
+          };
+          const ventaActualizada = await getVentaConUltimoPago(ventaBase);
+          setVenta(ventaActualizada);
+        }
+      }
+
+      // Recargar los pagos
       refreshPagos();
-      await loadVenta();
 
       toast.success('Pago eliminado exitosamente');
     } catch (error) {

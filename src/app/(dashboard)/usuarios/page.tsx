@@ -50,25 +50,18 @@ function UsuariosPageContent() {
     fetchCounts();
   }, [fetchCounts]);
 
-  // Escuchar cuando se elimina una venta desde otra página/tab o misma página
+  // Escuchar cuando se elimina una venta en la MISMA página (ej: desde UsuarioDetails)
+  // La sincronización entre páginas diferentes ya la maneja useVentasPorUsuarios via shouldInvalidateCache()
   useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'venta-deleted') {
-        invalidateVentasPorUsuariosCache();
-        refresh();
-      }
-    };
-
     const handleVentaDeleted = () => {
+      console.log('[UsuariosPage] Venta deleted in same page, invalidating cache and refreshing');
       invalidateVentasPorUsuariosCache();
       refresh();
     };
 
-    window.addEventListener('storage', handleStorageChange);
     window.addEventListener('venta-deleted', handleVentaDeleted);
 
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('venta-deleted', handleVentaDeleted);
     };
   }, [refresh]);

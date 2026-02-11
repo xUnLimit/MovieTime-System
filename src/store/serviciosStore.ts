@@ -4,6 +4,7 @@ import { Servicio, MetodoPago } from '@/types';
 import { getAll, getById, getCount, create as createDoc, update, remove, COLLECTIONS, logCacheHit } from '@/lib/firebase/firestore';
 import { doc as firestoreDoc, updateDoc, increment } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
+import { crearPagoInicial } from '@/lib/services/pagosServicioService';
 
 interface ServiciosState {
   servicios: Servicio[];
@@ -111,21 +112,19 @@ export const useServiciosStore = create<ServiciosState>()(
             activo: true,
           });
 
-          // Create initial PagoServicio record
-          await createDoc(COLLECTIONS.PAGOS_SERVICIO, {
-            servicioId: id,
-            categoriaId: servicioData.categoriaId,  // Denormalizado para queries eficientes
-            metodoPagoId: servicioData.metodoPagoId,
-            metodoPagoNombre,  // Denormalizado
-            moneda,
-            isPagoInicial: true,
-            fecha: new Date(),
-            descripcion: 'Pago inicial',
-            cicloPago: servicioData.cicloPago ?? undefined,
-            fechaInicio: servicioData.fechaInicio ?? new Date(),
-            fechaVencimiento: servicioData.fechaVencimiento ?? new Date(),
-            monto: servicioData.costoServicio ?? 0,
-          });
+          // Create initial PagoServicio record usando el servicio dedicado
+          await crearPagoInicial(
+            id,
+            servicioData.categoriaId,
+            servicioData.costoServicio ?? 0,
+            servicioData.metodoPagoId || '',
+            metodoPagoNombre || '',
+            moneda || 'USD',
+            servicioData.cicloPago ?? 'mensual',
+            servicioData.fechaInicio ?? new Date(),
+            servicioData.fechaVencimiento ?? new Date(),
+            servicioData.notas
+          );
 
           // Actualizar contadores de la categoría (sin gastosTotal - ya no se usa)
           const categoriaRef = firestoreDoc(db, COLLECTIONS.CATEGORIAS, servicioData.categoriaId);

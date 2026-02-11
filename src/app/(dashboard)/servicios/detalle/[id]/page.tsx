@@ -15,10 +15,10 @@ import { PagoDialog } from '@/components/shared/PagoDialog';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { create, queryDocuments, remove, update, COLLECTIONS, timestampToDate, dateToTimestamp, getById } from '@/lib/firebase/firestore';
+import { queryDocuments, remove, update, COLLECTIONS, getById, create } from '@/lib/firebase/firestore';
 import { doc as firestoreDoc, updateDoc, increment } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
-import { PagoServicio, Servicio, Categoria, MetodoPago, VentaDoc } from '@/types';
+import { Servicio, Categoria, MetodoPago, VentaDoc, PagoServicio } from '@/types';
 import { getVentasConUltimoPago } from '@/lib/services/ventaSyncService';
 import {
   DropdownMenu,
@@ -28,6 +28,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { getCurrencySymbol } from '@/lib/constants';
 import { formatearFecha } from '@/lib/utils/calculations';
+import { usePagosServicio } from '@/hooks/use-pagos-servicio';
+import { crearPagoRenovacion, contarRenovacionesDeServicio } from '@/lib/services/pagosServicioService';
 
 interface PerfilVenta {
   clienteNombre?: string;
@@ -75,10 +77,11 @@ function ServicioDetallePageContent() {
   const [editarPagoDialogOpen, setEditarPagoDialogOpen] = useState(false);
   const [pagoToEdit, setPagoToEdit] = useState<PagoServicio | null>(null);
   const [renovarDialogOpen, setRenovarDialogOpen] = useState(false);
-  const [pagosServicio, setPagosServicio] = useState<PagoServicio[]>([]);
   const [ventasServicio, setVentasServicio] = useState<Array<PerfilVenta & { perfilNumero?: number | null }>>([]);
   const [expandedProfileIndex, setExpandedProfileIndex] = useState<number | null>(null);
-  const [pagosHistorialLoading, setPagosHistorialLoading] = useState(true);
+
+  // Usar el hook para cargar pagos (con cache)
+  const { pagos: pagosServicio, isLoading: pagosHistorialLoading, renovaciones, refresh: refreshPagos } = usePagosServicio(id);
 
   // Cargar solo el servicio (1 lectura única)
   useEffect(() => {
@@ -102,7 +105,6 @@ function ServicioDetallePageContent() {
         } as Categoria);
 
         // 3. Crear objeto sintético de metodoPago desde datos denormalizados
-        //    Ya no necesitamos cargar desde Firebase - todo está denormalizado
         if (servicioData.metodoPagoId) {
           setMetodoPago({
             id: servicioData.metodoPagoId,
@@ -122,47 +124,6 @@ function ServicioDetallePageContent() {
     };
 
     loadData();
-  }, [id]);
-
-  const loadPagos = async (): Promise<PagoServicio[]> => {
-    if (!id) return [];
-    setPagosHistorialLoading(true);
-    try {
-      const docs = await queryDocuments<Record<string, unknown>>(COLLECTIONS.PAGOS_SERVICIO, [
-        { field: 'servicioId', operator: '==', value: id },
-      ]);
-      const pagos: PagoServicio[] = docs.map((d) => ({
-        id: d.id as string,
-        servicioId: d.servicioId as string,
-        categoriaId: d.categoriaId as string || '', // Puede faltar en datos migrados antiguos
-        metodoPagoId: d.metodoPagoId as string | undefined,
-        moneda: d.moneda as string | undefined,
-        isPagoInicial: d.isPagoInicial as boolean | undefined,
-        fecha: timestampToDate(d.fecha),
-        descripcion: d.descripcion as string,
-        cicloPago: d.cicloPago as PagoServicio['cicloPago'],
-        fechaInicio: timestampToDate(d.fechaInicio),
-        fechaVencimiento: timestampToDate(d.fechaVencimiento),
-        monto: (d.monto as number) ?? 0,
-        createdAt: timestampToDate(d.createdAt),
-        updatedAt: timestampToDate(d.updatedAt),
-      }));
-      const ordenados = pagos.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
-      setPagosServicio(ordenados);
-      return ordenados;
-    } catch (err) {
-      console.error('Error cargando historial de pagos:', err);
-      toast.error('Error cargando historial de pagos', { description: err instanceof Error ? err.message : undefined });
-      setPagosServicio([]);
-      return [];
-    } finally {
-      setPagosHistorialLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadPagos();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   useEffect(() => {
@@ -215,7 +176,7 @@ function ServicioDetallePageContent() {
       // Refrescar categorías y contadores de servicios para actualizar widgets
       await Promise.all([
         fetchCategorias(true),
-        fetchCounts(true), // Force refresh para actualizar inmediatamente
+        fetchCounts(true),
       ]);
 
       router.push('/servicios');
@@ -243,7 +204,7 @@ function ServicioDetallePageContent() {
   };
 
   const handleRenovar = async () => {
-    await loadMetodosPagoIfNeeded(); // Cargar métodos de pago si no están cargados
+    await loadMetodosPagoIfNeeded();
     setRenovarDialogOpen(true);
   };
 
@@ -253,7 +214,7 @@ function ServicioDetallePageContent() {
   };
 
   const handleEditarPago = async (pago: PagoServicio) => {
-    await loadMetodosPagoIfNeeded(); // Cargar métodos de pago si no están cargados
+    await loadMetodosPagoIfNeeded();
     setPagoToEdit(pago);
     setEditarPagoDialogOpen(true);
   };
@@ -266,14 +227,14 @@ function ServicioDetallePageContent() {
 
       const metodoPagoSeleccionado = metodosPago.find((m) => m.id === data.metodoPagoId);
       await update(COLLECTIONS.PAGOS_SERVICIO, pagoToEdit.id, {
-        fechaInicio: dateToTimestamp(data.fechaInicio),
-        fechaVencimiento: dateToTimestamp(data.fechaVencimiento),
+        fechaInicio: data.fechaInicio,
+        fechaVencimiento: data.fechaVencimiento,
         monto: data.costo,
         cicloPago: data.periodoRenovacion as 'mensual' | 'trimestral' | 'semestral' | 'anual',
         metodoPagoId: data.metodoPagoId,
         metodoPagoNombre: data.metodoPagoNombre || metodoPagoSeleccionado?.nombre,  // Denormalizado
         moneda: data.moneda || metodoPagoSeleccionado?.moneda,                      // Denormalizado
-        isPagoInicial: false,
+        notas: data.notas || '',
       });
 
       // Ajustar gastosTotal del servicio con la diferencia si cambió el monto
@@ -284,6 +245,7 @@ function ServicioDetallePageContent() {
         });
       }
 
+      // Si es el último pago, actualizar el servicio
       const esUltimoPago = pagosOrdenados[0]?.id === pagoToEdit.id;
       if (esUltimoPago) {
         await updateServicio(id, {
@@ -302,7 +264,8 @@ function ServicioDetallePageContent() {
           setServicio(servicioActualizado);
         }
       }
-      await loadPagos();
+
+      refreshPagos();
       toast.success('Pago actualizado correctamente');
       setPagoToEdit(null);
       setEditarPagoDialogOpen(false);
@@ -326,8 +289,11 @@ function ServicioDetallePageContent() {
         gastosTotal: increment(-montoToRevert)
       });
 
-      const pagosActualizados = await loadPagos();
+      refreshPagos();
+
       if (eraUltimaRenovacion) {
+        // Recargar pagos para obtener el nuevo último
+        const pagosActualizados = pagosServicio.filter(p => p.id !== pagoToDelete.id);
         if (pagosActualizados.length > 0) {
           const anterior = pagosActualizados[0];
           await updateServicio(id, {
@@ -356,24 +322,21 @@ function ServicioDetallePageContent() {
   const handleConfirmRenovacion = async (data: PagoFormData) => {
     try {
       const metodoPagoSeleccionado = metodosPago.find((m) => m.id === data.metodoPagoId);
-      const numeroRenovacion = pagosServicio.filter((p) => !p.isPagoInicial && p.descripcion !== 'Pago inicial').length + 1;
-      const descripcion = `Renovación #${numeroRenovacion}`;
-      const fechaRegistro = new Date();
+      const numeroRenovacion = renovaciones + 1;
 
-      await create(COLLECTIONS.PAGOS_SERVICIO, {
-        servicioId: id,
-        categoriaId: servicio?.categoriaId || '',  // Denormalizado para queries eficientes
-        fecha: fechaRegistro,
-        descripcion,
-        cicloPago: data.periodoRenovacion as 'mensual' | 'trimestral' | 'semestral' | 'anual',
-        fechaInicio: data.fechaInicio,
-        fechaVencimiento: data.fechaVencimiento,
-        monto: data.costo,
-        metodoPagoId: data.metodoPagoId,
-        metodoPagoNombre: data.metodoPagoNombre || metodoPagoSeleccionado?.nombre,  // Denormalizado
-        moneda: data.moneda || metodoPagoSeleccionado?.moneda,                      // Denormalizado
-        isPagoInicial: false,
-      });
+      await crearPagoRenovacion(
+        id,
+        servicio?.categoriaId || '',
+        data.costo,
+        data.metodoPagoId,
+        data.metodoPagoNombre || metodoPagoSeleccionado?.nombre || '',
+        data.moneda || metodoPagoSeleccionado?.moneda || 'USD',
+        data.periodoRenovacion as 'mensual' | 'trimestral' | 'semestral' | 'anual',
+        data.fechaInicio,
+        data.fechaVencimiento,
+        numeroRenovacion,
+        data.notas
+      );
 
       // Incrementar gastosTotal del servicio
       const servicioRef = firestoreDoc(db, COLLECTIONS.SERVICIOS, id);
@@ -397,26 +360,7 @@ function ServicioDetallePageContent() {
         setServicio(servicioActualizado);
       }
 
-      const docs = await queryDocuments<Record<string, unknown>>(COLLECTIONS.PAGOS_SERVICIO, [
-        { field: 'servicioId', operator: '==', value: id },
-      ]);
-      const pagos: PagoServicio[] = docs.map((d) => ({
-        id: d.id as string,
-        servicioId: d.servicioId as string,
-        categoriaId: d.categoriaId as string || '', // Puede faltar en datos migrados antiguos
-        metodoPagoId: d.metodoPagoId as string | undefined,
-        moneda: d.moneda as string | undefined,
-        isPagoInicial: d.isPagoInicial as boolean | undefined,
-        fecha: timestampToDate(d.fecha),
-        descripcion: d.descripcion as string,
-        cicloPago: d.cicloPago as PagoServicio['cicloPago'],
-        fechaInicio: timestampToDate(d.fechaInicio),
-        fechaVencimiento: timestampToDate(d.fechaVencimiento),
-        monto: (d.monto as number) ?? 0,
-        createdAt: timestampToDate(d.createdAt),
-        updatedAt: timestampToDate(d.updatedAt),
-      }));
-      setPagosServicio(pagos.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()));
+      refreshPagos();
 
       toast.success('Renovación registrada exitosamente');
       setRenovarDialogOpen(false);
@@ -435,7 +379,6 @@ function ServicioDetallePageContent() {
     };
     return labels[ciclo] || ciclo;
   };
-
 
   const currencySymbol = getCurrencySymbol(metodoPago?.moneda);
 
@@ -534,7 +477,7 @@ function ServicioDetallePageContent() {
     );
   }
 
-  // Generar perfiles dinamicamente
+  // Generar perfiles dinámicamente
   const perfilesArray = Array.from({ length: servicio.perfilesDisponibles }, (_, i) => {
     const numero = i + 1;
     const venta = ventasPorPerfil.get(numero);

@@ -153,7 +153,7 @@ export function UsuarioDetails({ usuario, onVentaDeleted }: UsuarioDetailsProps)
         fechaInicio:     venta.fechaInicio,
         fechaFin:        venta.fechaFin,
         montoSinConsumir,
-        renovaciones:    renovacionesByServicio[venta.servicioId] ?? 0,
+        renovaciones:    renovacionesByServicio[venta.id] ?? 0,
         diasRestantes,
         estado:          venta.estado === 'inactivo' ? 'Inactiva' : 'Activa',
         moneda:          venta.moneda,

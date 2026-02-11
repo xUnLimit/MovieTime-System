@@ -99,6 +99,7 @@ export const useVentasStore = create<VentasState>()(
               ventaId,
               clienteId: ventaData.clienteId || '',
               clienteNombre: ventaData.clienteNombre,
+              categoriaId: ventaData.categoriaId,  // Denormalizado para queries
               fecha: pagoInicial.fecha || new Date(),
               monto: pagoInicial.total || precioFinal,
               precio,                         // Precio original
@@ -131,7 +132,10 @@ export const useVentasStore = create<VentasState>()(
           }
 
           // Dispatch event for cross-component updates
-          window.dispatchEvent(new Event('venta-created'));
+          if (typeof window !== 'undefined') {
+            window.localStorage.setItem('venta-created', Date.now().toString());
+            window.dispatchEvent(new Event('venta-created'));
+          }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Error al crear venta';
           set({ error: errorMessage });
@@ -203,7 +207,10 @@ export const useVentasStore = create<VentasState>()(
           }));
 
           // Dispatch event for cross-component updates
-          window.dispatchEvent(new Event('venta-updated'));
+          if (typeof window !== 'undefined') {
+            window.localStorage.setItem('venta-updated', Date.now().toString());
+            window.dispatchEvent(new Event('venta-updated'));
+          }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Error al actualizar venta';
           set({ error: errorMessage });

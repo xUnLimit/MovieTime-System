@@ -90,7 +90,7 @@ export const VentaPagosTable = memo(function VentaPagosTable({
                     {pago.fechaVencimiento ? formatearFecha(new Date(pago.fechaVencimiento)) : '—'}
                   </td>
                   <td className="py-3 text-center">{rowCurrency} {pago.precio.toFixed(2)}</td>
-                  <td className="py-3 text-center text-red-500">{pago.descuento > 0 ? `${pago.descuento.toFixed(2)}%` : `${rowCurrency} 0.00`}</td>
+                  <td className="py-3 text-center text-red-500">{pago.descuento > 0 ? `% ${pago.descuento.toFixed(2)}` : `% 0.00`}</td>
                   <td className="py-3 text-center font-semibold">{rowCurrency} {pago.total.toFixed(2)}</td>
                   <td className="py-3 text-center">
                     {puedeGestionar ? (

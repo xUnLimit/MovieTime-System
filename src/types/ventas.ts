@@ -26,6 +26,7 @@ export interface PagoVenta {
   ventaId: string;                    // Referencia a la venta
   clienteId: string;                  // Denormalizado para queries
   clienteNombre: string;              // Denormalizado
+  categoriaId?: string;               // Denormalizado para queries por categoría
   fecha: Date;                        // Fecha en que se realizó el pago
   monto: number;                      // Monto final (después de descuento)
   precio?: number;                    // Precio original antes de descuento

@@ -107,6 +107,25 @@ function VentasPageContent() {
     }
   };
 
+  // Escuchar eventos de cambios en ventas desde otros módulos
+  useEffect(() => {
+    const handleVentaChange = () => {
+      console.log('[VentasPage] Venta change event detected, refreshing...');
+      refresh();
+      fetchCounts();
+    };
+
+    window.addEventListener('venta-created', handleVentaChange);
+    window.addEventListener('venta-updated', handleVentaChange);
+    window.addEventListener('venta-deleted', handleVentaChange);
+
+    return () => {
+      window.removeEventListener('venta-created', handleVentaChange);
+      window.removeEventListener('venta-updated', handleVentaChange);
+      window.removeEventListener('venta-deleted', handleVentaChange);
+    };
+  }, [refresh, fetchCounts]);
+
   return (
     <>
       <div className="space-y-4">

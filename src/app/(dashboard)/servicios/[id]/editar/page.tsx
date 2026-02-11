@@ -5,7 +5,7 @@ import { useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ServicioForm } from '@/components/servicios/ServicioForm';
+import { ServicioEditForm } from '@/components/servicios/ServicioEditForm';
 import { useServiciosStore } from '@/store/serviciosStore';
 
 export default function EditarServicioPage() {
@@ -16,7 +16,7 @@ export default function EditarServicioPage() {
     fetchServicios();
   }, [fetchServicios]);
 
-  const servicio = useMemo(() => 
+  const servicio = useMemo(() =>
     servicios.find(s => s.id === params.id),
     [servicios, params.id]
   );
@@ -48,7 +48,7 @@ export default function EditarServicioPage() {
 
       {servicio && (
         <div className="bg-card border rounded-lg p-6">
-          <ServicioForm servicio={servicio} />
+          <ServicioEditForm servicio={servicio} />
         </div>
       )}
     </div>

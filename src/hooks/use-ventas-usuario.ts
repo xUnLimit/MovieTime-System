@@ -120,35 +120,35 @@ export function useVentasUsuario(usuarioId: string) {
           moneda:          venta.moneda,
         }));
 
-        // Query 2: Renovaciones (single query con 'in' en lugar de N queries)
-        const servicioIds = Array.from(new Set(mapped.map((v) => v.servicioId).filter(Boolean)));
+        // Query 2: Renovaciones por venta (desde pagosVenta)
+        const ventaIds = mapped.map((v) => v.id).filter(Boolean);
 
         let renovaciones: Record<string, number> = {};
-        if (servicioIds.length > 0) {
+        if (ventaIds.length > 0) {
           // Firestore 'in' acepta max 10 valores — si hay más, partir en chunks
           const chunks: string[][] = [];
-          for (let i = 0; i < servicioIds.length; i += 10) {
-            chunks.push(servicioIds.slice(i, i + 10));
+          for (let i = 0; i < ventaIds.length; i += 10) {
+            chunks.push(ventaIds.slice(i, i + 10));
           }
 
           const allPagos = await Promise.all(
             chunks.map(chunk =>
-              queryDocuments<Record<string, unknown>>(COLLECTIONS.PAGOS_SERVICIO, [
-                { field: 'servicioId', operator: 'in', value: chunk },
+              queryDocuments<Record<string, unknown>>(COLLECTIONS.PAGOS_VENTA, [
+                { field: 'ventaId', operator: 'in', value: chunk },
               ])
             )
           );
 
           const pagos = allPagos.flat();
 
-          // Contar renovaciones por servicio
+          // Contar renovaciones por venta (excluir pago inicial)
           const renovacionesMap: Record<string, number> = {};
           pagos.forEach((pago) => {
-            const sid = pago.servicioId as string;
-            if (!sid) return;
-            const isRenovacion = !pago.isPagoInicial && pago.descripcion !== 'Pago inicial';
-            if (isRenovacion) {
-              renovacionesMap[sid] = (renovacionesMap[sid] || 0) + 1;
+            const ventaId = pago.ventaId as string;
+            if (!ventaId) return;
+            const isPagoInicial = pago.isPagoInicial === true;
+            if (!isPagoInicial) {
+              renovacionesMap[ventaId] = (renovacionesMap[ventaId] || 0) + 1;
             }
           });
           renovaciones = renovacionesMap;

@@ -48,6 +48,7 @@ export interface PagoServicio {
   fechaInicio: Date;
   fechaVencimiento: Date;
   monto: number;
+  notas?: string; // Notas adicionales del pago
   createdAt: Date;
   updatedAt: Date;
 }

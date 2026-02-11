@@ -62,6 +62,8 @@ interface VentaDialogProps extends BaseProps {
     fechaFin: Date;
   };
   pago?: {
+    id?: string; // ID del pago (para editar)
+    descripcion?: string; // Descripción del pago (para logs)
     metodoPagoId?: string | null;
     cicloPago?: 'mensual' | 'trimestral' | 'semestral' | 'anual' | null;
     precio: number;
@@ -209,7 +211,7 @@ export function PagoDialog(props: PagoDialogProps) {
       notas: '',
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, props.pago]);
+  }, [open, props.pago, servicio?.fechaVencimiento, servicio?.metodoPagoId, servicio?.costoServicio]);
 
   useEffect(() => {
     if (fechaInicioValue && periodoValue && periodoValue !== '') {

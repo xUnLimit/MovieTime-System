@@ -11,35 +11,36 @@ import { PagoVenta, VentaDoc } from '@/types';
 import { getVentasConUltimoPago, VentaConUltimoPago } from '@/lib/services/ventaSyncService';
 
 export const VentasMetrics = memo(function VentasMetrics() {
-  const { ventas, fetchVentas } = useVentasStore();
+  const { fetchVentas } = useVentasStore();
   const [pagosVentas, setPagosVentas] = useState<PagoVenta[]>([]);
   const [ventasConUltimoPago, setVentasConUltimoPago] = useState<VentaConUltimoPago[]>([]);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  // Función centralizada para cargar datos
+  const loadMetrics = async () => {
+    console.log('[VentasMetrics] Loading metrics...');
+    await fetchVentas(true); // Force refresh
+    // Load all pagos from pagosVenta collection
+    const pagos = await getAll<PagoVenta>(COLLECTIONS.PAGOS_VENTA);
+    setPagosVentas(pagos);
+
+    // Load all ventas with current data from last payment
+    const allVentas = await getAll<VentaDoc>(COLLECTIONS.VENTAS);
+    const ventasConPagoActual = await getVentasConUltimoPago(allVentas);
+    setVentasConUltimoPago(ventasConPagoActual);
+  };
+
+  // Cargar datos iniciales y cuando cambia refreshTrigger
   useEffect(() => {
-    const loadMetrics = async () => {
-      await fetchVentas(true); // Force refresh on mount
-      // Load all pagos from pagosVenta collection
-      const pagos = await getAll<PagoVenta>(COLLECTIONS.PAGOS_VENTA);
-      setPagosVentas(pagos);
-
-      // Load all ventas with current data from last payment
-      const allVentas = await getAll<VentaDoc>(COLLECTIONS.VENTAS);
-      const ventasConPagoActual = await getVentasConUltimoPago(allVentas);
-      setVentasConUltimoPago(ventasConPagoActual);
-    };
     loadMetrics();
 
-    // Listen for venta changes (create, edit, delete)
-    const handleVentaChange = async () => {
-      await fetchVentas(true); // Force refresh when changes occur
-      // Reload pagos when ventas change
-      const pagos = await getAll<PagoVenta>(COLLECTIONS.PAGOS_VENTA);
-      setPagosVentas(pagos);
+  }, [refreshTrigger]);
 
-      // Reload ventas with current data from last payment
-      const allVentas = await getAll<VentaDoc>(COLLECTIONS.VENTAS);
-      const ventasConPagoActual = await getVentasConUltimoPago(allVentas);
-      setVentasConUltimoPago(ventasConPagoActual);
+  // Escuchar eventos de cambios en ventas
+  useEffect(() => {
+    const handleVentaChange = () => {
+      console.log('[VentasMetrics] Venta change event detected');
+      setRefreshTrigger(prev => prev + 1);
     };
 
     window.addEventListener('venta-created', handleVentaChange);
@@ -51,7 +52,7 @@ export const VentasMetrics = memo(function VentasMetrics() {
       window.removeEventListener('venta-updated', handleVentaChange);
       window.removeEventListener('venta-deleted', handleVentaChange);
     };
-  }, [fetchVentas]);
+  }, []);
 
   const metrics = useMemo(() => {
     // Usar ventasConUltimoPago en lugar de ventas del store
