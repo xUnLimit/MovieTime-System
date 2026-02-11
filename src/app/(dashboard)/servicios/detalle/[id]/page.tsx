@@ -27,7 +27,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { getCurrencySymbol } from '@/lib/constants';
-import { formatearFecha } from '@/lib/utils/calculations';
+import { formatearFecha, sumInUSD, formatAggregateInUSD } from '@/lib/utils/calculations';
 import { usePagosServicio } from '@/hooks/use-pagos-servicio';
 import { crearPagoRenovacion, contarRenovacionesDeServicio } from '@/lib/services/pagosServicioService';
 
@@ -382,8 +382,25 @@ function ServicioDetallePageContent() {
 
   const currencySymbol = getCurrencySymbol(metodoPago?.moneda);
 
-  const totalGastado = useMemo(() => {
-    return pagosServicio.reduce((sum, p) => sum + p.monto, 0);
+  const [totalGastadoUSD, setTotalGastadoUSD] = useState<number>(0);
+  const [isCalculatingTotal, setIsCalculatingTotal] = useState(false);
+
+  useEffect(() => {
+    const calculateTotal = async () => {
+      setIsCalculatingTotal(true);
+      try {
+        const total = await sumInUSD(
+          pagosServicio.map(p => ({ monto: p.monto, moneda: p.moneda || 'USD' }))
+        );
+        setTotalGastadoUSD(total);
+      } catch (error) {
+        console.error('[ServicioDetail] Error calculating total:', error);
+        setTotalGastadoUSD(0);
+      } finally {
+        setIsCalculatingTotal(false);
+      }
+    };
+    calculateTotal();
   }, [pagosServicio]);
 
   const pagosOrdenados = useMemo(() => {
@@ -880,7 +897,11 @@ function ServicioDetallePageContent() {
                 <div className="flex justify-end items-center mt-2">
                   <span className="text-sm text-muted-foreground mr-2">Total Gastado:</span>
                   <span className="text-lg font-semibold text-purple-600">
-                    {currencySymbol} {totalGastado.toFixed(2)}
+                    {isCalculatingTotal ? (
+                      <span className="text-xs">Calculando...</span>
+                    ) : (
+                      formatAggregateInUSD(totalGastadoUSD)
+                    )}
                   </span>
                 </div>
               </div>

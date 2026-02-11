@@ -1,6 +1,6 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { Edit, MoreHorizontal, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { getCurrencySymbol } from '@/lib/constants';
-import { formatearFecha } from '@/lib/utils/calculations';
+import { formatearFecha, sumInUSD, formatAggregateInUSD } from '@/lib/utils/calculations';
 import { VentaPago } from '@/types';
 
 interface VentaPagosTableProps {
@@ -38,8 +38,29 @@ export const VentaPagosTable = memo(function VentaPagosTable({
   onEdit,
   onDelete,
 }: VentaPagosTableProps) {
-  const totalIngresos = pagos.reduce((sum, p) => sum + (p.total ?? 0), 0);
-  const currencySymbol = getCurrencySymbol(moneda);
+  const [totalIngresosUSD, setTotalIngresosUSD] = useState<number>(0);
+  const [isCalculatingTotal, setIsCalculatingTotal] = useState(false);
+
+  useEffect(() => {
+    const calculateTotal = async () => {
+      setIsCalculatingTotal(true);
+      try {
+        const total = await sumInUSD(
+          pagos.map(p => ({
+            monto: p.total ?? 0,
+            moneda: p.moneda || moneda || 'USD'
+          }))
+        );
+        setTotalIngresosUSD(total);
+      } catch (error) {
+        console.error('[VentaPagosTable] Error calculating total:', error);
+        setTotalIngresosUSD(0);
+      } finally {
+        setIsCalculatingTotal(false);
+      }
+    };
+    calculateTotal();
+  }, [pagos, moneda]);
 
   return (
     <>
@@ -127,7 +148,13 @@ export const VentaPagosTable = memo(function VentaPagosTable({
 
       <div className="pt-3 border-t flex items-center justify-between">
         <span className="text-sm text-muted-foreground">Ingreso Total:</span>
-        <span className="text-lg font-semibold text-purple-400">{currencySymbol} {totalIngresos.toFixed(2)}</span>
+        <span className="text-lg font-semibold text-purple-400">
+          {isCalculatingTotal ? (
+            <span className="text-xs">Calculando...</span>
+          ) : (
+            formatAggregateInUSD(totalIngresosUSD)
+          )}
+        </span>
       </div>
     </>
   );

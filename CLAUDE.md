@@ -740,6 +740,138 @@ state.items.push(newItem)
 
 19. **`adjustServiciosActivos` (not `adjustVentasActivas`)**: The function was renamed. `adjustVentasActivas` still works as a deprecated alias but new code should use `adjustServiciosActivos`.
 
+## Multi-Currency Conversion System
+
+The MovieTime system supports **multi-currency payments** with automatic conversion to USD for accurate financial reporting. This ensures that totals across different currencies (TRY, ARS, NGN, USD, etc.) are mathematically correct.
+
+### Key Principles
+
+1. **Individual items preserve original currency**: Payment rows, service costs, and venta amounts always display in their original currency
+2. **Totals convert to USD**: All aggregated totals (sums across multiple payments/services) convert all amounts to USD and display as "$X.XX USD"
+3. **Hybrid caching**: Exchange rates fetched from external API (exchangerate-api.io) and cached in Firebase for 24 hours
+4. **Zero data migration**: All existing data remains unchanged; conversion happens at display time
+
+### Architecture
+
+**Three-layer system:**
+```
+UI Components (VentasMetrics, ServicioDetail, etc.)
+      ↓
+Conversion Helpers (sumInUSD, convertToUSD, formatAggregateInUSD)
+      ↓
+Currency Service (API fetch + Firebase cache with 24h TTL)
+```
+
+### Core Components
+
+**Currency Service** (`src/lib/services/currencyService.ts`):
+- `getExchangeRate(from, to)` - Get exchange rate between currencies
+- `convertToUSD(amount, from)` - Convert amount to USD
+- `refreshExchangeRates()` - Fetch fresh rates from API
+- Caches rates in `config/exchange_rates` Firestore document
+- Falls back to stale cache if API fails
+
+**Helper Functions** (`src/lib/utils/calculations.ts`):
+- `sumInUSD(items)` - Sum array of mixed-currency amounts, returns USD total
+- `convertToUSD(amount, from)` - Convert single amount to USD
+- `formatAggregateInUSD(amount)` - Format USD amount as "$1,234.56 USD"
+
+### Usage Patterns
+
+**Example 1: Calculate total from mixed-currency payments**
+```typescript
+// ✅ CORRECT - Convert to USD before summing
+const ingresoTotal = await sumInUSD(
+  pagosVentas.map(p => ({ monto: p.monto, moneda: p.moneda }))
+);
+
+// ❌ WRONG - Direct sum without conversion
+const ingresoTotal = pagosVentas.reduce((sum, p) => sum + p.monto, 0);
+```
+
+**Example 2: Display totals with USD label**
+```typescript
+// ✅ CORRECT - Use formatAggregateInUSD
+<MetricCard
+  title="Ingreso Total"
+  value={formatAggregateInUSD(metrics.ingresoTotal)}
+/>
+
+// ❌ WRONG - Use formatearMoneda (assumes single currency)
+<MetricCard
+  title="Ingreso Total"
+  value={formatearMoneda(metrics.ingresoTotal)}
+/>
+```
+
+**Example 3: Keep individual items in original currency**
+```typescript
+// ✅ CORRECT - Show original currency per row
+<td>{getCurrencySymbol(pago.moneda)} {pago.monto.toFixed(2)}</td>
+
+// Footer shows USD total
+<span>{formatAggregateInUSD(totalIngresosUSD)}</span>
+```
+
+### Implementation Checklist
+
+When adding new financial aggregations:
+- [ ] Use `sumInUSD()` for totals across multiple currencies
+- [ ] Display totals with `formatAggregateInUSD()`
+- [ ] Keep individual items in original currency
+- [ ] Handle async conversion with loading states
+- [ ] Add error handling with fallback values
+
+### Configuration
+
+**Environment Variable** (`.env.local`):
+```bash
+NEXT_PUBLIC_EXCHANGE_RATE_API_KEY=your-api-key-here
+```
+
+Get free API key from [exchangerate-api.io](https://www.exchangerate-api.com/) (1,500 requests/month)
+
+**Cache Structure** (Firestore `config/exchange_rates`):
+```typescript
+{
+  rates: {
+    'USD_TRY': 35.20,
+    'USD_ARS': 850.75,
+    'USD_NGN': 1650.50,
+    // ... all currencies
+  },
+  lastUpdated: Timestamp,
+  source: 'exchangerate-api.io'
+}
+```
+
+### Performance
+
+- **API calls**: ~30 per month (with 24h caching)
+- **Firebase reads**: +1 per page load (for exchange_rates document)
+- **Conversion time**: < 100ms for 100 items
+- **Cache TTL**: 24 hours with stale fallback
+
+### Modified Components
+
+All monetary aggregations now use currency conversion:
+- `VentasMetrics` - Ingreso Total, Ingreso Mensual Esperado, Monto Sin Consumir
+- `ServicioDetail` - Total Gastado (payment history)
+- `VentaPagosTable` - Ingreso Total (payment table footer)
+- `metricsService.ts` - `calculateVentasMetrics()` (now async)
+
+### Important Notes
+
+1. **All metrics functions are now async**: Components must handle promises and loading states
+2. **Original currency preserved**: Individual payment rows, service costs, venta details show original currency
+3. **USD for totals only**: Aggregations across multiple records show USD
+4. **Graceful degradation**: If API fails, uses stale cache with warning
+5. **No breaking changes**: Existing single-currency data works without modification
+
+For detailed implementation guide, see `docs/plans/2026-02-12-currency-conversion-design.md`
+
+---
+
 ## Firebase Best Practices
 
 1. **Use COLLECTIONS enum**: Always use `COLLECTIONS.ITEMS` instead of hardcoded strings

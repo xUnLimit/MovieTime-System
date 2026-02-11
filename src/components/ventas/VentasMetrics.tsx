@@ -1,10 +1,10 @@
 'use client';
 
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { MetricCard } from '@/components/shared/MetricCard';
 import { useVentasStore } from '@/store/ventasStore';
-import { calculateVentasMetrics } from '@/lib/services/metricsService';
-import { formatearMoneda } from '@/lib/utils/calculations';
+import { calculateVentasMetrics, VentasMetrics } from '@/lib/services/metricsService';
+import { formatAggregateInUSD } from '@/lib/utils/calculations';
 import { CreditCard, DollarSign, CalendarRange, Wallet, CheckCircle2, XCircle } from 'lucide-react';
 import { getAll, COLLECTIONS } from '@/lib/firebase/firestore';
 import { PagoVenta, VentaDoc } from '@/types';
@@ -54,10 +54,32 @@ export const VentasMetrics = memo(function VentasMetrics() {
     };
   }, []);
 
-  const metrics = useMemo(() => {
-    // Usar ventasConUltimoPago en lugar de ventas del store
-    // para calcular métricas con datos del último pago desde pagosVenta
-    return calculateVentasMetrics(ventasConUltimoPago, pagosVentas);
+  const [metrics, setMetrics] = useState<VentasMetrics | null>(null);
+  const [isCalculating, setIsCalculating] = useState(false);
+
+  // Calcular métricas de forma asíncrona con conversión de moneda
+  useEffect(() => {
+    const calculate = async () => {
+      setIsCalculating(true);
+      try {
+        const result = await calculateVentasMetrics(ventasConUltimoPago, pagosVentas);
+        setMetrics(result);
+      } catch (error) {
+        console.error('[VentasMetrics] Error calculating metrics:', error);
+        // Fallback a métricas en cero en caso de error
+        setMetrics({
+          ventasTotales: 0,
+          ingresoTotal: 0,
+          ingresoMensualEsperado: 0,
+          montoSinConsumir: 0,
+          ventasActivas: 0,
+          ventasInactivas: 0
+        });
+      } finally {
+        setIsCalculating(false);
+      }
+    };
+    calculate();
   }, [ventasConUltimoPago, pagosVentas]);
 
   return (
@@ -71,21 +93,21 @@ export const VentasMetrics = memo(function VentasMetrics() {
       />
       <MetricCard
         title="Ingreso Total"
-        value={metrics ? formatearMoneda(metrics.ingresoTotal) : '-'}
+        value={isCalculating ? 'Calculando...' : (metrics ? formatAggregateInUSD(metrics.ingresoTotal) : '-')}
         icon={DollarSign}
         iconColor="text-orange-500"
         underlineColor="bg-orange-500"
       />
       <MetricCard
         title="Ingreso Mensual Esperado"
-        value={metrics ? formatearMoneda(metrics.ingresoMensualEsperado) : '-'}
+        value={isCalculating ? 'Calculando...' : (metrics ? formatAggregateInUSD(metrics.ingresoMensualEsperado) : '-')}
         icon={CalendarRange}
         iconColor="text-blue-500"
         underlineColor="bg-blue-500"
       />
       <MetricCard
         title="Monto Sin Consumir"
-        value={metrics ? formatearMoneda(metrics.montoSinConsumir) : '-'}
+        value={isCalculating ? 'Calculando...' : (metrics ? formatAggregateInUSD(metrics.montoSinConsumir) : '-')}
         icon={Wallet}
         iconColor="text-emerald-500"
         underlineColor="bg-emerald-500"

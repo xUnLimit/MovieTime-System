@@ -252,3 +252,68 @@ export function deriveTopLevelFromPagos(pagos: Array<{
     precioFinal: latest.total ?? 0,
   };
 }
+
+// ===========================
+// MULTI-CURRENCY CONVERSION HELPERS
+// ===========================
+
+import { currencyService } from '@/lib/services/currencyService';
+
+/**
+ * Sum array of monetary amounts, converting each to USD
+ * Used for: VentasMetrics totals, payment history totals, service cost aggregations
+ *
+ * @param items - Array of objects with monto and optional moneda
+ * @returns Total sum in USD
+ *
+ * @example
+ * const pagos = [
+ *   { monto: 75, moneda: 'TRY' },
+ *   { monto: 1500, moneda: 'ARS' },
+ *   { monto: 10, moneda: 'USD' }
+ * ];
+ * const total = await sumInUSD(pagos); // Returns ~17.00
+ */
+export async function sumInUSD(
+  items: Array<{ monto: number; moneda?: string }>
+): Promise<number> {
+  let totalUSD = 0;
+
+  for (const item of items) {
+    const amountUSD = await currencyService.convertToUSD(
+      item.monto,
+      item.moneda || 'USD'
+    );
+    totalUSD += amountUSD;
+  }
+
+  return totalUSD;
+}
+
+/**
+ * Convert single amount to USD (wrapper for currencyService)
+ *
+ * @param amount - Amount in source currency
+ * @param fromCurrency - Source currency code (default: 'USD')
+ * @returns Amount in USD
+ */
+export async function convertToUSD(
+  amount: number,
+  fromCurrency: string = 'USD'
+): Promise<number> {
+  return currencyService.convertToUSD(amount, fromCurrency);
+}
+
+/**
+ * Format aggregate total with USD label
+ * Always shows "USD" suffix for clarity in mixed-currency contexts
+ *
+ * @param amount - Amount in USD
+ * @returns Formatted string like "$1,234.56 USD"
+ */
+export function formatAggregateInUSD(amount: number): string {
+  return `$${amount.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })} USD`;
+}
