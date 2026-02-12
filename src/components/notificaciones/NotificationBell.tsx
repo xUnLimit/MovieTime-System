@@ -114,13 +114,14 @@ export function NotificationBell() {
     return null; // Prevent hydration mismatch
   }
 
-  // Get unread notifications (most recent first)
-  const unreadNotifications = notificaciones
-    .filter((n) => !n.leida)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 5); // Show top 5
+  // Get unread notifications
+  const unreadNotifications = notificaciones.filter((n) => !n.leida);
 
-  const badgeColor = getBadgeColor(notificaciones);
+  // Count by type
+  const ventasPorVencer = unreadNotifications.filter(esNotificacionVenta).length;
+  const serviciosPorPagar = unreadNotifications.filter(esNotificacionServicio).length;
+
+  const badgeColor = getBadgeColor(unreadNotifications);
   const badgeLabel = getBadgeLabel(unreadNotifications);
 
   return (
@@ -146,61 +147,73 @@ export function NotificationBell() {
         </Button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-72">
+      <DropdownMenuContent align="end" className="w-80 p-0">
         {/* Header */}
-        <div className="px-4 py-3 flex items-center justify-between border-b">
-          <h3 className="font-semibold text-sm">Notificaciones</h3>
-          <span className="text-xs text-gray-500">
-            {unreadNotifications.length} nuevas
-          </span>
+        <div className="px-4 py-3 border-b">
+          <h3 className="font-semibold text-base">Resumen de Notificaciones</h3>
+          <p className="text-xs text-muted-foreground mt-1">
+            Tienes {unreadNotifications.length} alerta(s) pendiente(s).
+          </p>
         </div>
 
-        {/* Notifications list */}
+        {/* Summary */}
         {unreadNotifications.length > 0 ? (
-          <div className="max-h-96 overflow-y-auto">
-            {unreadNotifications.map((notif) => (
-              <div
-                key={notif.id}
-                className={`px-4 py-3 border-b text-sm cursor-pointer hover:bg-gray-50 transition-colors ${
-                  notif.resaltada ? 'bg-yellow-50' : ''
-                }`}
+          <div className="py-2">
+            {/* Ventas por vencer */}
+            {ventasPorVencer > 0 && (
+              <button
+                onClick={() => {
+                  window.location.href = '/notificaciones-test';
+                  setIsOpen(false);
+                }}
+                className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
               >
-                {/* Title with priority icon */}
-                <div className="flex items-start gap-2">
-                  <AlertCircle className={`h-4 w-4 mt-0.5 flex-shrink-0 ${getPrioridadColor(notif.prioridad)}`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">
-                      {formatNotificationTitle(notif)}
-                    </p>
-                    <p className="text-xs text-gray-600 mt-0.5">
-                      {notif.titulo}
-                    </p>
-                  </div>
-                  {notif.resaltada && (
-                    <span className="text-lg flex-shrink-0">⭐</span>
-                  )}
+                <div className="flex items-center gap-3">
+                  <div className="w-1 h-8 bg-red-500 rounded-full"></div>
+                  <span className="text-sm font-medium">Ventas por vencer</span>
                 </div>
-              </div>
-            ))}
+                <span className="text-lg font-bold">{ventasPorVencer}</span>
+              </button>
+            )}
+
+            {/* Servicios por pagar */}
+            {serviciosPorPagar > 0 && (
+              <button
+                onClick={() => {
+                  window.location.href = '/notificaciones-test';
+                  setIsOpen(false);
+                }}
+                className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-1 h-8 bg-red-500 rounded-full"></div>
+                  <span className="text-sm font-medium">Servicios por pagar</span>
+                </div>
+                <span className="text-lg font-bold">{serviciosPorPagar}</span>
+              </button>
+            )}
           </div>
         ) : (
           <div className="px-4 py-8 text-center text-sm text-gray-500">
-            No hay notificaciones nuevas
+            No hay notificaciones pendientes
           </div>
         )}
 
-        {/* Footer */}
-        {notificaciones.length > 0 && (
+        {/* Footer - Ver todas */}
+        {unreadNotifications.length > 0 && (
           <>
             <DropdownMenuSeparator className="my-0" />
-            <div className="px-4 py-3">
-              <a
-                href="/notificaciones-test"
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                onClick={() => setIsOpen(false)}
+            <div className="p-3">
+              <Button
+                onClick={() => {
+                  window.location.href = '/notificaciones-test';
+                  setIsOpen(false);
+                }}
+                className="w-full bg-primary hover:bg-primary/90 text-white"
+                size="sm"
               >
                 Ver todas las notificaciones →
-              </a>
+              </Button>
             </div>
           </>
         )}
