@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
@@ -16,11 +16,9 @@ import {
   FileText,
   Moon,
   Sun,
-  ChevronLeft,
-  LogOut
+  ChevronLeft
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import { useAuthStore } from '@/store/authStore';
 import { useSidebarState } from '@/hooks/use-sidebar';
 import { useEffect } from 'react';
 
@@ -98,9 +96,7 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed: controlledCollapsed, onCollapse }: SidebarProps = {}) {
   const pathname = usePathname();
-  const router = useRouter();
   const { theme, setTheme } = useTheme();
-  const { logout } = useAuthStore();
   const { isOpen, toggle } = useSidebarState();
 
   const collapsed = controlledCollapsed !== undefined ? controlledCollapsed : !isOpen;
@@ -119,11 +115,6 @@ export function Sidebar({ collapsed: controlledCollapsed, onCollapse }: SidebarP
     return () => window.removeEventListener('keydown', handleKeyboard);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [collapsed]);
-
-  const handleLogout = () => {
-    logout();
-    router.push('/login');
-  };
 
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
@@ -289,31 +280,6 @@ export function Sidebar({ collapsed: controlledCollapsed, onCollapse }: SidebarP
               }}
             >
               Colapsar
-            </span>
-          </button>
-
-          {/* Botón Cerrar Sesión */}
-          <button
-            onClick={handleLogout}
-            className={cn(
-              "relative flex items-center h-9 w-full rounded-lg overflow-hidden",
-              "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-              "transition-colors duration-200"
-            )}
-            title={collapsed ? "Cerrar Sesión" : undefined}
-          >
-            <div className="absolute left-0 w-11 h-9 flex items-center justify-center">
-              <LogOut className="h-4 w-4" />
-            </div>
-            <span
-              className="absolute left-11 text-sm whitespace-nowrap"
-              style={{
-                opacity: collapsed ? 0 : 1,
-                transition: 'opacity 200ms ease-in-out',
-                pointerEvents: collapsed ? 'none' : 'auto'
-              }}
-            >
-              Cerrar Sesión
             </span>
           </button>
         </div>

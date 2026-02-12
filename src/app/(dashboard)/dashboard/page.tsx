@@ -5,7 +5,6 @@ import { IngresosVsGastosChart } from '@/components/dashboard/IngresosVsGastosCh
 import { RevenueByCategory } from '@/components/dashboard/RevenueByCategory';
 import { RecentActivity } from '@/components/dashboard/RecentActivity';
 import { CrecimientoUsuarios } from '@/components/dashboard/CrecimientoUsuarios';
-import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { UserMenu } from '@/components/layout/UserMenu';
 
 export default function DashboardPage() {
@@ -18,10 +17,7 @@ export default function DashboardPage() {
             Vista general de métricas y rendimiento
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          <UserMenu />
-        </div>
+        <UserMenu />
       </div>
 
       <DashboardMetrics />
