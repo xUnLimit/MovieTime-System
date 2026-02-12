@@ -6,6 +6,7 @@ import { RevenueByCategory } from '@/components/dashboard/RevenueByCategory';
 import { RecentActivity } from '@/components/dashboard/RecentActivity';
 import { CrecimientoUsuarios } from '@/components/dashboard/CrecimientoUsuarios';
 import { UserMenu } from '@/components/layout/UserMenu';
+import { NotificationBell } from '@/components/notificaciones/NotificationBell';
 
 export default function DashboardPage() {
   return (
@@ -17,7 +18,10 @@ export default function DashboardPage() {
             Vista general de métricas y rendimiento
           </p>
         </div>
-        <UserMenu />
+        <div className="flex items-center gap-3">
+          <NotificationBell />
+          <UserMenu />
+        </div>
       </div>
 
       <DashboardMetrics />

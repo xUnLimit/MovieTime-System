@@ -2,7 +2,6 @@
 
 import { ThemeToggle } from './ThemeToggle';
 import { UserMenu } from './UserMenu';
-import { NotificationBell } from '@/components/notificaciones/NotificationBell';
 
 /**
  * Header Component
@@ -17,11 +16,8 @@ export function Header() {
       {/* Spacer para empujar elementos a la derecha */}
       <div className="flex-1" />
 
-      {/* Right side: Notifications + Theme + User */}
+      {/* Right side: Theme + User */}
       <div className="flex items-center gap-3">
-        {/* Notification Bell */}
-        <NotificationBell />
-
         {/* Theme Toggle */}
         <ThemeToggle />
 
