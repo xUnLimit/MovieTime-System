@@ -137,6 +137,8 @@ export function VentasProximasTableV2({ onOpenAccionesDialog }: VentasProximasTa
   const { notificaciones, toggleLeida } = useNotificacionesStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [estadoFilter, setEstadoFilter] = useState<string>('todos');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Get venta notifications (type-safe filtering)
   const ventasNotificaciones = useMemo(() => {
@@ -171,6 +173,30 @@ export function VentasProximasTableV2({ onOpenAccionesDialog }: VentasProximasTa
       return a.diasRestantes - b.diasRestantes;
     });
   }, [notificaciones, searchQuery, estadoFilter]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(ventasNotificaciones.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedNotificaciones = ventasNotificaciones.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters change
+  useMemo(() => {
+    setCurrentPage(1);
+  }, [searchQuery, estadoFilter]);
+
+  const handlePreviousPage = () => {
+    setCurrentPage((prev) => Math.max(1, prev - 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage((prev) => Math.min(totalPages, prev + 1));
+  };
+
+  const handleItemsPerPageChange = (value: string) => {
+    setItemsPerPage(Number(value));
+    setCurrentPage(1);
+  };
 
   return (
     <Card className="p-4 pb-2">
@@ -241,7 +267,7 @@ export function VentasProximasTableV2({ onOpenAccionesDialog }: VentasProximasTa
                   </TableHeader>
 
                   <TableBody>
-                    {ventasNotificaciones.map((notif) => {
+                    {paginatedNotificaciones.map((notif) => {
                       const bellColors = getBellIconColor(notif.diasRestantes);
                       const estadoBadge = getEstadoBadge(notif.diasRestantes);
 
@@ -334,6 +360,50 @@ export function VentasProximasTableV2({ onOpenAccionesDialog }: VentasProximasTa
               </div>
             </div>
           )}
+
+      {/* Pagination */}
+      {ventasNotificaciones.length > 0 && (
+        <div className="flex items-center justify-between px-2 py-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Mostrar</span>
+            <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
+              <SelectTrigger className="w-[70px] h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-muted-foreground">
+              Página {currentPage} de {totalPages}
+            </span>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePreviousPage}
+                disabled={currentPage === 1}
+              >
+                Anterior
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNextPage}
+                disabled={currentPage === totalPages}
+              >
+                Siguiente
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }
