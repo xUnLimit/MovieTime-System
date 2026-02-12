@@ -91,14 +91,13 @@ MovieTime System/
 └── src/
     ├── app/                  # Next.js App Router
     ├── components/           # React components by feature
-    │   ├── layout/          # Sidebar, Header, NotificationBell, ThemeProvider, ThemeToggle, UserMenu
+    │   ├── layout/          # Sidebar, Header, ThemeProvider, ThemeToggle, UserMenu
     │   ├── dashboard/       # Dashboard metrics & charts (5 files)
     │   ├── servicios/       # Services components (14 files, includes ServicioDetailMetrics)
     │   ├── ventas/          # Sales components (5 files: VentasForm, VentasEditForm, VentasTable, VentasMetrics, VentaPagosTable)
     │   ├── usuarios/        # Clients & Resellers components (6 files)
     │   ├── categorias/      # Categories components (7 files)
     │   ├── metodos-pago/    # Payment methods components (6 files)
-    │   ├── notificaciones/  # Notifications components (4 files)
     │   ├── editor-mensajes/ # WhatsApp template editor (4 files)
     │   ├── log-actividad/   # Activity log components (2 files)
     │   ├── shared/          # Shared components (9 files, includes MetricCard, ModuleErrorBoundary)
@@ -143,7 +142,6 @@ MovieTime System/
         ├── common.ts        # Shared types (ActivityLog, Configuracion, Gasto, TemplateMensaje)
         ├── dashboard.ts     # Dashboard types
         ├── metodos-pago.ts  # Payment method types (MetodoPago + asociadoA)
-        ├── notificaciones.ts # Notification types
         ├── servicios.ts     # Servicio + PagoServicio types
         ├── ventas.ts        # VentaDoc + PagoVenta + VentaPago (deprecated) types
         └── whatsapp.ts      # WhatsApp types
@@ -186,7 +184,6 @@ export const COLLECTIONS = {
   USUARIOS: 'usuarios',           // Unified users (clientes + revendedores)
   SERVICIOS: 'servicios',
   CATEGORIAS: 'categorias',
-  NOTIFICACIONES: 'notificaciones',
   METODOS_PAGO: 'metodosPago',
   ACTIVITY_LOG: 'activityLog',
   CONFIG: 'config',
@@ -303,10 +300,9 @@ All stores in `src/store/` are Firebase-integrated with **error states**, **cach
 4. **ventasStore.ts** - Sales management with caching (5-minute timeout), error states, and optimistic updates. Creates `PagoVenta` records in separate collection on venta creation. Handles profile occupancy + `serviciosActivos` counter updates on delete. Has `fetchCounts()`.
 5. **categoriasStore.ts** - Categories with denormalized counters (initialized at 0 on creation). Has `fetchCounts()` for metrics (totalCategorias, categoriasClientes, categoriasRevendedores). ✅ Error state + optimistic deletes.
 6. **metodosPagoStore.ts** - Payment methods with `asociadoA` segregation. Has `fetchMetodosPagoUsuarios()`, `fetchMetodosPagoServicios()`, `toggleActivo()`, `fetchCounts()` for metrics. ✅ Error state.
-7. **notificacionesStore.ts** - Notifications (Firebase) ✅ Error state.
-8. **activityLogStore.ts** - Activity logs (Firebase) ✅ Error state.
-9. **configStore.ts** - Configuration settings (Firebase) ✅ Error state.
-10. **templatesStore.ts** - Message templates (localStorage persistence) ✅ Error state.
+7. **activityLogStore.ts** - Activity logs (Firebase) ✅ Error state.
+8. **configStore.ts** - Configuration settings (Firebase) ✅ Error state.
+9. **templatesStore.ts** - Message templates (localStorage persistence) ✅ Error state.
 
 ### Type System
 
@@ -317,7 +313,6 @@ Types are **organized by domain** in `src/types/` directory:
 - `common.ts` - Shared types (ActivityLog, Configuracion, Gasto, TemplateMensaje)
 - `dashboard.ts` - Dashboard metrics (contains legacy `suscripcionesActivas` field)
 - `metodos-pago.ts` - `MetodoPago` with `asociadoA: 'usuario' | 'servicio'` field for segregation. Types: `TipoMetodoPago`, `TipoCuenta`, `AsociadoA`. Service-specific fields: `email`, `contrasena`, `numeroTarjeta`, `fechaExpiracion`.
-- `notificaciones.ts` - Notifications
 - `servicios.ts` - `Servicio` interface (with `gastosTotal` accumulated sum, denormalized `metodoPagoNombre` + `moneda`) + `PagoServicio` interface (payment history per service, with denormalized `metodoPagoNombre` + `moneda`) + `ServicioFormData`
 - `ventas.ts` - `VentaDoc` (sale document, with denormalized `categoriaNombre`, `servicioContrasena`), `PagoVenta` (payment in separate `pagosVenta` collection, with denormalized `clienteId`, `clienteNombre`, `metodoPagoId`, `metodoPago`, `moneda`), `VentaPago` (@deprecated, legacy embedded payment format)
 - `whatsapp.ts` - `WhatsAppData` interface
@@ -326,7 +321,6 @@ Types are **organized by domain** in `src/types/` directory:
 Key concepts:
 
 - **Payment Cycles**: `mensual` (1 month), `trimestral` (3 months), `semestral` (6 months), `anual` (12 months)
-- **Notification Days**: [100, 11, 8, 7, 3, 2, 1] - notifications sent at these intervals before expiration
 - **User Roles**: `admin` (full access), `operador` (limited access)
 
 ### Calculation Utilities
@@ -457,7 +451,6 @@ Every module follows this structure:
 - `RevenueByCategory.tsx` - Revenue by category chart
 - `CrecimientoUsuarios.tsx` - User growth chart
 - `RecentActivity.tsx` - Recent activity timeline
-- `UrgentNotifications.tsx` - Urgent notifications list
 
 ### Form Handling
 
@@ -567,13 +560,6 @@ The Ventas module manages the sale of service profiles to users. It is the prima
 - **UsuarioDetails component**: Displays a user's profile info and their associated ventas (via `useVentasUsuario` hook with module-level cache). Supports deleting ventas and sending WhatsApp messages directly.
 - **Tables**: `ClientesTable`, `RevendedoresTable`, `TodosUsuariosTable`
 
-### Notifications
-
-- Generated automatically based on expiration dates
-- Priority increases as expiration approaches (100 days = baja, 1 day = critica)
-- `estado` field maps to notification thresholds: '100_dias', '11_dias', '8_dias', '7_dias', '3_dias', '2_dias', '1_dia', 'vencido'
-- Stored in Firebase `notificaciones` collection
-
 ### Authentication
 
 **Firebase Authentication** (`authStore`):
@@ -643,12 +629,6 @@ try {
   - Suspendida: yellow
   - Inactiva/Inactivo: gray
   - Vencida: red
-
-- **Notification Priority**:
-  - Baja: blue
-  - Media: yellow
-  - Alta: orange
-  - Critica: red
 
 - **Expiration Warnings**:
   - <1 day: red-600

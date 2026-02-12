@@ -10,7 +10,6 @@ export * from './categorias';
 export * from './clientes';
 export * from './servicios';
 export * from './metodos-pago';
-export * from './notificaciones';
 export * from './whatsapp';
 export * from './dashboard';
 export * from './ventas';

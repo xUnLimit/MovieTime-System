@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   Users,
   Server,
-  Bell,
   CreditCard,
   Folder,
   Wallet,
@@ -55,17 +54,6 @@ const navigationSections = [
   {
     label: 'ADMINISTRACIÓN',
     items: [
-      {
-        name: 'Notificaciones',
-        href: '/notificaciones',
-        icon: Bell
-      },
-      {
-        name: 'Notificaciones Test',
-        href: '/notificaciones-test',
-        icon: Bell,
-        badge: 'TEST'
-      },
       {
         name: 'Categorías',
         href: '/categorias',

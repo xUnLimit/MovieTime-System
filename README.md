@@ -1,6 +1,6 @@
 # MovieTime PTY - Sistema de Gestión
 
-Sistema de gestión para negocio de venta de servicios de streaming con control financiero, notificaciones automáticas y gestión de clientes/revendedores.
+Sistema de gestión para negocio de venta de servicios de streaming con control financiero y gestión de clientes/revendedores.
 
 ## 🚀 Estado Actual: IMPLEMENTACIÓN COMPLETA
 
@@ -14,35 +14,32 @@ Sistema de gestión para negocio de venta de servicios de streaming con control 
 - ✅ Zustand para manejo de estado
 - ✅ date-fns para manejo de fechas
 - ✅ Recharts para gráficos
-- ✅ Sonner para notificaciones toast
+- ✅ Sonner para toast notifications
 - ✅ React Hook Form + Zod para validación
 
 #### 2. Types TypeScript (`src/types/index.ts`)
 - ✅ User, Cliente, Revendedor
 - ✅ Servicio, Categoria
 - ✅ Venta, MetodoPago
-- ✅ Gasto, Notificacion
-- ✅ TemplateMensaje, ActivityLog
+- ✅ Gasto, TemplateMensaje, ActivityLog
 - ✅ Configuracion
 - ✅ Dashboard Metrics types
 - ✅ Form types completos
 
-#### 3. Zustand Stores (9 stores)
+#### 3. Zustand Stores (8 stores)
 - ✅ `categoriasStore.ts` - Gestión de categorías
 - ✅ `metodosPagoStore.ts` - Métodos de pago
 - ✅ `serviciosStore.ts` - Servicios de streaming
 - ✅ `clientesStore.ts` - Gestión de clientes
 - ✅ `revendedoresStore.ts` - Gestión de revendedores
 - ✅ `ventasStore.ts` - Ventas con lógica de ciclos
-- ✅ `notificacionesStore.ts` - Notificaciones
 - ✅ `templatesMensajesStore.ts` - Templates WhatsApp
 - ✅ `activityLogStore.ts` - Log de actividades
 
-#### 4. Módulos Completos (6 módulos principales)
+#### 4. Módulos Completos (5 módulos principales)
 - ✅ **Servicios** - CRUD completo con métricas y filtros
 - ✅ **Usuarios** - Clientes y Revendedores con tabs
 - ✅ **Ventas** - Módulo más complejo con múltiples acciones
-- ✅ **Notificaciones** - Sistema de notificaciones con filtros
 - ✅ **Editor de Mensajes** - Templates con preview
 - ✅ **Log de Actividad** - Timeline de actividades
 
@@ -65,10 +62,6 @@ Sistema de gestión para negocio de venta de servicios de streaming con control 
 - ✅ VentasTable.tsx (con progress bars)
 - ✅ VentaDialog.tsx (form complejo)
 
-**Notificaciones (2):**
-- ✅ NotificacionesList.tsx
-- ✅ NotificacionesFilters.tsx
-
 **Editor de Mensajes (3):**
 - ✅ TemplatesList.tsx
 - ✅ MessagePreview.tsx
@@ -89,7 +82,6 @@ Sistema de gestión para negocio de venta de servicios de streaming con control 
 - ✅ `/servicios`
 - ✅ `/usuarios` (con tabs)
 - ✅ `/ventas`
-- ✅ `/notificaciones`
 - ✅ `/editor-mensajes`
 - ✅ `/log-actividad`
 - ✅ `/categorias`
@@ -129,7 +121,6 @@ movietime-pty/
 │   │   ├── serviciosStore.ts
 │   │   ├── usuariosStore.ts
 │   │   ├── ventasStore.ts
-│   │   ├── notificacionesStore.ts
 │   │   ├── templatesStore.ts
 │   │   ├── activityLogStore.ts
 │   │   └── configStore.ts
@@ -174,10 +165,9 @@ Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
 - [ ] Agregar validación del lado del servidor
 - [ ] Configurar base de datos
 
-### FASE 3: WhatsApp y Notificaciones ⏳
+### FASE 3: WhatsApp Integration ⏳
 - [ ] Integrar WhatsApp Business API
 - [ ] Implementar envío de mensajes
-- [ ] Configurar cron jobs para notificaciones
 - [ ] Sistema de email como fallback
 
 ### FASE 4: Características Avanzadas ⏳
@@ -235,12 +225,6 @@ El proyecto está diseñado con el enfoque "UI primero":
 - Barra de progreso de consumo
 - Estados: activa, suspendida, inactiva, vencida
 - Renovación automática
-
-### Notificaciones Inteligentes
-- Basadas en días de vencimiento [100, 11, 8, 7, 3, 2, 1]
-- Prioridades: baja, media, alta, crítica
-- Contador en header
-- Sistema de lectura/no lectura
 
 ### WhatsApp Integration
 - Templates personalizables

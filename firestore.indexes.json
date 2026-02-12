@@ -74,22 +74,6 @@
       ]
     },
     {
-      "collectionGroup": "notificaciones",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "prioridad", "order": "DESCENDING" },
-        { "fieldPath": "fechaCreacion", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "notificaciones",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "leida", "order": "ASCENDING" },
-        { "fieldPath": "fechaCreacion", "order": "DESCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "pagosServicio",
       "queryScope": "COLLECTION",
       "fields": [
@@ -131,13 +115,5 @@
         { "order": "DESCENDING", "queryScope": "COLLECTION" }
       ]
     },
-    {
-      "collectionGroup": "notificaciones",
-      "fieldPath": "fechaCreacion",
-      "indexes": [
-        { "order": "ASCENDING", "queryScope": "COLLECTION" },
-        { "order": "DESCENDING", "queryScope": "COLLECTION" }
-      ]
-    }
   ]
 }

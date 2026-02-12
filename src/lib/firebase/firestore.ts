@@ -291,7 +291,6 @@ export const COLLECTIONS = {
   USUARIOS: 'usuarios',
   SERVICIOS: 'servicios',
   CATEGORIAS: 'categorias',
-  NOTIFICACIONES: 'notificaciones',
   METODOS_PAGO: 'metodosPago',
   ACTIVITY_LOG: 'activityLog',
   CONFIG: 'config',
