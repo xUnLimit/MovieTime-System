@@ -2,8 +2,6 @@
  * Notificaciones Page
  *
  * Displays notification tables with optimized queries
- * - VentasProximasTableV2 (no additional queries)
- * - ServiciosProximosTableV2 (no additional queries)
  */
 
 'use client';
@@ -12,11 +10,12 @@ import { useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import Link from 'next/link';
 import { VentasProximasTableV2 } from '@/components/notificaciones/VentasProximasTableV2';
 import { ServiciosProximosTableV2 } from '@/components/notificaciones/ServiciosProximosTableV2';
 import { AccionesVentaDialog } from '@/components/notificaciones/AccionesVentaDialog';
-import { MetricCard } from '@/components/shared/MetricCard';
 import { useNotificacionesStore } from '@/store/notificacionesStore';
+import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 import {
   sincronizarNotificaciones,
   sincronizarNotificacionesForzado,
@@ -24,17 +23,56 @@ import {
 import { toast } from 'sonner';
 import type { NotificacionVenta } from '@/types/notificaciones';
 
-export default function NotificacionesPage() {
-  const {
-    notificaciones,
-    fetchNotificaciones,
-    fetchCounts,
-    totalNotificaciones,
-    ventasProximas,
-    serviciosProximos,
-    isLoading,
-  } = useNotificacionesStore();
+// Metrics component matching CategoriasMetrics style
+function NotificacionesMetrics() {
+  const { totalNotificaciones, ventasProximas, serviciosProximos, isLoading } =
+    useNotificacionesStore();
 
+  const metrics = [
+    {
+      label: 'Total Notificaciones',
+      value: totalNotificaciones,
+      description: 'Alertas pendientes',
+    },
+    {
+      label: 'Ventas Próximas',
+      value: ventasProximas,
+      description: 'Vencen en 7 días',
+    },
+    {
+      label: 'Servicios Próximos',
+      value: serviciosProximos,
+      description: 'Vencen en 7 días',
+    },
+  ];
+
+  return (
+    <div className="grid gap-4 md:grid-cols-3">
+      {metrics.map((metric) => (
+        <div
+          key={metric.label}
+          className="rounded-lg border bg-card p-6 shadow-sm"
+        >
+          <div className="flex flex-col space-y-1.5">
+            <h3 className="text-sm font-medium text-muted-foreground">
+              {metric.label}
+            </h3>
+            <div className="text-2xl font-bold">
+              {isLoading ? '...' : metric.value}
+            </div>
+            <p className="text-xs text-muted-foreground">{metric.description}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function NotificacionesPageContent() {
+  const { fetchNotificaciones, fetchCounts, ventasProximas, serviciosProximos } =
+    useNotificacionesStore();
+
+  const [activeTab, setActiveTab] = useState('ventas');
   const [isSyncing, setIsSyncing] = useState(false);
   const [selectedVenta, setSelectedVenta] = useState<(NotificacionVenta & { id: string }) | null>(
     null
@@ -84,13 +122,16 @@ export default function NotificacionesPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
+    <div className="space-y-4">
+      {/* Page Header - matching Categorías style */}
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">Notificaciones</h1>
           <p className="text-sm text-muted-foreground">
-            Gestiona alertas de ventas y servicios próximos a vencer
+            <Link href="/" className="hover:text-foreground transition-colors">
+              Dashboard
+            </Link>{' '}
+            / <span className="text-foreground">Notificaciones</span>
           </p>
         </div>
         <Button onClick={handleForzarSync} disabled={isSyncing} variant="outline">
@@ -99,32 +140,16 @@ export default function NotificacionesPage() {
         </Button>
       </div>
 
-      {/* Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <MetricCard
-          title="Total Notificaciones"
-          value={totalNotificaciones.toString()}
-          description="Alertas pendientes"
-          loading={isLoading}
-        />
-        <MetricCard
-          title="Ventas Próximas"
-          value={ventasProximas.toString()}
-          description="Vencen en 7 días"
-          loading={isLoading}
-        />
-        <MetricCard
-          title="Servicios Próximos"
-          value={serviciosProximos.toString()}
-          description="Vencen en 7 días"
-          loading={isLoading}
-        />
-      </div>
+      {/* Metrics - matching CategoriasMetrics style */}
+      <NotificacionesMetrics />
 
-      {/* Tabs for Ventas / Servicios */}
-      <Tabs defaultValue="ventas" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="ventas">
+      {/* Tabs - matching Categorías tabs style */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="bg-transparent rounded-none p-0 h-auto inline-flex border-b border-border">
+          <TabsTrigger
+            value="ventas"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2 text-sm"
+          >
             Ventas Próximas
             {ventasProximas > 0 && (
               <span className="ml-2 text-xs bg-red-500 text-white rounded-full px-2 py-0.5">
@@ -132,7 +157,10 @@ export default function NotificacionesPage() {
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="servicios">
+          <TabsTrigger
+            value="servicios"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2 text-sm"
+          >
             Servicios Próximos
             {serviciosProximos > 0 && (
               <span className="ml-2 text-xs bg-red-500 text-white rounded-full px-2 py-0.5">
@@ -143,12 +171,12 @@ export default function NotificacionesPage() {
         </TabsList>
 
         {/* Ventas Tab */}
-        <TabsContent value="ventas">
+        <TabsContent value="ventas" className="space-y-4">
           <VentasProximasTableV2 onOpenAccionesDialog={handleOpenAccionesDialog} />
         </TabsContent>
 
         {/* Servicios Tab */}
-        <TabsContent value="servicios">
+        <TabsContent value="servicios" className="space-y-4">
           <ServiciosProximosTableV2 />
         </TabsContent>
       </Tabs>
@@ -160,5 +188,13 @@ export default function NotificacionesPage() {
         onOpenChange={setAccionesDialogOpen}
       />
     </div>
+  );
+}
+
+export default function NotificacionesPage() {
+  return (
+    <ModuleErrorBoundary moduleName="Notificaciones">
+      <NotificacionesPageContent />
+    </ModuleErrorBoundary>
   );
 }
