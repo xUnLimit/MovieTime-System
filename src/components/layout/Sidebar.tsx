@@ -9,6 +9,7 @@ import {
   Users,
   Server,
   CreditCard,
+  Bell,
   Folder,
   Wallet,
   MessageSquare,
@@ -54,6 +55,11 @@ const navigationSections = [
   {
     label: 'ADMINISTRACIÓN',
     items: [
+      {
+        name: 'Notificaciones',
+        href: '/notificaciones-test',
+        icon: Bell
+      },
       {
         name: 'Categorías',
         href: '/categorias',
