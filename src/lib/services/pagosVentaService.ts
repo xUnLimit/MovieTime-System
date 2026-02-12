@@ -1,4 +1,4 @@
-import { create as createDoc, queryDocuments, COLLECTIONS } from '@/lib/firebase/firestore';
+import { create as createDoc, queryDocuments, COLLECTIONS, dateToTimestamp } from '@/lib/firebase/firestore';
 import { PagoVenta } from '@/types';
 
 /**
@@ -27,7 +27,7 @@ export async function crearPagoInicial(
     clienteId,
     clienteNombre,
     categoriaId,           // Denormalizado
-    fecha: new Date(),
+    fecha: dateToTimestamp(new Date()),
     monto,
     metodoPagoId,          // Denormalizado
     metodoPago,
@@ -35,8 +35,8 @@ export async function crearPagoInicial(
     notas: notas || 'Pago inicial',
     isPagoInicial: true,
     cicloPago,
-    fechaInicio,
-    fechaVencimiento,
+    fechaInicio: fechaInicio ? dateToTimestamp(fechaInicio) : undefined,
+    fechaVencimiento: fechaVencimiento ? dateToTimestamp(fechaVencimiento) : undefined,
   });
 
   return pagoId;
@@ -66,7 +66,7 @@ export async function crearPagoRenovacion(
     clienteId,
     clienteNombre,
     categoriaId,           // Denormalizado
-    fecha: new Date(),
+    fecha: dateToTimestamp(new Date()),
     monto,
     precio,                // Precio original antes de descuento
     descuento,             // Porcentaje de descuento
@@ -76,8 +76,8 @@ export async function crearPagoRenovacion(
     notas: notas || 'Renovación',
     isPagoInicial: false,
     cicloPago,
-    fechaInicio,
-    fechaVencimiento,
+    fechaInicio: fechaInicio ? dateToTimestamp(fechaInicio) : undefined,
+    fechaVencimiento: fechaVencimiento ? dateToTimestamp(fechaVencimiento) : undefined,
   });
 
   return pagoId;
