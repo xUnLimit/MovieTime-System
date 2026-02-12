@@ -61,6 +61,12 @@ const navigationSections = [
         icon: Bell
       },
       {
+        name: 'Notificaciones Test',
+        href: '/notificaciones-test',
+        icon: Bell,
+        badge: 'TEST'
+      },
+      {
         name: 'Categorías',
         href: '/categorias',
         icon: Folder
@@ -202,7 +208,7 @@ export function Sidebar({ collapsed: controlledCollapsed, onCollapse }: SidebarP
 
                     {/* Texto - Posición ABSOLUTA FIJA */}
                     <span
-                      className="absolute left-11 text-sm whitespace-nowrap"
+                      className="absolute left-11 text-sm whitespace-nowrap flex items-center gap-2"
                       style={{
                         opacity: collapsed ? 0 : 1,
                         transition: 'opacity 200ms ease-in-out',
@@ -210,6 +216,12 @@ export function Sidebar({ collapsed: controlledCollapsed, onCollapse }: SidebarP
                       }}
                     >
                       {item.name}
+                      {/* Badge (si existe) */}
+                      {(item as any).badge && (
+                        <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-orange-500 text-white rounded">
+                          {(item as any).badge}
+                        </span>
+                      )}
                     </span>
                   </Link>
                 );

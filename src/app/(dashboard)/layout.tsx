@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { Sidebar } from '@/components/layout/Sidebar';
+import { Header } from '@/components/layout/Header';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { DashboardErrorFallback } from '@/components/shared/DashboardErrorFallback';
+import { sincronizarNotificaciones } from '@/lib/services/notificationSyncService';
 
 export default function DashboardLayout({
   children
@@ -22,6 +24,16 @@ export default function DashboardLayout({
       router.push('/login');
     }
   }, [isAuthenticated, isHydrated, router]);
+
+  // ✅ Sincronización de notificaciones (una vez al día)
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Ejecutar sincronización (verifica internamente si ya se ejecutó hoy)
+      sincronizarNotificaciones().catch((error) => {
+        console.error('[DashboardLayout] Error en sincronización de notificaciones:', error);
+      });
+    }
+  }, [isAuthenticated]);
 
   // Mostrar loader mientras se hidrata el estado desde localStorage
   if (!isHydrated) {
@@ -49,6 +61,10 @@ export default function DashboardLayout({
 
         {/* Main Content */}
         <div className="flex flex-1 flex-col overflow-hidden">
+          {/* Header */}
+          <Header />
+
+          {/* Main */}
           <main className="flex-1 overflow-y-auto bg-background">
             <div className="h-full p-6">
               {children}
