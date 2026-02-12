@@ -7,13 +7,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Bell, ShoppingCart, Server } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Link from 'next/link';
 import { VentasProximasTableV2 } from '@/components/notificaciones/VentasProximasTableV2';
 import { ServiciosProximosTableV2 } from '@/components/notificaciones/ServiciosProximosTableV2';
 import { AccionesVentaDialog } from '@/components/notificaciones/AccionesVentaDialog';
+import { MetricCard } from '@/components/shared/MetricCard';
 import { useNotificacionesStore } from '@/store/notificacionesStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 import {
@@ -25,45 +26,32 @@ import type { NotificacionVenta } from '@/types/notificaciones';
 
 // Metrics component matching CategoriasMetrics style
 function NotificacionesMetrics() {
-  const { totalNotificaciones, ventasProximas, serviciosProximos, isLoading } =
+  const { totalNotificaciones, ventasProximas, serviciosProximos } =
     useNotificacionesStore();
 
-  const metrics = [
-    {
-      label: 'Total Notificaciones',
-      value: totalNotificaciones,
-      description: 'Alertas pendientes',
-    },
-    {
-      label: 'Ventas Próximas',
-      value: ventasProximas,
-      description: 'Vencen en 7 días',
-    },
-    {
-      label: 'Servicios Próximos',
-      value: serviciosProximos,
-      description: 'Vencen en 7 días',
-    },
-  ];
-
   return (
-    <div className="grid gap-4 md:grid-cols-3">
-      {metrics.map((metric) => (
-        <div
-          key={metric.label}
-          className="rounded-lg border bg-card p-6 shadow-sm"
-        >
-          <div className="flex flex-col space-y-1.5">
-            <h3 className="text-sm font-medium text-muted-foreground">
-              {metric.label}
-            </h3>
-            <div className="text-2xl font-bold">
-              {isLoading ? '...' : metric.value}
-            </div>
-            <p className="text-xs text-muted-foreground">{metric.description}</p>
-          </div>
-        </div>
-      ))}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <MetricCard
+        title="Total Notificaciones"
+        value={totalNotificaciones}
+        icon={Bell}
+        iconColor="text-blue-500"
+        underlineColor="bg-blue-500"
+      />
+      <MetricCard
+        title="Ventas Próximas"
+        value={ventasProximas}
+        icon={ShoppingCart}
+        iconColor="text-red-500"
+        underlineColor="bg-red-500"
+      />
+      <MetricCard
+        title="Servicios Próximos"
+        value={serviciosProximos}
+        icon={Server}
+        iconColor="text-orange-500"
+        underlineColor="bg-orange-500"
+      />
     </div>
   );
 }
