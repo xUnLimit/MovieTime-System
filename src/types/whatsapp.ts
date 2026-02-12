@@ -3,7 +3,8 @@
 // ===========================
 
 export interface WhatsAppData {
-  cliente: string;
+  cliente: string;           // Nombre completo (nombre + apellido)
+  nombreCliente?: string;    // Solo nombre (sin apellido)
   servicio: string;
   categoria: string;
   perfilNombre: string;

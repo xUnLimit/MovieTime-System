@@ -7,11 +7,12 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, ChevronDown, Pencil, RefreshCw } from 'lucide-react';
+import { CalendarIcon, ChevronDown, Pencil, RefreshCw, MessageCircle } from 'lucide-react';
 import { addMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -19,6 +20,8 @@ import { MetodoPago, PagoServicio, Servicio } from '@/types';
 import { Plan } from '@/types/categorias';
 import { getCurrencySymbol } from '@/lib/constants';
 import { formatearFecha } from '@/lib/utils/calculations';
+import { generarMensajeVenta } from '@/lib/utils/whatsapp';
+import { useTemplatesStore } from '@/store/templatesStore';
 
 const pagoDialogSchema = z.object({
   periodoRenovacion: z
@@ -32,6 +35,7 @@ const pagoDialogSchema = z.object({
   fechaInicio: z.date(),
   fechaVencimiento: z.date(),
   notas: z.string().optional(),
+  notificarWhatsApp: z.boolean().optional(),
 });
 
 type PagoDialogFormData = z.infer<typeof pagoDialogSchema>;
@@ -51,6 +55,10 @@ interface BaseProps {
   onConfirm: (data: EnrichedPagoDialogFormData) => void;
   categoriaPlanes?: Plan[];
   tipoPlan?: Plan['tipoPlan'];
+  clienteNombre?: string;
+  clienteSoloNombre?: string;
+  servicioNombre?: string;
+  categoriaNombre?: string;
 }
 
 interface VentaDialogProps extends BaseProps {
@@ -85,12 +93,14 @@ type PagoDialogProps = VentaDialogProps | ServicioDialogProps;
 export function PagoDialog(props: PagoDialogProps) {
   const [fechaInicioOpen, setFechaInicioOpen] = useState(false);
   const [fechaVencimientoOpen, setFechaVencimientoOpen] = useState(false);
+  const [previewMessage, setPreviewMessage] = useState('');
   const isVenta = props.context === 'venta';
   const isEdit = props.mode === 'edit';
   const venta = props.context === 'venta' ? props.venta : null;
   const servicio = props.context === 'servicio' ? props.servicio : null;
   const pago = props.pago ?? null;
   const { metodosPago } = props;
+  const { getTemplateByTipo } = useTemplatesStore();
   const getPrecioPorCiclo = (ciclo?: Plan['cicloPago']) => {
     if (!ciclo || !props.categoriaPlanes?.length) return null;
     const match = props.categoriaPlanes.find((plan) =>
@@ -122,11 +132,13 @@ export function PagoDialog(props: PagoDialogProps) {
       fechaInicio: new Date(),
       fechaVencimiento: new Date(),
       notas: '',
+      notificarWhatsApp: false,
     },
   });
 
   const periodoValue = watch('periodoRenovacion');
   const metodoPagoIdValue = watch('metodoPagoId');
+  const notificarWhatsAppValue = watch('notificarWhatsApp');
   const costoValue = watch('costo');
   const descuentoValue = watch('descuento');
   const fechaInicioValue = watch('fechaInicio');
@@ -223,6 +235,52 @@ export function PagoDialog(props: PagoDialogProps) {
       setValue('fechaVencimiento', nuevaFechaVencimiento);
     }
   }, [periodoValue, fechaInicioValue, setValue]);
+
+  // Generar vista previa del mensaje cuando notificarWhatsApp está activo
+  useEffect(() => {
+    if (!isVenta || !notificarWhatsAppValue || isEdit) {
+      setPreviewMessage('');
+      return;
+    }
+
+    const template = getTemplateByTipo('renovacion');
+    if (!template) {
+      setPreviewMessage('Template de renovación no encontrado');
+      return;
+    }
+
+    const precioFinal = Math.max((Number(costoValue) || 0) * (1 - (Number(descuentoValue) || 0) / 100), 0);
+
+    try {
+      const mensaje = generarMensajeVenta(template.contenido, {
+        clienteNombre: props.clienteNombre || 'Cliente',
+        clienteSoloNombre: props.clienteSoloNombre,
+        servicioNombre: props.servicioNombre || 'Servicio',
+        categoriaNombre: props.categoriaNombre || 'Categoría',
+        perfilNombre: '',
+        correo: '',
+        contrasena: '',
+        fechaVencimiento: fechaVencimientoValue || new Date(),
+        monto: precioFinal,
+      });
+      setPreviewMessage(mensaje);
+    } catch (error) {
+      console.error('Error generando mensaje:', error);
+      setPreviewMessage('Error generando mensaje de vista previa');
+    }
+  }, [
+    notificarWhatsAppValue,
+    isEdit,
+    costoValue,
+    descuentoValue,
+    fechaVencimientoValue,
+    props.clienteNombre,
+    props.clienteSoloNombre,
+    props.servicioNombre,
+    props.categoriaNombre,
+    getTemplateByTipo,
+    isVenta,
+  ]);
 
   const hasChanges = useMemo(() => {
     if (props.context !== 'servicio' || props.mode !== 'edit') return true;
@@ -518,6 +576,33 @@ export function PagoDialog(props: PagoDialogProps) {
               rows={3}
             />
           </div>
+
+          {!isEdit && isVenta && (
+            <div className="rounded-lg border bg-background/40 p-3">
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={notificarWhatsAppValue}
+                  onCheckedChange={(checked) => setValue('notificarWhatsApp', checked as boolean)}
+                />
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <MessageCircle className="h-4 w-4 text-green-500" />
+                  <span>Notificar al cliente por WhatsApp</span>
+                </div>
+              </div>
+
+              {notificarWhatsAppValue && (
+                <div className="mt-4 space-y-2">
+                  <p className="text-sm font-semibold">Vista Previa del Mensaje</p>
+                  <Textarea
+                    value={previewMessage}
+                    readOnly
+                    rows={10}
+                    className="min-h-[220px] resize-none text-sm leading-relaxed bg-background/60"
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="flex gap-3 justify-end pt-2">
             <Button type="button" variant="outline" onClick={handleCancel}>

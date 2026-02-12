@@ -22,7 +22,8 @@ export function replacePlaceholders(
 ): string {
   const placeholders: Record<string, string> = {
     '{saludo}': getSaludo(),
-    '{cliente}': data.cliente,
+    '{cliente}': data.cliente,                                    // Nombre completo
+    '{nombre_cliente}': data.nombreCliente || data.cliente,       // Solo nombre
     '{servicio}': data.servicio,
     '{perfil_nombre}': data.perfilNombre,
     '{categoria}': data.categoria,
@@ -61,7 +62,7 @@ export function generateWhatsAppLink(
   // Codificar mensaje para URL
   const encodedMessage = encodeURIComponent(message);
 
-  return `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
+  return `https://web.whatsapp.com/send?phone=${cleanPhone}&text=${encodedMessage}`;
 }
 
 /**
@@ -86,6 +87,7 @@ export function generarMensajeVenta(
   template: string,
   venta: {
     clienteNombre: string;
+    clienteSoloNombre?: string;  // Solo nombre sin apellido
     servicioNombre?: string;
     categoriaNombre: string;
     perfilNombre?: string;
@@ -100,6 +102,7 @@ export function generarMensajeVenta(
 ): string {
   const data: WhatsAppData = {
     cliente: venta.clienteNombre,
+    nombreCliente: venta.clienteSoloNombre,
     servicio: venta.servicioNombre ?? '',
     perfilNombre: venta.perfilNombre ?? '',
     categoria: venta.categoriaNombre,

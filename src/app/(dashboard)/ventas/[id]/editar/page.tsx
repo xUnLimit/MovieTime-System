@@ -7,7 +7,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { VentasEditForm, VentaEditData } from '@/components/ventas/VentasEditForm';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
-import { COLLECTIONS, getById, timestampToDate } from '@/lib/firebase/firestore';
+import { COLLECTIONS, getById } from '@/lib/firebase/firestore';
 import { getVentaConUltimoPago } from '@/lib/services/ventaSyncService';
 import { VentaDoc } from '@/types';
 import { toast } from 'sonner';

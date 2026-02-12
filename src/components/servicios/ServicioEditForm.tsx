@@ -23,7 +23,7 @@ import { useServiciosStore } from '@/store/serviciosStore';
 import { useCategoriasStore } from '@/store/categoriasStore';
 import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { useRouter } from 'next/navigation';
-import { Servicio, MetodoPago, PagoServicio } from '@/types';
+import { Servicio, MetodoPago } from '@/types';
 import { addMonths } from 'date-fns';
 import { CURRENCY_SYMBOLS, CYCLE_MONTHS } from '@/lib/constants';
 import { usePagosServicio } from '@/hooks/use-pagos-servicio';
@@ -74,7 +74,6 @@ export function ServicioEditForm({ servicio }: ServicioEditFormProps) {
   const ultimoPago = pagosServicio[0]; // Array ya viene ordenado por fecha desc
 
   // Estados para detectar cambios manuales (similar a VentasEditForm)
-  const [precioInicializado, setPrecioInicializado] = useState(false);
   const [cicloInicializado, setCicloInicializado] = useState(false);
   const [lastCicloId, setLastCicloId] = useState<string | null>(null);
 

@@ -1,23 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { NotificacionesTable } from '@/components/notificaciones/NotificacionesTable';
+import { ServiciosProximosTable } from '@/components/notificaciones/ServiciosProximosTable';
+import { VentasProximasTable } from '@/components/notificaciones/VentasProximasTable';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
-import { useServerPagination } from '@/hooks/useServerPagination';
-import { COLLECTIONS } from '@/lib/firebase/firestore';
-import type { Notificacion } from '@/types';
 
 function NotificacionesPageContent() {
-  const { data: notificaciones, isLoading, hasMore, hasPrevious, page, next, previous, refresh } = useServerPagination<Notificacion>({
-    collectionName: COLLECTIONS.NOTIFICACIONES,
-    filters: [],
-    pageSize: 50,
-    orderByField: 'fechaVencimiento',
-    orderDirection: 'asc',
-  });
-
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">Notificaciones</h1>
@@ -27,15 +17,9 @@ function NotificacionesPageContent() {
         </div>
       </div>
 
-      <NotificacionesTable
-        notificaciones={notificaciones}
-        isLoading={isLoading}
-        hasMore={hasMore}
-        hasPrevious={hasPrevious}
-        page={page}
-        onNext={next}
-        onPrevious={previous}
-      />
+      <VentasProximasTable />
+
+      <ServiciosProximosTable />
     </div>
   );
 }

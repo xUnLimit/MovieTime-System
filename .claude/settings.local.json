@@ -28,7 +28,10 @@
       "Bash(test:*)",
       "Bash(cd:*)",
       "Bash(npx eslint:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(git log:*)",
+      "Bash(firebase deploy:*)",
+      "Bash(echo:*)"
     ]
   }
 }

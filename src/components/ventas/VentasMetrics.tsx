@@ -3,8 +3,7 @@
 import { memo, useEffect, useState } from 'react';
 import { MetricCard } from '@/components/shared/MetricCard';
 import { useVentasStore } from '@/store/ventasStore';
-import { calculateVentasMetrics, VentasMetrics } from '@/lib/services/metricsService';
-import { formatAggregateInUSD } from '@/lib/utils/calculations';
+import { calculateVentasMetrics, VentasMetrics as VentasMetricsType } from '@/lib/services/metricsService';
 import { CreditCard, DollarSign, CalendarRange, Wallet, CheckCircle2, XCircle } from 'lucide-react';
 import { getAll, COLLECTIONS } from '@/lib/firebase/firestore';
 import { PagoVenta, VentaDoc } from '@/types';
@@ -33,7 +32,7 @@ export const VentasMetrics = memo(function VentasMetrics() {
   // Cargar datos iniciales y cuando cambia refreshTrigger
   useEffect(() => {
     loadMetrics();
-
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTrigger]);
 
   // Escuchar eventos de cambios en ventas
@@ -54,7 +53,7 @@ export const VentasMetrics = memo(function VentasMetrics() {
     };
   }, []);
 
-  const [metrics, setMetrics] = useState<VentasMetrics | null>(null);
+  const [metrics, setMetrics] = useState<VentasMetricsType | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
 
   // Calcular métricas de forma asíncrona con conversión de moneda
@@ -93,21 +92,21 @@ export const VentasMetrics = memo(function VentasMetrics() {
       />
       <MetricCard
         title="Ingreso Total"
-        value={isCalculating ? 'Calculando...' : (metrics ? formatAggregateInUSD(metrics.ingresoTotal) : '-')}
+        value={isCalculating ? 'Calculando...' : (metrics ? `$${metrics.ingresoTotal.toFixed(2)}` : '-')}
         icon={DollarSign}
         iconColor="text-orange-500"
         underlineColor="bg-orange-500"
       />
       <MetricCard
         title="Ingreso Mensual Esperado"
-        value={isCalculating ? 'Calculando...' : (metrics ? formatAggregateInUSD(metrics.ingresoMensualEsperado) : '-')}
+        value={isCalculating ? 'Calculando...' : (metrics ? `$${metrics.ingresoMensualEsperado.toFixed(2)}` : '-')}
         icon={CalendarRange}
         iconColor="text-blue-500"
         underlineColor="bg-blue-500"
       />
       <MetricCard
         title="Monto Sin Consumir"
-        value={isCalculating ? 'Calculando...' : (metrics ? formatAggregateInUSD(metrics.montoSinConsumir) : '-')}
+        value={isCalculating ? 'Calculando...' : (metrics ? `$${metrics.montoSinConsumir.toFixed(2)}` : '-')}
         icon={Wallet}
         iconColor="text-emerald-500"
         underlineColor="bg-emerald-500"

@@ -21,9 +21,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Monitor, Users, ShoppingCart, Eye, Search, ArrowUpDown, TrendingUp } from 'lucide-react';
-import { Categoria, Servicio, PagoServicio, VentaDoc, PagoVenta } from '@/types';
+import { Categoria, PagoServicio, VentaDoc, PagoVenta } from '@/types';
 import { queryDocuments, COLLECTIONS } from '@/lib/firebase/firestore';
-import { calcularMontoSinConsumir } from '@/lib/utils/calculations';
+import { calcularMontoSinConsumir, sumInUSD } from '@/lib/utils/calculations';
 import { getVentasConUltimoPago } from '@/lib/services/ventaSyncService';
 
 interface CategoriasTableProps {
@@ -57,6 +57,8 @@ export const CategoriasTable = memo(function CategoriasTable({
   const [ingresosMap, setIngresosMap] = useState<Map<string, number>>(new Map());
   const [ventasCountMap, setVentasCountMap] = useState<Map<string, number>>(new Map());
   const [ventasMap, setVentasMap] = useState<Map<string, VentaDoc[]>>(new Map());
+  const [isCalculatingGastos, setIsCalculatingGastos] = useState(false);
+  const [isCalculatingIngresos, setIsCalculatingIngresos] = useState(false);
 
   const handleViewCategoria = (categoriaId: string) => {
     router.push(`/servicios/${categoriaId}`);
@@ -66,6 +68,7 @@ export const CategoriasTable = memo(function CategoriasTable({
   // Query DIRECTA por categoriaId - sin necesidad de cargar todos los servicios
   useEffect(() => {
     const fetchGastos = async () => {
+      setIsCalculatingGastos(true);
       const gastosTemp = new Map<string, number>();
 
       for (const categoria of categorias.filter(c => c.activo)) {
@@ -77,8 +80,14 @@ export const CategoriasTable = memo(function CategoriasTable({
             [{ field: 'categoriaId', operator: '==', value: categoria.id }]
           );
 
-          const totalGastos = pagos.reduce((sum, pago) => sum + (pago.monto || 0), 0);
-          gastosTemp.set(categoria.id, totalGastos);
+          // Convertir cada pago a USD antes de sumar
+          const totalGastosUSD = await sumInUSD(
+            pagos.map(pago => ({
+              monto: pago.monto || 0,
+              moneda: pago.moneda || 'USD'
+            }))
+          );
+          gastosTemp.set(categoria.id, totalGastosUSD);
         } catch (error) {
           console.error(`Error cargando gastos de categoría ${categoria.nombre}:`, error);
           gastosTemp.set(categoria.id, 0);
@@ -86,6 +95,7 @@ export const CategoriasTable = memo(function CategoriasTable({
       }
 
       setGastosMap(gastosTemp);
+      setIsCalculatingGastos(false);
     };
 
     if (categorias.length > 0) {
@@ -97,6 +107,7 @@ export const CategoriasTable = memo(function CategoriasTable({
   // Query DIRECTA por categoriaId - gracias al campo denormalizado
   useEffect(() => {
     const fetchIngresos = async () => {
+      setIsCalculatingIngresos(true);
       const ingresosTemp = new Map<string, number>();
 
       for (const categoria of categorias.filter(c => c.activo)) {
@@ -108,8 +119,14 @@ export const CategoriasTable = memo(function CategoriasTable({
             [{ field: 'categoriaId', operator: '==', value: categoria.id }]
           );
 
-          const totalIngresos = pagos.reduce((sum, pago) => sum + (pago.monto || 0), 0);
-          ingresosTemp.set(categoria.id, totalIngresos);
+          // Convertir cada pago a USD antes de sumar
+          const totalIngresosUSD = await sumInUSD(
+            pagos.map(pago => ({
+              monto: pago.monto || 0,
+              moneda: pago.moneda || 'USD'
+            }))
+          );
+          ingresosTemp.set(categoria.id, totalIngresosUSD);
         } catch (error) {
           console.error(`Error cargando ingresos de categoría ${categoria.nombre}:`, error);
           ingresosTemp.set(categoria.id, 0);
@@ -117,6 +134,7 @@ export const CategoriasTable = memo(function CategoriasTable({
       }
 
       setIngresosMap(ingresosTemp);
+      setIsCalculatingIngresos(false);
     };
 
     if (categorias.length > 0) {
@@ -443,22 +461,34 @@ export const CategoriasTable = memo(function CategoriasTable({
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <span className={`${row.ingresoTotal === 0 ? 'text-muted-foreground' : 'text-blue-500'}`}>$</span>
-                        <span className={`${row.ingresoTotal === 0 ? 'text-muted-foreground' : ''}`}>{row.ingresoTotal.toFixed(2)}</span>
-                      </div>
+                      {isCalculatingIngresos ? (
+                        <span className="text-xs text-muted-foreground">Calculando...</span>
+                      ) : (
+                        <div className="flex items-center justify-center gap-1">
+                          <span className={`${row.ingresoTotal === 0 ? 'text-muted-foreground' : 'text-blue-500'}`}>$</span>
+                          <span className={`${row.ingresoTotal === 0 ? 'text-muted-foreground' : ''}`}>{row.ingresoTotal.toFixed(2)}</span>
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell className="text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <span className={`${row.gastosTotal === 0 ? 'text-muted-foreground' : 'text-red-500'}`}>$</span>
-                        <span className={`${row.gastosTotal === 0 ? 'text-muted-foreground' : ''}`}>{row.gastosTotal.toFixed(2)}</span>
-                      </div>
+                      {isCalculatingGastos ? (
+                        <span className="text-xs text-muted-foreground">Calculando...</span>
+                      ) : (
+                        <div className="flex items-center justify-center gap-1">
+                          <span className={`${row.gastosTotal === 0 ? 'text-muted-foreground' : 'text-red-500'}`}>$</span>
+                          <span className={`${row.gastosTotal === 0 ? 'text-muted-foreground' : ''}`}>{row.gastosTotal.toFixed(2)}</span>
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell className="text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <span className={`${row.gananciaTotal < 0 ? 'text-red-500' : row.gananciaTotal === 0 ? 'text-muted-foreground' : 'text-green-500'}`}>$</span>
-                        <span className={`${row.gananciaTotal < 0 ? 'text-red-500' : row.gananciaTotal === 0 ? 'text-muted-foreground' : ''}`}>{row.gananciaTotal.toFixed(2)}</span>
-                      </div>
+                      {isCalculatingIngresos || isCalculatingGastos ? (
+                        <span className="text-xs text-muted-foreground">Calculando...</span>
+                      ) : (
+                        <div className="flex items-center justify-center gap-1">
+                          <span className={`${row.gananciaTotal < 0 ? 'text-red-500' : row.gananciaTotal === 0 ? 'text-muted-foreground' : 'text-green-500'}`}>$</span>
+                          <span className={`${row.gananciaTotal < 0 ? 'text-red-500' : row.gananciaTotal === 0 ? 'text-muted-foreground' : ''}`}>{row.gananciaTotal.toFixed(2)}</span>
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center gap-1">

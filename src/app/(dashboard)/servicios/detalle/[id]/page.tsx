@@ -15,7 +15,7 @@ import { PagoDialog } from '@/components/shared/PagoDialog';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { queryDocuments, remove, update, COLLECTIONS, getById, create } from '@/lib/firebase/firestore';
+import { queryDocuments, remove, update, COLLECTIONS, getById } from '@/lib/firebase/firestore';
 import { doc as firestoreDoc, updateDoc, increment } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { Servicio, Categoria, MetodoPago, VentaDoc, PagoServicio } from '@/types';
@@ -29,7 +29,7 @@ import {
 import { getCurrencySymbol } from '@/lib/constants';
 import { formatearFecha, sumInUSD, formatAggregateInUSD } from '@/lib/utils/calculations';
 import { usePagosServicio } from '@/hooks/use-pagos-servicio';
-import { crearPagoRenovacion, contarRenovacionesDeServicio } from '@/lib/services/pagosServicioService';
+import { crearPagoRenovacion } from '@/lib/services/pagosServicioService';
 
 interface PerfilVenta {
   clienteNombre?: string;

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
@@ -142,8 +143,14 @@ export function Sidebar({ collapsed: controlledCollapsed, onCollapse }: SidebarP
       {/* Header - Logo y Título */}
       <div className="relative h-16 border-b border-sidebar-border overflow-hidden">
         {/* Logo - Posición ABSOLUTA FIJA (no se mueve) */}
-        <div className="absolute top-1/2 -translate-y-1/2 left-3 flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <LayoutDashboard className="h-4 w-4" />
+        <div className="absolute top-1/2 -translate-y-1/2 left-3 flex h-8 w-8 items-center justify-center">
+          <Image
+            src="/logo.svg"
+            alt="MovieTime Logo"
+            width={32}
+            height={32}
+            className="w-8 h-8"
+          />
         </div>
 
         {/* Texto - Posición ABSOLUTA FIJA */}

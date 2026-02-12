@@ -303,9 +303,13 @@ export function VentasForm() {
     setValue('fechaFin', addMonths(new Date(fechaInicioValue), meses));
   }, [planSeleccionado, fechaInicioValue, setValue]);
 
-  // Ya no necesitamos serviciosFiltrados porque serviciosCategoria ya está filtrado
+  // Ordenar servicios por fecha de creación (más recientes primero)
   const serviciosOrdenados = useMemo(() => {
-    return [...serviciosCategoria].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+    return [...serviciosCategoria].sort((a, b) => {
+      const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return bDate - aDate; // Más reciente primero
+    });
   }, [serviciosCategoria]);
 
   const perfilesUsados = useMemo(() => {
