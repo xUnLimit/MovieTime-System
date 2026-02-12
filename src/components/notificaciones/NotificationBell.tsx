@@ -17,7 +17,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Bell, AlertCircle, ShoppingCart, CreditCard } from 'lucide-react';
+import { Bell, AlertCircle, ShoppingCart, Banknote, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -147,76 +147,59 @@ export function NotificationBell() {
         </Button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-80 p-0">
-        {/* Header */}
-        <div className="px-4 py-3 border-b">
-          <h3 className="font-semibold text-base">Resumen de Notificaciones</h3>
-          <p className="text-xs text-muted-foreground mt-1">
-            Tienes {unreadNotifications.length} alerta(s) pendiente(s).
-          </p>
-        </div>
-
-        {/* Summary */}
-        {unreadNotifications.length > 0 ? (
-          <div className="py-2">
-            {/* Ventas por vencer */}
-            {ventasPorVencer > 0 && (
-              <button
-                onClick={() => {
-                  window.location.href = '/notificaciones-test';
-                  setIsOpen(false);
-                }}
-                className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <ShoppingCart className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-medium">Ventas por vencer</span>
-                </div>
-                <span className="text-lg font-bold">{ventasPorVencer}</span>
-              </button>
-            )}
-
-            {/* Servicios por pagar */}
-            {serviciosPorPagar > 0 && (
-              <button
-                onClick={() => {
-                  window.location.href = '/notificaciones-test';
-                  setIsOpen(false);
-                }}
-                className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <CreditCard className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-medium">Servicios por pagar</span>
-                </div>
-                <span className="text-lg font-bold">{serviciosPorPagar}</span>
-              </button>
-            )}
+      <DropdownMenuContent align="end" className="w-80 p-4">
+        <div className="grid gap-4">
+          {/* Header */}
+          <div className="space-y-2">
+            <h4 className="font-medium leading-none">Resumen de Notificaciones</h4>
+            <p className="text-sm text-muted-foreground">
+              Tienes {unreadNotifications.length} alerta(s) pendiente(s).
+            </p>
           </div>
-        ) : (
-          <div className="px-4 py-8 text-center text-sm text-gray-500">
-            No hay notificaciones pendientes
-          </div>
-        )}
 
-        {/* Footer - Ver todas */}
-        {unreadNotifications.length > 0 && (
-          <>
-            <DropdownMenuSeparator className="my-0" />
-            <div className="p-3">
-              <Button
-                onClick={() => {
-                  window.location.href = '/notificaciones-test';
-                  setIsOpen(false);
-                }}
-                className="w-full bg-primary hover:bg-primary/90 text-white"
-                size="sm"
-              >
-                Ver todas las notificaciones →
-              </Button>
+          {/* Summary */}
+          {unreadNotifications.length > 0 ? (
+            <div className="grid gap-2">
+              {/* Ventas por vencer */}
+              {ventasPorVencer > 0 && (
+                <div className="grid grid-cols-3 items-center gap-4">
+                  <span className="col-span-2 flex items-center gap-2">
+                    <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Ventas por vencer</span>
+                  </span>
+                  <span className="text-right text-sm">{ventasPorVencer}</span>
+                </div>
+              )}
+
+              {/* Servicios por pagar */}
+              {serviciosPorPagar > 0 && (
+                <div className="grid grid-cols-3 items-center gap-4">
+                  <span className="col-span-2 flex items-center gap-2">
+                    <Banknote className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Servicios por pagar</span>
+                  </span>
+                  <span className="text-right text-sm">{serviciosPorPagar}</span>
+                </div>
+              )}
             </div>
-          </>
-        )}
+          ) : (
+            <div className="text-center text-sm text-muted-foreground py-4">
+              No hay notificaciones pendientes
+            </div>
+          )}
+
+          {/* Footer - Ver todas */}
+          {unreadNotifications.length > 0 && (
+            <a
+              href="/notificaciones-test"
+              className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
+              onClick={() => setIsOpen(false)}
+            >
+              Ver todas las notificaciones
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </a>
+          )}
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );
