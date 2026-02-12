@@ -1,4 +1,4 @@
-import { create, queryDocuments, COLLECTIONS, dateToTimestamp } from '@/lib/firebase/firestore';
+import { create, queryDocuments, COLLECTIONS } from '@/lib/firebase/firestore';
 import { PagoServicio } from '@/types';
 
 /**
@@ -24,11 +24,11 @@ export async function crearPagoInicial(
   await create(COLLECTIONS.PAGOS_SERVICIO, {
     servicioId,
     categoriaId,
-    fecha: dateToTimestamp(new Date()), // Fecha de registro del pago
+    fecha: new Date(), // Fecha de registro del pago
     descripcion: 'Pago inicial',
     cicloPago,
-    fechaInicio: dateToTimestamp(fechaInicio),
-    fechaVencimiento: dateToTimestamp(fechaVencimiento),
+    fechaInicio,
+    fechaVencimiento,
     monto,
     metodoPagoId,
     metodoPagoNombre, // Denormalizado
@@ -57,11 +57,11 @@ export async function crearPagoRenovacion(
   await create(COLLECTIONS.PAGOS_SERVICIO, {
     servicioId,
     categoriaId,
-    fecha: dateToTimestamp(new Date()), // Fecha de registro del pago
+    fecha: new Date(), // Fecha de registro del pago
     descripcion: `Renovación #${numeroRenovacion}`,
     cicloPago,
-    fechaInicio: dateToTimestamp(fechaInicio),
-    fechaVencimiento: dateToTimestamp(fechaVencimiento),
+    fechaInicio,
+    fechaVencimiento,
     monto,
     metodoPagoId,
     metodoPagoNombre, // Denormalizado
