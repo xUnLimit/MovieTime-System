@@ -82,7 +82,7 @@ export function AccionesServicioDialog({
               </p>
               <p>
                 <span className="font-medium">Categoría:</span>{' '}
-                {servicio.categoria || 'Sin categoría'}
+                {servicio.categoriaNombre || 'Sin categoría'}
               </p>
               <p>
                 <span className="font-medium">Estado:</span>{' '}
@@ -190,7 +190,7 @@ export function AccionesServicioDialog({
             </p>
             <p>
               <span className="font-medium">Categoría:</span>{' '}
-              {servicio.categoria || 'Sin categoría'}
+              {servicio.categoriaNombre || 'Sin categoría'}
             </p>
             <p>
               <span className="font-medium">Estado:</span> ⚠️{' '}

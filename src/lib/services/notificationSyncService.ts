@@ -146,6 +146,7 @@ async function sincronizarVentas(): Promise<void> {
 }
 
 async function procesarVenta(venta: VentaDoc): Promise<void> {
+  if (!venta.fechaFin) return;
   const diasRestantes = differenceInDays(new Date(venta.fechaFin), new Date());
   const nuevaPrioridad = calcularPrioridad(diasRestantes);
 
@@ -235,6 +236,7 @@ async function sincronizarServicios(): Promise<void> {
 }
 
 async function procesarServicio(servicio: Servicio): Promise<void> {
+  if (!servicio.fechaVencimiento) return;
   const diasRestantes = differenceInDays(
     new Date(servicio.fechaVencimiento),
     new Date()
@@ -277,7 +279,7 @@ async function procesarServicio(servicio: Servicio): Promise<void> {
       tipo: 'sistema' as const,
       prioridad: nuevaPrioridad,
       titulo: generarTitulo(diasRestantes, 'servicio'),
-      mensaje: `${servicio.nombre} - ${servicio.categoria || 'Sin categoría'}`,
+      mensaje: `${servicio.nombre} - ${servicio.categoriaNombre || 'Sin categoría'}`,
       servicioId: servicio.id,
       diasRestantes,
       fechaEvento: servicio.fechaVencimiento,

@@ -422,7 +422,7 @@ export const VentasProximasTableV2 = memo(function VentasProximasTableV2() {
     }
 
     // Color según prioridad
-    const colorClasses = {
+    const colorClasses: Record<string, string> = {
       critica: 'text-red-500',
       alta: 'text-orange-500',
       media: 'text-yellow-500',
@@ -471,85 +471,63 @@ export const VentasProximasTableV2 = memo(function VentasProximasTableV2() {
 
   const columns: Column<VentaProximaRow>[] = [
     {
+      key: 'tipo',
       header: 'Tipo',
-      accessorKey: 'id',
-      cell: (row) => {
+      sortable: false,
+      align: 'center',
+      width: '5%',
+      render: (row) => {
         const venta = ventas.find(v => v.id === row.id);
         return venta ? renderIcono(venta) : <Bell className="h-5 w-5 text-gray-400" />;
       },
     },
     {
+      key: 'clienteNombre',
       header: 'Cliente',
-      accessorKey: 'clienteNombre',
-      cell: (row) => row.clienteNombre,
+      sortable: true,
+      align: 'center',
+      width: '15%',
+      render: (row) => <span className="font-medium text-white">{row.clienteNombre}</span>,
     },
     {
+      key: 'categoriaNombre',
       header: 'Categoría',
-      accessorKey: 'categoriaNombre',
-      cell: (row) => row.categoriaNombre,
+      sortable: true,
+      align: 'center',
+      width: '15%',
+      render: (row) => <span className="text-white">{row.categoriaNombre}</span>,
     },
     {
+      key: 'fechaInicio',
       header: 'Fecha de Inicio',
-      accessorKey: 'fechaInicio',
-      cell: (row) => row.fechaInicio,
+      sortable: true,
+      align: 'center',
+      width: '15%',
+      render: (row) => <span className="text-white">{row.fechaInicio}</span>,
     },
     {
+      key: 'fechaVencimiento',
       header: 'Fecha de Vencimiento',
-      accessorKey: 'fechaVencimiento',
-      cell: (row) => row.fechaVencimiento,
+      sortable: true,
+      align: 'center',
+      width: '15%',
+      render: (row) => <span className="text-white">{row.fechaVencimiento}</span>,
     },
     {
+      key: 'monto',
       header: 'Monto',
-      accessorKey: 'monto',
-      cell: (row) => `$${row.monto.toFixed(2)}`,
+      sortable: true,
+      align: 'center',
+      width: '10%',
+      render: (row) => <span className="text-white">${row.monto.toFixed(2)}</span>,
     },
     {
+      key: 'estado',
       header: 'Estado',
-      accessorKey: 'diasRestantes',
-      cell: (row) => renderBadgeEstado(row.diasRestantes, row.id),
-    },
-    {
-      header: 'Acciones',
-      accessorKey: 'id',
-      cell: (row) => {
-        const venta = ventas.find(v => v.id === row.id);
-        if (!venta) return null;
-
-        const notif = getNotificacion(venta.id);
-        const estaResaltada = notif?.resaltada || false;
-
-        return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleNotificar(venta, row.diasRestantes)} className="text-green-500">
-                <MessageCircle className="h-4 w-4 mr-2 text-green-500" />
-                Notificar
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleAbrirModal(venta)}>
-                <AlertTriangle className="h-4 w-4 mr-2" />
-                {estaResaltada ? 'Cortar Servicio' : 'Acciones'}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleRenovar(venta)} className="text-purple-500">
-                <RefreshCw className="h-4 w-4 mr-2 text-purple-500" />
-                Renovar
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push(`/ventas/${venta.id}`)}>
-                <Eye className="h-4 w-4 mr-2" />
-                Ver Detalle
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push(`/usuarios/${venta.clienteId}`)}>
-                <User className="h-4 w-4 mr-2" />
-                Ver Cliente
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        );
-      },
+      sortable: false,
+      align: 'center',
+      width: '15%',
+      render: (row) => renderBadgeEstado(row.diasRestantes, row.id),
     },
   ];
 
@@ -590,30 +568,80 @@ export const VentasProximasTableV2 = memo(function VentasProximasTableV2() {
           </div>
 
           <DataTable
-            columns={columns}
-            data={filteredRows}
-            isLoading={isLoading}
+            columns={columns as unknown as Column<Record<string, unknown>>[]}
+            data={filteredRows as unknown as Record<string, unknown>[]}
+            loading={isLoading}
+            pagination={true}
+            itemsPerPageOptions={[10, 25, 50, 100]}
+            actions={(item) => {
+              const row = item as unknown as VentaProximaRow;
+              const venta = ventas.find(v => v.id === row.id);
+              if (!venta) return null;
+
+              const notif = getNotificacion(venta.id);
+              const estaResaltada = notif?.resaltada || false;
+
+              return (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleNotificar(venta, row.diasRestantes)} className="text-green-500">
+                      <MessageCircle className="h-4 w-4 mr-2 text-green-500" />
+                      Notificar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleAbrirModal(venta)}>
+                      <AlertTriangle className="h-4 w-4 mr-2" />
+                      {estaResaltada ? 'Cortar Servicio' : 'Acciones'}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleRenovar(venta)} className="text-purple-500">
+                      <RefreshCw className="h-4 w-4 mr-2 text-purple-500" />
+                      Renovar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push(`/ventas/${venta.id}`)}>
+                      <Eye className="h-4 w-4 mr-2" />
+                      Ver Detalle
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push(`/usuarios/${venta.clienteId}`)}>
+                      <User className="h-4 w-4 mr-2" />
+                      Ver Cliente
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }}
           />
         </div>
       </Card>
 
       {/* Modal de renovación */}
-      <PagoDialog
-        open={renovarDialogOpen}
-        onOpenChange={setRenovarDialogOpen}
-        onConfirm={handleConfirmRenovar}
-        title="Renovar Venta"
-        metodosPago={metodosPago}
-        planes={categoriaPlanes}
-        ventaActual={selectedVenta || undefined}
-        clienteSoloNombre={selectedClienteSoloNombre}
-      />
+      {selectedVenta && (
+        <PagoDialog
+          context="venta"
+          open={renovarDialogOpen}
+          onOpenChange={setRenovarDialogOpen}
+          mode="renew"
+          venta={{
+            clienteNombre: selectedVenta.clienteNombre || '',
+            metodoPagoId: selectedVenta.metodoPagoId,
+            precioFinal: selectedVenta.precioFinal || 0,
+            fechaFin: selectedVenta.fechaFin || new Date(),
+          }}
+          metodosPago={metodosPago}
+          categoriaPlanes={categoriaPlanes}
+          tipoPlan="perfiles"
+          onConfirm={handleConfirmRenovar}
+        />
+      )}
 
       {/* Modal de acciones v2.1 */}
       {selectedVenta && (
         <AccionesVentaDialog
           venta={selectedVenta}
-          diasRestantes={differenceInDays(new Date(selectedVenta.fechaFin), new Date())}
+          diasRestantes={selectedVenta.fechaFin ? differenceInDays(new Date(selectedVenta.fechaFin), new Date()) : 0}
           estaResaltada={getNotificacion(selectedVenta.id)?.resaltada || false}
           open={accionesDialogOpen}
           onOpenChange={setAccionesDialogOpen}

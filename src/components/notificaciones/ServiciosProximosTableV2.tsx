@@ -253,14 +253,14 @@ export const ServiciosProximosTableV2 = memo(function ServiciosProximosTableV2()
     }
 
     // 🔔 No leída (color según prioridad)
-    const colorClasses = {
+    const colorClasses: Record<string, string> = {
       critica: 'text-red-700 dark:text-red-300',
       alta: 'text-orange-700 dark:text-orange-300',
       media: 'text-yellow-700 dark:text-yellow-300',
       baja: 'text-blue-700 dark:text-blue-300',
     };
 
-    const bgClasses = {
+    const bgClasses: Record<string, string> = {
       critica: 'bg-red-100 dark:bg-red-500/20 hover:bg-red-200 dark:hover:bg-red-500/30',
       alta: 'bg-orange-100 dark:bg-orange-500/20 hover:bg-orange-200 dark:hover:bg-orange-500/30',
       media: 'bg-yellow-100 dark:bg-yellow-500/20 hover:bg-yellow-200 dark:hover:bg-yellow-500/30',
@@ -636,8 +636,9 @@ export const ServiciosProximosTableV2 = memo(function ServiciosProximosTableV2()
           open={accionesDialogOpen}
           onOpenChange={setAccionesDialogOpen}
           servicio={selectedServicio}
+          diasRestantes={selectedServicio.fechaVencimiento ? Math.ceil((new Date(selectedServicio.fechaVencimiento).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0}
           estaResaltada={getNotificacion(selectedServicio.id).resaltada}
-          onRenovar={handleRenovarDesdeAcciones}
+          onCortar={handleRenovarDesdeAcciones}
           onResaltar={handleResaltar}
         />
       )}
