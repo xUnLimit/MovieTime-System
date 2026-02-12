@@ -45,18 +45,18 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] p-4">
-      <Card className="w-full max-w-md bg-[#1a1a1a] border-gray-800">
-        <CardHeader className="space-y-2 text-center pb-4">
-          <CardTitle className="text-2xl font-semibold text-white">Bienvenido</CardTitle>
-          <CardDescription className="text-gray-400 text-sm">
+    <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
+      <Card className="w-full max-w-sm shadow-sm">
+        <CardHeader className="space-y-1 text-center pb-4">
+          <CardTitle className="text-xl font-semibold">Bienvenido</CardTitle>
+          <CardDescription className="text-sm">
             Inicia sesión con tu correo y contraseña
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-0">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-white text-sm font-normal">
+              <Label htmlFor="email" className="text-sm font-normal">
                 Correo Electrónico
               </Label>
               <Input
@@ -67,12 +67,11 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isLoading}
                 autoComplete="email"
-                className="bg-[#0a0a0a] border-gray-800 text-white placeholder:text-gray-600 focus-visible:ring-purple-500"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-white text-sm font-normal">
+              <Label htmlFor="password" className="text-sm font-normal">
                 Contraseña
               </Label>
               <div className="relative">
@@ -84,12 +83,12 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isLoading}
                   autoComplete="current-password"
-                  className="bg-[#0a0a0a] border-gray-800 text-white placeholder:text-gray-600 focus-visible:ring-purple-500 pr-10"
+                  className="pr-10"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4" />
@@ -105,11 +104,10 @@ export default function LoginPage() {
                 id="remember"
                 checked={rememberMe}
                 onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-                className="border-gray-600 data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
               />
               <label
                 htmlFor="remember"
-                className="text-sm text-white cursor-pointer select-none"
+                className="text-sm cursor-pointer select-none"
               >
                 Recordarme
               </label>
@@ -117,7 +115,7 @@ export default function LoginPage() {
 
             <Button
               type="submit"
-              className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium"
+              className="w-full"
               disabled={isLoading}
             >
               {isLoading ? 'Iniciando Sesión...' : 'Iniciar Sesión'}
