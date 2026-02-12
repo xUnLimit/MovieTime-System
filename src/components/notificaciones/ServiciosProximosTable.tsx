@@ -72,13 +72,20 @@ export const ServiciosProximosTable = memo(function ServiciosProximosTable() {
           ]
         );
 
+        // ✅ Filtro adicional client-side para garantizar ventana de 7 días
+        const serviciosFiltrados = serviciosProximos.filter(servicio => {
+          if (!servicio.fechaVencimiento) return false;
+          const fechaVenc = new Date(servicio.fechaVencimiento);
+          return fechaVenc <= fechaLimite;
+        });
+
         // Ordenar por fecha de vencimiento (más próximos primero)
-        serviciosProximos.sort((a, b) => {
+        serviciosFiltrados.sort((a, b) => {
           if (!a.fechaVencimiento || !b.fechaVencimiento) return 0;
           return new Date(a.fechaVencimiento).getTime() - new Date(b.fechaVencimiento).getTime();
         });
 
-        setServicios(serviciosProximos);
+        setServicios(serviciosFiltrados);
       } catch (error) {
         console.error('Error cargando servicios:', error);
         toast.error('Error al cargar servicios');
