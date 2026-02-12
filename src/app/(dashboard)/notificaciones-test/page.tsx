@@ -1,28 +1,21 @@
 /**
- * Notificaciones Test Page (Parallel Route)
+ * Notificaciones Page
  *
- * This is a test/temporary page for the new notification system v2.1
- * It allows testing the new implementation without breaking the existing /notificaciones page
- *
- * Features:
- * - Displays VentasProximasTableV2 (no additional queries)
- * - Displays ServiciosProximosTableV2 (no additional queries)
- * - Full integration with notificacionesStore
- * - Manual sync trigger for testing
- *
- * URL: /notificaciones-test
+ * Displays notification tables with optimized queries
+ * - VentasProximasTableV2 (no additional queries)
+ * - ServiciosProximosTableV2 (no additional queries)
  */
 
 'use client';
 
 import { useEffect, useState } from 'react';
-import { RefreshCw, AlertCircle } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { VentasProximasTableV2 } from '@/components/notificaciones/VentasProximasTableV2';
 import { ServiciosProximosTableV2 } from '@/components/notificaciones/ServiciosProximosTableV2';
 import { AccionesVentaDialog } from '@/components/notificaciones/AccionesVentaDialog';
+import { MetricCard } from '@/components/shared/MetricCard';
 import { useNotificacionesStore } from '@/store/notificacionesStore';
 import {
   sincronizarNotificaciones,
@@ -31,7 +24,7 @@ import {
 import { toast } from 'sonner';
 import type { NotificacionVenta } from '@/types/notificaciones';
 
-export default function NotificacionesTestPage() {
+export default function NotificacionesPage() {
   const {
     notificaciones,
     fetchNotificaciones,
@@ -52,15 +45,12 @@ export default function NotificacionesTestPage() {
   useEffect(() => {
     const init = async () => {
       try {
-        // Fetch notifications from store
         await fetchNotificaciones();
         await fetchCounts();
-
-        // Run sync (will use cache if already synced today)
         await sincronizarNotificaciones();
       } catch (error) {
         console.error('Error initializing notifications:', error);
-        toast.error('Error loading notifications');
+        toast.error('Error cargando notificaciones');
       }
     };
 
@@ -68,13 +58,13 @@ export default function NotificacionesTestPage() {
   }, [fetchNotificaciones, fetchCounts]);
 
   /**
-   * Manual sync trigger (forces refresh, ignoring cache)
+   * Manual sync trigger
    */
   const handleForzarSync = async () => {
     setIsSyncing(true);
     try {
       await sincronizarNotificacionesForzado();
-      await fetchNotificaciones(true); // Force refresh store
+      await fetchNotificaciones(true);
       await fetchCounts();
       toast.success('Sincronización completada');
     } catch (error) {
@@ -94,90 +84,42 @@ export default function NotificacionesTestPage() {
   };
 
   return (
-    <div className="space-y-6 pb-8">
+    <div className="space-y-6">
       {/* Page Header */}
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Notificaciones v2.1</h1>
-        <p className="text-gray-600">
-          Test page para la nueva arquitectura de notificaciones con queries optimizadas
-        </p>
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight">Notificaciones</h1>
+          <p className="text-sm text-muted-foreground">
+            Gestiona alertas de ventas y servicios próximos a vencer
+          </p>
+        </div>
+        <Button onClick={handleForzarSync} disabled={isSyncing} variant="outline">
+          <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+          {isSyncing ? 'Sincronizando...' : 'Actualizar'}
+        </Button>
       </div>
 
       {/* Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Total</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalNotificaciones}</div>
-            <p className="text-xs text-gray-500">notificaciones</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Ventas Próximas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{ventasProximas}</div>
-            <p className="text-xs text-gray-500">vencen en 7 días</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Servicios Próximos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{serviciosProximos}</div>
-            <p className="text-xs text-gray-500">vencen en 7 días</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Leyendo...</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{isLoading ? '...' : '0'}</div>
-            <p className="text-xs text-gray-500">firebase queries</p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <MetricCard
+          title="Total Notificaciones"
+          value={totalNotificaciones.toString()}
+          description="Alertas pendientes"
+          loading={isLoading}
+        />
+        <MetricCard
+          title="Ventas Próximas"
+          value={ventasProximas.toString()}
+          description="Vencen en 7 días"
+          loading={isLoading}
+        />
+        <MetricCard
+          title="Servicios Próximos"
+          value={serviciosProximos.toString()}
+          description="Vencen en 7 días"
+          loading={isLoading}
+        />
       </div>
-
-      {/* Sync Info Card */}
-      <Card className="border-blue-200 bg-blue-50">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-sm">
-            <AlertCircle className="h-4 w-4" />
-            Información de Sincronización
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div>
-              <p className="font-medium">Última sincronización</p>
-              <p className="text-gray-600">
-                {localStorage.getItem('lastNotificationSync') || 'Nunca (primera vez)'}
-              </p>
-            </div>
-            <div>
-              <p className="font-medium">Optimizaciones aplicadas</p>
-              <ul className="text-gray-600 list-disc list-inside text-xs">
-                <li>1 query por entidad (not 2)</li>
-                <li>Campos denormalizados</li>
-                <li>Sin joins al mostrar</li>
-              </ul>
-            </div>
-          </div>
-
-          <Button onClick={handleForzarSync} disabled={isSyncing} className="w-full">
-            <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-            {isSyncing ? 'Sincronizando...' : 'Forzar Sincronización'}
-          </Button>
-        </CardContent>
-      </Card>
 
       {/* Tabs for Ventas / Servicios */}
       <Tabs defaultValue="ventas" className="space-y-4">
@@ -201,12 +143,12 @@ export default function NotificacionesTestPage() {
         </TabsList>
 
         {/* Ventas Tab */}
-        <TabsContent value="ventas" className="space-y-4">
+        <TabsContent value="ventas">
           <VentasProximasTableV2 onOpenAccionesDialog={handleOpenAccionesDialog} />
         </TabsContent>
 
         {/* Servicios Tab */}
-        <TabsContent value="servicios" className="space-y-4">
+        <TabsContent value="servicios">
           <ServiciosProximosTableV2 />
         </TabsContent>
       </Tabs>
@@ -217,20 +159,6 @@ export default function NotificacionesTestPage() {
         isOpen={accionesDialogOpen}
         onOpenChange={setAccionesDialogOpen}
       />
-
-      {/* Development Info */}
-      <Card className="border-gray-200 bg-gray-50">
-        <CardHeader>
-          <CardTitle className="text-sm">Información Técnica (Dev Only)</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-xs font-mono">
-          <div>Total notificaciones en store: {notificaciones.length}</div>
-          <div>Ventas con prioridad critica: {notificaciones.filter(n => 'ventaId' in n && n.prioridad === 'critica').length}</div>
-          <div>Servicios con prioridad critica: {notificaciones.filter(n => 'servicioId' in n && n.prioridad === 'critica').length}</div>
-          <div>Notificaciones resaltadas: {notificaciones.filter(n => n.resaltada).length}</div>
-          <div>Abre DevTools (F12) y ve la consola para ver los logs de Firestore</div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
