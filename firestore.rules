@@ -62,6 +62,10 @@ service cloud.firestore {
       allow read, write: if isAuthenticated();
     }
 
+    match /notificaciones/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+
     // ============================================================================
     // LEGACY COLLECTIONS (read-only)
     // ============================================================================

@@ -66,6 +66,13 @@ export interface VentaDoc {
   codigo?: string;
   notas?: string;
 
+  // ✅ CAMPOS DENORMALIZADOS - Mantener sincronizados con PagoVenta más reciente
+  // Se populan cuando se crea o renueva una venta
+  // Requeridos para sincronización de notificaciones
+  fechaInicio: Date;     // Denormalizado del último pago para notificaciones
+  fechaFin: Date;        // Denormalizado del último pago (fecha de vencimiento)
+  cicloPago: 'mensual' | 'trimestral' | 'semestral' | 'anual';  // Denormalizado del último pago
+
   // ⚠️ CAMPOS DEPRECADOS - Mantener por compatibilidad con datos existentes
   // Usar getVentaConUltimoPago() para obtener valores actuales desde pagosVenta
   /** @deprecated Leer desde PagoVenta más reciente */
@@ -74,12 +81,6 @@ export interface VentaDoc {
   metodoPagoNombre?: string;
   /** @deprecated Leer desde PagoVenta más reciente */
   moneda?: string;
-  /** @deprecated Leer desde PagoVenta más reciente */
-  fechaInicio?: Date;
-  /** @deprecated Leer desde PagoVenta más reciente */
-  fechaFin?: Date;
-  /** @deprecated Leer desde PagoVenta más reciente */
-  cicloPago?: 'mensual' | 'trimestral' | 'semestral' | 'anual';
   /** @deprecated Leer desde PagoVenta más reciente */
   precio?: number;
   /** @deprecated Leer desde PagoVenta más reciente */

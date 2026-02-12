@@ -7,6 +7,7 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { DashboardErrorFallback } from '@/components/shared/DashboardErrorFallback';
+import { sincronizarNotificaciones } from '@/lib/services/notificationSyncService';
 
 export default function DashboardLayout({
   children
@@ -23,6 +24,15 @@ export default function DashboardLayout({
       router.push('/login');
     }
   }, [isAuthenticated, isHydrated, router]);
+
+  // Sincronizar notificaciones cuando el usuario está autenticado
+  useEffect(() => {
+    if (isHydrated && isAuthenticated) {
+      sincronizarNotificaciones().catch((error) => {
+        console.error('Error syncing notifications:', error);
+      });
+    }
+  }, [isHydrated, isAuthenticated]);
 
   // Mostrar loader mientras se hidrata el estado desde localStorage
   if (!isHydrated) {

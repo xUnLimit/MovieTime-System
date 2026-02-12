@@ -94,6 +94,10 @@ function VentaDetallePageContent() {
         notas: (doc.notas as string) || '',
         estado: (doc.estado as VentaDoc['estado']) ?? 'activo',
         createdAt: doc.createdAt ? timestampToDate(doc.createdAt) : undefined,
+        // Denormalized fields (required) - will be populated from PagoVenta
+        fechaInicio: (doc.fechaInicio as Date) || new Date(),
+        fechaFin: (doc.fechaFin as Date) || new Date(),
+        cicloPago: (doc.cicloPago as 'mensual' | 'trimestral' | 'semestral' | 'anual') || 'mensual',
       };
 
       // Obtener datos actuales desde PagoVenta (fuente de verdad)
@@ -355,6 +359,10 @@ function VentaDetallePageContent() {
             notas: (doc.notas as string) || undefined,
             createdAt: (doc.createdAt as Date) || undefined,
             updatedAt: (doc.updatedAt as Date) || undefined,
+            // Denormalized fields
+            fechaInicio: (doc.fechaInicio as Date) || new Date(),
+            fechaFin: (doc.fechaFin as Date) || new Date(),
+            cicloPago: (doc.cicloPago as 'mensual' | 'trimestral' | 'semestral' | 'anual') || 'mensual',
           };
           const ventaActualizada = await getVentaConUltimoPago(ventaBase);
           setVenta(ventaActualizada);
@@ -457,6 +465,10 @@ function VentaDetallePageContent() {
             notas: (doc.notas as string) || undefined,
             createdAt: (doc.createdAt as Date) || undefined,
             updatedAt: (doc.updatedAt as Date) || undefined,
+            // Denormalized fields
+            fechaInicio: (doc.fechaInicio as Date) || new Date(),
+            fechaFin: (doc.fechaFin as Date) || new Date(),
+            cicloPago: (doc.cicloPago as 'mensual' | 'trimestral' | 'semestral' | 'anual') || 'mensual',
           };
           const ventaActualizada = await getVentaConUltimoPago(ventaBase);
           setVenta(ventaActualizada);
@@ -514,6 +526,10 @@ function VentaDetallePageContent() {
             notas: (doc.notas as string) || undefined,
             createdAt: (doc.createdAt as Date) || undefined,
             updatedAt: (doc.updatedAt as Date) || undefined,
+            // Denormalized fields
+            fechaInicio: (doc.fechaInicio as Date) || new Date(),
+            fechaFin: (doc.fechaFin as Date) || new Date(),
+            cicloPago: (doc.cicloPago as 'mensual' | 'trimestral' | 'semestral' | 'anual') || 'mensual',
           };
           const ventaActualizada = await getVentaConUltimoPago(ventaBase);
           setVenta(ventaActualizada);

@@ -296,6 +296,7 @@ export const COLLECTIONS = {
   CONFIG: 'config',
   GASTOS: 'gastos',
   TEMPLATES: 'templates',
+  NOTIFICACIONES: 'notificaciones',
   PAGOS_SERVICIO: 'pagosServicio',
   VENTAS: 'ventas',
   PAGOS_VENTA: 'pagosVenta',

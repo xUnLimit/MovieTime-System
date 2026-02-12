@@ -39,6 +39,10 @@ function EditarVentaPageContent() {
           codigo: (doc.codigo as string) || '',
           estado: (doc.estado as 'activo' | 'inactivo') || 'activo',
           notas: (doc.notas as string) || '',
+          // Denormalized fields (required) - will be populated from PagoVenta
+          fechaInicio: (doc.fechaInicio as Date) || new Date(),
+          fechaFin: (doc.fechaFin as Date) || new Date(),
+          cicloPago: (doc.cicloPago as 'mensual' | 'trimestral' | 'semestral' | 'anual') || 'mensual',
         };
 
         // Obtener datos actuales desde PagoVenta (fuente de verdad)

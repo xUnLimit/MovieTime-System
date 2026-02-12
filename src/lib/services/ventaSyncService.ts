@@ -21,9 +21,7 @@ export interface VentaConUltimoPago extends VentaDoc {
   metodoPagoId?: string;
   metodoPagoNombre: string;
   moneda: string;
-  cicloPago?: 'mensual' | 'trimestral' | 'semestral' | 'anual';
-  fechaInicio: Date;
-  fechaFin: Date;
+  // Note: cicloPago, fechaInicio, fechaFin are required in VentaDoc parent
 }
 
 /**
@@ -69,9 +67,10 @@ export async function getVentaConUltimoPago(
       metodoPagoId: undefined,
       metodoPagoNombre: '',
       moneda: 'USD',
-      cicloPago: undefined,
-      fechaInicio: new Date(),
-      fechaFin: new Date(),
+      // Denormalized fields from venta (required)
+      cicloPago: venta.cicloPago || 'mensual',
+      fechaInicio: venta.fechaInicio || new Date(),
+      fechaFin: venta.fechaFin || new Date(),
     };
   }
 
@@ -84,7 +83,8 @@ export async function getVentaConUltimoPago(
     metodoPagoId: pagoMasReciente.metodoPagoId,
     metodoPagoNombre: pagoMasReciente.metodoPago,
     moneda: pagoMasReciente.moneda ?? 'USD',
-    cicloPago: pagoMasReciente.cicloPago,
+    // Denormalized fields from payment (required)
+    cicloPago: pagoMasReciente.cicloPago || 'mensual',
     fechaInicio: pagoMasReciente.fechaInicio ?? new Date(),
     fechaFin: pagoMasReciente.fechaVencimiento ?? new Date(),
   };
@@ -156,9 +156,10 @@ export async function getVentasConUltimoPago(
         metodoPagoId: undefined,
         metodoPagoNombre: '',
         moneda: 'USD',
-        cicloPago: undefined,
-        fechaInicio: new Date(),
-        fechaFin: new Date(),
+        // Denormalized fields from venta (required)
+        cicloPago: venta.cicloPago || 'mensual',
+        fechaInicio: venta.fechaInicio || new Date(),
+        fechaFin: venta.fechaFin || new Date(),
       };
     }
 
@@ -170,7 +171,7 @@ export async function getVentasConUltimoPago(
       metodoPagoId: pagoMasReciente.metodoPagoId,
       metodoPagoNombre: pagoMasReciente.metodoPago,
       moneda: pagoMasReciente.moneda ?? 'USD',
-      cicloPago: pagoMasReciente.cicloPago,
+      cicloPago: pagoMasReciente.cicloPago || 'mensual',
       fechaInicio: pagoMasReciente.fechaInicio ?? new Date(),
       fechaFin: pagoMasReciente.fechaVencimiento ?? new Date(),
     };

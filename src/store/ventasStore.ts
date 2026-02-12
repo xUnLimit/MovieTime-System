@@ -89,8 +89,16 @@ export const useVentasStore = create<VentasState>()(
             ...ventaDataLimpia
           } = ventaData;
 
-          // Paso 1: Crear la venta (SOLO con metadatos, sin datos de pago)
-          const ventaId = await createDoc(COLLECTIONS.VENTAS, ventaDataLimpia);
+          // Paso 1: Crear la venta CON campos denormalizados necesarios para notificaciones
+          // fechaInicio, fechaFin, cicloPago se mantienen sincronizados con PagoVenta
+          const ventaDocData = {
+            ...ventaDataLimpia,
+            fechaInicio,  // Denormalizado del primer pago
+            fechaFin,     // Denormalizado del primer pago (fecha de vencimiento)
+            cicloPago,    // Denormalizado del primer pago
+          };
+
+          const ventaId = await createDoc(COLLECTIONS.VENTAS, ventaDocData);
 
           // Paso 2: Crear el pago inicial en la colección separada (fuente de verdad)
           if (pagos && pagos.length > 0) {
@@ -118,6 +126,9 @@ export const useVentasStore = create<VentasState>()(
           const newVenta: VentaDoc = {
             ...ventaDataLimpia,
             id: ventaId,
+            fechaInicio,      // Incluir campos denormalizados
+            fechaFin,
+            cicloPago,
             createdAt: new Date(),
             updatedAt: new Date()
           };

@@ -1,0 +1,316 @@
+/**
+ * Notificaciones Store - Zustand
+ *
+ * Manages notification state and persistence
+ * Synced with Firestore `notificaciones` collection
+ *
+ * Features:
+ * - CRUD operations for notifications
+ * - Mark as read/unread
+ * - Mark as highlighted/starred
+ * - Filter by entity type (venta/servicio)
+ * - Caching with 5-minute TTL
+ * - Error state management
+ * - Optimistic updates with rollback
+ */
+
+import { create } from 'zustand';
+import {
+  COLLECTIONS,
+  getAll,
+  update,
+  remove,
+  queryDocuments,
+} from '@/lib/firebase/firestore';
+import type { Notificacion, NotificacionVenta, NotificacionServicio } from '@/types/notificaciones';
+import { esNotificacionVenta, esNotificacionServicio } from '@/types/notificaciones';
+
+interface NotificacionesState {
+  // State
+  notificaciones: (Notificacion & { id: string })[];
+  isLoading: boolean;
+  error: string | null;
+  lastFetch: number | null;
+
+  // Queries
+  totalNotificaciones: number;
+  ventasProximas: number;
+  serviciosProximos: number;
+
+  // Actions - Data fetching
+  fetchNotificaciones: (force?: boolean) => Promise<void>;
+  fetchCounts: () => Promise<void>;
+
+  // Actions - Mutations
+  toggleLeida: (notifId: string, leida: boolean) => Promise<void>;
+  toggleResaltada: (notifId: string, resaltada: boolean) => Promise<void>;
+  deleteNotificacion: (notifId: string) => Promise<void>;
+  deleteNotificacionesPorVenta: (ventaId: string) => Promise<void>;
+  deleteNotificacionesPorServicio: (servicioId: string) => Promise<void>;
+
+  // Helpers
+  getVentasNotificaciones: () => (NotificacionVenta & { id: string })[];
+  getServiciosNotificaciones: () => (NotificacionServicio & { id: string })[];
+  getNotificacionesResaltadas: () => (Notificacion & { id: string })[];
+}
+
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+export const useNotificacionesStore = create<NotificacionesState>((set, get) => ({
+  // Initial state
+  notificaciones: [],
+  isLoading: false,
+  error: null,
+  lastFetch: null,
+
+  totalNotificaciones: 0,
+  ventasProximas: 0,
+  serviciosProximos: 0,
+
+  /**
+   * Fetch all notifications from Firestore
+   * Uses cache with 5-minute TTL
+   */
+  fetchNotificaciones: async (force = false) => {
+    const state = get();
+
+    // Check cache
+    if (
+      !force &&
+      state.lastFetch &&
+      Date.now() - state.lastFetch < CACHE_TTL
+    ) {
+      console.log('[Cache] Hit (notificaciones) - sin lectura a Firestore');
+      return;
+    }
+
+    set({ isLoading: true, error: null });
+
+    try {
+      const notificaciones = (await getAll(COLLECTIONS.NOTIFICACIONES)) as (
+        Notificacion & { id: string }
+      )[];
+
+      set({
+        notificaciones,
+        isLoading: false,
+        error: null,
+        lastFetch: Date.now(),
+      });
+
+      // Log operation
+      console.log(`[Firestore] getAll (notificaciones) -> ${notificaciones.length} docs`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      set({
+        error: errorMessage,
+        isLoading: false,
+        notificaciones: [],
+      });
+      console.error('[NotificacionesStore] Error fetching notifications:', error);
+    }
+  },
+
+  /**
+   * Fetch count metrics (free queries on Spark plan)
+   */
+  fetchCounts: async () => {
+    try {
+      const state = get();
+
+      // Total notificaciones
+      const totalNotificaciones = (await getAll(COLLECTIONS.NOTIFICACIONES)).length;
+
+      // Ventas próximas (entidad='venta' AND diasRestantes >= -1)
+      const ventasNotifs = state.notificaciones.filter(
+        (n) => esNotificacionVenta(n) && n.diasRestantes >= -1
+      );
+      const ventasProximas = ventasNotifs.length;
+
+      // Servicios próximos
+      const serviciosNotifs = state.notificaciones.filter(
+        (n) => esNotificacionServicio(n) && n.diasRestantes >= -1
+      );
+      const serviciosProximos = serviciosNotifs.length;
+
+      set({
+        totalNotificaciones,
+        ventasProximas,
+        serviciosProximos,
+      });
+
+      console.log(
+        `[Firestore] count (notificaciones) -> ${totalNotificaciones} · ventasProximas: ${ventasProximas} · serviciosProximos: ${serviciosProximos}`
+      );
+    } catch (error) {
+      console.error('[NotificacionesStore] Error fetching counts:', error);
+    }
+  },
+
+  /**
+   * Mark notification as read/unread
+   */
+  toggleLeida: async (notifId: string, leida: boolean) => {
+    const state = get();
+
+    // Optimistic update
+    const updatedNotifs = state.notificaciones.map((n) =>
+      n.id === notifId ? { ...n, leida } : n
+    );
+    set({ notificaciones: updatedNotifs });
+
+    try {
+      await update(COLLECTIONS.NOTIFICACIONES, notifId, {
+        leida,
+        updatedAt: new Date(),
+      });
+    } catch (error) {
+      // Rollback on error
+      set({ notificaciones: state.notificaciones });
+      console.error('[NotificacionesStore] Error updating leida:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Mark notification as highlighted/starred
+   */
+  toggleResaltada: async (notifId: string, resaltada: boolean) => {
+    const state = get();
+
+    // Optimistic update
+    const updatedNotifs = state.notificaciones.map((n) =>
+      n.id === notifId ? { ...n, resaltada } : n
+    );
+    set({ notificaciones: updatedNotifs });
+
+    try {
+      await update(COLLECTIONS.NOTIFICACIONES, notifId, {
+        resaltada,
+        updatedAt: new Date(),
+      });
+    } catch (error) {
+      // Rollback on error
+      set({ notificaciones: state.notificaciones });
+      console.error('[NotificacionesStore] Error updating resaltada:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Delete a single notification
+   */
+  deleteNotificacion: async (notifId: string) => {
+    const state = get();
+
+    // Optimistic update
+    const updatedNotifs = state.notificaciones.filter((n) => n.id !== notifId);
+    set({ notificaciones: updatedNotifs });
+
+    try {
+      await remove(COLLECTIONS.NOTIFICACIONES, notifId);
+    } catch (error) {
+      // Rollback on error
+      set({ notificaciones: state.notificaciones });
+      console.error('[NotificacionesStore] Error deleting notification:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Delete all notifications for a specific venta
+   * Called when venta is deleted or renewed
+   */
+  deleteNotificacionesPorVenta: async (ventaId: string) => {
+    const state = get();
+
+    // Find notifications to delete
+    const notifsToDelete = state.notificaciones.filter(
+      (n) => esNotificacionVenta(n) && n.ventaId === ventaId
+    );
+
+    // Optimistic update
+    const updatedNotifs = state.notificaciones.filter(
+      (n) => !(esNotificacionVenta(n) && n.ventaId === ventaId)
+    );
+    set({ notificaciones: updatedNotifs });
+
+    try {
+      // Delete all notifications for this venta
+      await Promise.all(
+        notifsToDelete.map((n) =>
+          remove(COLLECTIONS.NOTIFICACIONES, n.id).catch((error) => {
+            console.error(`[NotificacionesStore] Error deleting notif ${n.id}:`, error);
+          })
+        )
+      );
+    } catch (error) {
+      // Rollback on error
+      set({ notificaciones: state.notificaciones });
+      console.error('[NotificacionesStore] Error deleting venta notifications:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Delete all notifications for a specific servicio
+   * Called when servicio is deleted or renewed
+   */
+  deleteNotificacionesPorServicio: async (servicioId: string) => {
+    const state = get();
+
+    // Find notifications to delete
+    const notifsToDelete = state.notificaciones.filter(
+      (n) => esNotificacionServicio(n) && n.servicioId === servicioId
+    );
+
+    // Optimistic update
+    const updatedNotifs = state.notificaciones.filter(
+      (n) => !(esNotificacionServicio(n) && n.servicioId === servicioId)
+    );
+    set({ notificaciones: updatedNotifs });
+
+    try {
+      // Delete all notifications for this servicio
+      await Promise.all(
+        notifsToDelete.map((n) =>
+          remove(COLLECTIONS.NOTIFICACIONES, n.id).catch((error) => {
+            console.error(`[NotificacionesStore] Error deleting notif ${n.id}:`, error);
+          })
+        )
+      );
+    } catch (error) {
+      // Rollback on error
+      set({ notificaciones: state.notificaciones });
+      console.error('[NotificacionesStore] Error deleting servicio notifications:', error);
+      throw error;
+    }
+  },
+
+  // Helpers
+
+  /**
+   * Get all venta notifications with type safety
+   */
+  getVentasNotificaciones: () => {
+    return get().notificaciones.filter(esNotificacionVenta) as (NotificacionVenta & {
+      id: string;
+    })[];
+  },
+
+  /**
+   * Get all servicio notifications with type safety
+   */
+  getServiciosNotificaciones: () => {
+    return get().notificaciones.filter(esNotificacionServicio) as (NotificacionServicio & {
+      id: string;
+    })[];
+  },
+
+  /**
+   * Get all highlighted/starred notifications
+   */
+  getNotificacionesResaltadas: () => {
+    return get().notificaciones.filter((n) => n.resaltada);
+  },
+}));

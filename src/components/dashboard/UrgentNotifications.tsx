@@ -79,7 +79,7 @@ export function UrgentNotifications({ notificaciones }: UrgentNotificationsProps
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground line-clamp-2">
-                    {notif.mensaje}
+                    {notif.titulo}
                   </p>
                 </div>
               </div>

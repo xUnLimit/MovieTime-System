@@ -589,7 +589,7 @@ export function VentasForm() {
           servicioId: item.servicioId,
           servicioNombre: item.servicioNombre,
           servicioCorreo: item.servicioCorreo ?? '',
-          cicloPago: item.cicloPago ?? undefined,
+          cicloPago: item.cicloPago || 'mensual',
           perfilNumero: item.perfilNumero ?? null,
           precio: item.precio,
           descuento: item.descuento,
