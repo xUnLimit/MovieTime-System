@@ -81,10 +81,10 @@ function NotificacionesTestPageContent() {
             </p>
             <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1 mt-2">
               <li>🔔 Sistema de íconos interactivos (🔔/🔕/⚠️) con click para toggle</li>
-              <li>🟠 Badge con jerarquía de colores (naranja > rojo > amarillo)</li>
+              <li>🟠 Badge con jerarquía de colores (naranja &gt; rojo &gt; amarillo)</li>
               <li>📊 Sincronización automática diaria (una vez al día)</li>
               <li>📅 Días restantes exactos en notificaciones</li>
-              <li>⚡ Estado "leída" inteligente (solo resetea si prioridad aumenta)</li>
+              <li>⚡ Estado &quot;leída&quot; inteligente (solo resetea si prioridad aumenta)</li>
               <li>🔥 Resaltado manual con prioridad visual máxima</li>
               <li>⚙️ Modales dual-flow (opciones vs confirmación directa)</li>
             </ul>
