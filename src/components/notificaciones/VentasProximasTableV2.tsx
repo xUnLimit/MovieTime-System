@@ -202,13 +202,13 @@ export function VentasProximasTableV2({ onOpenAccionesDialog }: VentasProximasTa
       </div>
 
       {ventasNotificaciones.length === 0 ? (
-        <div className="rounded-md border p-8 text-center mt-4">
+        <div className="rounded-md border p-8 text-center">
           <p className="text-sm text-muted-foreground">
             No se encontraron notificaciones de ventas
           </p>
         </div>
       ) : (
-        <div className="rounded-md border mt-4">
+        <div className="rounded-md border">
           <div className="relative w-full overflow-auto">
                 <Table>
                   <TableHeader>
