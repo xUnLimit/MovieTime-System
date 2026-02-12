@@ -54,6 +54,7 @@ export interface NotificacionVenta extends NotificacionBase {
   cicloPago: 'mensual' | 'trimestral' | 'semestral' | 'anual';
   fechaInicio: Date; // Start of current payment period
   fechaFin: Date; // Expiration date
+  precioFinal?: number; // Final price after discount
 }
 
 /**

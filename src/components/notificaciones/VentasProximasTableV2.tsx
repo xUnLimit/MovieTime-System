@@ -12,6 +12,7 @@
 import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -20,46 +21,118 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Bell, BellOff, Star } from 'lucide-react';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { BellRing, Search, Ellipsis } from 'lucide-react';
 import { useNotificacionesStore } from '@/store/notificacionesStore';
 import { esNotificacionVenta } from '@/types/notificaciones';
 import type { NotificacionVenta } from '@/types/notificaciones';
 
 /**
- * Get color based on priority level
+ * Get bell icon color based on days remaining
  */
-function getPrioridadColor(prioridad: string): string {
-  switch (prioridad) {
-    case 'critica':
-      return 'destructive';
-    case 'alta':
-      return 'secondary';
-    case 'media':
-      return 'outline';
-    case 'baja':
-      return 'secondary';
-    default:
-      return 'default';
+function getBellIconColor(diasRestantes: number): {
+  bgColor: string;
+  hoverBgColor: string;
+  textColor: string;
+} {
+  if (diasRestantes < 0) {
+    // Vencida - Red
+    return {
+      bgColor: 'bg-red-100 dark:bg-red-500/20',
+      hoverBgColor: 'hover:bg-red-200 dark:hover:bg-red-500/30',
+      textColor: 'text-red-600 dark:text-red-400',
+    };
+  } else if (diasRestantes <= 3) {
+    // Próxima - Yellow
+    return {
+      bgColor: 'bg-yellow-100 dark:bg-yellow-500/20',
+      hoverBgColor: 'hover:bg-yellow-200 dark:hover:bg-yellow-500/30',
+      textColor: 'text-yellow-600 dark:text-yellow-400',
+    };
+  } else {
+    // Normal - Green
+    return {
+      bgColor: 'bg-green-100 dark:bg-green-500/20',
+      hoverBgColor: 'hover:bg-green-200 dark:hover:bg-green-500/30',
+      textColor: 'text-green-600 dark:text-green-400',
+    };
   }
 }
 
 /**
- * Get status badge color
+ * Get status badge based on days remaining
  */
-function getEstadoColor(estado: string): string {
-  return estado === 'activo' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
-}
-
-/**
- * Format days remaining for display
- */
-function formatDiasRestantes(diasRestantes: number): string {
+function getEstadoBadge(diasRestantes: number): {
+  variant: string;
+  text: string;
+} {
   if (diasRestantes < 0) {
     const dias = Math.abs(diasRestantes);
-    return `${dias} día${dias > 1 ? 's' : ''} vencida`;
+    return {
+      variant: 'border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
+      text: `${dias} día${dias > 1 ? 's' : ''} de retraso`,
+    };
+  } else if (diasRestantes === 0) {
+    return {
+      variant: 'border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
+      text: 'Vence hoy',
+    };
+  } else if (diasRestantes <= 7) {
+    return {
+      variant: 'border-yellow-500/50 bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-300',
+      text: `${diasRestantes} día${diasRestantes > 1 ? 's' : ''} restante${diasRestantes > 1 ? 's' : ''}`,
+    };
+  } else {
+    return {
+      variant: 'border-green-500/50 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300',
+      text: `${diasRestantes} día${diasRestantes > 1 ? 's' : ''} restante${diasRestantes > 1 ? 's' : ''}`,
+    };
   }
-  if (diasRestantes === 0) return 'Vence hoy';
-  return `${diasRestantes} día${diasRestantes > 1 ? 's' : ''} restante${diasRestantes > 1 ? 's' : ''}`;
+}
+
+/**
+ * Format date as "d de MMMM del yyyy" in Spanish
+ */
+function formatearFecha(fecha: Date): string {
+  const meses = [
+    'enero',
+    'febrero',
+    'marzo',
+    'abril',
+    'mayo',
+    'junio',
+    'julio',
+    'agosto',
+    'septiembre',
+    'octubre',
+    'noviembre',
+    'diciembre',
+  ];
+
+  const dia = fecha.getDate();
+  const mes = meses[fecha.getMonth()];
+  const año = fecha.getFullYear();
+
+  return `${dia} de ${mes} del ${año}`;
 }
 
 interface VentasProximasTableV2Props {
@@ -67,158 +140,221 @@ interface VentasProximasTableV2Props {
 }
 
 export function VentasProximasTableV2({ onOpenAccionesDialog }: VentasProximasTableV2Props) {
-  const { notificaciones, toggleLeida, toggleResaltada } = useNotificacionesStore();
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const { notificaciones, toggleLeida } = useNotificacionesStore();
+  const [search, setSearch] = useState('');
+  const [estadoFilter, setEstadoFilter] = useState<string>('todos');
 
   // Get venta notifications (type-safe filtering)
   const ventasNotificaciones = useMemo(() => {
-    return notificaciones
-      .filter(esNotificacionVenta)
-      .sort((a, b) => {
-        // Sort by: resaltadas first, then by priority, then by dias restantes
-        if (a.resaltada !== b.resaltada) {
-          return a.resaltada ? -1 : 1;
-        }
-        const prioridades = ['critica', 'alta', 'media', 'baja'];
-        const priorA = prioridades.indexOf(a.prioridad);
-        const priorB = prioridades.indexOf(b.prioridad);
-        if (priorA !== priorB) {
-          return priorA - priorB;
-        }
-        return a.diasRestantes - b.diasRestantes;
-      });
-  }, [notificaciones]);
+    let filtered = notificaciones.filter(esNotificacionVenta);
 
-  if (ventasNotificaciones.length === 0) {
-    return (
-      <div className="rounded-lg border p-8 text-center">
-        <p className="text-gray-500">No hay notificaciones de ventas</p>
-      </div>
-    );
-  }
+    // Apply search filter
+    if (search) {
+      const searchLower = search.toLowerCase();
+      filtered = filtered.filter(
+        (notif) =>
+          notif.clienteNombre.toLowerCase().includes(searchLower) ||
+          notif.categoriaNombre.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Apply estado filter
+    if (estadoFilter !== 'todos') {
+      if (estadoFilter === 'vencidas') {
+        filtered = filtered.filter((n) => n.diasRestantes < 0);
+      } else if (estadoFilter === 'proximas') {
+        filtered = filtered.filter((n) => n.diasRestantes >= 0 && n.diasRestantes <= 7);
+      } else if (estadoFilter === 'normales') {
+        filtered = filtered.filter((n) => n.diasRestantes > 7);
+      }
+    }
+
+    // Sort by: resaltadas first, then by dias restantes (ascending)
+    return filtered.sort((a, b) => {
+      if (a.resaltada !== b.resaltada) {
+        return a.resaltada ? -1 : 1;
+      }
+      return a.diasRestantes - b.diasRestantes;
+    });
+  }, [notificaciones, search, estadoFilter]);
 
   return (
-    <div className="rounded-lg border overflow-hidden">
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-gray-50">
-            <TableHead className="w-8"></TableHead>
-            <TableHead>Cliente</TableHead>
-            <TableHead>Servicio</TableHead>
-            <TableHead>Categoría</TableHead>
-            <TableHead>Perfil</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead>Vencimiento</TableHead>
-            <TableHead className="w-24">Prioridad</TableHead>
-            <TableHead className="w-24 text-center">Acciones</TableHead>
-          </TableRow>
-        </TableHeader>
+    <div className="space-y-8">
+      <Card className="rounded-lg border bg-card text-card-foreground shadow-sm">
+        <CardHeader className="flex flex-col space-y-1.5 p-6">
+          <CardTitle className="text-2xl font-semibold leading-none tracking-tight">
+            Ventas próximas a vencer
+          </CardTitle>
+          <CardDescription className="text-sm text-muted-foreground">
+            Listado de ventas de clientes con vencimiento próximo o ya vencidos.
+          </CardDescription>
 
-        <TableBody>
-          {ventasNotificaciones.map((notif) => (
-            <TableRow
-              key={notif.id}
-              className={`hover:bg-gray-50 transition-colors ${
-                notif.resaltada ? 'bg-yellow-50' : notif.leida ? 'opacity-60' : ''
-              }`}
-              onClick={() => setSelectedId(notif.id)}
-            >
-              {/* Starred indicator */}
-              <TableCell className="text-center">
-                {notif.resaltada && <span className="text-lg">⭐</span>}
-              </TableCell>
+          {/* Filters */}
+          <div className="flex items-center gap-2 pt-4">
+            {/* Search */}
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Buscar por cliente o categoría..."
+                className="w-full rounded-lg bg-background pl-8"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
 
-              {/* Cliente */}
-              <TableCell className="font-medium">{notif.clienteNombre}</TableCell>
+            {/* Estado filter */}
+            <Select value={estadoFilter} onValueChange={setEstadoFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos los estados</SelectItem>
+                <SelectItem value="vencidas">Vencidas</SelectItem>
+                <SelectItem value="proximas">Próximas (≤7 días)</SelectItem>
+                <SelectItem value="normales">Normales (&gt;7 días)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
 
-              {/* Servicio */}
-              <TableCell>{notif.servicioNombre}</TableCell>
+        <CardContent className="p-6 pt-0">
+          {ventasNotificaciones.length === 0 ? (
+            <div className="rounded-md border p-8 text-center">
+              <p className="text-sm text-muted-foreground">
+                No se encontraron notificaciones de ventas
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-md border">
+              <div className="relative w-full overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-b hover:bg-muted/50">
+                      <TableHead className="h-12 px-4 text-center text-muted-foreground w-[80px]">
+                        Tipo
+                      </TableHead>
+                      <TableHead className="h-12 px-4 text-center text-muted-foreground">
+                        Cliente
+                      </TableHead>
+                      <TableHead className="h-12 px-4 text-center text-muted-foreground">
+                        Categoría
+                      </TableHead>
+                      <TableHead className="h-12 px-4 text-center text-muted-foreground">
+                        Fecha de Inicio
+                      </TableHead>
+                      <TableHead className="h-12 px-4 text-center text-muted-foreground">
+                        Fecha de Vencimiento
+                      </TableHead>
+                      <TableHead className="h-12 px-4 text-center text-muted-foreground">
+                        Monto
+                      </TableHead>
+                      <TableHead className="h-12 px-4 text-center text-muted-foreground">
+                        Estado
+                      </TableHead>
+                      <TableHead className="h-12 px-4 text-center text-muted-foreground">
+                        Acciones
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
 
-              {/* Categoría */}
-              <TableCell>{notif.categoriaNombre}</TableCell>
+                  <TableBody>
+                    {ventasNotificaciones.map((notif) => {
+                      const bellColors = getBellIconColor(notif.diasRestantes);
+                      const estadoBadge = getEstadoBadge(notif.diasRestantes);
 
-              {/* Perfil */}
-              <TableCell>{notif.perfilNombre || '—'}</TableCell>
+                      return (
+                        <TableRow
+                          key={notif.id}
+                          className="border-b transition-colors hover:bg-muted/50"
+                        >
+                          {/* Tipo - Bell icon */}
+                          <TableCell className="p-4 text-center">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className={`mx-auto h-8 w-8 rounded-full transition-all duration-200 ease-in-out ${bellColors.bgColor} ${bellColors.hoverBgColor} hover:scale-105`}
+                              onClick={() => toggleLeida(notif.id, !notif.leida)}
+                              title={notif.leida ? 'Marcar como sin leer' : 'Marcar como leída'}
+                            >
+                              <BellRing
+                                className={`h-4 w-4 transition-all duration-200 ease-in-out ${bellColors.textColor} opacity-100`}
+                              />
+                            </Button>
+                          </TableCell>
 
-              {/* Estado */}
-              <TableCell>
-                <Badge className={getEstadoColor(notif.estado)}>
-                  {notif.estado === 'activo' ? 'Activo' : 'Inactivo'}
-                </Badge>
-              </TableCell>
+                          {/* Cliente */}
+                          <TableCell className="p-4 text-center font-medium truncate">
+                            {notif.clienteNombre}
+                          </TableCell>
 
-              {/* Vencimiento */}
-              <TableCell className="text-sm">
-                <div>{notif.fechaFin.toLocaleDateString()}</div>
-                <div className="text-xs text-gray-500">
-                  {formatDiasRestantes(notif.diasRestantes)}
-                </div>
-              </TableCell>
+                          {/* Categoría */}
+                          <TableCell className="p-4 text-center">
+                            {notif.categoriaNombre}
+                          </TableCell>
 
-              {/* Prioridad */}
-              <TableCell>
-                <Badge variant={getPrioridadColor(notif.prioridad) as any}>
-                  {notif.prioridad}
-                </Badge>
-              </TableCell>
+                          {/* Fecha de Inicio */}
+                          <TableCell className="p-4 text-center">
+                            {formatearFecha(new Date(notif.fechaInicio))}
+                          </TableCell>
 
-              {/* Acciones */}
-              <TableCell>
-                <div className="flex items-center justify-center gap-1">
-                  {/* Toggle leida */}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleLeida(notif.id, !notif.leida);
-                    }}
-                    title={notif.leida ? 'Marcar como sin leer' : 'Marcar como leída'}
-                  >
-                    {notif.leida ? (
-                      <BellOff className="h-4 w-4" />
-                    ) : (
-                      <Bell className="h-4 w-4" />
-                    )}
-                  </Button>
+                          {/* Fecha de Vencimiento */}
+                          <TableCell className="p-4 text-center">
+                            {formatearFecha(new Date(notif.fechaFin))}
+                          </TableCell>
 
-                  {/* Toggle resaltada */}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleResaltada(notif.id, !notif.resaltada);
-                    }}
-                    title={notif.resaltada ? 'Desmarcar como importante' : 'Marcar como importante'}
-                  >
-                    <Star
-                      className={`h-4 w-4 ${notif.resaltada ? 'fill-yellow-400 text-yellow-400' : ''}`}
-                    />
-                  </Button>
+                          {/* Monto */}
+                          <TableCell className="p-4 text-center">
+                            ${notif.precioFinal?.toFixed(2) || '0.00'}
+                          </TableCell>
 
-                  {/* Acciones específicas de venta */}
-                  {onOpenAccionesDialog && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 px-2 text-xs"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenAccionesDialog(notif);
-                      }}
-                    >
-                      Acciones
-                    </Button>
-                  )}
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+                          {/* Estado */}
+                          <TableCell className="p-4 text-center">
+                            <Badge
+                              variant="outline"
+                              className={`font-normal ${estadoBadge.variant}`}
+                            >
+                              {estadoBadge.text}
+                            </Badge>
+                          </TableCell>
+
+                          {/* Acciones */}
+                          <TableCell className="p-4 text-center">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-10 w-10">
+                                  <Ellipsis className="h-4 w-4" />
+                                  <span className="sr-only">Toggle menu</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    if (onOpenAccionesDialog) {
+                                      onOpenAccionesDialog(notif);
+                                    }
+                                  }}
+                                >
+                                  Ver acciones
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => toggleLeida(notif.id, !notif.leida)}
+                                >
+                                  {notif.leida ? 'Marcar sin leer' : 'Marcar leída'}
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
