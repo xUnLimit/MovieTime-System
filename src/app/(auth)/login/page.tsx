@@ -6,8 +6,10 @@ import { useAuthStore } from '@/store/authStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,6 +17,8 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     // Si ya está autenticado, redirigir al dashboard
@@ -41,62 +45,84 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-3xl font-bold">MovieTime PTY</CardTitle>
-          <CardDescription>
-            Ingresa tus credenciales para acceder al sistema
+    <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] p-4">
+      <Card className="w-full max-w-md bg-[#1a1a1a] border-gray-800">
+        <CardHeader className="space-y-2 text-center pb-4">
+          <CardTitle className="text-2xl font-semibold text-white">Bienvenido</CardTitle>
+          <CardDescription className="text-gray-400 text-sm">
+            Inicia sesión con tu correo y contraseña
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Correo electrónico</Label>
+              <Label htmlFor="email" className="text-white text-sm font-normal">
+                Correo Electrónico
+              </Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="admin@movietime.com"
+                placeholder=""
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isLoading}
                 autoComplete="email"
+                className="bg-[#0a0a0a] border-gray-800 text-white placeholder:text-gray-600 focus-visible:ring-purple-500"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isLoading}
-                autoComplete="current-password"
+              <Label htmlFor="password" className="text-white text-sm font-normal">
+                Contraseña
+              </Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder=""
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={isLoading}
+                  autoComplete="current-password"
+                  className="bg-[#0a0a0a] border-gray-800 text-white placeholder:text-gray-600 focus-visible:ring-purple-500 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="remember"
+                checked={rememberMe}
+                onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                className="border-gray-600 data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
               />
+              <label
+                htmlFor="remember"
+                className="text-sm text-white cursor-pointer select-none"
+              >
+                Recordarme
+              </label>
             </div>
 
             <Button
               type="submit"
-              className="w-full"
+              className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium"
               disabled={isLoading}
             >
-              {isLoading ? 'Iniciando sesión...' : 'Iniciar sesión'}
+              {isLoading ? 'Iniciando Sesión...' : 'Iniciar Sesión'}
             </Button>
           </form>
-
-          {process.env.NODE_ENV === 'development' && (
-            <div className="mt-6 text-center text-sm text-muted-foreground">
-              <p>Credenciales de prueba:</p>
-              <p className="mt-1">
-                <span className="font-medium">Email:</span> admin@movietime.com
-              </p>
-              <p>
-                <span className="font-medium">Contraseña:</span> 123456
-              </p>
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>
