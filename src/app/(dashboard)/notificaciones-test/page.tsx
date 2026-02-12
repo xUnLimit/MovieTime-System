@@ -1,10 +1,15 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { ServiciosProximosTableV2 } from '@/components/notificaciones/ServiciosProximosTableV2';
 import { VentasProximasTableV2 } from '@/components/notificaciones/VentasProximasTableV2';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { RefreshCw } from 'lucide-react';
+import { sincronizarNotificaciones } from '@/lib/services/notificationSyncService';
+import { toast } from 'sonner';
 
 /**
  * Página de Notificaciones - Versión TEST v2.1
@@ -18,6 +23,25 @@ import { Badge } from '@/components/ui/badge';
  */
 
 function NotificacionesTestPageContent() {
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      // Forzar sincronización borrando el flag de localStorage
+      localStorage.removeItem('lastNotificationSync');
+      await sincronizarNotificaciones();
+      toast.success('Notificaciones sincronizadas exitosamente');
+      // Recargar la página para refrescar las tablas
+      window.location.reload();
+    } catch (error) {
+      console.error('Error sincronizando:', error);
+      toast.error('Error al sincronizar notificaciones');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -32,6 +56,14 @@ function NotificacionesTestPageContent() {
             <Link href="/" className="hover:text-foreground transition-colors">Dashboard</Link> / <span className="text-foreground">Notificaciones Test</span>
           </p>
         </div>
+        <Button
+          onClick={handleSync}
+          disabled={isSyncing}
+          className="gap-2"
+        >
+          <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+          {isSyncing ? 'Sincronizando...' : 'Sincronizar Ahora'}
+        </Button>
       </div>
 
       {/* Información del sistema v2.1 */}
@@ -48,15 +80,17 @@ function NotificacionesTestPageContent() {
               El nuevo sistema está funcionando con:
             </p>
             <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1 mt-2">
-              <li>🔔 Bell icon en header con badge dinámico (🟠 naranja / 🔴 rojo / 🟡 amarillo)</li>
+              <li>🔔 Sistema de íconos interactivos (🔔/🔕/⚠️) con click para toggle</li>
+              <li>🟠 Badge con jerarquía de colores (naranja > rojo > amarillo)</li>
               <li>📊 Sincronización automática diaria (una vez al día)</li>
               <li>📅 Días restantes exactos en notificaciones</li>
               <li>⚡ Estado "leída" inteligente (solo resetea si prioridad aumenta)</li>
-              <li>🔥 Soporte para resaltado manual (próximamente en tablas V2)</li>
+              <li>🔥 Resaltado manual con prioridad visual máxima</li>
+              <li>⚙️ Modales dual-flow (opciones vs confirmación directa)</li>
             </ul>
             <p className="text-xs text-muted-foreground mt-3">
-              <strong>Nota:</strong> Las tablas actuales aún no incluyen el sistema de íconos interactivos (🔔/🔕/⚠️).
-              Esto se implementará en las versiones V2 de las tablas.
+              <strong>Importante:</strong> Para ver las notificaciones, haz clic en el botón "Sincronizar Ahora".
+              La sincronización creará las notificaciones para todas las ventas y servicios próximos a vencer (ventana de 7 días).
             </p>
           </div>
         </div>

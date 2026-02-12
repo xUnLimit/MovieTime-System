@@ -116,16 +116,37 @@ export const VentasProximasTableV2 = memo(function VentasProximasTableV2() {
   }, [fetchTemplates, fetchNotificaciones]);
 
   // Helper: Obtener notificación de una venta
+  /**
+   * Obtener notificación asociada a una venta.
+   * Si no existe, infiere prioridad por días restantes.
+   */
   const getNotificacion = (ventaId: string) => {
-    return notificaciones.find(n => n.ventaId === ventaId);
+    const notif = notificaciones.find(n => n.ventaId === ventaId);
+    if (!notif) {
+      // Si no existe notificación, inferir prioridad por días restantes
+      const venta = ventas.find(v => v.id === ventaId);
+      const diasRestantes = venta?.fechaFin
+        ? Math.ceil((new Date(venta.fechaFin).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+        : 0;
+
+      const prioridad = diasRestantes < 0 ? 'critica'
+        : diasRestantes <= 3 ? 'critica'
+        : diasRestantes <= 7 ? 'alta'
+        : 'media';
+
+      return { prioridad, leida: false, resaltada: false };
+    }
+    return { prioridad: notif.prioridad, leida: notif.leida, resaltada: notif.resaltada };
   };
 
   // ✅ Handler: Toggle leída (click en ícono)
   const handleToggleLeida = async (ventaId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const notif = getNotificacion(ventaId);
+    const notif = notificaciones.find(n => n.ventaId === ventaId);
     if (notif) {
       await toggleLeida(notif.id);
+    } else {
+      toast.info('Ejecuta la sincronización de notificaciones primero');
     }
   };
 
@@ -184,10 +205,12 @@ export const VentasProximasTableV2 = memo(function VentasProximasTableV2() {
     if (!selectedVenta) return;
 
     try {
-      const notif = getNotificacion(selectedVenta.id);
+      const notif = notificaciones.find(n => n.ventaId === selectedVenta.id);
       if (notif) {
         await toggleResaltada(notif.id);
         toast.success('Venta resaltada para seguimiento');
+      } else {
+        toast.info('Ejecuta la sincronización de notificaciones primero');
       }
     } catch (error) {
       console.error('Error resaltando venta:', error);
@@ -399,41 +422,62 @@ export const VentasProximasTableV2 = memo(function VentasProximasTableV2() {
   // ✅ Render: Ícono según estado
   const renderIcono = (venta: VentaDoc) => {
     const notif = getNotificacion(venta.id);
-    if (!notif) return <Bell className="h-5 w-5 text-gray-400" />;
 
-    // Resaltada: Siempre ⚠️ naranja
+    // 🔥 PRIORIDAD MÁXIMA: Resaltada (⚠️ naranja)
     if (notif.resaltada) {
       return (
-        <AlertTriangle
-          className="h-5 w-5 text-orange-500 cursor-pointer"
+        <Button
+          variant="ghost"
+          size="icon"
+          className="mx-auto h-8 w-8 rounded-full transition-all duration-200 ease-in-out bg-orange-100 dark:bg-orange-500/20 hover:bg-orange-200 dark:hover:bg-orange-500/30 hover:scale-105"
           onClick={(e) => handleToggleLeida(venta.id, e)}
-        />
+          title="Resaltada - Click para marcar como leída/no leída"
+        >
+          <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+        </Button>
       );
     }
 
-    // No resaltada: 🔔 o 🔕 según leída
+    // 🔕 Leída (campana apagada, gris)
     if (notif.leida) {
       return (
-        <BellOff
-          className="h-5 w-5 text-gray-400 cursor-pointer"
+        <Button
+          variant="ghost"
+          size="icon"
+          className="mx-auto h-8 w-8 rounded-full transition-all duration-200 ease-in-out bg-gray-100 dark:bg-gray-500/20 hover:bg-gray-200 dark:hover:bg-gray-500/30 hover:scale-105"
           onClick={(e) => handleToggleLeida(venta.id, e)}
-        />
+          title="Leída - Click para marcar como no leída"
+        >
+          <BellOff className="h-5 w-5 text-gray-400" />
+        </Button>
       );
     }
 
-    // Color según prioridad
+    // 🔔 No leída (color según prioridad)
     const colorClasses: Record<string, string> = {
-      critica: 'text-red-500',
-      alta: 'text-orange-500',
-      media: 'text-yellow-500',
-      baja: 'text-blue-500'
+      critica: 'text-red-700 dark:text-red-300',
+      alta: 'text-orange-700 dark:text-orange-300',
+      media: 'text-yellow-700 dark:text-yellow-300',
+      baja: 'text-blue-700 dark:text-blue-300',
+    };
+
+    const bgClasses: Record<string, string> = {
+      critica: 'bg-red-100 dark:bg-red-500/20 hover:bg-red-200 dark:hover:bg-red-500/30',
+      alta: 'bg-orange-100 dark:bg-orange-500/20 hover:bg-orange-200 dark:hover:bg-orange-500/30',
+      media: 'bg-yellow-100 dark:bg-yellow-500/20 hover:bg-yellow-200 dark:hover:bg-yellow-500/30',
+      baja: 'bg-blue-100 dark:bg-blue-500/20 hover:bg-blue-200 dark:hover:bg-blue-500/30',
     };
 
     return (
-      <Bell
-        className={`h-5 w-5 cursor-pointer ${colorClasses[notif.prioridad]}`}
+      <Button
+        variant="ghost"
+        size="icon"
+        className={`mx-auto h-8 w-8 rounded-full transition-all duration-200 ease-in-out ${bgClasses[notif.prioridad]} hover:scale-105`}
         onClick={(e) => handleToggleLeida(venta.id, e)}
-      />
+        title="No leída - Click para marcar como leída"
+      >
+        <Bell className={`h-5 w-5 ${colorClasses[notif.prioridad]}`} />
+      </Button>
     );
   };
 
@@ -441,32 +485,44 @@ export const VentasProximasTableV2 = memo(function VentasProximasTableV2() {
   const renderBadgeEstado = (diasRestantes: number, ventaId: string) => {
     const notif = getNotificacion(ventaId);
 
-    // Si está resaltada: Badge naranja con ⚠️
-    if (notif?.resaltada) {
+    // 🔥 PRIORIDAD VISUAL: Si está resaltada, badge naranja siempre
+    if (notif.resaltada) {
       const texto = diasRestantes < 0
         ? `⚠️ ${Math.abs(diasRestantes)} días vencida`
-        : diasRestantes === 0
-          ? '⚠️ Vence hoy'
-          : `⚠️ ${diasRestantes} días restantes`;
+        : `⚠️ ${diasRestantes} días restantes`;
 
       return (
-        <Badge className="bg-orange-100 text-orange-700 border-orange-300">
+        <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-500/50 dark:bg-orange-500/20 dark:text-orange-300 font-normal">
           {texto}
         </Badge>
       );
     }
 
     // Badge normal según días restantes
-    if (diasRestantes < 0) {
-      return <Badge variant="destructive">{Math.abs(diasRestantes)} días vencida</Badge>;
-    }
-    if (diasRestantes === 0) {
-      return <Badge variant="destructive">Vence hoy</Badge>;
-    }
-    if (diasRestantes <= 3) {
-      return <Badge className="bg-red-100 text-red-700 border-red-300">{diasRestantes} días restantes</Badge>;
-    }
-    return <Badge variant="outline">{diasRestantes} días restantes</Badge>;
+    const getEstadoColor = (dias: number) => {
+      if (dias < 0 || dias <= 3) {
+        return 'border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300';
+      }
+      return 'border-yellow-500/50 bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-300';
+    };
+
+    const getEstadoLabel = (dias: number) => {
+      if (dias < 0) {
+        return `${Math.abs(dias)} días de retraso`;
+      } else if (dias === 0) {
+        return 'Vence hoy';
+      } else if (dias === 1) {
+        return '1 día restante';
+      } else {
+        return `${dias} días restantes`;
+      }
+    };
+
+    return (
+      <Badge variant="outline" className={`font-normal ${getEstadoColor(diasRestantes)}`}>
+        {getEstadoLabel(diasRestantes)}
+      </Badge>
+    );
   };
 
   const columns: Column<VentaProximaRow>[] = [
