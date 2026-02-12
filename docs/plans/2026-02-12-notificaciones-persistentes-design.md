@@ -1,8 +1,8 @@
 # Sistema de Notificaciones Persistentes - Diseño Completo
 
 **Fecha:** 2026-02-12
-**Versión:** 1.0
-**Estado:** Diseño Aprobado
+**Versión:** 2.0
+**Estado:** Diseño Actualizado - Pendiente de Aprobación
 
 ---
 
@@ -12,9 +12,9 @@ Implementación de un sistema de notificaciones persistentes para ventas y servi
 - Bell icon en header con badge dinámico (rojo/amarillo/gris)
 - Dropdown con resumen de notificaciones
 - Sincronización automática al cargar el dashboard
-- Auto-actualización de notificaciones según umbrales (7, 3, 1 día, vencido)
+- **Auto-actualización DIARIA de notificaciones con días restantes exactos** (cambio crítico vs. v1.0)
 - Toggle leída/no leída (persistente)
-- Auto-eliminación al renovar venta/servicio
+- Auto-eliminación al renovar venta/servicio o cortar por falta de pago
 
 ---
 
@@ -85,38 +85,128 @@ interface Notificacion {
   id: string;
   tipo: 'sistema';
   prioridad: 'baja' | 'media' | 'alta' | 'critica';
-  titulo: string;          // "Venta vence en 3 días" | "Servicio vencido"
+  titulo: string;          // "Venta vence en 15 días" | "Servicio vence en 2 días" | "Venta vencida"
   mensaje: string;         // "Juan Pérez - Netflix"
   leida: boolean;
 
-  // ✅ NUEVO: Acción sugerida (opcional)
-  accionSugerida?: 'renovar' | 'cortar';  // Para vencidas: sugerir renovar o cortar
+  // Acción sugerida
+  accionSugerida: 'renovar' | 'cortar';  // 'renovar' si diasRestantes >= 0, 'cortar' si < 0
 
   // Referencias (mutuamente exclusivas)
   ventaId?: string;        // Si es notificación de venta
   servicioId?: string;     // Si es notificación de servicio
 
   // Metadata
-  estado: '7_dias' | '3_dias' | '1_dia' | 'vencido';
-  diasRestantes: number;   // -1, 0, 1, 3, 7
+  diasRestantes: number;   // Número exacto de días restantes (puede ser negativo)
   fechaEvento: Date;       // Fecha de vencimiento de la venta/servicio
 
   // Audit
   createdAt: Date;
-  updatedAt?: Date;
+  updatedAt?: Date;        // Se actualiza CADA DÍA durante la sincronización
 }
 ```
 
-### Mapeo de Prioridad y Acción Sugerida
+### Mapeo de Prioridad y Acción Sugerida (Continuo)
 
-| Días Restantes | Estado    | Prioridad | Acción Sugerida | Color Badge |
-|----------------|-----------|-----------|-----------------|-------------|
-| 7              | `7_dias`  | media     | `renovar`       | 🟡 Amarillo |
-| 3              | `3_dias`  | alta      | `renovar`       | 🟠 Naranja  |
-| 1              | `1_dia`   | critica   | `renovar`       | 🔴 Rojo     |
-| 0 o negativo   | `vencido` | critica   | `cortar`        | 🔴 Rojo     |
+**⚠️ CAMBIO CRÍTICO vs. v1.0:** Las notificaciones se actualizan **CADA DÍA** con los días restantes exactos, NO solo en umbrales específicos.
 
-**Nota:** Cuando `diasRestantes < 0` (vencida), `accionSugerida` se establece en `'cortar'` para indicar que se debe considerar cancelar el servicio/venta por falta de pago.
+| Días Restantes | Prioridad | Acción Sugerida | Color Badge | Ejemplo Título               |
+|----------------|-----------|-----------------|-------------|------------------------------|
+| >= 7           | baja      | `renovar`       | 🟢 Verde    | "Venta vence en 15 días"     |
+| 4-6            | media     | `renovar`       | 🟡 Amarillo | "Venta vence en 5 días"      |
+| 2-3            | alta      | `renovar`       | 🟠 Naranja  | "Venta vence en 3 días"      |
+| 1              | critica   | `renovar`       | 🔴 Rojo     | "Venta vence mañana"         |
+| 0              | critica   | `renovar`       | 🔴 Rojo     | "Venta vence hoy"            |
+| < 0            | critica   | `cortar`        | 🔴 Rojo     | "Venta vencida (2 días)"     |
+
+**Lógica de Prioridad:**
+```typescript
+function calcularPrioridad(diasRestantes: number): PrioridadNotificacion {
+  if (diasRestantes <= 1) return 'critica';  // 0, 1, o negativo
+  if (diasRestantes <= 3) return 'alta';      // 2, 3
+  if (diasRestantes <= 6) return 'media';     // 4, 5, 6
+  return 'baja';                              // 7+
+}
+```
+
+**Nota:** El campo `estado` del tipo anterior (`'7_dias' | '3_dias' | '1_dia' | 'vencido'`) ha sido **ELIMINADO**. Ahora solo usamos `diasRestantes` (número) para rastrear el estado exacto.
+
+---
+
+## ⚠️ Diferencias Clave: v1.0 → v2.0
+
+### Actualización de Notificaciones
+
+**v1.0 (Umbrales Discretos):**
+```typescript
+// Solo actualiza en días específicos: 7, 3, 1, vencido
+if (diasRestantes === 7) nuevoEstado = '7_dias';
+else if (diasRestantes === 3) nuevoEstado = '3_dias';
+else if (diasRestantes === 1) nuevoEstado = '1_dia';
+else if (diasRestantes < 0) nuevoEstado = 'vencido';
+else return; // ❌ Días intermedios (2, 4, 5, 6) ignorados
+```
+
+**v2.0 (Actualización Diaria Continua):**
+```typescript
+// ✅ Actualiza CADA DÍA con días restantes exactos
+const diasRestantes = differenceInDays(fechaVencimiento, new Date());
+
+// Solo evita escritura duplicada si diasRestantes no cambió
+if (notif.diasRestantes !== diasRestantes) {
+  await update(notif.id, {
+    diasRestantes,  // Valor exacto: 15, 14, 13, 12, ...
+    prioridad: calcularPrioridad(diasRestantes),
+    titulo: generarTitulo(diasRestantes, tipo)
+  });
+}
+```
+
+### Campos de Tipo
+
+**v1.0:**
+```typescript
+interface Notificacion {
+  estado: '7_dias' | '3_dias' | '1_dia' | 'vencido';  // ❌ Estados discretos
+  diasRestantes: number;  // Solo valores: 7, 3, 1, -1
+}
+```
+
+**v2.0:**
+```typescript
+interface Notificacion {
+  // ❌ Campo 'estado' eliminado
+  diasRestantes: number;  // ✅ Cualquier valor: 30, 15, 2, 0, -5, etc.
+}
+```
+
+### Ejemplos de Notificaciones
+
+**v1.0:**
+- Día 7: "Venta vence en 7 días" (prioridad: media)
+- Día 6: ❌ Sin cambio (mantiene "7 días")
+- Día 5: ❌ Sin cambio (mantiene "7 días")
+- Día 4: ❌ Sin cambio (mantiene "7 días")
+- Día 3: "Venta vence en 3 días" (prioridad: alta)
+- Día 2: ❌ Sin cambio (mantiene "3 días")
+- Día 1: "Venta vence mañana" (prioridad: critica)
+- Día 0: "Venta vence hoy" (prioridad: critica)
+- Día -1: "Venta vencida" (prioridad: critica)
+
+**v2.0:**
+- Día 15: "Venta vence en 15 días" (prioridad: baja)
+- Día 14: "Venta vence en 14 días" (prioridad: baja)
+- ...
+- Día 7: "Venta vence en 7 días" (prioridad: baja)
+- Día 6: "Venta vence en 6 días" (prioridad: media)
+- Día 5: "Venta vence en 5 días" (prioridad: media)
+- Día 4: "Venta vence en 4 días" (prioridad: media)
+- Día 3: "Venta vence en 3 días" (prioridad: alta)
+- Día 2: "Venta vence en 2 días" (prioridad: alta)
+- Día 1: "Venta vence mañana" (prioridad: critica)
+- Día 0: "Venta vence hoy" (prioridad: critica)
+- Día -1: "Venta vencida (1 día)" (prioridad: critica)
+- Día -5: "Venta vencida (5 días)" (prioridad: critica)
 
 ---
 
@@ -148,8 +238,18 @@ useEffect(() => {
 export async function sincronizarNotificaciones(): Promise<void> {
   console.log('[NotificationSync] Sincronizando notificaciones...');
 
-  // 1. Query ventas próximas (siguiente 7 días)
-  const fechaLimite = addDays(new Date(), 7);
+  // ✅ CAMBIO v2.0: Ahora queremos TODAS las ventas activas próximas a vencer
+  // Ya no solo 7 días, sino cualquier venta que esté próxima
+  // Podemos usar una ventana más amplia (ej. 30 días) o seguir con 7 días
+  // según preferencia del usuario
+
+  // Opción A: Ventana de 30 días (recomendado para ver más anticipación)
+  const fechaLimite = addDays(new Date(), 30);
+
+  // Opción B: Mantener ventana de 7 días (como v1.0)
+  // const fechaLimite = addDays(new Date(), 7);
+
+  // 1. Query ventas próximas (dentro de ventana + vencidas)
   const ventasProximas = await queryDocuments<VentaDoc>(
     COLLECTIONS.VENTAS,
     [
@@ -203,23 +303,11 @@ export async function sincronizarNotificaciones(): Promise<void> {
 async function procesarVenta(venta: VentaDoc): Promise<void> {
   const diasRestantes = differenceInDays(new Date(venta.fechaFin), new Date());
 
-  // Determinar estado según umbral
-  let nuevoEstado: EstadoNotificacion | null = null;
-  let accionSugerida: 'renovar' | 'cortar' = 'renovar';
+  // ✅ CAMBIO CRÍTICO: Ya NO filtramos por umbrales específicos
+  // Actualizamos la notificación CADA DÍA con los días restantes exactos
 
-  if (diasRestantes < 0) {
-    nuevoEstado = 'vencido';
-    accionSugerida = 'cortar';  // ✅ Sugerir cortar venta vencida
-  } else if (diasRestantes === 1) {
-    nuevoEstado = '1_dia';
-  } else if (diasRestantes === 3) {
-    nuevoEstado = '3_dias';
-  } else if (diasRestantes === 7) {
-    nuevoEstado = '7_dias';
-  }
-
-  // Días intermedios (2, 4, 5, 6) no hacen nada
-  if (!nuevoEstado) return;
+  // Determinar acción sugerida
+  const accionSugerida: 'renovar' | 'cortar' = diasRestantes < 0 ? 'cortar' : 'renovar';
 
   // Buscar notificación existente para esta venta
   const notifExistente = await queryDocuments<Notificacion>(
@@ -228,21 +316,21 @@ async function procesarVenta(venta: VentaDoc): Promise<void> {
   );
 
   if (notifExistente.length > 0) {
-    // Actualizar si el estado cambió
+    // ✅ Actualizar SIEMPRE (cada día cambian los diasRestantes)
     const notif = notifExistente[0];
 
-    if (notif.estado !== nuevoEstado) {
+    // Solo actualizar si diasRestantes cambió (evita escrituras innecesarias)
+    if (notif.diasRestantes !== diasRestantes) {
       await update(COLLECTIONS.NOTIFICACIONES, notif.id, {
-        estado: nuevoEstado,
         prioridad: calcularPrioridad(diasRestantes),
         diasRestantes,
         titulo: generarTitulo(diasRestantes, 'venta'),
-        accionSugerida,  // ✅ Actualizar acción sugerida
+        accionSugerida,
         leida: false, // Marcar como no leída al actualizar
         updatedAt: new Date()
       });
 
-      console.log(`[NotificationSync] Notificación actualizada: ${venta.id} -> ${nuevoEstado} (acción: ${accionSugerida})`);
+      console.log(`[NotificationSync] Notificación actualizada: ${venta.id} -> ${diasRestantes} días (acción: ${accionSugerida})`);
     }
   } else {
     // Crear nueva notificación
@@ -252,14 +340,13 @@ async function procesarVenta(venta: VentaDoc): Promise<void> {
       titulo: generarTitulo(diasRestantes, 'venta'),
       mensaje: `${venta.clienteNombre} - ${venta.servicioNombre}`,
       ventaId: venta.id,
-      estado: nuevoEstado,
       diasRestantes,
-      accionSugerida,  // ✅ Incluir acción sugerida
+      accionSugerida,
       fechaEvento: venta.fechaFin,
       leida: false
     });
 
-    console.log(`[NotificationSync] Notificación creada: ${venta.id} -> ${nuevoEstado} (acción: ${accionSugerida})`);
+    console.log(`[NotificationSync] Notificación creada: ${venta.id} -> ${diasRestantes} días (acción: ${accionSugerida})`);
   }
 }
 
@@ -269,20 +356,22 @@ async function procesarServicio(servicio: Servicio): Promise<void> {
 }
 
 function calcularPrioridad(diasRestantes: number): PrioridadNotificacion {
-  if (diasRestantes <= 0) return 'critica';
-  if (diasRestantes === 1) return 'critica';
-  if (diasRestantes === 3) return 'alta';
-  if (diasRestantes === 7) return 'media';
-  return 'baja';
+  if (diasRestantes <= 1) return 'critica';  // 0, 1, o negativo
+  if (diasRestantes <= 3) return 'alta';      // 2, 3
+  if (diasRestantes <= 6) return 'media';     // 4, 5, 6
+  return 'baja';                              // 7+
 }
 
 function generarTitulo(diasRestantes: number, tipo: 'venta' | 'servicio'): string {
   const entidad = tipo === 'venta' ? 'Venta' : 'Servicio';
 
-  if (diasRestantes < 0) return `${entidad} vencida`;
+  if (diasRestantes < 0) {
+    const diasVencida = Math.abs(diasRestantes);
+    return `${entidad} vencida (${diasVencida} día${diasVencida > 1 ? 's' : ''})`;
+  }
   if (diasRestantes === 0) return `${entidad} vence hoy`;
   if (diasRestantes === 1) return `${entidad} vence mañana`;
-  return `${entidad} vence en ${diasRestantes} días`;
+  return `${entidad} vence en ${diasRestantes} día${diasRestantes > 1 ? 's' : ''}`;
 }
 ```
 
@@ -832,9 +921,24 @@ Las filas con `accionSugerida: 'cortar'` tendrán un borde rojo para destacar:
 | Métrica | Objetivo | Medición |
 |---------|----------|----------|
 | Tiempo sincronización inicial | <2s | Tiempo desde mount hasta notificaciones cargadas |
-| Lecturas Firebase por sync | <20 | Ventas (7 + vencidas) + Servicios (7 + vencidos) |
+| Lecturas Firebase por sync | Variable* | Ventas próximas + vencidas + Servicios próximos + vencidos |
+| Escrituras Firebase por sync | N** | Solo escribe si diasRestantes cambió (1 vez por día por entidad) |
 | Tiempo render dropdown | <100ms | Desde click hasta dropdown visible |
 | Memoria (notificaciones store) | <1MB | Tamaño del store con 100 notificaciones |
+
+**Notas de Rendimiento v2.0:**
+
+\* **Lecturas:** El número de lecturas depende de cuántas ventas/servicios estén dentro de la ventana de consulta:
+  - Ventana de 7 días: Similar a v1.0 (~10-20 lecturas)
+  - Ventana de 30 días: Más lecturas (~30-50 lecturas si hay muchas ventas próximas)
+
+\*\* **Escrituras:** Cada notificación se actualiza **máximo 1 vez por día** durante la sincronización (solo si `diasRestantes` cambió). Esto significa:
+  - Primera sincronización del día: Escribe todas las notificaciones que cambiaron (típicamente todas)
+  - Sincronizaciones siguientes el mismo día: 0 escrituras (diasRestantes no cambió)
+  - Polling cada 5 min: Sin impacto significativo (solo escribe en primera sync del día)
+
+**Optimización Recomendada:**
+Considerar usar ventana de 7 días para balancear entre visibilidad anticipada y costo de lecturas. Si el usuario necesita ver anticipación mayor, aumentar a 30 días.
 
 ---
 
@@ -953,24 +1057,27 @@ Las filas con `accionSugerida: 'cortar'` tendrán un borde rojo para destacar:
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │ sincronizarNotificaciones()                                     │
-│ ├─ Query ventas próximas (7 días) + vencidas                   │
-│ ├─ Query servicios próximos (7 días) + vencidos                │
+│ ├─ Query ventas próximas (30 días*) + vencidas                 │
+│ ├─ Query servicios próximos (30 días*) + vencidos              │
 │ └─ Para cada venta/servicio:                                    │
-│    ├─ Calcular diasRestantes                                    │
-│    ├─ Si cae en umbral (7, 3, 1, vencido):                      │
-│    │  ├─ Existe notificación?                                   │
-│    │  │  ├─ SÍ → Actualizar (estado, prioridad, acciónSugerida) │
-│    │  │  └─ NO → Crear nueva                                    │
-│    │  └─ accionSugerida = vencido ? 'cortar' : 'renovar'        │
-│    └─ Si NO cae en umbral → Ignorar                             │
+│    ├─ Calcular diasRestantes (número exacto)                    │
+│    ├─ ✅ SIEMPRE procesar (no hay filtro de umbrales)           │
+│    ├─ Existe notificación?                                      │
+│    │  ├─ SÍ → Actualizar SI diasRestantes cambió                │
+│    │  │       (diasRestantes, prioridad, título, acción)        │
+│    │  └─ NO → Crear nueva notificación                          │
+│    └─ accionSugerida = diasRestantes < 0 ? 'cortar' : 'renovar' │
+│                                                                  │
+│ *Ventana configurable: 7 o 30 días según preferencia            │
 └─────────────────────────────────────────────────────────────────┘
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│ NOTIFICACIONES EN FIREBASE                                      │
-│ ├─ Venta 1: estado='3_dias', prioridad='alta', acción='renovar' │
-│ ├─ Venta 2: estado='vencido', prioridad='critica', acción='cortar'│
-│ └─ Servicio 1: estado='1_dia', prioridad='critica', acción='renovar'│
+│ NOTIFICACIONES EN FIREBASE (Ejemplos)                           │
+│ ├─ Venta 1: diasRestantes=15, prioridad='baja', acción='renovar'│
+│ ├─ Venta 2: diasRestantes=3, prioridad='alta', acción='renovar' │
+│ ├─ Venta 3: diasRestantes=-2, prioridad='critica', acción='cortar'│
+│ └─ Servicio 1: diasRestantes=1, prioridad='critica', acción='renovar'│
 └─────────────────────────────────────────────────────────────────┘
                             │
                             ▼
@@ -1016,15 +1123,42 @@ Las filas con `accionSugerida: 'cortar'` tendrán un borde rojo para destacar:
 
 ---
 
-## 📝 Resumen de Cambios Clave vs. Diseño Inicial
+## 📝 Resumen de Cambios Clave
 
-1. ✅ **Acción Sugerida:** Campo `accionSugerida` en Notificación (`'renovar'` | `'cortar'`)
-2. ✅ **Lógica de Corte:** Función `handleCortar()` en ambas tablas
-3. ✅ **Dropdown Dinámico:** Muestra "Cortar" si vencida, "Cancelar" si no
-4. ✅ **Indicador Visual:** Borde rojo en filas vencidas
-5. ✅ **Sin Timeline:** Se mantienen las dos tablas actuales (VentasProximasTable + ServiciosProximosTable)
-6. ✅ **Eliminación al Cortar:** Auto-elimina notificaciones al cortar venta/servicio
+### Cambios vs. Sistema Actual (Sin Notificaciones Persistentes)
+1. ✅ **Bell Icon:** Nuevo componente NotificationBell en header con badge dinámico
+2. ✅ **Notificaciones Persistentes:** Almacenadas en Firebase (colección `notificaciones`)
+3. ✅ **Auto-sincronización:** Al cargar dashboard + polling cada 5 minutos
+4. ✅ **Toggle Leída/No Leída:** Persistente en Firebase
+5. ✅ **Auto-eliminación:** Al renovar o cortar venta/servicio
+
+### Cambios v2.0 vs. v1.0 (Diseño Inicial)
+1. 🔄 **CAMBIO CRÍTICO - Actualización Diaria:** Las notificaciones se actualizan **CADA DÍA** con días restantes exactos, NO solo en umbrales (7, 3, 1)
+2. 🔄 **Campo `estado` Eliminado:** Ya no usamos `'7_dias' | '3_dias' | '1_dia' | 'vencido'`, solo `diasRestantes: number`
+3. 🔄 **Prioridad Continua:** Prioridad se calcula dinámicamente basada en rangos (>=7: baja, 4-6: media, 2-3: alta, <=1: critica)
+4. 🔄 **Títulos Dinámicos:** "Venta vence en X días" con X siendo el número exacto de días
+5. ✅ **Acción Sugerida:** Campo `accionSugerida` (`'renovar'` | `'cortar'`) - SIN CAMBIOS
+6. ✅ **Lógica de Corte:** Función `handleCortar()` - SIN CAMBIOS
+7. ✅ **Sin Timeline:** Mantiene diseño de dos tablas - SIN CAMBIOS
+
+### Requisito Original del Usuario
+> "Quiero que cambies eso de 7, 3, 1 día. Debo ver todos los días restantes exactamente, porque necesito saber siempre los días restantes que tiene exactamente cada servicio."
+
+**Solución implementada:** Sistema de actualización diaria continua que muestra días restantes exactos y actualiza la notificación cada día durante la sincronización.
 
 ---
 
-**Diseño aprobado para implementación.**
+## 🎯 Siguiente Paso
+
+**Estado:** Diseño actualizado, pendiente de aprobación del usuario antes de implementación.
+
+**Cambios técnicos principales para implementar:**
+1. Modificar tipo `EstadoNotificacion` en `src/types/notificaciones.ts` (eliminar, solo usar `diasRestantes`)
+2. Actualizar lógica `procesarVenta()` y `procesarServicio()` (quitar filtro de umbrales)
+3. Actualizar `calcularPrioridad()` para rangos continuos
+4. Actualizar `generarTitulo()` para mostrar días exactos
+5. Todos los demás componentes (NotificationBell, tablas, store) permanecen igual
+
+---
+
+**Versión 2.0 - Actualización de diseño completada. Esperando aprobación para proceder con implementación.**
