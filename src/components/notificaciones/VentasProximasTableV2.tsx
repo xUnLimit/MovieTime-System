@@ -13,6 +13,7 @@ import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -21,13 +22,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -41,7 +35,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { BellRing, Search, Ellipsis } from 'lucide-react';
+import { BellRing, Search, MoreHorizontal } from 'lucide-react';
 import { useNotificacionesStore } from '@/store/notificacionesStore';
 import { esNotificacionVenta } from '@/types/notificaciones';
 import type { NotificacionVenta } from '@/types/notificaciones';
@@ -141,7 +135,7 @@ interface VentasProximasTableV2Props {
 
 export function VentasProximasTableV2({ onOpenAccionesDialog }: VentasProximasTableV2Props) {
   const { notificaciones, toggleLeida } = useNotificacionesStore();
-  const [search, setSearch] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [estadoFilter, setEstadoFilter] = useState<string>('todos');
 
   // Get venta notifications (type-safe filtering)
@@ -149,8 +143,8 @@ export function VentasProximasTableV2({ onOpenAccionesDialog }: VentasProximasTa
     let filtered = notificaciones.filter(esNotificacionVenta);
 
     // Apply search filter
-    if (search) {
-      const searchLower = search.toLowerCase();
+    if (searchQuery) {
+      const searchLower = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (notif) =>
           notif.clienteNombre.toLowerCase().includes(searchLower) ||
@@ -176,58 +170,46 @@ export function VentasProximasTableV2({ onOpenAccionesDialog }: VentasProximasTa
       }
       return a.diasRestantes - b.diasRestantes;
     });
-  }, [notificaciones, search, estadoFilter]);
+  }, [notificaciones, searchQuery, estadoFilter]);
 
   return (
-    <div className="space-y-8">
-      <Card className="rounded-lg border bg-card text-card-foreground shadow-sm">
-        <CardHeader className="flex flex-col space-y-1.5 p-6">
-          <CardTitle className="text-2xl font-semibold leading-none tracking-tight">
-            Ventas próximas a vencer
-          </CardTitle>
-          <CardDescription className="text-sm text-muted-foreground">
-            Listado de ventas de clientes con vencimiento próximo o ya vencidos.
-          </CardDescription>
+    <Card className="p-4 pb-2">
+      <h3 className="text-xl font-semibold">Ventas próximas a vencer</h3>
+      <div className="flex items-center gap-4 -mb-4">
+        {/* Search */}
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por cliente o categoría..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
 
-          {/* Filters */}
-          <div className="flex items-center gap-2 pt-4">
-            {/* Search */}
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Buscar por cliente o categoría..."
-                className="w-full rounded-lg bg-background pl-8"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
+        {/* Estado filter */}
+        <Select value={estadoFilter} onValueChange={setEstadoFilter}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Todos los estados" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos los estados</SelectItem>
+            <SelectItem value="vencidas">Vencidas</SelectItem>
+            <SelectItem value="proximas">Próximas (≤7 días)</SelectItem>
+            <SelectItem value="normales">Normales (&gt;7 días)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
-            {/* Estado filter */}
-            <Select value={estadoFilter} onValueChange={setEstadoFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos los estados</SelectItem>
-                <SelectItem value="vencidas">Vencidas</SelectItem>
-                <SelectItem value="proximas">Próximas (≤7 días)</SelectItem>
-                <SelectItem value="normales">Normales (&gt;7 días)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardHeader>
-
-        <CardContent className="p-6 pt-0">
-          {ventasNotificaciones.length === 0 ? (
-            <div className="rounded-md border p-8 text-center">
-              <p className="text-sm text-muted-foreground">
-                No se encontraron notificaciones de ventas
-              </p>
-            </div>
-          ) : (
-            <div className="rounded-md border">
-              <div className="relative w-full overflow-auto">
+      {ventasNotificaciones.length === 0 ? (
+        <div className="rounded-md border p-8 text-center mt-4">
+          <p className="text-sm text-muted-foreground">
+            No se encontraron notificaciones de ventas
+          </p>
+        </div>
+      ) : (
+        <div className="rounded-md border mt-4">
+          <div className="relative w-full overflow-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="border-b hover:bg-muted/50">
@@ -322,9 +304,8 @@ export function VentasProximasTableV2({ onOpenAccionesDialog }: VentasProximasTa
                           <TableCell className="p-4 text-center">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-10 w-10">
-                                  <Ellipsis className="h-4 w-4" />
-                                  <span className="sr-only">Toggle menu</span>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
@@ -353,8 +334,6 @@ export function VentasProximasTableV2({ onOpenAccionesDialog }: VentasProximasTa
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
-    </div>
+    </Card>
   );
 }
