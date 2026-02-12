@@ -17,7 +17,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Bell, AlertCircle } from 'lucide-react';
+import { Bell, AlertCircle, ShoppingCart, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -169,7 +169,7 @@ export function NotificationBell() {
                 className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-1 h-8 bg-red-500 rounded-full"></div>
+                  <ShoppingCart className="h-5 w-5 text-gray-600" />
                   <span className="text-sm font-medium">Ventas por vencer</span>
                 </div>
                 <span className="text-lg font-bold">{ventasPorVencer}</span>
@@ -186,7 +186,7 @@ export function NotificationBell() {
                 className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-1 h-8 bg-red-500 rounded-full"></div>
+                  <CreditCard className="h-5 w-5 text-gray-600" />
                   <span className="text-sm font-medium">Servicios por pagar</span>
                 </div>
                 <span className="text-lg font-bold">{serviciosPorPagar}</span>
