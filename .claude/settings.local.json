@@ -43,7 +43,8 @@
       "Bash(Select-Object -First 160)",
       "Bash(Select-Object:*)",
       "Bash(Remove-Item -Recurse -Force \"c:\\\\Users\\\\iTs_A\\\\Desktop\\\\MovieTime System\\\\.next\" -ErrorAction SilentlyContinue)",
-      "Bash(Write-Host \"Done\")"
+      "Bash(Write-Host \"Done\")",
+      "Bash(git diff:*)"
     ]
   }
 }

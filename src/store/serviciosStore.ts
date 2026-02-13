@@ -237,7 +237,7 @@ export const useServiciosStore = create<ServiciosState>()(
             entidad: 'servicio',
             entidadId: id,
             entidadNombre: servicio.nombre,
-            detalles: `Servicio actualizado: "${servicio.nombre}" — ${resumenCambios}`,
+            detalles: `Servicio actualizado: "${servicio.nombre}"`,
             cambios: cambios.length > 0 ? cambios : undefined,
           }).catch(() => {});
         } catch (error) {

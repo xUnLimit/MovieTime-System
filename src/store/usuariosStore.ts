@@ -208,7 +208,7 @@ export const useUsuariosStore = create<UsuariosState>()(
             entidad: entidadTipo,
             entidadId: id,
             entidadNombre: oldUsuario?.nombre ?? id,
-            detalles: `Usuario actualizado: "${oldUsuario?.nombre}" — ${resumenCambios}`,
+            detalles: `Usuario actualizado: "${oldUsuario?.nombre}"`,
             cambios: cambios.length > 0 ? cambios : undefined,
           }).catch(() => {});
         } catch (error) {

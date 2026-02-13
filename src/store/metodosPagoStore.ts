@@ -193,7 +193,7 @@ export const useMetodosPagoStore = create<MetodosPagoState>()(
             entidad: 'metodo_pago',
             entidadId: id,
             entidadNombre: oldMetodo?.nombre ?? id,
-            detalles: `Método de pago actualizado: "${oldMetodo?.nombre}" — ${resumenCambios}`,
+            detalles: `Método de pago actualizado: "${oldMetodo?.nombre}"`,
             cambios: cambios.length > 0 ? cambios : undefined,
           }).catch(() => {});
         } catch (error) {

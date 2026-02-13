@@ -119,7 +119,7 @@ export const useTemplatesStore = create<TemplatesState>()(
               entidad: 'template',
               entidadId: id,
               entidadNombre: oldTemplate?.nombre ?? id,
-              detalles: `Template actualizado: "${oldTemplate?.nombre}" — ${resumenCambios}`,
+              detalles: `Template actualizado: "${oldTemplate?.nombre}"`,
               cambios: cambios.length > 0 ? cambios : undefined,
             }).catch(() => {});
           } catch (error) {

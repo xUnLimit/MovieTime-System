@@ -186,7 +186,7 @@ export const useCategoriasStore = create<CategoriasState>()(
             entidad: 'categoria',
             entidadId: id,
             entidadNombre: oldCategoria?.nombre ?? id,
-            detalles: `Categoría actualizada: "${oldCategoria?.nombre}" — ${resumenCambios}`,
+            detalles: `Categoría actualizada: "${oldCategoria?.nombre}"`,
             cambios: cambios.length > 0 ? cambios : undefined,
           }).catch(() => {});
         } catch (error) {

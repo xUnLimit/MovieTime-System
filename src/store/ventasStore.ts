@@ -239,7 +239,7 @@ export const useVentasStore = create<VentasState>()(
             entidad: 'venta',
             entidadId: id,
             entidadNombre: `${ventaActual?.clienteNombre ?? ''} — ${ventaActual?.servicioNombre ?? ''}`,
-            detalles: `Venta actualizada: ${ventaActual?.clienteNombre} / ${ventaActual?.servicioNombre} — ${resumenCambios}`,
+            detalles: `Venta actualizada: ${ventaActual?.clienteNombre} / ${ventaActual?.servicioNombre}`,
             cambios: cambios.length > 0 ? cambios : undefined,
           }).catch(() => {});
 
