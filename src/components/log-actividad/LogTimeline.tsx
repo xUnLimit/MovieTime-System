@@ -7,10 +7,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LogFilters } from './LogFilters';
+import { CambiosModal } from './CambiosModal';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RefreshCw, Eye } from 'lucide-react';
 
 interface LogTimelineProps {
   logs: ActivityLog[];
@@ -30,6 +31,9 @@ interface LogTimelineProps {
   onNext: () => void;
   onPrevious: () => void;
   onRefresh: () => void;
+  // Delete handlers
+  onDeleteSelected: (ids: string[]) => Promise<void>;
+  onDeleteByDays: (days: number) => Promise<void>;
 }
 
 export function LogTimeline({
@@ -49,14 +53,19 @@ export function LogTimeline({
   onNext,
   onPrevious,
   onRefresh,
+  onDeleteSelected,
+  onDeleteByDays,
 }: LogTimelineProps) {
   const [selectedLogs, setSelectedLogs] = useState<Set<string>>(new Set());
+  const [selectedLog, setSelectedLog] = useState<ActivityLog | null>(null);
+  const [cambiosModalOpen, setCambiosModalOpen] = useState(false);
 
   const getActionBadgeStyle = (accion: ActivityLog['accion']) => {
     const styles = {
       creacion: 'bg-green-500/20 text-green-400 border-green-500/30',
       actualizacion: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
       eliminacion: 'bg-red-500/20 text-red-400 border-red-500/30',
+      renovacion: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
     };
     return styles[accion];
   };
@@ -66,6 +75,7 @@ export function LogTimeline({
       creacion: 'Creación',
       actualizacion: 'Actualización',
       eliminacion: 'Eliminación',
+      renovacion: 'Renovación',
     };
     return labels[accion];
   };
@@ -79,6 +89,8 @@ export function LogTimeline({
       categoria: 'Categoría',
       metodo_pago: 'Método de Pago',
       gasto: 'Gasto',
+      venta: 'Venta',
+      template: 'Template',
     };
     return labels[entidad];
   };
@@ -100,6 +112,22 @@ export function LogTimeline({
       const allLogIds = new Set(logs.map(log => log.id));
       setSelectedLogs(allLogIds);
     }
+  };
+
+  const handleDeleteSelected = async () => {
+    const ids = Array.from(selectedLogs);
+    await onDeleteSelected(ids);
+    setSelectedLogs(new Set());
+  };
+
+  const handleDeleteByDays = async (days: number) => {
+    await onDeleteByDays(days);
+    setSelectedLogs(new Set());
+  };
+
+  const handleOpenCambios = (log: ActivityLog) => {
+    setSelectedLog(log);
+    setCambiosModalOpen(true);
   };
 
   const isAllSelected = logs.length > 0 && selectedLogs.size === logs.length;
@@ -168,21 +196,23 @@ export function LogTimeline({
       header: 'Detalles',
       align: 'center',
       render: (item) => (
-        <div className="text-sm text-center">{item.detalles}</div>
+        <div className="flex items-center justify-center gap-2">
+          <span className="text-sm">{item.detalles}</span>
+          {item.cambios && item.cambios.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleOpenCambios(item)}
+              className="h-6 px-2 text-xs"
+            >
+              <Eye className="h-3 w-3 mr-1" />
+              Ver cambios ({item.cambios.length})
+            </Button>
+          )}
+        </div>
       ),
     },
   ];
-
-  const handleDeleteSelected = () => {
-    // Aquí se implementará la lógica de eliminación
-    console.log('Eliminar logs seleccionados:', Array.from(selectedLogs));
-    setSelectedLogs(new Set());
-  };
-
-  const handleDeleteByDays = (days: number) => {
-    // Aquí se implementará la lógica de eliminación por días
-    console.log(`Eliminar logs de +${days} días`);
-  };
 
   return (
     <Card className="p-4">
@@ -260,6 +290,16 @@ export function LogTimeline({
           </>
         )}
       </div>
+
+      {/* Modal de cambios */}
+      {selectedLog && selectedLog.cambios && (
+        <CambiosModal
+          open={cambiosModalOpen}
+          onOpenChange={setCambiosModalOpen}
+          entidadNombre={selectedLog.entidadNombre}
+          cambios={selectedLog.cambios}
+        />
+      )}
     </Card>
   );
 }

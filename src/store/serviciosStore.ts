@@ -5,6 +5,18 @@ import { getAll, getById, getCount, create as createDoc, update, remove, COLLECT
 import { doc as firestoreDoc, updateDoc, increment } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { crearPagoInicial } from '@/lib/services/pagosServicioService';
+import { useActivityLogStore } from '@/store/activityLogStore';
+import { useAuthStore } from '@/store/authStore';
+import { detectarCambios, generarResumenCambios } from '@/lib/utils/activityLogHelpers';
+
+// Helper para obtener contexto de usuario
+function getLogContext() {
+  const user = useAuthStore.getState().user;
+  return {
+    usuarioId: user?.id ?? 'sistema',
+    usuarioEmail: user?.email ?? 'sistema',
+  };
+}
 
 interface ServiciosState {
   servicios: Servicio[];
@@ -148,6 +160,16 @@ export const useServiciosStore = create<ServiciosState>()(
             servicios: [...state.servicios, newServicio],
             error: null
           }));
+
+          // Registrar en log de actividad
+          useActivityLogStore.getState().addLog({
+            ...getLogContext(),
+            accion: 'creacion',
+            entidad: 'servicio',
+            entidadId: id,
+            entidadNombre: servicioData.nombre,
+            detalles: `Servicio creado: "${servicioData.nombre}" (${servicioData.tipo}) — $${servicioData.costoServicio ?? 0} ${moneda ?? 'USD'} (${servicioData.cicloPago ?? 'mensual'})`,
+          }).catch(() => {});
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Error al crear servicio';
           set({ error: errorMessage });
@@ -192,6 +214,13 @@ export const useServiciosStore = create<ServiciosState>()(
             });
           }
 
+          // Detectar cambios para el log
+          const cambios = detectarCambios('servicio', servicio, {
+            ...servicio,
+            ...finalUpdates
+          });
+          const resumenCambios = generarResumenCambios(cambios);
+
           set((state) => ({
             servicios: state.servicios.map((s) =>
               s.id === id
@@ -200,6 +229,17 @@ export const useServiciosStore = create<ServiciosState>()(
             ),
             error: null
           }));
+
+          // Registrar en log de actividad con cambios
+          useActivityLogStore.getState().addLog({
+            ...getLogContext(),
+            accion: 'actualizacion',
+            entidad: 'servicio',
+            entidadId: id,
+            entidadNombre: servicio.nombre,
+            detalles: `Servicio actualizado: "${servicio.nombre}" — ${resumenCambios}`,
+            cambios: cambios.length > 0 ? cambios : undefined,
+          }).catch(() => {});
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Error al actualizar servicio';
           set({ error: errorMessage });
@@ -258,6 +298,16 @@ export const useServiciosStore = create<ServiciosState>()(
           }
 
           set({ error: null });
+
+          // Registrar en log de actividad
+          useActivityLogStore.getState().addLog({
+            ...getLogContext(),
+            accion: 'eliminacion',
+            entidad: 'servicio',
+            entidadId: id,
+            entidadNombre: servicio.nombre,
+            detalles: `Servicio eliminado: "${servicio.nombre}"`,
+          }).catch(() => {});
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Error al eliminar servicio';
           set({ error: errorMessage });

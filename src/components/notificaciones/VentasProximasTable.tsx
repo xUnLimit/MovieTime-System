@@ -50,6 +50,18 @@ import type { EnrichedPagoDialogFormData } from '@/components/shared/PagoDialog'
 import { AccionesVentaDialog } from './AccionesVentaDialog';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { useActivityLogStore } from '@/store/activityLogStore';
+import { useAuthStore } from '@/store/authStore';
+import { format } from 'date-fns';
+
+// Helper para obtener contexto de usuario
+function getLogContext() {
+  const user = useAuthStore.getState().user;
+  return {
+    usuarioId: user?.id ?? 'sistema',
+    usuarioEmail: user?.email ?? 'sistema',
+  };
+}
 
 /**
  * Get bell icon color based on days remaining
@@ -358,6 +370,16 @@ export function VentasProximasTable() {
         fechaInicio: data.fechaInicio,
       });
 
+      // Registrar en log de actividad
+      useActivityLogStore.getState().addLog({
+        ...getLogContext(),
+        accion: 'renovacion',
+        entidad: 'venta',
+        entidadId: notifSeleccionada.ventaId,
+        entidadNombre: `${notifSeleccionada.clienteNombre} — ${notifSeleccionada.servicioNombre}`,
+        detalles: `Venta renovada: ${notifSeleccionada.clienteNombre} / ${notifSeleccionada.servicioNombre} — $${monto.toFixed(2)} ${data.moneda ?? 'USD'} — hasta ${format(data.fechaVencimiento, 'dd/MM/yyyy')} (${data.periodoRenovacion})`,
+      }).catch(() => {});
+
       // ✅ Eliminar notificaciones de esta venta (auto-cleanup al renovar)
       await deleteNotificacionesPorVenta(notifSeleccionada.ventaId);
 
@@ -438,6 +460,16 @@ export function VentasProximasTable() {
 
       // 4. Delete notification
       await deleteNotificacionesPorVenta(notifSeleccionada.ventaId);
+
+      // Registrar en log de actividad
+      useActivityLogStore.getState().addLog({
+        ...getLogContext(),
+        accion: 'actualizacion',
+        entidad: 'venta',
+        entidadId: notifSeleccionada.ventaId,
+        entidadNombre: `${notifSeleccionada.clienteNombre} — ${notifSeleccionada.servicioNombre}`,
+        detalles: `Venta cortada: ${notifSeleccionada.clienteNombre} / ${notifSeleccionada.servicioNombre} — estado cambiado a inactivo, perfil liberado`,
+      }).catch(() => {});
 
       toast.success('Venta cortada exitosamente');
 

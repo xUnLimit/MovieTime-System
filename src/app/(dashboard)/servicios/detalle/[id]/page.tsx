@@ -30,6 +30,8 @@ import { getCurrencySymbol } from '@/lib/constants';
 import { formatearFecha, sumInUSD, formatAggregateInUSD } from '@/lib/utils/calculations';
 import { usePagosServicio } from '@/hooks/use-pagos-servicio';
 import { crearPagoRenovacion } from '@/lib/services/pagosServicioService';
+import { useActivityLogStore } from '@/store/activityLogStore';
+import { useAuthStore } from '@/store/authStore';
 
 interface PerfilVenta {
   clienteNombre?: string;
@@ -361,6 +363,18 @@ function ServicioDetallePageContent() {
       }
 
       refreshPagos();
+
+      // Registrar en log de actividad
+      const user = useAuthStore.getState().user;
+      useActivityLogStore.getState().addLog({
+        usuarioId: user?.id ?? 'sistema',
+        usuarioEmail: user?.email ?? 'sistema',
+        accion: 'renovacion',
+        entidad: 'servicio',
+        entidadId: id,
+        entidadNombre: servicio?.nombre ?? id,
+        detalles: `Servicio renovado: "${servicio?.nombre}" — $${data.costo} ${data.moneda ?? 'USD'} — hasta ${format(data.fechaVencimiento, 'dd/MM/yyyy')} (${data.periodoRenovacion})`,
+      }).catch(() => {});
 
       toast.success('Renovación registrada exitosamente');
       setRenovarDialogOpen(false);

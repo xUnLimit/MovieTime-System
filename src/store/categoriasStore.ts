@@ -2,6 +2,17 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { Categoria } from '@/types';
 import { getAll, getCount, create as createDoc, update, remove, COLLECTIONS, logCacheHit } from '@/lib/firebase/firestore';
+import { useActivityLogStore } from '@/store/activityLogStore';
+import { useAuthStore } from '@/store/authStore';
+
+// Helper para obtener contexto de usuario
+function getLogContext() {
+  const user = useAuthStore.getState().user;
+  return {
+    usuarioId: user?.id ?? 'sistema',
+    usuarioEmail: user?.email ?? 'sistema',
+  };
+}
 
 interface CategoriasState {
   categorias: Categoria[];
@@ -97,6 +108,16 @@ export const useCategoriasStore = create<CategoriasState>()(
             categorias: [...state.categorias, newCategoria],
             error: null
           }));
+
+          // Registrar en log de actividad
+          useActivityLogStore.getState().addLog({
+            ...getLogContext(),
+            accion: 'creacion',
+            entidad: 'categoria',
+            entidadId: id,
+            entidadNombre: categoriaData.nombre,
+            detalles: `Categoría creada: "${categoriaData.nombre}"`,
+          }).catch(() => {});
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Error al crear categoría';
           set({ error: errorMessage });
@@ -149,6 +170,16 @@ export const useCategoriasStore = create<CategoriasState>()(
               error: null
             };
           });
+
+          // Registrar en log de actividad
+          useActivityLogStore.getState().addLog({
+            ...getLogContext(),
+            accion: 'actualizacion',
+            entidad: 'categoria',
+            entidadId: id,
+            entidadNombre: oldCategoria?.nombre ?? id,
+            detalles: `Categoría actualizada: "${oldCategoria?.nombre}"`,
+          }).catch(() => {});
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Error al actualizar categoría';
           set({ error: errorMessage });
@@ -159,6 +190,7 @@ export const useCategoriasStore = create<CategoriasState>()(
 
       deleteCategoria: async (id) => {
         const currentCategorias = get().categorias;
+        const categoriaEliminada = get().categorias.find(c => c.id === id);
 
         // Optimistic update
         set((state) => ({
@@ -175,6 +207,16 @@ export const useCategoriasStore = create<CategoriasState>()(
           }
 
           set({ error: null });
+
+          // Registrar en log de actividad
+          useActivityLogStore.getState().addLog({
+            ...getLogContext(),
+            accion: 'eliminacion',
+            entidad: 'categoria',
+            entidadId: id,
+            entidadNombre: categoriaEliminada?.nombre ?? id,
+            detalles: `Categoría eliminada: "${categoriaEliminada?.nombre}"`,
+          }).catch(() => {});
         } catch (error) {
           // Rollback on error
           const errorMessage = error instanceof Error ? error.message : 'Error al eliminar categoría';

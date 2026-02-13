@@ -2,6 +2,17 @@ import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import { TemplateMensaje, TipoTemplate } from '@/types';
 import { getAll, create as createDoc, update, remove, COLLECTIONS, logCacheHit } from '@/lib/firebase/firestore';
+import { useActivityLogStore } from '@/store/activityLogStore';
+import { useAuthStore } from '@/store/authStore';
+
+// Helper para obtener contexto de usuario
+function getLogContext() {
+  const user = useAuthStore.getState().user;
+  return {
+    usuarioId: user?.id ?? 'sistema',
+    usuarioEmail: user?.email ?? 'sistema',
+  };
+}
 
 interface TemplatesState {
   templates: TemplateMensaje[];
@@ -63,6 +74,16 @@ export const useTemplatesStore = create<TemplatesState>()(
             set((state) => ({
               templates: [...state.templates, newTemplate]
             }));
+
+            // Registrar en log de actividad
+            useActivityLogStore.getState().addLog({
+              ...getLogContext(),
+              accion: 'creacion',
+              entidad: 'template',
+              entidadId: id,
+              entidadNombre: templateData.nombre,
+              detalles: `Template creado: "${templateData.nombre}" (${templateData.tipo})`,
+            }).catch(() => {});
           } catch (error) {
             console.error('Error creating template:', error);
             throw error;
@@ -70,6 +91,8 @@ export const useTemplatesStore = create<TemplatesState>()(
         },
 
         updateTemplate: async (id, updates) => {
+          const oldTemplate = get().templates.find(t => t.id === id);
+
           try {
             await update(COLLECTIONS.TEMPLATES, id, updates);
 
@@ -80,6 +103,16 @@ export const useTemplatesStore = create<TemplatesState>()(
                   : template
               )
             }));
+
+            // Registrar en log de actividad
+            useActivityLogStore.getState().addLog({
+              ...getLogContext(),
+              accion: 'actualizacion',
+              entidad: 'template',
+              entidadId: id,
+              entidadNombre: oldTemplate?.nombre ?? id,
+              detalles: `Template actualizado: "${oldTemplate?.nombre}"`,
+            }).catch(() => {});
           } catch (error) {
             console.error('Error updating template:', error);
             throw error;
@@ -87,12 +120,24 @@ export const useTemplatesStore = create<TemplatesState>()(
         },
 
         deleteTemplate: async (id) => {
+          const templateEliminado = get().templates.find(t => t.id === id);
+
           try {
             await remove(COLLECTIONS.TEMPLATES, id);
 
             set((state) => ({
               templates: state.templates.filter((template) => template.id !== id)
             }));
+
+            // Registrar en log de actividad
+            useActivityLogStore.getState().addLog({
+              ...getLogContext(),
+              accion: 'eliminacion',
+              entidad: 'template',
+              entidadId: id,
+              entidadNombre: templateEliminado?.nombre ?? id,
+              detalles: `Template eliminado: "${templateEliminado?.nombre}"`,
+            }).catch(() => {});
           } catch (error) {
             console.error('Error deleting template:', error);
             throw error;

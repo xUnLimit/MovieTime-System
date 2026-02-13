@@ -3,6 +3,17 @@ import { devtools } from 'zustand/middleware';
 import { startOfDay } from 'date-fns';
 import { Usuario } from '@/types';
 import { getAll, getCount, getById, create as createDoc, update, remove, COLLECTIONS, logCacheHit } from '@/lib/firebase/firestore';
+import { useActivityLogStore } from '@/store/activityLogStore';
+import { useAuthStore } from '@/store/authStore';
+
+// Helper para obtener contexto de usuario
+function getLogContext() {
+  const user = useAuthStore.getState().user;
+  return {
+    usuarioId: user?.id ?? 'sistema',
+    usuarioEmail: user?.email ?? 'sistema',
+  };
+}
 
 interface UsuariosState {
   usuarios: Usuario[];
@@ -112,6 +123,16 @@ export const useUsuariosStore = create<UsuariosState>()(
             totalNuevosHoy: state.totalNuevosHoy + 1,
             error: null
           }));
+
+          // Registrar en log de actividad
+          useActivityLogStore.getState().addLog({
+            ...getLogContext(),
+            accion: 'creacion',
+            entidad: usuarioData.tipo === 'cliente' ? 'cliente' : 'revendedor',
+            entidadId: id,
+            entidadNombre: usuarioData.nombre,
+            detalles: `${usuarioData.tipo === 'cliente' ? 'Cliente' : 'Revendedor'} creado: "${usuarioData.nombre}"`,
+          }).catch(() => {});
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Error al crear usuario';
           set({ error: errorMessage });
@@ -170,6 +191,16 @@ export const useUsuariosStore = create<UsuariosState>()(
               error: null
             };
           });
+
+          // Registrar en log de actividad
+          useActivityLogStore.getState().addLog({
+            ...getLogContext(),
+            accion: 'actualizacion',
+            entidad: (oldUsuario?.tipo ?? 'cliente') === 'cliente' ? 'cliente' : 'revendedor',
+            entidadId: id,
+            entidadNombre: oldUsuario?.nombre ?? id,
+            detalles: `Usuario actualizado: "${oldUsuario?.nombre}"`,
+          }).catch(() => {});
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Error al actualizar usuario';
           set({ error: errorMessage });
@@ -241,6 +272,16 @@ export const useUsuariosStore = create<UsuariosState>()(
           }
 
           set({ error: null });
+
+          // Registrar en log de actividad
+          useActivityLogStore.getState().addLog({
+            ...getLogContext(),
+            accion: 'eliminacion',
+            entidad: (deletedUser?.tipo ?? 'cliente') === 'cliente' ? 'cliente' : 'revendedor',
+            entidadId: id,
+            entidadNombre: deletedUser?.nombre ?? id,
+            detalles: `Usuario eliminado: "${deletedUser?.nombre}"`,
+          }).catch(() => {});
         } catch (error) {
           // Rollback on error - restaurar estado anterior completo
           const errorMessage = error instanceof Error ? error.message : 'Error al eliminar usuario';

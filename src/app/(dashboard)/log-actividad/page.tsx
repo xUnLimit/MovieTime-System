@@ -5,9 +5,10 @@ import Link from 'next/link';
 import { LogTimeline } from '@/components/log-actividad/LogTimeline';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 import { useServerPagination } from '@/hooks/useServerPagination';
-import { COLLECTIONS } from '@/lib/firebase/firestore';
+import { COLLECTIONS, remove, queryDocuments } from '@/lib/firebase/firestore';
 import { ActivityLog } from '@/types';
 import { FilterOption } from '@/lib/firebase/pagination';
+import { toast } from 'sonner';
 
 function LogActividadPageContent() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -51,6 +52,34 @@ function LogActividadPageContent() {
     });
   }, [logs, searchTerm]);
 
+  // Delete handlers
+  const handleDeleteSelected = async (ids: string[]) => {
+    try {
+      await Promise.all(ids.map(id => remove(COLLECTIONS.ACTIVITY_LOG, id)));
+      toast.success(`${ids.length} registro(s) eliminado(s)`);
+      refresh();
+    } catch (error) {
+      console.error('Error deleting logs:', error);
+      toast.error('Error al eliminar registros');
+    }
+  };
+
+  const handleDeleteByDays = async (days: number) => {
+    try {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days);
+      const oldLogs = await queryDocuments<ActivityLog>(COLLECTIONS.ACTIVITY_LOG, [
+        { field: 'timestamp', operator: '<', value: cutoff }
+      ]);
+      await Promise.all(oldLogs.map(log => remove(COLLECTIONS.ACTIVITY_LOG, log.id)));
+      toast.success(`${oldLogs.length} registro(s) antiguo(s) eliminado(s)`);
+      refresh();
+    } catch (error) {
+      console.error('Error deleting old logs:', error);
+      toast.error('Error al eliminar registros antiguos');
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="space-y-1">
@@ -78,6 +107,9 @@ function LogActividadPageContent() {
         onNext={next}
         onPrevious={previous}
         onRefresh={refresh}
+        // Delete handlers
+        onDeleteSelected={handleDeleteSelected}
+        onDeleteByDays={handleDeleteByDays}
       />
     </div>
   );

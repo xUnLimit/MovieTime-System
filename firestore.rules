@@ -47,7 +47,8 @@ service cloud.firestore {
 
     match /activityLog/{docId} {
       allow read, create: if isAuthenticated();
-      allow update, delete: if false; // Immutable audit trail
+      allow update: if false; // Immutable: no updates allowed
+      allow delete: if isAuthenticated(); // Allow cleanup by authenticated users
     }
 
     match /config/{docId} {

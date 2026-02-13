@@ -100,8 +100,9 @@ export function LogFilters({
               servicio: 'Servicio',
               usuario: 'Usuario',
               categoria: 'Categoría',
-              metodo_pago: 'Pago de Venta',
+              metodo_pago: 'Método de Pago',
               gasto: 'Gasto',
+              template: 'Template',
             }[entidadFilter] || 'Todas las entidades'}
             <ChevronDown className="h-4 w-4 opacity-50" />
           </Button>
@@ -129,10 +130,13 @@ export function LogFilters({
             Categoría
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setEntidadFilter('metodo_pago')}>
-            Pago de Venta
+            Método de Pago
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setEntidadFilter('gasto')}>
             Gasto
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setEntidadFilter('template')}>
+            Template
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

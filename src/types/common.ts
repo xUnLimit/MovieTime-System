@@ -3,8 +3,16 @@
 // ===========================
 
 // Activity Log Types
-export type AccionLog = 'creacion' | 'actualizacion' | 'eliminacion';
-export type EntidadLog = 'cliente' | 'revendedor' | 'servicio' | 'usuario' | 'categoria' | 'metodo_pago' | 'gasto';
+export type AccionLog = 'creacion' | 'actualizacion' | 'eliminacion' | 'renovacion';
+export type EntidadLog = 'cliente' | 'revendedor' | 'servicio' | 'usuario' | 'categoria' | 'metodo_pago' | 'gasto' | 'venta' | 'template';
+
+export interface CambioLog {
+  campo: string;        // Nombre del campo en español (ej: "Precio", "Estado")
+  campoKey: string;     // Key técnico del campo (ej: "precio", "estado")
+  anterior: any;        // Valor anterior
+  nuevo: any;          // Valor nuevo
+  tipo?: 'string' | 'number' | 'boolean' | 'date' | 'money' | 'object';  // Para formateo
+}
 
 export interface ActivityLog {
   id: string;
@@ -14,7 +22,8 @@ export interface ActivityLog {
   entidad: EntidadLog;
   entidadId: string;
   entidadNombre: string;
-  detalles: string;
+  detalles: string;     // Texto resumido (backward compatible)
+  cambios?: CambioLog[]; // Solo presente en actualizaciones
   timestamp: Date;
 }
 

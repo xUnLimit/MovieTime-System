@@ -2,6 +2,17 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { MetodoPago } from '@/types';
 import { getAll, getCount, queryDocuments, create as createDoc, update, remove, COLLECTIONS, logCacheHit } from '@/lib/firebase/firestore';
+import { useActivityLogStore } from '@/store/activityLogStore';
+import { useAuthStore } from '@/store/authStore';
+
+// Helper para obtener contexto de usuario
+function getLogContext() {
+  const user = useAuthStore.getState().user;
+  return {
+    usuarioId: user?.id ?? 'sistema',
+    usuarioEmail: user?.email ?? 'sistema',
+  };
+}
 
 interface MetodosPagoState {
   metodosPago: MetodoPago[];
@@ -116,6 +127,16 @@ export const useMetodosPagoStore = create<MetodosPagoState>()(
           set((state) => ({
             metodosPago: [...state.metodosPago, newMetodo]
           }));
+
+          // Registrar en log de actividad
+          useActivityLogStore.getState().addLog({
+            ...getLogContext(),
+            accion: 'creacion',
+            entidad: 'metodo_pago',
+            entidadId: id,
+            entidadNombre: metodoData.nombre,
+            detalles: `Método de pago creado: "${metodoData.nombre}"`,
+          }).catch(() => {});
         } catch (error) {
           console.error('Error creating metodo pago:', error);
           throw error;
@@ -156,6 +177,16 @@ export const useMetodosPagoStore = create<MetodosPagoState>()(
               metodosServicios: newMetodosServicios
             };
           });
+
+          // Registrar en log de actividad
+          useActivityLogStore.getState().addLog({
+            ...getLogContext(),
+            accion: 'actualizacion',
+            entidad: 'metodo_pago',
+            entidadId: id,
+            entidadNombre: oldMetodo?.nombre ?? id,
+            detalles: `Método de pago actualizado: "${oldMetodo?.nombre}"`,
+          }).catch(() => {});
         } catch (error) {
           console.error('Error updating metodo pago:', error);
           throw error;
@@ -184,12 +215,24 @@ export const useMetodosPagoStore = create<MetodosPagoState>()(
       },
 
       deleteMetodoPago: async (id) => {
+        const metodoEliminado = get().metodosPago.find(m => m.id === id);
+
         try {
           await remove(COLLECTIONS.METODOS_PAGO, id);
 
           set((state) => ({
             metodosPago: state.metodosPago.filter((metodo) => metodo.id !== id)
           }));
+
+          // Registrar en log de actividad
+          useActivityLogStore.getState().addLog({
+            ...getLogContext(),
+            accion: 'eliminacion',
+            entidad: 'metodo_pago',
+            entidadId: id,
+            entidadNombre: metodoEliminado?.nombre ?? id,
+            detalles: `Método de pago eliminado: "${metodoEliminado?.nombre}"`,
+          }).catch(() => {});
         } catch (error) {
           console.error('Error deleting metodo pago:', error);
           throw error;

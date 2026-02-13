@@ -2,6 +2,19 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { VentaDoc, MetodoPago, PagoVenta } from '@/types';
 import { getAll, getById, getCount, create as createDoc, update, remove, COLLECTIONS, logCacheHit, adjustServiciosActivos, queryDocuments, adjustCategoriaSuscripciones } from '@/lib/firebase/firestore';
+import { useActivityLogStore } from '@/store/activityLogStore';
+import { useAuthStore } from '@/store/authStore';
+import { format } from 'date-fns';
+import { detectarCambios, generarResumenCambios } from '@/lib/utils/activityLogHelpers';
+
+// Helper para obtener contexto de usuario
+function getLogContext() {
+  const user = useAuthStore.getState().user;
+  return {
+    usuarioId: user?.id ?? 'sistema',
+    usuarioEmail: user?.email ?? 'sistema',
+  };
+}
 
 interface VentasState {
   ventas: VentaDoc[];
@@ -122,6 +135,16 @@ export const useVentasStore = create<VentasState>()(
             ventas: [...state.ventas, newVenta]
           }));
 
+          // Registrar en log de actividad
+          useActivityLogStore.getState().addLog({
+            ...getLogContext(),
+            accion: 'creacion',
+            entidad: 'venta',
+            entidadId: ventaId,
+            entidadNombre: `${ventaData.clienteNombre} — ${ventaData.servicioNombre}`,
+            detalles: `Venta creada: ${ventaData.clienteNombre} / ${ventaData.servicioNombre} — $${ventaData.precioFinal ?? 0} ${ventaData.moneda ?? 'USD'} — ${format(ventaData.fechaInicio ?? new Date(), 'dd/MM/yyyy')} al ${format(ventaData.fechaFin ?? new Date(), 'dd/MM/yyyy')} (${ventaData.cicloPago})`,
+          }).catch(() => {});
+
           // Actualizar contadores de la categoría
           if (ventaDataLimpia.categoriaId && ventaData.precioFinal) {
             await adjustCategoriaSuscripciones(ventaDataLimpia.categoriaId, 1, ventaData.precioFinal);
@@ -194,6 +217,13 @@ export const useVentasStore = create<VentasState>()(
             }
           }
 
+          // Detectar cambios para el log
+          const cambios = ventaAnterior ? detectarCambios('venta', ventaAnterior, {
+            ...ventaAnterior,
+            ...finalUpdates
+          }) : [];
+          const resumenCambios = generarResumenCambios(cambios);
+
           set((state) => ({
             ventas: state.ventas.map((venta) =>
               venta.id === id
@@ -201,6 +231,17 @@ export const useVentasStore = create<VentasState>()(
                 : venta
             )
           }));
+
+          // Registrar en log de actividad con cambios
+          useActivityLogStore.getState().addLog({
+            ...getLogContext(),
+            accion: 'actualizacion',
+            entidad: 'venta',
+            entidadId: id,
+            entidadNombre: `${ventaActual?.clienteNombre ?? ''} — ${ventaActual?.servicioNombre ?? ''}`,
+            detalles: `Venta actualizada: ${ventaActual?.clienteNombre} / ${ventaActual?.servicioNombre} — ${resumenCambios}`,
+            cambios: cambios.length > 0 ? cambios : undefined,
+          }).catch(() => {});
 
           // Dispatch event for cross-component updates
           if (typeof window !== 'undefined') {
@@ -277,6 +318,16 @@ export const useVentasStore = create<VentasState>()(
           } catch {
             // Notifications cleanup is best-effort, don't fail the delete
           }
+
+          // Registrar en log de actividad
+          useActivityLogStore.getState().addLog({
+            ...getLogContext(),
+            accion: 'eliminacion',
+            entidad: 'venta',
+            entidadId: id,
+            entidadNombre: `${ventaEliminada?.clienteNombre ?? ''} — ${ventaEliminada?.servicioNombre ?? ''}`,
+            detalles: `Venta eliminada: ${ventaEliminada?.clienteNombre} / ${ventaEliminada?.servicioNombre}`,
+          }).catch(() => {});
 
           // Notificar que se eliminó una venta
           if (typeof window !== 'undefined') {
