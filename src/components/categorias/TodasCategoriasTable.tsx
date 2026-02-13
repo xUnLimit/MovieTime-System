@@ -7,13 +7,6 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -132,17 +125,37 @@ export function TodasCategoriasTable({ categorias, title = 'Todas las categoría
               className="pl-9"
             />
           </div>
-          <Select value={tipoFilter} onValueChange={setTipoFilter}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Todos los tipos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos los tipos</SelectItem>
-              <SelectItem value="cliente">Cliente</SelectItem>
-              <SelectItem value="revendedor">Revendedor</SelectItem>
-              <SelectItem value="ambos">Ambos</SelectItem>
-            </SelectContent>
-          </Select>
+          {(() => {
+            const opciones = [
+              { value: 'todos', label: 'Todos los tipos' },
+              { value: 'cliente', label: 'Cliente' },
+              { value: 'revendedor', label: 'Revendedor' },
+              { value: 'ambos', label: 'Ambos' },
+            ];
+            const labelActual = opciones.find(o => o.value === tipoFilter)?.label ?? 'Todos los tipos';
+            return (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="w-[200px] justify-between font-normal">
+                    {labelActual}
+                    <svg className="h-4 w-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[200px]">
+                  {opciones.map(op => (
+                    <DropdownMenuItem
+                      key={op.value}
+                      onClick={() => setTipoFilter(op.value)}
+                      className="flex items-center justify-between"
+                    >
+                      {op.label}
+                      {tipoFilter === op.value && <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            );
+          })()}
         </div>
 
         <DataTable

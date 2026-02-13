@@ -11,9 +11,8 @@ import { RefreshCw, Bell, ShoppingCart, Server } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Link from 'next/link';
-import { VentasProximasTableV2 } from '@/components/notificaciones/VentasProximasTableV2';
-import { ServiciosProximosTableV2 } from '@/components/notificaciones/ServiciosProximosTableV2';
-import { AccionesVentaDialog } from '@/components/notificaciones/AccionesVentaDialog';
+import { VentasProximasTable } from '@/components/notificaciones/VentasProximasTable';
+import { ServiciosProximosTable } from '@/components/notificaciones/ServiciosProximosTable';
 import { MetricCard } from '@/components/shared/MetricCard';
 import { useNotificacionesStore } from '@/store/notificacionesStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
@@ -22,7 +21,6 @@ import {
   sincronizarNotificacionesForzado,
 } from '@/lib/services/notificationSyncService';
 import { toast } from 'sonner';
-import type { NotificacionVenta } from '@/types/notificaciones';
 
 // Metrics component matching CategoriasMetrics style
 function NotificacionesMetrics() {
@@ -62,10 +60,6 @@ function NotificacionesPageContent() {
 
   const [activeTab, setActiveTab] = useState('ventas');
   const [isSyncing, setIsSyncing] = useState(false);
-  const [selectedVenta, setSelectedVenta] = useState<(NotificacionVenta & { id: string }) | null>(
-    null
-  );
-  const [accionesDialogOpen, setAccionesDialogOpen] = useState(false);
 
   // Initialize on mount
   useEffect(() => {
@@ -99,14 +93,6 @@ function NotificacionesPageContent() {
     } finally {
       setIsSyncing(false);
     }
-  };
-
-  /**
-   * Open actions dialog for a venta notification
-   */
-  const handleOpenAccionesDialog = (notif: NotificacionVenta & { id: string }) => {
-    setSelectedVenta(notif);
-    setAccionesDialogOpen(true);
   };
 
   return (
@@ -160,21 +146,15 @@ function NotificacionesPageContent() {
 
         {/* Ventas Tab */}
         <TabsContent value="ventas" className="space-y-4">
-          <VentasProximasTableV2 onOpenAccionesDialog={handleOpenAccionesDialog} />
+          <VentasProximasTable />
         </TabsContent>
 
         {/* Servicios Tab */}
         <TabsContent value="servicios" className="space-y-4">
-          <ServiciosProximosTableV2 />
+          <ServiciosProximosTable />
         </TabsContent>
       </Tabs>
 
-      {/* Actions Dialog for Ventas */}
-      <AccionesVentaDialog
-        notificacion={selectedVenta}
-        isOpen={accionesDialogOpen}
-        onOpenChange={setAccionesDialogOpen}
-      />
     </div>
   );
 }

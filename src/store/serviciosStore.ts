@@ -243,6 +243,14 @@ export const useServiciosStore = create<ServiciosState>()(
             // gastosTotal: ya no se actualiza - se calcula desde pagosServicio
           });
 
+          // Eliminar notificaciones asociadas a este servicio
+          try {
+            const { useNotificacionesStore } = await import('./notificacionesStore');
+            await useNotificacionesStore.getState().deleteNotificacionesPorServicio(id);
+          } catch {
+            // Notifications cleanup is best-effort, don't fail the delete
+          }
+
           // Notificar a otras páginas que se eliminó un servicio
           if (typeof window !== 'undefined') {
             window.localStorage.setItem('servicio-deleted', Date.now().toString());

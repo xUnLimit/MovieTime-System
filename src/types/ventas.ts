@@ -54,6 +54,7 @@ export interface VentaDoc {
   id: string;
   clienteId?: string;
   clienteNombre: string;
+  clienteTelefono?: string;           // Denormalizado para notificaciones WhatsApp
   servicioId: string;
   servicioNombre: string;
   servicioCorreo?: string;
@@ -69,9 +70,9 @@ export interface VentaDoc {
   // ✅ CAMPOS DENORMALIZADOS - Mantener sincronizados con PagoVenta más reciente
   // Se populan cuando se crea o renueva una venta
   // Requeridos para sincronización de notificaciones
-  fechaInicio: Date;     // Denormalizado del último pago para notificaciones
-  fechaFin: Date;        // Denormalizado del último pago (fecha de vencimiento)
-  cicloPago: 'mensual' | 'trimestral' | 'semestral' | 'anual';  // Denormalizado del último pago
+  fechaInicio?: Date;     // Denormalizado del último pago para notificaciones
+  fechaFin?: Date;        // Denormalizado del último pago (fecha de vencimiento)
+  cicloPago?: 'mensual' | 'trimestral' | 'semestral' | 'anual';  // Denormalizado del último pago
 
   // ⚠️ CAMPOS DEPRECADOS - Mantener por compatibilidad con datos existentes
   // Usar getVentaConUltimoPago() para obtener valores actuales desde pagosVenta

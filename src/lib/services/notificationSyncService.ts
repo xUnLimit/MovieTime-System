@@ -13,13 +13,14 @@
  * Run migration first: npm run migrate:venta-fechas
  */
 
-import { addDays, differenceInDays } from 'date-fns';
+import { addDays, differenceInDays, startOfDay } from 'date-fns';
 import {
   COLLECTIONS,
   queryDocuments,
   create,
   update,
   getAll,
+  remove,
 } from '@/lib/firebase/firestore';
 import type {
   Notificacion,
@@ -57,10 +58,7 @@ function marcarSincronizado(): void {
  * Matches notification thresholds
  */
 function calcularPrioridad(diasRestantes: number): 'baja' | 'media' | 'alta' | 'critica' {
-  if (diasRestantes < 0) return 'critica'; // Expired
-  if (diasRestantes === 0) return 'critica'; // Today
-  if (diasRestantes === 1) return 'critica'; // Tomorrow
-  if (diasRestantes <= 2) return 'alta';
+  if (diasRestantes <= 0) return 'critica'; // Expired or due today
   if (diasRestantes <= 3) return 'alta';
   if (diasRestantes <= 7) return 'media';
   return 'baja';
@@ -98,18 +96,18 @@ function prioridadSubio(anterior: string, nueva: string): boolean {
  * Process a single venta and create/update notification
  *
  * @param venta - VentaDoc with denormalized fechaFin
- * @throws Error if venta missing required denormalized fields
+ * @returns void - Skips silently if venta is missing required fields
  */
 async function procesarNotificacionVenta(venta: VentaDoc): Promise<void> {
-  // Validate required denormalized fields
+  // Validate required denormalized field (fechaFin es el único crítico para calcular diasRestantes)
   if (!venta.fechaFin) {
     console.warn(
-      `[NotificationSync] Venta ${venta.id} missing fechaFin (not yet migrated). Skipping.`
+      `[NotificationSync] Venta ${venta.id} missing fechaFin. Skipping.`
     );
     return;
   }
 
-  const diasRestantes = differenceInDays(new Date(venta.fechaFin), new Date());
+  const diasRestantes = differenceInDays(startOfDay(new Date(venta.fechaFin)), startOfDay(new Date()));
   const nuevaPrioridad = calcularPrioridad(diasRestantes);
 
   // Try to find existing notification for this venta
@@ -119,7 +117,7 @@ async function procesarNotificacionVenta(venta: VentaDoc): Promise<void> {
       { field: 'entidad', operator: '==', value: 'venta' },
       { field: 'ventaId', operator: '==', value: venta.id },
     ])) as (Notificacion & { id: string })[];
-  } catch (error) {
+  } catch {
     // Collection might not exist yet, that's fine
     notifExistente = [];
   }
@@ -138,18 +136,26 @@ async function procesarNotificacionVenta(venta: VentaDoc): Promise<void> {
     ventaId: venta.id,
     clienteId: venta.clienteId || '',
     servicioId: venta.servicioId,
+    categoriaId: venta.categoriaId,
 
     // Denormalized from VentaDoc
     clienteNombre: venta.clienteNombre,
+    clienteTelefono: venta.clienteTelefono,  // For WhatsApp notifications
     servicioNombre: venta.servicioNombre,
+    servicioCorreo: venta.servicioCorreo,  // For WhatsApp messages
+    servicioContrasena: venta.servicioContrasena,  // For WhatsApp messages
     categoriaNombre: venta.categoriaNombre || '',
     perfilNombre: venta.perfilNombre,
+    codigo: venta.codigo,  // For WhatsApp messages
     estado: venta.estado || 'activo',
 
     // Denormalized from PagoVenta (denormalized en VentaDoc)
     cicloPago: venta.cicloPago,
     fechaInicio: venta.fechaInicio,
     fechaFin: venta.fechaFin,
+    precioFinal: venta.precioFinal, // Final price after discount
+    metodoPagoId: venta.metodoPagoId, // For renewals
+    moneda: venta.moneda, // Currency
 
     updatedAt: new Date(),
   };
@@ -170,7 +176,7 @@ async function procesarNotificacionVenta(venta: VentaDoc): Promise<void> {
     }
   } else {
     // Create new notification
-    await create(COLLECTIONS.NOTIFICACIONES, datosNotificacion as any);
+    await create(COLLECTIONS.NOTIFICACIONES, datosNotificacion as Record<string, unknown>);
   }
 }
 
@@ -178,7 +184,7 @@ async function procesarNotificacionVenta(venta: VentaDoc): Promise<void> {
  * Process a single servicio and create/update notification
  *
  * @param servicio - Servicio document
- * @throws Error if servicio missing required fields
+ * @returns void - Skips silently if servicio is missing required fields
  */
 async function procesarNotificacionServicio(servicio: Servicio): Promise<void> {
   if (!servicio.fechaVencimiento) {
@@ -188,7 +194,7 @@ async function procesarNotificacionServicio(servicio: Servicio): Promise<void> {
     return;
   }
 
-  const diasRestantes = differenceInDays(new Date(servicio.fechaVencimiento), new Date());
+  const diasRestantes = differenceInDays(startOfDay(new Date(servicio.fechaVencimiento)), startOfDay(new Date()));
   const nuevaPrioridad = calcularPrioridad(diasRestantes);
 
   // Try to find existing notification
@@ -198,7 +204,7 @@ async function procesarNotificacionServicio(servicio: Servicio): Promise<void> {
       { field: 'entidad', operator: '==', value: 'servicio' },
       { field: 'servicioId', operator: '==', value: servicio.id },
     ])) as (Notificacion & { id: string })[];
-  } catch (error) {
+  } catch {
     notifExistente = [];
   }
 
@@ -220,6 +226,8 @@ async function procesarNotificacionServicio(servicio: Servicio): Promise<void> {
     servicioNombre: servicio.nombre,
     categoriaNombre: servicio.categoriaNombre || '',
     tipoServicio: servicio.tipo,
+    correo: servicio.correo,
+    contrasena: servicio.contrasena,
     metodoPagoNombre: servicio.metodoPagoNombre || '',
     moneda: servicio.moneda || 'USD',
     costoServicio: servicio.costoServicio,
@@ -244,7 +252,43 @@ async function procesarNotificacionServicio(servicio: Servicio): Promise<void> {
     }
   } else {
     // Create new
-    await create(COLLECTIONS.NOTIFICACIONES, datosNotificacion as any);
+    await create(COLLECTIONS.NOTIFICACIONES, datosNotificacion as Record<string, unknown>);
+  }
+}
+
+/**
+ * Remove notifications whose venta/servicio no longer exists or is no longer active
+ * This handles the case where a venta/servicio was deleted outside of the notification flow
+ */
+async function limpiarNotificacionesHuerfanas(
+  ventasActivas: VentaDoc[],
+  serviciosActivos: Servicio[]
+): Promise<void> {
+  try {
+    // Get all existing notifications
+    const todasNotificaciones = (await getAll(COLLECTIONS.NOTIFICACIONES)) as (Notificacion & { id: string })[];
+
+    const ventaIdsActivos = new Set(ventasActivas.map(v => v.id));
+    const servicioIdsActivos = new Set(serviciosActivos.map(s => s.id));
+
+    const huerfanas = todasNotificaciones.filter(notif => {
+      if (notif.entidad === 'venta') {
+        // Orphan if the venta is no longer in the active+expiring set
+        return !ventaIdsActivos.has((notif as NotificacionVenta).ventaId);
+      } else if (notif.entidad === 'servicio') {
+        // Orphan if the servicio is no longer in the active+expiring set
+        return !servicioIdsActivos.has((notif as NotificacionServicio).servicioId);
+      }
+      return false;
+    });
+
+    if (huerfanas.length > 0) {
+      console.log(`[NotificationSync] Removing ${huerfanas.length} orphan notification(s)`);
+      await Promise.all(huerfanas.map(notif => remove(COLLECTIONS.NOTIFICACIONES, notif.id)));
+    }
+  } catch (error) {
+    // Cleanup is best-effort, don't fail the sync
+    console.warn('[NotificationSync] Error cleaning up orphan notifications:', error);
   }
 }
 
@@ -312,6 +356,10 @@ export async function sincronizarNotificaciones(): Promise<void> {
         console.error(`[NotificationSync] Error processing servicio ${servicio.id}:`, error);
       }
     }
+
+    // 3️⃣ Cleanup orphan notifications (venta/servicio deleted but notification remains)
+    console.log('[NotificationSync] Cleaning up orphan notifications...');
+    await limpiarNotificacionesHuerfanas(ventasProximas, serviciosProximos);
 
     // Mark as synced today
     marcarSincronizado();

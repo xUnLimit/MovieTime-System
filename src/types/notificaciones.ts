@@ -42,19 +42,26 @@ export interface NotificacionVenta extends NotificacionBase {
   ventaId: string;
   clienteId: string;
   servicioId: string;
+  categoriaId?: string; // For renewal payment tracking
 
   // Denormalized from VentaDoc
   clienteNombre: string; // For display in table
+  clienteTelefono?: string; // Client phone number (for WhatsApp notifications)
   servicioNombre: string; // Name of streaming service (Netflix, Disney+, etc.)
+  servicioCorreo?: string; // Service email (for WhatsApp messages)
+  servicioContrasena?: string; // Service password (for WhatsApp messages)
   categoriaNombre: string; // Category name
   perfilNombre?: string; // Profile name (optional, for shared accounts)
+  codigo?: string; // PIN code (for WhatsApp messages)
   estado: 'activo' | 'inactivo';
 
   // Denormalized from PagoVenta (most recent)
-  cicloPago: 'mensual' | 'trimestral' | 'semestral' | 'anual';
-  fechaInicio: Date; // Start of current payment period
-  fechaFin: Date; // Expiration date
+  cicloPago?: 'mensual' | 'trimestral' | 'semestral' | 'anual';
+  fechaInicio?: Date; // Start of current payment period
+  fechaFin: Date; // Expiration date (required for calculations)
   precioFinal?: number; // Final price after discount
+  metodoPagoId?: string; // Payment method ID (for renewals)
+  moneda?: string; // Currency (USD, TRY, ARS, etc.)
 }
 
 /**
@@ -76,6 +83,8 @@ export interface NotificacionServicio extends NotificacionBase {
   servicioNombre: string; // Name of the streaming service
   categoriaNombre: string; // Category name
   tipoServicio: 'cuenta_completa' | 'perfiles'; // Service type
+  correo: string; // Email del servicio
+  contrasena: string; // Contraseña del servicio
   metodoPagoNombre: string; // Payment method name
   moneda: string; // Currency (USD, TRY, ARS, etc.)
   costoServicio: number; // Service cost
@@ -111,18 +120,3 @@ export function esNotificacionServicio(n: Notificacion): n is NotificacionServic
   return n.entidad === 'servicio';
 }
 
-/**
- * Helper: Filter notifications by entity type
- * @example
- * const ventasNotifs = notificaciones.filter(notificacionesVenta);
- */
-export const notificacionesVenta = (n: Notificacion): n is NotificacionVenta =>
-  esNotificacionVenta(n);
-
-/**
- * Helper: Filter notifications by entity type
- * @example
- * const serviciosNotifs = notificaciones.filter(notificacionesServicio);
- */
-export const notificacionesServicio = (n: Notificacion): n is NotificacionServicio =>
-  esNotificacionServicio(n);

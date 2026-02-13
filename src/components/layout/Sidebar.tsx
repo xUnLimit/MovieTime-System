@@ -20,9 +20,12 @@ import {
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useSidebarState } from '@/hooks/use-sidebar';
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 
-const navigationSections = [
+type NavItem = { name: string; href: string; icon: React.ComponentType<{ className?: string }>; badge?: string };
+type NavSection = { label?: string; items: NavItem[] };
+
+const navigationSections: NavSection[] = [
   {
     items: [
       {
@@ -57,7 +60,7 @@ const navigationSections = [
     items: [
       {
         name: 'Notificaciones',
-        href: '/notificaciones-test',
+        href: '/notificaciones',
         icon: Bell
       },
       {
@@ -211,9 +214,9 @@ export function Sidebar({ collapsed: controlledCollapsed, onCollapse }: SidebarP
                     >
                       {item.name}
                       {/* Badge (si existe) */}
-                      {(item as any).badge && (
+                      {item.badge && (
                         <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-orange-500 text-white rounded">
-                          {(item as any).badge}
+                          {item.badge}
                         </span>
                       )}
                     </span>

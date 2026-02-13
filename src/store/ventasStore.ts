@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { VentaDoc, MetodoPago, PagoVenta } from '@/types';
-import { getAll, getById, getCount, create as createDoc, update, remove, COLLECTIONS, logCacheHit, adjustVentasActivas, queryDocuments, adjustCategoriaSuscripciones } from '@/lib/firebase/firestore';
+import { getAll, getById, getCount, create as createDoc, update, remove, COLLECTIONS, logCacheHit, adjustServiciosActivos, queryDocuments, adjustCategoriaSuscripciones } from '@/lib/firebase/firestore';
 
 interface VentasState {
   ventas: VentaDoc[];
@@ -74,28 +74,16 @@ export const useVentasStore = create<VentasState>()(
 
       createVenta: async (ventaData) => {
         try {
-          // Extraer campos que NO van en VentaDoc (van solo en PagoVenta)
+          // Extraer solo el campo pagos que NO va en VentaDoc
           const {
             pagos,
-            precio,
-            descuento,
-            precioFinal,
-            metodoPagoId,
-            metodoPagoNombre,
-            moneda,
-            cicloPago,
-            fechaInicio,
-            fechaFin,
             ...ventaDataLimpia
           } = ventaData;
 
-          // Paso 1: Crear la venta CON campos denormalizados necesarios para notificaciones
-          // fechaInicio, fechaFin, cicloPago se mantienen sincronizados con PagoVenta
+          // Paso 1: Crear la venta CON todos los campos denormalizados necesarios para notificaciones
+          // Incluye: fechaInicio, fechaFin, cicloPago, precio, descuento, precioFinal, metodoPagoId, metodoPagoNombre, moneda
           const ventaDocData = {
             ...ventaDataLimpia,
-            fechaInicio,  // Denormalizado del primer pago
-            fechaFin,     // Denormalizado del primer pago (fecha de vencimiento)
-            cicloPago,    // Denormalizado del primer pago
           };
 
           const ventaId = await createDoc(COLLECTIONS.VENTAS, ventaDocData);
@@ -109,26 +97,23 @@ export const useVentasStore = create<VentasState>()(
               clienteNombre: ventaData.clienteNombre,
               categoriaId: ventaData.categoriaId,  // Denormalizado para queries
               fecha: pagoInicial.fecha || new Date(),
-              monto: pagoInicial.total || precioFinal,
-              precio,                         // Precio original
-              descuento,                      // Porcentaje de descuento
-              metodoPagoId,                   // Denormalizado
-              metodoPago: metodoPagoNombre,
-              moneda,                         // Denormalizado
+              monto: pagoInicial.total || ventaData.precioFinal,
+              precio: ventaData.precio,                         // Precio original
+              descuento: ventaData.descuento,                   // Porcentaje de descuento
+              metodoPagoId: ventaData.metodoPagoId,             // Denormalizado
+              metodoPago: ventaData.metodoPagoNombre,
+              moneda: ventaData.moneda,                         // Denormalizado
               notas: pagoInicial.notas || 'Pago inicial',
               isPagoInicial: true,
-              cicloPago,
-              fechaInicio,
-              fechaVencimiento: fechaFin,
+              cicloPago: ventaData.cicloPago,
+              fechaInicio: ventaData.fechaInicio,
+              fechaVencimiento: ventaData.fechaFin,
             });
           }
 
           const newVenta: VentaDoc = {
             ...ventaDataLimpia,
             id: ventaId,
-            fechaInicio,      // Incluir campos denormalizados
-            fechaFin,
-            cicloPago,
             createdAt: new Date(),
             updatedAt: new Date()
           };
@@ -138,8 +123,8 @@ export const useVentasStore = create<VentasState>()(
           }));
 
           // Actualizar contadores de la categoría
-          if (ventaDataLimpia.categoriaId && precioFinal) {
-            await adjustCategoriaSuscripciones(ventaDataLimpia.categoriaId, 1, precioFinal);
+          if (ventaDataLimpia.categoriaId && ventaData.precioFinal) {
+            await adjustCategoriaSuscripciones(ventaDataLimpia.categoriaId, 1, ventaData.precioFinal);
           }
 
           // Dispatch event for cross-component updates
@@ -273,7 +258,7 @@ export const useVentasStore = create<VentasState>()(
 
           // Decrementar serviciosActivos si la venta eliminada era activa
           if (ventaEliminada?.clienteId && (ventaEliminada.estado ?? 'activo') !== 'inactivo') {
-            await adjustVentasActivas(ventaEliminada.clienteId, -1);
+            await adjustServiciosActivos(ventaEliminada.clienteId, -1);
           }
 
           // Decrementar contadores de la categoría
@@ -283,6 +268,14 @@ export const useVentasStore = create<VentasState>()(
               -1,
               -ventaEliminada.precioFinal
             );
+          }
+
+          // Eliminar notificaciones asociadas a esta venta
+          try {
+            const { useNotificacionesStore } = await import('./notificacionesStore');
+            await useNotificacionesStore.getState().deleteNotificacionesPorVenta(id);
+          } catch {
+            // Notifications cleanup is best-effort, don't fail the delete
           }
 
           // Notificar que se eliminó una venta

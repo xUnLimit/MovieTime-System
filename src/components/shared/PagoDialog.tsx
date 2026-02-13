@@ -40,7 +40,7 @@ const pagoDialogSchema = z.object({
 
 type PagoDialogFormData = z.infer<typeof pagoDialogSchema>;
 
-type EnrichedPagoDialogFormData = PagoDialogFormData & {
+export type EnrichedPagoDialogFormData = PagoDialogFormData & {
   metodoPagoNombre?: string;
   moneda?: string;
 };

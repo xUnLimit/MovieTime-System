@@ -20,7 +20,6 @@ import {
   getAll,
   update,
   remove,
-  queryDocuments,
 } from '@/lib/firebase/firestore';
 import type { Notificacion, NotificacionVenta, NotificacionServicio } from '@/types/notificaciones';
 import { esNotificacionVenta, esNotificacionServicio } from '@/types/notificaciones';
@@ -91,15 +90,25 @@ export const useNotificacionesStore = create<NotificacionesState>((set, get) => 
         Notificacion & { id: string }
       )[];
 
+      // Calculate counts from fetched data
+      const totalNotificaciones = notificaciones.length;
+      const ventasProximas = notificaciones.filter(esNotificacionVenta).length;
+      const serviciosProximos = notificaciones.filter(esNotificacionServicio).length;
+
       set({
         notificaciones,
+        totalNotificaciones,
+        ventasProximas,
+        serviciosProximos,
         isLoading: false,
         error: null,
         lastFetch: Date.now(),
       });
 
       // Log operation
-      console.log(`[Firestore] getAll (notificaciones) -> ${notificaciones.length} docs`);
+      console.log(
+        `[Firestore] getAll (notificaciones) -> ${notificaciones.length} docs (Ventas: ${ventasProximas}, Servicios: ${serviciosProximos})`
+      );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       set({
@@ -118,20 +127,17 @@ export const useNotificacionesStore = create<NotificacionesState>((set, get) => 
     try {
       const state = get();
 
+      // Use current notificaciones from state (no need for extra getAll)
+      const notificaciones = state.notificaciones;
+
       // Total notificaciones
-      const totalNotificaciones = (await getAll(COLLECTIONS.NOTIFICACIONES)).length;
+      const totalNotificaciones = notificaciones.length;
 
-      // Ventas próximas (entidad='venta' AND diasRestantes >= -1)
-      const ventasNotifs = state.notificaciones.filter(
-        (n) => esNotificacionVenta(n) && n.diasRestantes >= -1
-      );
-      const ventasProximas = ventasNotifs.length;
+      // Ventas próximas (entidad='venta')
+      const ventasProximas = notificaciones.filter(esNotificacionVenta).length;
 
-      // Servicios próximos
-      const serviciosNotifs = state.notificaciones.filter(
-        (n) => esNotificacionServicio(n) && n.diasRestantes >= -1
-      );
-      const serviciosProximos = serviciosNotifs.length;
+      // Servicios próximos (entidad='servicio')
+      const serviciosProximos = notificaciones.filter(esNotificacionServicio).length;
 
       set({
         totalNotificaciones,
@@ -140,10 +146,16 @@ export const useNotificacionesStore = create<NotificacionesState>((set, get) => 
       });
 
       console.log(
-        `[Firestore] count (notificaciones) -> ${totalNotificaciones} · ventasProximas: ${ventasProximas} · serviciosProximos: ${serviciosProximos}`
+        `[NotificacionesStore] Counts updated -> Total: ${totalNotificaciones} · Ventas: ${ventasProximas} · Servicios: ${serviciosProximos}`
       );
     } catch (error) {
       console.error('[NotificacionesStore] Error fetching counts:', error);
+      // Set to 0 on error
+      set({
+        totalNotificaciones: 0,
+        ventasProximas: 0,
+        serviciosProximos: 0,
+      });
     }
   },
 
@@ -205,13 +217,29 @@ export const useNotificacionesStore = create<NotificacionesState>((set, get) => 
 
     // Optimistic update
     const updatedNotifs = state.notificaciones.filter((n) => n.id !== notifId);
-    set({ notificaciones: updatedNotifs });
+
+    // Update counts
+    const totalNotificaciones = updatedNotifs.length;
+    const ventasProximas = updatedNotifs.filter(esNotificacionVenta).length;
+    const serviciosProximos = updatedNotifs.filter(esNotificacionServicio).length;
+
+    set({
+      notificaciones: updatedNotifs,
+      totalNotificaciones,
+      ventasProximas,
+      serviciosProximos,
+    });
 
     try {
       await remove(COLLECTIONS.NOTIFICACIONES, notifId);
     } catch (error) {
       // Rollback on error
-      set({ notificaciones: state.notificaciones });
+      set({
+        notificaciones: state.notificaciones,
+        totalNotificaciones: state.totalNotificaciones,
+        ventasProximas: state.ventasProximas,
+        serviciosProximos: state.serviciosProximos,
+      });
       console.error('[NotificacionesStore] Error deleting notification:', error);
       throw error;
     }
@@ -233,7 +261,18 @@ export const useNotificacionesStore = create<NotificacionesState>((set, get) => 
     const updatedNotifs = state.notificaciones.filter(
       (n) => !(esNotificacionVenta(n) && n.ventaId === ventaId)
     );
-    set({ notificaciones: updatedNotifs });
+
+    // Update counts
+    const totalNotificaciones = updatedNotifs.length;
+    const ventasProximas = updatedNotifs.filter(esNotificacionVenta).length;
+    const serviciosProximos = updatedNotifs.filter(esNotificacionServicio).length;
+
+    set({
+      notificaciones: updatedNotifs,
+      totalNotificaciones,
+      ventasProximas,
+      serviciosProximos,
+    });
 
     try {
       // Delete all notifications for this venta
@@ -246,7 +285,12 @@ export const useNotificacionesStore = create<NotificacionesState>((set, get) => 
       );
     } catch (error) {
       // Rollback on error
-      set({ notificaciones: state.notificaciones });
+      set({
+        notificaciones: state.notificaciones,
+        totalNotificaciones: state.totalNotificaciones,
+        ventasProximas: state.ventasProximas,
+        serviciosProximos: state.serviciosProximos,
+      });
       console.error('[NotificacionesStore] Error deleting venta notifications:', error);
       throw error;
     }
@@ -268,7 +312,18 @@ export const useNotificacionesStore = create<NotificacionesState>((set, get) => 
     const updatedNotifs = state.notificaciones.filter(
       (n) => !(esNotificacionServicio(n) && n.servicioId === servicioId)
     );
-    set({ notificaciones: updatedNotifs });
+
+    // Update counts
+    const totalNotificaciones = updatedNotifs.length;
+    const ventasProximas = updatedNotifs.filter(esNotificacionVenta).length;
+    const serviciosProximos = updatedNotifs.filter(esNotificacionServicio).length;
+
+    set({
+      notificaciones: updatedNotifs,
+      totalNotificaciones,
+      ventasProximas,
+      serviciosProximos,
+    });
 
     try {
       // Delete all notifications for this servicio
@@ -281,7 +336,12 @@ export const useNotificacionesStore = create<NotificacionesState>((set, get) => 
       );
     } catch (error) {
       // Rollback on error
-      set({ notificaciones: state.notificaciones });
+      set({
+        notificaciones: state.notificaciones,
+        totalNotificaciones: state.totalNotificaciones,
+        ventasProximas: state.ventasProximas,
+        serviciosProximos: state.serviciosProximos,
+      });
       console.error('[NotificacionesStore] Error deleting servicio notifications:', error);
       throw error;
     }

@@ -54,7 +54,7 @@ interface VentaDoc {
   fechaInicio?: Date;
   fechaFin?: Date;
   cicloPago?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface PagoVenta {
@@ -63,7 +63,7 @@ interface PagoVenta {
   fechaVencimiento?: Date;
   cicloPago?: string;
   createdAt?: Date;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 async function migrateVentaFechas() {

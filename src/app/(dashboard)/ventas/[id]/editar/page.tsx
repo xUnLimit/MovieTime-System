@@ -56,6 +56,8 @@ function EditarVentaPageContent() {
           categoriaId: ventaConDatos.categoriaId || '',
           servicioId: ventaConDatos.servicioId || '',
           servicioCorreo: ventaConDatos.servicioCorreo || '',
+          fechaInicio: ventaConDatos.fechaInicio || new Date(),
+          fechaFin: ventaConDatos.fechaFin || new Date(),
         });
       } catch (error) {
         console.error('Error cargando venta:', error);

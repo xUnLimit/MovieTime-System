@@ -130,23 +130,8 @@ export function ServicioEditForm({ servicio }: ServicioEditFormProps) {
   const estadoValue = watch('estado');
   const notasValue = watch('notas');
 
-  // Auto-actualizar precio cuando cambia el ciclo (DESPUÉS de inicialización)
-  useEffect(() => {
-    if (!cicloInicializado) return;
-
-    const cicloChanged = lastCicloId !== null && lastCicloId !== cicloPagoValue;
-    if (cicloChanged && categoriaIdValue) {
-      const categoria = categorias.find((c) => c.id === categoriaIdValue);
-      if (categoria?.planes) {
-        const planMatch = categoria.planes.find((p) => p.cicloPago === cicloPagoValue);
-        if (planMatch) {
-          setValue('costoServicio', planMatch.precio.toFixed(2));
-        }
-      }
-    }
-
-    setLastCicloId(cicloPagoValue);
-  }, [cicloPagoValue, categoriaIdValue, categorias, setValue, cicloInicializado, lastCicloId]);
+  // NO auto-actualizar precio cuando cambia el ciclo en modo edición
+  // El usuario puede tener un costo personalizado que no debe ser sobreescrito
 
   // Auto-calcular fechaVencimiento cuando cambia el ciclo (DESPUÉS de inicialización)
   useEffect(() => {

@@ -1,316 +1,274 @@
 /**
  * AccionesVentaDialog Component
  *
- * Modal showing actions for a specific venta notification
+ * Modal de acciones para notificaciones de ventas según diseño v2.1
  *
- * Behavior:
- * - If venta is NOT resaltada: Show action options (renovar, cortar, resaltar)
- * - If venta IS resaltada: Show confirmation modal for the action
+ * Flujo 1 - Venta NO Resaltada:
+ *   Opciones: Cortar o Resaltar (RadioGroup)
+ *
+ * Flujo 2 - Venta YA Resaltada:
+ *   Confirmación directa para cortar
  */
 
 'use client';
 
-import { useState } from 'react';
-import { AlertCircle, RefreshCw, Scissors, Star } from 'lucide-react';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
+import { useState, useEffect } from 'react';
+import { Scissors, Star, X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
-import { useNotificacionesStore } from '@/store/notificacionesStore';
-import { useVentasStore } from '@/store/ventasStore';
 import type { NotificacionVenta } from '@/types/notificaciones';
-import { toast } from 'sonner';
 
 interface AccionesVentaDialogProps {
   notificacion: (NotificacionVenta & { id: string }) | null;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
+  onCortar: () => Promise<void>;
+  onResaltar: () => Promise<void>;
+  onDescartar: () => Promise<void>;
 }
-
-type ActionType = 'renovar' | 'cortar' | 'resaltar' | null;
 
 export function AccionesVentaDialog({
   notificacion,
   isOpen,
   onOpenChange,
+  onCortar,
+  onResaltar,
+  onDescartar,
 }: AccionesVentaDialogProps) {
-  const [selectedAction, setSelectedAction] = useState<ActionType>(null);
-  const [isConfirming, setIsConfirming] = useState(false);
+  const [accion, setAccion] = useState<'cortar' | 'resaltar' | 'descartar'>('resaltar');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { toggleResaltada, deleteNotificacionesPorVenta } = useNotificacionesStore();
-  const { deleteVenta } = useVentasStore();
+  const yaResaltada = notificacion?.resaltada ?? false;
+
+  // Reset accion when notification changes (e.g. opening for different row)
+  useEffect(() => {
+    setAccion(yaResaltada ? 'cortar' : 'resaltar');
+  }, [notificacion?.id, yaResaltada]);
 
   if (!notificacion) return null;
 
-  /**
-   * Handle action selection
-   * If venta is resaltada, go directly to confirmation
-   * Otherwise, ask user which action they want
-   */
-  const handleSelectAction = (action: ActionType) => {
-    if (notificacion.resaltada) {
-      // Direct to confirmation
-      setSelectedAction(action);
-      setIsConfirming(true);
-    } else {
-      // Show options
-      setSelectedAction(action);
-    }
-  };
+  const diasRestantes = notificacion.diasRestantes;
 
-  /**
-   * Execute the selected action
-   */
-  const handleConfirmAction = async () => {
+  const estadoColor =
+    diasRestantes < 0
+      ? 'border-red-500/40 bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400'
+      : diasRestantes === 0
+        ? 'border-red-500/40 bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400'
+        : diasRestantes <= 3
+          ? 'border-orange-500/40 bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-400'
+          : 'border-yellow-500/40 bg-yellow-50 text-yellow-700 dark:bg-yellow-950/30 dark:text-yellow-400';
+
+  const estadoTexto =
+    diasRestantes < 0
+      ? `${Math.abs(diasRestantes)} día${Math.abs(diasRestantes) !== 1 ? 's' : ''} vencida`
+      : diasRestantes === 0
+        ? 'Vence hoy'
+        : `${diasRestantes} día${diasRestantes !== 1 ? 's' : ''} restante${diasRestantes !== 1 ? 's' : ''}`;
+
+  const handleConfirmar = async () => {
+    setIsSubmitting(true);
     try {
-      switch (selectedAction) {
-        case 'renovar':
-          toast.info('Redirigiendo a formulario de renovación...');
-          // In real implementation, would redirect to renewal form
-          // window.location.href = `/ventas/${notificacion.ventaId}/renovar`;
-          break;
-
-        case 'cortar':
-          toast.loading('Cortando servicio...');
-          // Delete the venta
-          await deleteVenta(
-            notificacion.ventaId,
-            notificacion.servicioId,
-            undefined,
-            true
-          );
-          // Delete associated notifications
-          await deleteNotificacionesPorVenta(notificacion.ventaId);
-          toast.success('Servicio cortado exitosamente');
-          break;
-
-        case 'resaltar':
-          await toggleResaltada(notificacion.id, !notificacion.resaltada);
-          toast.success(
-            notificacion.resaltada
-              ? 'Notificación desmarcada'
-              : 'Notificación marcada como importante'
-          );
-          break;
-
-        default:
-          break;
+      if (accion === 'cortar') {
+        await onCortar();
+      } else if (accion === 'descartar') {
+        await onDescartar();
+      } else {
+        await onResaltar();
       }
-
-      // Close dialogs
-      setSelectedAction(null);
-      setIsConfirming(false);
       onOpenChange(false);
-    } catch (error) {
-      console.error('Error executing action:', error);
-      toast.error('Error al ejecutar la acción');
+    } catch {
+      // error handled in parent
+    } finally {
+      setIsSubmitting(false);
+      setAccion(yaResaltada ? 'cortar' : 'resaltar');
     }
   };
 
-  // If resaltada, show options directly in confirmation dialog
-  if (notificacion.resaltada) {
-    return (
-      <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
-        <AlertDialogContent className="max-w-md">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-red-600" />
-              Venta Importante
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              <div className="mt-4 space-y-2 text-sm">
-                <p>
-                  <strong>Cliente:</strong> {notificacion.clienteNombre}
-                </p>
-                <p>
-                  <strong>Servicio:</strong> {notificacion.servicioNombre}
-                </p>
-                <p>
-                  <strong>Categoría:</strong> {notificacion.categoriaNombre}
-                </p>
-                <p>
-                  <strong>Vencimiento:</strong>{' '}
-                  {notificacion.fechaFin.toLocaleDateString()}
-                </p>
-                <p className="pt-2 text-gray-600">
-                  Esta venta está marcada como importante. ¿Qué deseas hacer?
-                </p>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
+  const handleClose = () => {
+    if (!isSubmitting) {
+      onOpenChange(false);
+      setAccion(yaResaltada ? 'cortar' : 'resaltar');
+    }
+  };
 
-          <div className="space-y-2">
-            <Button
-              variant="default"
-              className="w-full justify-start gap-2"
-              onClick={() => handleSelectAction('renovar')}
-            >
-              <RefreshCw className="h-4 w-4" />
-              Renovar Servicio
-            </Button>
-            <Button
-              variant="destructive"
-              className="w-full justify-start gap-2"
-              onClick={() => handleSelectAction('cortar')}
-            >
-              <Scissors className="h-4 w-4" />
-              Cortar Servicio
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-2"
-              onClick={() => handleSelectAction('resaltar')}
-            >
-              <Star className="h-4 w-4" />
-              Desmarcar como Importante
-            </Button>
-          </div>
-
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    );
-  }
-
-  // If NOT resaltada, show action confirmation
   return (
-    <>
-      {/* Main options dialog */}
-      <Dialog open={isOpen && !isConfirming} onOpenChange={onOpenChange}>
-        <DialogContent>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-[420px] p-0 overflow-hidden gap-0">
+
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4 bg-muted/30">
           <DialogHeader>
-            <DialogTitle>Acciones para Venta</DialogTitle>
-            <DialogDescription>
-              Selecciona qué acción deseas realizar para esta venta
-            </DialogDescription>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <div className="flex items-center justify-center w-7 h-7 rounded-full bg-muted">
+                <Scissors className="h-4 w-4 text-muted-foreground" />
+              </div>
+              {'Cortar — Venta'}
+            </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-3">
-            {/* Venta info */}
-            <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="font-semibold">{notificacion.clienteNombre}</p>
-                  <p className="text-sm text-gray-600">
-                    {notificacion.servicioNombre}
-                  </p>
-                </div>
-                <Badge variant="outline">{notificacion.estado}</Badge>
-              </div>
-              <p className="text-xs text-gray-500">
-                Vence: {notificacion.fechaFin.toLocaleDateString()} (
-                {notificacion.diasRestantes >= 0
-                  ? `${notificacion.diasRestantes} días`
-                  : `${Math.abs(notificacion.diasRestantes)} días vencida`}
-                )
-              </p>
+          {/* Info de la venta */}
+          <div className="mt-3 space-y-1 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground w-16 shrink-0">Cliente</span>
+              <span className="font-medium">{notificacion.clienteNombre}</span>
             </div>
-
-            {/* Actions */}
-            <div className="space-y-2 pt-4">
-              <Button
-                variant="default"
-                className="w-full justify-start gap-2"
-                onClick={() => handleSelectAction('renovar')}
-              >
-                <RefreshCw className="h-4 w-4" />
-                Renovar Servicio
-              </Button>
-              <Button
-                variant="destructive"
-                className="w-full justify-start gap-2"
-                onClick={() => handleSelectAction('cortar')}
-              >
-                <Scissors className="h-4 w-4" />
-                Cortar Servicio
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start gap-2"
-                onClick={() => handleSelectAction('resaltar')}
-              >
-                <Star className="h-4 w-4" />
-                Marcar como Importante
-              </Button>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground w-16 shrink-0">Servicio</span>
+              <span className="font-medium">{notificacion.servicioNombre}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground w-16 shrink-0">Estado</span>
+              <Badge variant="outline" className={`text-xs font-normal ${estadoColor}`}>
+                {estadoTexto}
+              </Badge>
             </div>
           </div>
+        </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        {/* Cuerpo del modal */}
+        <div className="px-6 py-4">
+          {yaResaltada ? (
+            // Flujo 2: Resaltada — elegir entre Cortar o Descartar resaltado
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-muted-foreground">¿Qué acción deseas realizar?</p>
+              <RadioGroup
+                value={accion}
+                onValueChange={(v) => setAccion(v as 'cortar' | 'descartar')}
+                className="space-y-2"
+              >
+                {/* Opción Cortar */}
+                <label
+                  htmlFor="opt-cortar-r"
+                  className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
+                    accion === 'cortar'
+                      ? 'border-orange-400 bg-orange-50 dark:border-orange-700 dark:bg-orange-950/20'
+                      : 'border-border hover:border-muted-foreground/40'
+                  }`}
+                >
+                  <RadioGroupItem value="cortar" id="opt-cortar-r" className="mt-0.5" />
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5">
+                      <Scissors className="h-3.5 w-3.5 text-orange-600" />
+                      <span className="text-sm font-medium">Cortar venta ahora</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Inactivar venta + liberar perfil + eliminar notificación
+                    </p>
+                  </div>
+                </label>
 
-      {/* Confirmation dialog */}
-      <AlertDialog open={isConfirming} onOpenChange={setIsConfirming}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {selectedAction === 'renovar'
-                ? '¿Renovar Servicio?'
-                : selectedAction === 'cortar'
-                  ? '¿Cortar Servicio?'
-                  : '¿Marcar como Importante?'}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {selectedAction === 'renovar' && (
-                <>
-                  ¿Deseas renovar el servicio de <strong>{notificacion.clienteNombre}</strong>?
-                  <div className="mt-2 text-sm">
-                    Se redirigirá al formulario de renovación.
+                {/* Opción Descartar resaltado */}
+                <label
+                  htmlFor="opt-descartar"
+                  className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
+                    accion === 'descartar'
+                      ? 'border-blue-400 bg-blue-50 dark:border-blue-700 dark:bg-blue-950/20'
+                      : 'border-border hover:border-muted-foreground/40'
+                  }`}
+                >
+                  <RadioGroupItem value="descartar" id="opt-descartar" className="mt-0.5" />
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5">
+                      <X className="h-3.5 w-3.5 text-blue-500" />
+                      <span className="text-sm font-medium">Descartar resaltado</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Quita el resaltado naranja, la notificación vuelve a su estado normal
+                    </p>
                   </div>
-                </>
-              )}
-              {selectedAction === 'cortar' && (
-                <>
-                  ¿Deseas cortar el servicio de <strong>{notificacion.clienteNombre}</strong>?
-                  <div className="mt-2 text-sm text-red-600">
-                    Esta acción no se puede deshacer.
+                </label>
+              </RadioGroup>
+            </div>
+          ) : (
+            // Flujo 1: Normal — elegir entre Cortar o Resaltar
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-muted-foreground">¿Qué acción deseas realizar?</p>
+              <RadioGroup
+                value={accion}
+                onValueChange={(v) => setAccion(v as 'cortar' | 'resaltar')}
+                className="space-y-2"
+              >
+                {/* Opción Cortar */}
+                <label
+                  htmlFor="opt-cortar"
+                  className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
+                    accion === 'cortar'
+                      ? 'border-orange-400 bg-orange-50 dark:border-orange-700 dark:bg-orange-950/20'
+                      : 'border-border hover:border-muted-foreground/40'
+                  }`}
+                >
+                  <RadioGroupItem value="cortar" id="opt-cortar" className="mt-0.5" />
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5">
+                      <Scissors className="h-3.5 w-3.5 text-orange-600" />
+                      <span className="text-sm font-medium">Cortar venta ahora</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Inactivar venta + liberar perfil + eliminar notificación
+                    </p>
                   </div>
-                </>
-              )}
-              {selectedAction === 'resaltar' && (
-                <>
-                  ¿Deseas marcar esta venta como importante?
-                  <div className="mt-2 text-sm">
-                    Se destacará en la lista de notificaciones.
-                  </div>
-                </>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
+                </label>
 
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmAction}
-              className={selectedAction === 'cortar' ? 'bg-red-600 hover:bg-red-700' : ''}
-            >
-              Confirmar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+                {/* Opción Resaltar */}
+                <label
+                  htmlFor="opt-resaltar"
+                  className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
+                    accion === 'resaltar'
+                      ? 'border-yellow-400 bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-950/20'
+                      : 'border-border hover:border-muted-foreground/40'
+                  }`}
+                >
+                  <RadioGroupItem value="resaltar" id="opt-resaltar" className="mt-0.5" />
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5">
+                      <Star className="h-3.5 w-3.5 text-yellow-500" />
+                      <span className="text-sm font-medium">Resaltar para seguimiento</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Marca la notificación en naranja para no perderla de vista
+                    </p>
+                  </div>
+                </label>
+              </RadioGroup>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <DialogFooter className="px-6 pb-5 pt-2 flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleClose}
+            disabled={isSubmitting}
+            className="flex-1"
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            onClick={handleConfirmar}
+            disabled={isSubmitting}
+            className="flex-1 bg-purple-600 hover:bg-purple-700 text-white border-transparent"
+          >
+            {isSubmitting
+              ? 'Procesando...'
+              : accion === 'cortar'
+                ? 'Cortar'
+                : accion === 'descartar'
+                  ? 'Descartar resaltado'
+                  : 'Resaltar'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

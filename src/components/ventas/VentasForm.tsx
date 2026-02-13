@@ -575,6 +575,7 @@ export function VentasForm() {
         createVenta({
           clienteId: clienteIdValue,
           clienteNombre,
+          clienteTelefono: clienteSeleccionado?.telefono || '',  // For WhatsApp notifications
           metodoPagoId: metodoPagoIdValue,
           metodoPagoNombre,
           moneda,

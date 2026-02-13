@@ -17,102 +17,24 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Bell, AlertCircle, ShoppingCart, Banknote, ArrowRight } from 'lucide-react';
+import { Bell, ShoppingCart, Banknote, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { Badge } from '@/components/ui/badge';
 import { useNotificacionesStore } from '@/store/notificacionesStore';
-import type { Notificacion } from '@/types/notificaciones';
 import { esNotificacionVenta, esNotificacionServicio } from '@/types/notificaciones';
-
-type BadgeColor = 'default' | 'destructive' | 'secondary' | 'outline';
-
-/**
- * Get badge color based on notification priority hierarchy
- * Priority: critica (red) > resaltada (orange) > alta/media (yellow) > baja (gray)
- */
-function getBadgeColor(notificaciones: (Notificacion & { id: string })[]): BadgeColor {
-  // Check for any critica
-  if (notificaciones.some((n) => n.prioridad === 'critica')) {
-    return 'destructive'; // Red
-  }
-
-  // Check for any resaltadas
-  if (notificaciones.some((n) => n.resaltada)) {
-    return 'secondary'; // Orange
-  }
-
-  // Check for any alta or media
-  if (notificaciones.some((n) => n.prioridad === 'alta' || n.prioridad === 'media')) {
-    return 'outline'; // Yellow
-  }
-
-  // Default: gray
-  return 'default';
-}
-
-/**
- * Get badge label based on notification count and types
- */
-function getBadgeLabel(notificaciones: (Notificacion & { id: string })[]): string {
-  if (notificaciones.length === 0) return '';
-  if (notificaciones.length > 99) return '99+';
-  return notificaciones.length.toString();
-}
-
-/**
- * Format notification title for dropdown display
- */
-function formatNotificationTitle(notif: Notificacion & { id: string }): string {
-  if (esNotificacionVenta(notif)) {
-    return `${notif.clienteNombre} - ${notif.servicioNombre}`;
-  }
-
-  if (esNotificacionServicio(notif)) {
-    return `${notif.servicioNombre} (${notif.categoriaNombre})`;
-  }
-
-  // Fallback (shouldn't reach here with union type)
-  return 'Notificación';
-}
-
-/**
- * Get color class based on priority
- */
-function getPrioridadColor(prioridad: string): string {
-  switch (prioridad) {
-    case 'critica':
-      return 'text-red-600';
-    case 'alta':
-      return 'text-orange-600';
-    case 'media':
-      return 'text-yellow-600';
-    case 'baja':
-      return 'text-blue-600';
-    default:
-      return 'text-gray-600';
-  }
-}
 
 export function NotificationBell() {
   const { notificaciones, fetchNotificaciones } = useNotificacionesStore();
   const [isOpen, setIsOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
 
-  // Fetch notifications on mount and when dropdown opens
+  // Fetch notifications on mount
   useEffect(() => {
-    setMounted(true);
     fetchNotificaciones();
   }, [fetchNotificaciones]);
-
-  if (!mounted) {
-    return null; // Prevent hydration mismatch
-  }
 
   // Get unread notifications
   const unreadNotifications = notificaciones.filter((n) => !n.leida);
@@ -121,41 +43,42 @@ export function NotificationBell() {
   const ventasPorVencer = unreadNotifications.filter(esNotificacionVenta).length;
   const serviciosPorPagar = unreadNotifications.filter(esNotificacionServicio).length;
 
-  const badgeColor = getBadgeColor(unreadNotifications);
-  const badgeLabel = getBadgeLabel(unreadNotifications);
+  // Color logic: red if any critica/vencida, yellow if any unread, off if none
+  const hasRed = unreadNotifications.some((n) => n.prioridad === 'critica');
+  const hasUnread = unreadNotifications.length > 0;
+  const bellColor = hasRed ? 'text-red-500' : hasUnread ? 'text-yellow-500' : 'text-muted-foreground';
+  const dotColor = hasRed ? 'bg-red-500' : 'bg-yellow-500';
 
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
-          size="icon"
-          className="relative"
+          className="relative h-10 w-10 rounded-full hover:bg-muted/50"
           title="Notificaciones"
         >
-          <Bell className="h-5 w-5" />
+          <Bell className={`h-6 w-6 ${bellColor}`} />
 
-          {/* Badge showing notification count */}
-          {badgeLabel && (
-            <Badge
-              variant={badgeColor}
-              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
-            >
-              {badgeLabel}
-            </Badge>
+          {/* Pulsing dot when there are unread notifications */}
+          {hasUnread && (
+            <span className={`absolute top-1 right-1 block h-2.5 w-2.5 rounded-full ${dotColor}`}>
+              <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 ${dotColor}`} />
+            </span>
           )}
         </Button>
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="w-80 p-4">
         <div className="grid gap-4">
-          {/* Header */}
-          <div className="space-y-2">
-            <h4 className="font-medium leading-none">Resumen de Notificaciones</h4>
-            <p className="text-sm text-muted-foreground">
-              Tienes {unreadNotifications.length} alerta(s) pendiente(s).
-            </p>
-          </div>
+          {/* Header - solo cuando hay notificaciones */}
+          {unreadNotifications.length > 0 && (
+            <div className="space-y-2">
+              <h4 className="font-medium leading-none">Resumen de Notificaciones</h4>
+              <p className="text-sm text-muted-foreground">
+                Tienes {unreadNotifications.length} alerta(s) pendiente(s).
+              </p>
+            </div>
+          )}
 
           {/* Summary */}
           {unreadNotifications.length > 0 ? (
@@ -183,15 +106,17 @@ export function NotificationBell() {
               )}
             </div>
           ) : (
-            <div className="text-center text-sm text-muted-foreground py-4">
-              No hay notificaciones pendientes
+            <div className="text-center space-y-2 py-4">
+              <Bell className="h-8 w-8 mx-auto text-muted-foreground" />
+              <h4 className="font-medium leading-none">Todo al día</h4>
+              <p className="text-sm text-muted-foreground">No tienes notificaciones pendientes.</p>
             </div>
           )}
 
           {/* Footer - Ver todas */}
           {unreadNotifications.length > 0 && (
             <a
-              href="/notificaciones-test"
+              href="/notificaciones"
               className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
               onClick={() => setIsOpen(false)}
             >

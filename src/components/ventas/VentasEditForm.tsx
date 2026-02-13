@@ -449,10 +449,11 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
       const descuento = Number(data.descuento) || 0;
       const precioFinalValue = Math.max(precio * (1 - descuento / 100), 0);
 
-      // Actualizar SOLO metadatos en VentaDoc (NO datos de pago)
+      // Actualizar SOLO metadatos en VentaDoc + campos denormalizados para notificaciones
       await update(COLLECTIONS.VENTAS, venta.id, {
         clienteId: data.clienteId,
         clienteNombre: clienteSeleccionado ? `${clienteSeleccionado.nombre} ${clienteSeleccionado.apellido}` : venta.clienteNombre,
+        clienteTelefono: clienteSeleccionado?.telefono || '',  // For WhatsApp notifications
         categoriaId: data.categoriaId,
         servicioId: data.servicioId,
         servicioNombre: servicio?.nombre || venta.servicioNombre,
@@ -462,6 +463,16 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
         codigo: data.codigo || '',
         estado: data.estado || 'activo',
         notas: data.notas || '',
+        // ✅ DENORMALIZED FIELDS (for notifications sync)
+        fechaInicio: data.fechaInicio,
+        fechaFin: data.fechaFin,
+        cicloPago: plan?.cicloPago || venta.cicloPago,
+        metodoPagoId: data.metodoPagoId,
+        metodoPagoNombre: metodoPagoSeleccionado?.nombre || venta.metodoPagoNombre || '',
+        moneda: metodoPagoSeleccionado?.moneda || venta.moneda || 'USD',
+        precio,
+        descuento,
+        precioFinal: precioFinalValue,
       });
 
       // Actualizar el pago más reciente (fuente de verdad para datos de pago)

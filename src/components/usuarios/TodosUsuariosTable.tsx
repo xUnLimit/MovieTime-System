@@ -7,13 +7,6 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -240,19 +233,26 @@ export function TodosUsuariosTable({
               className="pl-9"
             />
           </div>
-          <Select value={metodoPagoFilter} onValueChange={setMetodoPagoFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Todos los métodos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos los métodos</SelectItem>
-              {metodosPagoUnicos.map((metodo) => (
-                <SelectItem key={metodo} value={metodo}>
-                  {metodo}
-                </SelectItem>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="w-[180px] justify-between font-normal">
+                {metodoPagoFilter === 'todos' ? 'Todos los métodos' : metodoPagoFilter}
+                <svg className="h-4 w-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-[180px]">
+              {[{ value: 'todos', label: 'Todos los métodos' }, ...metodosPagoUnicos.map(m => ({ value: m, label: m }))].map(op => (
+                <DropdownMenuItem
+                  key={op.value}
+                  onClick={() => setMetodoPagoFilter(op.value)}
+                  className="flex items-center justify-between"
+                >
+                  {op.label}
+                  {metodoPagoFilter === op.value && <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>}
+                </DropdownMenuItem>
               ))}
-            </SelectContent>
-          </Select>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <DataTable
