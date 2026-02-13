@@ -17,52 +17,60 @@ interface CambiosModalProps {
 export function CambiosModal({ open, onOpenChange, entidadNombre, cambios }: CambiosModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-xl">
-            Cambios Realizados en <span className="text-purple-500">{entidadNombre}</span>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="pb-4 border-b border-border">
+          <DialogTitle className="text-2xl font-bold">
+            Cambios en <span className="text-purple-500">{entidadNombre}</span>
           </DialogTitle>
-          <p className="text-sm text-muted-foreground mt-1">
-            {cambios.length} {cambios.length === 1 ? 'campo modificado' : 'campos modificados'}
-          </p>
         </DialogHeader>
 
-        <div className="space-y-3 mt-4">
+        <div className="space-y-4 mt-6">
           {cambios.map((cambio, idx) => (
-            <div key={idx} className="border border-border rounded-lg p-4 hover:border-purple-500/50 transition-colors">
-              <div className="flex items-center gap-2 mb-3">
-                <Badge variant="outline" className="text-xs font-medium bg-purple-500/10 text-purple-600 border-purple-500/30">
+            <div
+              key={idx}
+              className="group relative border-2 border-border rounded-xl p-5 hover:border-purple-500/40 hover:shadow-lg hover:shadow-purple-500/10 transition-all duration-200"
+            >
+              {/* Campo Label */}
+              <div className="flex items-center justify-between mb-4">
+                <Badge
+                  variant="outline"
+                  className="text-sm font-semibold bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/40 px-3 py-1"
+                >
                   {cambio.campo}
                 </Badge>
               </div>
 
-              <div className="grid grid-cols-[1fr,auto,1fr] gap-6 items-center">
+              {/* Comparación Antes/Después */}
+              <div className="grid grid-cols-[1fr,auto,1fr] gap-8 items-stretch">
                 {/* Valor Anterior */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Antes</p>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-sm shadow-red-500/50"></div>
+                    <p className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-widest">Antes</p>
                   </div>
-                  <div className="bg-red-500/10 border border-red-500/30 rounded-md px-4 py-3 min-h-[48px] flex items-center">
-                    <p className="text-sm font-medium text-red-700 dark:text-red-300 break-all">
+                  <div className="relative bg-gradient-to-br from-red-500/5 to-red-500/10 border-2 border-red-500/30 rounded-lg px-5 py-4 min-h-[60px] flex items-center shadow-sm">
+                    <p className="text-base font-semibold text-red-800 dark:text-red-200 break-all leading-relaxed">
                       {formatValue(cambio.anterior, cambio.tipo)}
                     </p>
                   </div>
                 </div>
 
-                {/* Flecha */}
-                <div className="flex items-center justify-center">
-                  <ArrowRight className="h-5 w-5 text-purple-500" strokeWidth={2.5} />
+                {/* Flecha con animación */}
+                <div className="flex items-center justify-center py-8">
+                  <div className="relative">
+                    <ArrowRight className="h-7 w-7 text-purple-500 group-hover:text-purple-600 transition-colors" strokeWidth={3} />
+                    <div className="absolute inset-0 bg-purple-500/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  </div>
                 </div>
 
                 {/* Valor Nuevo */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Después</p>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-sm shadow-green-500/50"></div>
+                    <p className="text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-widest">Después</p>
                   </div>
-                  <div className="bg-green-500/10 border border-green-500/30 rounded-md px-4 py-3 min-h-[48px] flex items-center">
-                    <p className="text-sm font-medium text-green-700 dark:text-green-300 break-all">
+                  <div className="relative bg-gradient-to-br from-green-500/5 to-green-500/10 border-2 border-green-500/30 rounded-lg px-5 py-4 min-h-[60px] flex items-center shadow-sm">
+                    <p className="text-base font-semibold text-green-800 dark:text-green-200 break-all leading-relaxed">
                       {formatValue(cambio.nuevo, cambio.tipo)}
                     </p>
                   </div>
