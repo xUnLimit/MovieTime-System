@@ -219,7 +219,6 @@ export const useServiciosStore = create<ServiciosState>()(
             ...servicio,
             ...finalUpdates
           });
-          const resumenCambios = generarResumenCambios(cambios);
 
           set((state) => ({
             servicios: state.servicios.map((s) =>

@@ -156,7 +156,6 @@ export const useMetodosPagoStore = create<MetodosPagoState>()(
             ...oldMetodo,
             ...updates
           }) : [];
-          const resumenCambios = generarResumenCambios(cambios);
 
           set((state) => {
             const updatedMetodos = state.metodosPago.map((metodo) =>

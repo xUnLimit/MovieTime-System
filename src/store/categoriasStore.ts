@@ -139,7 +139,6 @@ export const useCategoriasStore = create<CategoriasState>()(
             ...oldCategoria,
             ...updates
           }) : [];
-          const resumenCambios = generarResumenCambios(cambios);
 
           set((state) => {
             const updatedCategorias = state.categorias.map((cat) =>

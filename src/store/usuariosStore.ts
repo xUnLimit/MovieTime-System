@@ -199,7 +199,6 @@ export const useUsuariosStore = create<UsuariosState>()(
             ...oldUsuario,
             ...updates
           }) : [];
-          const resumenCambios = generarResumenCambios(cambios);
 
           // Registrar en log de actividad con cambios
           useActivityLogStore.getState().addLog({
