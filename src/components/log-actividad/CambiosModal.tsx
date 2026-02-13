@@ -2,7 +2,6 @@
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CambioLog } from '@/types';
-import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ArrowRight } from 'lucide-react';
@@ -17,60 +16,58 @@ interface CambiosModalProps {
 export function CambiosModal({ open, onOpenChange, entidadNombre, cambios }: CambiosModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="pb-4 border-b border-border">
-          <DialogTitle className="text-2xl font-bold">
-            Cambios en <span className="text-purple-500">{entidadNombre}</span>
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto p-0 gap-0">
+        {/* Header moderno con gradiente */}
+        <div className="sticky top-0 z-10 bg-gradient-to-r from-purple-500/10 via-purple-500/5 to-transparent border-b border-purple-500/20 backdrop-blur-sm">
+          <DialogHeader className="p-6 pb-4">
+            <DialogTitle className="text-lg font-medium text-foreground">
+              Cambios en <span className="text-purple-500 font-semibold">{entidadNombre}</span>
+            </DialogTitle>
+          </DialogHeader>
+        </div>
 
-        <div className="space-y-4 mt-6">
+        {/* Contenido */}
+        <div className="p-6 space-y-3">
           {cambios.map((cambio, idx) => (
             <div
               key={idx}
-              className="group relative border-2 border-border rounded-xl p-5 hover:border-purple-500/40 hover:shadow-lg hover:shadow-purple-500/10 transition-all duration-200"
+              className="group relative bg-card border border-border/50 rounded-lg p-4 hover:border-purple-500/30 hover:bg-purple-500/5 transition-all duration-200"
             >
-              {/* Campo Label */}
-              <div className="flex items-center justify-between mb-4">
-                <Badge
-                  variant="outline"
-                  className="text-sm font-semibold bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/40 px-3 py-1"
-                >
+              {/* Campo Label minimalista */}
+              <div className="mb-3">
+                <span className="text-xs font-medium text-purple-600 dark:text-purple-400 uppercase tracking-wider">
                   {cambio.campo}
-                </Badge>
+                </span>
               </div>
 
-              {/* Comparación Antes/Después */}
-              <div className="grid grid-cols-[1fr,auto,1fr] gap-8 items-stretch">
+              {/* Comparación compacta */}
+              <div className="flex items-center gap-4">
                 {/* Valor Anterior */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-sm shadow-red-500/50"></div>
-                    <p className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-widest">Antes</p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>
+                    <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Anterior</span>
                   </div>
-                  <div className="relative bg-gradient-to-br from-red-500/5 to-red-500/10 border-2 border-red-500/30 rounded-lg px-5 py-4 min-h-[60px] flex items-center shadow-sm">
-                    <p className="text-base font-semibold text-red-800 dark:text-red-200 break-all leading-relaxed">
+                  <div className="bg-red-500/5 border border-red-500/20 rounded-md px-3 py-2">
+                    <p className="text-sm text-red-700 dark:text-red-300 truncate" title={formatValue(cambio.anterior, cambio.tipo)}>
                       {formatValue(cambio.anterior, cambio.tipo)}
                     </p>
                   </div>
                 </div>
 
-                {/* Flecha con animación */}
-                <div className="flex items-center justify-center py-8">
-                  <div className="relative">
-                    <ArrowRight className="h-7 w-7 text-purple-500 group-hover:text-purple-600 transition-colors" strokeWidth={3} />
-                    <div className="absolute inset-0 bg-purple-500/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                  </div>
+                {/* Flecha minimalista */}
+                <div className="flex-shrink-0 pt-5">
+                  <ArrowRight className="h-4 w-4 text-muted-foreground/50" />
                 </div>
 
                 {/* Valor Nuevo */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-sm shadow-green-500/50"></div>
-                    <p className="text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-widest">Después</p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                    <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Actual</span>
                   </div>
-                  <div className="relative bg-gradient-to-br from-green-500/5 to-green-500/10 border-2 border-green-500/30 rounded-lg px-5 py-4 min-h-[60px] flex items-center shadow-sm">
-                    <p className="text-base font-semibold text-green-800 dark:text-green-200 break-all leading-relaxed">
+                  <div className="bg-green-500/5 border border-green-500/20 rounded-md px-3 py-2">
+                    <p className="text-sm text-green-700 dark:text-green-300 truncate" title={formatValue(cambio.nuevo, cambio.tipo)}>
                       {formatValue(cambio.nuevo, cambio.tipo)}
                     </p>
                   </div>
