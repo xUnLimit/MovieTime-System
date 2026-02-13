@@ -194,10 +194,10 @@ export function LogTimeline({
     {
       key: 'detalles',
       header: 'Detalles',
-      align: 'left',
+      align: 'center',
       width: '28%',
       render: (item) => (
-        <div className="text-sm text-muted-foreground">
+        <div className="text-sm text-foreground px-2">
           {item.detalles}
         </div>
       ),
@@ -211,16 +211,16 @@ export function LogTimeline({
         <div className="flex items-center justify-center">
           {item.cambios && item.cambios.length > 0 ? (
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={() => handleOpenCambios(item)}
-              className="h-8 px-3 text-xs"
+              className="h-8 px-3 text-xs font-medium text-purple-600 hover:bg-purple-500/10 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 transition-colors"
             >
-              <Eye className="h-3.5 w-3.5 mr-1.5" />
+              <Eye className="h-4 w-4 mr-1.5" />
               Ver ({item.cambios.length})
             </Button>
           ) : (
-            <span className="text-xs text-muted-foreground">—</span>
+            <span className="text-xs text-muted-foreground/40">—</span>
           )}
         </div>
       ),
