@@ -16,18 +16,14 @@ interface CambiosModalProps {
 export function CambiosModal({ open, onOpenChange, entidadNombre, cambios }: CambiosModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto p-0 gap-0">
-        {/* Header moderno con gradiente */}
-        <div className="sticky top-0 z-10 bg-gradient-to-r from-purple-500/10 via-purple-500/5 to-transparent border-b border-purple-500/20 backdrop-blur-sm">
-          <DialogHeader className="p-6 pb-4">
-            <DialogTitle className="text-lg font-medium text-foreground">
-              Cambios en <span className="text-purple-500 font-semibold">{entidadNombre}</span>
-            </DialogTitle>
-          </DialogHeader>
-        </div>
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-lg font-medium text-foreground">
+            Cambios en <span className="text-purple-500 font-semibold">{entidadNombre}</span>
+          </DialogTitle>
+        </DialogHeader>
 
-        {/* Contenido */}
-        <div className="p-6 space-y-3">
+        <div className="space-y-3">
           {cambios.map((cambio, idx) => (
             <div
               key={idx}
