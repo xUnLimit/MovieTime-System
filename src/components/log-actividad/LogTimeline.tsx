@@ -156,7 +156,7 @@ export function LogTimeline({
       key: 'timestamp',
       header: 'Fecha',
       sortable: true,
-      width: '18%',
+      width: '16%',
       render: (item) => (
         <div className="text-sm">
           {format(new Date(item.timestamp), 'dd MMM yyyy, hh:mm:ss a', { locale: es })}
@@ -168,7 +168,7 @@ export function LogTimeline({
       header: 'Usuario',
       sortable: true,
       align: 'center',
-      width: '18%',
+      width: '15%',
       render: (item) => <div className="text-sm">{item.usuarioEmail}</div>,
     },
     {
@@ -176,7 +176,7 @@ export function LogTimeline({
       header: 'Acción',
       sortable: true,
       align: 'center',
-      width: '18%',
+      width: '12%',
       render: (item) => (
         <Badge variant="outline" className={getActionBadgeStyle(item.accion)}>
           {getActionLabel(item.accion)}
@@ -188,26 +188,39 @@ export function LogTimeline({
       header: 'Entidad',
       sortable: true,
       align: 'center',
-      width: '18%',
+      width: '12%',
       render: (item) => <div className="text-sm">{getEntityLabel(item.entidad)}</div>,
     },
     {
       key: 'detalles',
       header: 'Detalles',
-      align: 'center',
+      align: 'left',
+      width: '28%',
       render: (item) => (
-        <div className="flex items-center justify-center gap-2">
-          <span className="text-sm">{item.detalles}</span>
-          {item.cambios && item.cambios.length > 0 && (
+        <div className="text-sm text-muted-foreground">
+          {item.detalles}
+        </div>
+      ),
+    },
+    {
+      key: 'cambios',
+      header: 'Cambios',
+      align: 'center',
+      width: '12%',
+      render: (item) => (
+        <div className="flex items-center justify-center">
+          {item.cambios && item.cambios.length > 0 ? (
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={() => handleOpenCambios(item)}
-              className="h-6 px-2 text-xs"
+              className="h-8 px-3 text-xs"
             >
-              <Eye className="h-3 w-3 mr-1" />
-              Ver cambios ({item.cambios.length})
+              <Eye className="h-3.5 w-3.5 mr-1.5" />
+              Ver ({item.cambios.length})
             </Button>
+          ) : (
+            <span className="text-xs text-muted-foreground">—</span>
           )}
         </div>
       ),

@@ -17,39 +17,52 @@ interface CambiosModalProps {
 export function CambiosModal({ open, onOpenChange, entidadNombre, cambios }: CambiosModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Cambios en {entidadNombre}</DialogTitle>
+          <DialogTitle className="text-xl">
+            Cambios Realizados en <span className="text-purple-500">{entidadNombre}</span>
+          </DialogTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            {cambios.length} {cambios.length === 1 ? 'campo modificado' : 'campos modificados'}
+          </p>
         </DialogHeader>
 
-        <div className="space-y-4 mt-4">
+        <div className="space-y-3 mt-4">
           {cambios.map((cambio, idx) => (
-            <div key={idx} className="border border-border rounded-lg p-4">
+            <div key={idx} className="border border-border rounded-lg p-4 hover:border-purple-500/50 transition-colors">
               <div className="flex items-center gap-2 mb-3">
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="outline" className="text-xs font-medium bg-purple-500/10 text-purple-600 border-purple-500/30">
                   {cambio.campo}
                 </Badge>
               </div>
 
-              <div className="grid grid-cols-[1fr,auto,1fr] gap-4 items-center">
+              <div className="grid grid-cols-[1fr,auto,1fr] gap-6 items-center">
                 {/* Valor Anterior */}
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Antes</p>
-                  <div className="bg-red-500/10 border border-red-500/20 rounded px-3 py-2">
-                    <p className="text-sm text-red-600 dark:text-red-400">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Antes</p>
+                  </div>
+                  <div className="bg-red-500/10 border border-red-500/30 rounded-md px-4 py-3 min-h-[48px] flex items-center">
+                    <p className="text-sm font-medium text-red-700 dark:text-red-300 break-all">
                       {formatValue(cambio.anterior, cambio.tipo)}
                     </p>
                   </div>
                 </div>
 
                 {/* Flecha */}
-                <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <div className="flex items-center justify-center">
+                  <ArrowRight className="h-5 w-5 text-purple-500" strokeWidth={2.5} />
+                </div>
 
                 {/* Valor Nuevo */}
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Después</p>
-                  <div className="bg-green-500/10 border border-green-500/20 rounded px-3 py-2">
-                    <p className="text-sm text-green-600 dark:text-green-400">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Después</p>
+                  </div>
+                  <div className="bg-green-500/10 border border-green-500/30 rounded-md px-4 py-3 min-h-[48px] flex items-center">
+                    <p className="text-sm font-medium text-green-700 dark:text-green-300 break-all">
                       {formatValue(cambio.nuevo, cambio.tipo)}
                     </p>
                   </div>
