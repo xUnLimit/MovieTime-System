@@ -66,7 +66,7 @@ export function CambiosModal({ open, onOpenChange, entidadNombre, cambios }: Cam
 /**
  * Formatea valores según su tipo
  */
-function formatValue(value: any, tipo?: CambioLog['tipo']): string {
+function formatValue(value: unknown, tipo?: CambioLog['tipo']): string {
   if (value === null || value === undefined) return '(vacío)';
 
   switch (tipo) {

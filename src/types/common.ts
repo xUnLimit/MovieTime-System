@@ -9,8 +9,8 @@ export type EntidadLog = 'cliente' | 'revendedor' | 'servicio' | 'usuario' | 'ca
 export interface CambioLog {
   campo: string;        // Nombre del campo en español (ej: "Precio", "Estado")
   campoKey: string;     // Key técnico del campo (ej: "precio", "estado")
-  anterior: any;        // Valor anterior
-  nuevo: any;          // Valor nuevo
+  anterior: unknown;    // Valor anterior
+  nuevo: unknown;       // Valor nuevo
   tipo?: 'string' | 'number' | 'boolean' | 'date' | 'money' | 'object';  // Para formateo
 }
 

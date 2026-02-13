@@ -63,10 +63,10 @@ const TRACKEABLE_FIELDS: Record<string, Record<string, { label: string; tipo: Ca
 /**
  * Compara dos objetos y genera un array de cambios
  */
-export function detectarCambios(
+export function detectarCambios<T extends Record<string, unknown>>(
   entidad: string,
-  anterior: Record<string, any>,
-  nuevo: Record<string, any>
+  anterior: T,
+  nuevo: T
 ): CambioLog[] {
   const cambios: CambioLog[] = [];
   const camposTrackeable = TRACKEABLE_FIELDS[entidad];
@@ -95,7 +95,7 @@ export function detectarCambios(
 /**
  * Compara dos valores considerando null, undefined, Date, etc.
  */
-function sonValoresIguales(a: any, b: any): boolean {
+function sonValoresIguales(a: unknown, b: unknown): boolean {
   // Ambos null o undefined
   if (a == null && b == null) return true;
   // Solo uno es null/undefined
