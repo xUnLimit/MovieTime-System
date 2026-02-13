@@ -4,6 +4,7 @@ import { MetodoPago } from '@/types';
 import { getAll, getCount, queryDocuments, create as createDoc, update, remove, COLLECTIONS, logCacheHit } from '@/lib/firebase/firestore';
 import { useActivityLogStore } from '@/store/activityLogStore';
 import { useAuthStore } from '@/store/authStore';
+import { detectarCambios, generarResumenCambios } from '@/lib/utils/activityLogHelpers';
 
 // Helper para obtener contexto de usuario
 function getLogContext() {
@@ -150,6 +151,13 @@ export const useMetodosPagoStore = create<MetodosPagoState>()(
 
           await update(COLLECTIONS.METODOS_PAGO, id, updates);
 
+          // Detectar cambios para el log
+          const cambios = oldMetodo ? detectarCambios('metodo_pago', oldMetodo, {
+            ...oldMetodo,
+            ...updates
+          }) : [];
+          const resumenCambios = generarResumenCambios(cambios);
+
           set((state) => {
             const updatedMetodos = state.metodosPago.map((metodo) =>
               metodo.id === id
@@ -178,14 +186,15 @@ export const useMetodosPagoStore = create<MetodosPagoState>()(
             };
           });
 
-          // Registrar en log de actividad
+          // Registrar en log de actividad con cambios
           useActivityLogStore.getState().addLog({
             ...getLogContext(),
             accion: 'actualizacion',
             entidad: 'metodo_pago',
             entidadId: id,
             entidadNombre: oldMetodo?.nombre ?? id,
-            detalles: `Método de pago actualizado: "${oldMetodo?.nombre}"`,
+            detalles: `Método de pago actualizado: "${oldMetodo?.nombre}" — ${resumenCambios}`,
+            cambios: cambios.length > 0 ? cambios : undefined,
           }).catch(() => {});
         } catch (error) {
           console.error('Error updating metodo pago:', error);

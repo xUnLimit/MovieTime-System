@@ -5,6 +5,7 @@ import { Usuario } from '@/types';
 import { getAll, getCount, getById, create as createDoc, update, remove, COLLECTIONS, logCacheHit } from '@/lib/firebase/firestore';
 import { useActivityLogStore } from '@/store/activityLogStore';
 import { useAuthStore } from '@/store/authStore';
+import { detectarCambios, generarResumenCambios } from '@/lib/utils/activityLogHelpers';
 
 // Helper para obtener contexto de usuario
 function getLogContext() {
@@ -192,14 +193,23 @@ export const useUsuariosStore = create<UsuariosState>()(
             };
           });
 
-          // Registrar en log de actividad
+          // Detectar cambios para el log
+          const entidadTipo = (oldUsuario?.tipo ?? 'cliente') === 'cliente' ? 'cliente' : 'revendedor';
+          const cambios = oldUsuario ? detectarCambios(entidadTipo, oldUsuario, {
+            ...oldUsuario,
+            ...updates
+          }) : [];
+          const resumenCambios = generarResumenCambios(cambios);
+
+          // Registrar en log de actividad con cambios
           useActivityLogStore.getState().addLog({
             ...getLogContext(),
             accion: 'actualizacion',
-            entidad: (oldUsuario?.tipo ?? 'cliente') === 'cliente' ? 'cliente' : 'revendedor',
+            entidad: entidadTipo,
             entidadId: id,
             entidadNombre: oldUsuario?.nombre ?? id,
-            detalles: `Usuario actualizado: "${oldUsuario?.nombre}"`,
+            detalles: `Usuario actualizado: "${oldUsuario?.nombre}" — ${resumenCambios}`,
+            cambios: cambios.length > 0 ? cambios : undefined,
           }).catch(() => {});
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Error al actualizar usuario';
