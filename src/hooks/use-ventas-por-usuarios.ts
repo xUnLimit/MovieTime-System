@@ -79,7 +79,6 @@ export function useVentasPorUsuarios(clienteIds: string[], { enabled = true } = 
     const cached = ventasCache.get(idsKey);
     if (cached && Date.now() - cached.ts < CACHE_TTL) {
       if (shouldInvalidateCache(cached.ts)) {
-        console.log('[useVentasPorUsuarios] Cache invalidated: venta change detected via localStorage');
         ventasCache.delete(idsKey);
       } else {
         logVentasCacheHit(clienteIds.length, Math.round((Date.now() - cached.ts) / 1000));
@@ -151,8 +150,6 @@ export function useVentasPorUsuarios(clienteIds: string[], { enabled = true } = 
   useEffect(() => {
     const reloadVentas = async () => {
       if (!enabled || clienteIds.length === 0) return;
-
-      console.log('[useVentasPorUsuarios] Venta changed event received, invalidating cache');
 
       // Invalidar cache
       invalidateVentasPorUsuariosCache();

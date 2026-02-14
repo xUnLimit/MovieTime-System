@@ -48,6 +48,7 @@ import {
   StarOff,
   ExternalLink,
   RefreshCw,
+  ChevronDown,
 } from 'lucide-react';
 import { useNotificacionesStore } from '@/store/notificacionesStore';
 import { esNotificacionServicio } from '@/types/notificaciones';
@@ -497,17 +498,25 @@ export function ServiciosProximosTable() {
           <div className="flex items-center justify-between px-2 py-4">
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Mostrar</span>
-              <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
-                <SelectTrigger className="w-[70px] h-8">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="25">25</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                  <SelectItem value="100">100</SelectItem>
-                </SelectContent>
-              </Select>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 w-[70px] px-2 justify-between">
+                    {itemsPerPage}
+                    <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {[10, 25, 50, 100].map((size) => (
+                    <DropdownMenuItem
+                      key={size}
+                      onClick={() => handleItemsPerPageChange(size.toString())}
+                      className={itemsPerPage === size ? 'bg-accent' : ''}
+                    >
+                      {size}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             <div className="flex items-center gap-4">

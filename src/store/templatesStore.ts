@@ -4,7 +4,7 @@ import { TemplateMensaje, TipoTemplate } from '@/types';
 import { getAll, create as createDoc, update, remove, COLLECTIONS, logCacheHit } from '@/lib/firebase/firestore';
 import { useActivityLogStore } from '@/store/activityLogStore';
 import { useAuthStore } from '@/store/authStore';
-import { detectarCambios, generarResumenCambios } from '@/lib/utils/activityLogHelpers';
+import { detectarCambios } from '@/lib/utils/activityLogHelpers';
 
 // Helper para obtener contexto de usuario
 function getLogContext() {
@@ -102,7 +102,6 @@ export const useTemplatesStore = create<TemplatesState>()(
               ...oldTemplate,
               ...updates
             }) : [];
-            const resumenCambios = generarResumenCambios(cambios);
 
             set((state) => ({
               templates: state.templates.map((template) =>

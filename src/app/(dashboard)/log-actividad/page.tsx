@@ -15,6 +15,7 @@ function LogActividadPageContent() {
   const [accionFilter, setAccionFilter] = useState('all');
   const [entidadFilter, setEntidadFilter] = useState('all');
   const [usuarioFilter, setUsuarioFilter] = useState('all');
+  const [pageSize, setPageSize] = useState(10);
 
   // Construir filtros para Firestore
   const filters = useMemo((): FilterOption[] => {
@@ -31,11 +32,10 @@ function LogActividadPageContent() {
     return f;
   }, [accionFilter, entidadFilter, usuarioFilter]);
 
-  // Paginación server-side con 50 items por página
   const { data: logs, isLoading, hasMore, page, hasPrevious, next, previous, refresh } = useServerPagination<ActivityLog>({
     collectionName: COLLECTIONS.ACTIVITY_LOG,
     filters,
-    pageSize: 50,
+    pageSize,
     orderByField: 'timestamp',
     orderDirection: 'desc',
   });
@@ -110,6 +110,8 @@ function LogActividadPageContent() {
         // Delete handlers
         onDeleteSelected={handleDeleteSelected}
         onDeleteByDays={handleDeleteByDays}
+        pageSize={pageSize}
+        onPageSizeChange={(size) => { setPageSize(size); refresh(); }}
       />
     </div>
   );

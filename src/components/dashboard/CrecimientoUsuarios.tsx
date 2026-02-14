@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Select,
@@ -19,131 +19,104 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import { useMemo } from 'react';
 import { subMonths, format, eachDayOfInterval, eachMonthOfInterval, startOfMonth, endOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Usuario } from '@/types';
+import { useDashboardStore } from '@/store/dashboardStore';
+import { Skeleton } from '@/components/ui/skeleton';
+import type { UsuariosMes, UsuariosDia } from '@/types/dashboard';
 
 export function CrecimientoUsuarios() {
   const [selectedPeriod, setSelectedPeriod] = useState('actual');
-
-  const hasData = false;
+  const { stats, isLoading } = useDashboardStore();
 
   const data = useMemo(() => {
+    const usuariosPorMes: UsuariosMes[] = stats?.usuariosPorMes ?? [];
+    const usuariosPorDia: UsuariosDia[] = stats?.usuariosPorDia ?? [];
     const currentDate = new Date();
-    const clientes: Usuario[] = [];
-    const revendedores: Usuario[] = [];
 
     if (selectedPeriod === 'actual') {
-      // Datos diarios para el mes actual - total acumulado hasta cada día
+      // Usar datos reales por día desde dashboard_stats (0 reads extra)
       const monthStart = startOfMonth(currentDate);
       const monthEnd = endOfMonth(currentDate);
       const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+      const today = new Date();
 
       return days.map((day) => {
-        const dayNum = day.getDate();
-
-        // Contar total de clientes hasta ese día
-        const totalClientes = clientes.filter((c) => {
-          const createdDate = c.createdAt ? new Date(c.createdAt) : new Date();
-          return createdDate <= day;
-        }).length;
-
-        // Contar total de revendedores hasta ese día
-        const totalRevendedores = revendedores.filter((r) => {
-          const createdDate = r.createdAt ? new Date(r.createdAt) : new Date();
-          return createdDate <= day;
-        }).length;
-
+        if (day > today) {
+          return { dia: day.getDate().toString(), clientes: 0, revendedores: 0 };
+        }
+        const diaKey = format(day, 'yyyy-MM-dd');
+        const entry = usuariosPorDia.find((d) => d.dia === diaKey);
         return {
-          dia: dayNum.toString(),
-          clientes: totalClientes,
-          revendedores: totalRevendedores,
-        };
-      });
-    } else {
-      // Datos mensuales - total acumulado hasta cada mes
-      const monthsBack = selectedPeriod === '3meses' ? 3 : selectedPeriod === '6meses' ? 6 : 12;
-      const startDate = subMonths(currentDate, monthsBack - 1);
-      const months = eachMonthOfInterval({ start: startOfMonth(startDate), end: currentDate });
-
-      return months.map((month) => {
-        const monthEnd = endOfMonth(month);
-
-        // Contar clientes hasta ese mes
-        const totalClientes = clientes.filter((c) => {
-          const createdDate = c.createdAt ? new Date(c.createdAt) : new Date();
-          return createdDate <= monthEnd;
-        }).length;
-
-        // Contar revendedores hasta ese mes
-        const totalRevendedores = revendedores.filter((r) => {
-          const createdDate = r.createdAt ? new Date(r.createdAt) : new Date();
-          return createdDate <= monthEnd;
-        }).length;
-
-        return {
-          dia: format(month, 'MMM', { locale: es }),
-          clientes: totalClientes,
-          revendedores: totalRevendedores,
+          dia: day.getDate().toString(),
+          clientes: entry?.clientes ?? 0,
+          revendedores: entry?.revendedores ?? 0,
         };
       });
     }
-  }, [selectedPeriod]);
 
-  if (!hasData) {
-    return (
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <div>
-            <CardTitle className="text-base">Crecimiento de Usuarios</CardTitle>
-            <CardDescription className="text-sm">
-              Nuevos clientes y revendedores adquiridos por mes.
-            </CardDescription>
-          </div>
-          <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-            <SelectTrigger className="w-[140px] h-7 text-xs">
-              <SelectValue placeholder="Período" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="actual">Mes actual</SelectItem>
-              <SelectItem value="3meses">Últimos 3 meses</SelectItem>
-              <SelectItem value="6meses">Últimos 6 meses</SelectItem>
-              <SelectItem value="12meses">Últimos 12 meses</SelectItem>
-            </SelectContent>
-          </Select>
-        </CardHeader>
-        <CardContent className="pt-1 h-[220px] flex items-center justify-center">
-          <p className="text-sm text-muted-foreground">No hay datos disponibles</p>
-        </CardContent>
-      </Card>
-    );
-  }
+    const monthsBack = selectedPeriod === '3meses' ? 3 : selectedPeriod === '6meses' ? 6 : 12;
+    const startDate = subMonths(currentDate, monthsBack - 1);
+    const months = eachMonthOfInterval({ start: startOfMonth(startDate), end: currentDate });
+
+    return months.map((month) => {
+      const mesKey = format(month, 'yyyy-MM');
+      const totalClientes = usuariosPorMes
+        .filter((m) => m.mes <= mesKey)
+        .reduce((sum, m) => sum + (m.clientes ?? 0), 0);
+      const totalRevendedores = usuariosPorMes
+        .filter((m) => m.mes <= mesKey)
+        .reduce((sum, m) => sum + (m.revendedores ?? 0), 0);
+
+      return {
+        dia: format(month, 'MMM', { locale: es }),
+        clientes: totalClientes,
+        revendedores: totalRevendedores,
+      };
+    });
+  }, [selectedPeriod, stats]);
+
+  const header = (
+    <CardHeader className="flex flex-row items-center justify-between pt-3 pb-2 px-6">
+      {/* pt-3 = padding arriba del título (12px, igual que Actividad Reciente) */}
+      {/* pb-2 = espacio entre título y gráfica (8px) */}
+      {/* px-6 = separación del borde izquierdo/derecho (24px) */}
+      <div className="space-y-0.5">
+        {/* space-y-0.5 = espacio mínimo entre título y descripción (2px, igual que Ingresos por Categoría) */}
+        <CardTitle className="text-base">Crecimiento de Usuarios</CardTitle>
+        <CardDescription className="text-sm">
+          Nuevos clientes y revendedores adquiridos por mes.
+        </CardDescription>
+      </div>
+      <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+        <SelectTrigger className="w-[140px] h-7 text-xs">
+          <SelectValue placeholder="Período" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="actual">Mes actual</SelectItem>
+          <SelectItem value="3meses">Últimos 3 meses</SelectItem>
+          <SelectItem value="6meses">Últimos 6 meses</SelectItem>
+          <SelectItem value="12meses">Últimos 12 meses</SelectItem>
+        </SelectContent>
+      </Select>
+    </CardHeader>
+  );
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <div>
-          <CardTitle className="text-base">Crecimiento de Usuarios</CardTitle>
-          <CardDescription className="text-sm">
-            Nuevos clientes y revendedores adquiridos por mes.
-          </CardDescription>
-        </div>
-        <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-          <SelectTrigger className="w-[140px] h-7 text-xs">
-            <SelectValue placeholder="Período" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="actual">Mes actual</SelectItem>
-            <SelectItem value="3meses">Últimos 3 meses</SelectItem>
-            <SelectItem value="6meses">Últimos 6 meses</SelectItem>
-            <SelectItem value="12meses">Últimos 12 meses</SelectItem>
-          </SelectContent>
-        </Select>
-      </CardHeader>
-      <CardContent className="pt-1">
-        <ResponsiveContainer width="100%" height={220}>
-          <AreaChart data={data} margin={{ top: 5, right: 20, left: -15, bottom: 5 }}>
+    <Card className="py-1"> {/* py-1 = padding vertical del Card (4px arriba + 4px abajo) */}
+      {header}
+      <CardContent className="pt-0 px-6 pb-2">
+        {/* pt-0 = sin espacio arriba (gráfica pegada al título) */}
+        {/* px-6 = separación del borde (24px) */}
+        {/* pb-2 = espacio abajo de la gráfica (8px) */}
+        {isLoading ? (
+          <Skeleton className="w-full h-[240px] rounded-lg" />
+        ) : (
+        <ResponsiveContainer width="100%" height={240}>
+          {/* height={240} = ALTURA DE LA GRÁFICA - aumentado para acercar leyenda al borde inferior */}
+          <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            {/* margin.left: 0 = sin margen negativo para que se vean los números del eje Y */}
+            {/* margin.bottom: 0 = sin espacio abajo para pegar la leyenda */}
             <defs>
               <linearGradient id="colorClientes" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#2563eb" stopOpacity={0.95}/>
@@ -174,9 +147,10 @@ export function CrecimientoUsuarios() {
               axisLine={false}
               allowDecimals={false}
               domain={[0, 'auto']}
-              width={30}
+              width={35}
               tick={{ fill: '#a1a1aa' }}
             />
+            {/* width={35} = ancho del eje Y para que quepan los números */}
             <Tooltip
               contentStyle={{
                 backgroundColor: '#09090b',
@@ -185,19 +159,23 @@ export function CrecimientoUsuarios() {
               }}
               formatter={(value: number | undefined, name: string | undefined) => {
                 const displayValue = value ?? 0;
-                const displayName = name ?? '';
                 if (name === 'clientes') return [displayValue, 'Clientes'];
                 if (name === 'revendedores') return [displayValue, 'Revendedores'];
-                return [displayValue, displayName];
+                return [displayValue, name ?? ''];
               }}
               labelStyle={{ color: '#ffffff' }}
               animationDuration={0}
             />
+            {/* Leyenda (Clientes / Revendedores) */}
+            {/* verticalAlign="bottom" = posición abajo del todo */}
+            {/* height={30} = altura reservada para la leyenda */}
+            {/* iconType="circle" = iconos circulares (no cuadrados) */}
+            {/* wrapperStyle = tamaño texto + separación arriba */}
             <Legend
               verticalAlign="bottom"
-              height={20}
+              height={30}
               iconType="circle"
-              wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
+              wrapperStyle={{ fontSize: '11px', paddingTop: '4px' }}
             />
             <Area
               type="monotone"
@@ -223,6 +201,7 @@ export function CrecimientoUsuarios() {
             />
           </AreaChart>
         </ResponsiveContainer>
+        )}
       </CardContent>
     </Card>
   );

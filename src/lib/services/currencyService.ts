@@ -41,7 +41,6 @@ class CurrencyService {
 
   constructor() {
     // No API key required for open.er-api.com public endpoint
-    console.log('[CurrencyService] Using open.er-api.com public endpoint (no API key required)');
   }
 
   /**
@@ -120,8 +119,6 @@ class CurrencyService {
   private async getRates(): Promise<CachedRates | null> {
     // Check memory cache first
     if (this.memoryCache && this.isCacheValid(this.memoryCache.lastUpdated)) {
-      const ageHours = this.getCacheAgeHours(this.memoryCache.lastUpdated);
-      console.log(`[CurrencyService] Using memory cache (age: ${ageHours.toFixed(1)} hours)`);
       return this.memoryCache;
     }
 
@@ -129,14 +126,9 @@ class CurrencyService {
     const firebaseCache = await this.getCachedRates();
 
     if (firebaseCache && this.isCacheValid(firebaseCache.lastUpdated)) {
-      const ageHours = this.getCacheAgeHours(firebaseCache.lastUpdated);
-      console.log(`[CurrencyService] Using Firebase cache (age: ${ageHours.toFixed(1)} hours)`);
       this.memoryCache = firebaseCache;
       return firebaseCache;
     }
-
-    // Cache expired or doesn't exist - fetch fresh rates
-    console.log('[CurrencyService] Cache expired or missing, fetching fresh rates...');
 
     try {
       await this.refreshExchangeRates();
@@ -146,8 +138,6 @@ class CurrencyService {
 
       // Use stale cache if available
       if (firebaseCache) {
-        const ageHours = this.getCacheAgeHours(firebaseCache.lastUpdated);
-        console.warn(`[CurrencyService] Using stale cache (age: ${ageHours.toFixed(1)} hours)`);
         this.memoryCache = firebaseCache;
         return firebaseCache;
       }
@@ -161,8 +151,6 @@ class CurrencyService {
    */
   async refreshExchangeRates(): Promise<void> {
     try {
-      console.log('[CurrencyService] Fetching fresh rates from open.er-api.com...');
-
       const response = await fetch(`${API_BASE_URL}/latest/USD`);
 
       if (!response.ok) {
@@ -199,8 +187,6 @@ class CurrencyService {
       // Save to memory cache
       this.memoryCache = cachedRates;
 
-      const expiryDate = new Date(Date.now() + CACHE_TTL_HOURS * 60 * 60 * 1000);
-      console.log('[CurrencyService] Rates cached until', expiryDate.toLocaleString());
     } catch (error) {
       console.error('[CurrencyService] Error refreshing exchange rates:', error);
       throw error;
@@ -216,7 +202,6 @@ class CurrencyService {
       const docSnap = await getDoc(docRef);
 
       if (!docSnap.exists()) {
-        console.log('[CurrencyService] No cached rates found in Firebase');
         return null;
       }
 
@@ -253,7 +238,6 @@ class CurrencyService {
         apiVersion: cachedRates.apiVersion
       });
 
-      console.log('[CurrencyService] Rates saved to Firebase cache');
     } catch (error) {
       console.error('[CurrencyService] Error saving rates to Firebase:', error);
       throw error;
@@ -291,7 +275,6 @@ class CurrencyService {
    */
   clearMemoryCache(): void {
     this.memoryCache = null;
-    console.log('[CurrencyService] Memory cache cleared');
   }
 }
 

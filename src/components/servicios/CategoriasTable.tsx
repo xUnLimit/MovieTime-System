@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useMemo, useState, useEffect } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Table,
@@ -14,17 +14,13 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Monitor, Users, ShoppingCart, Eye, Search, ArrowUpDown, TrendingUp } from 'lucide-react';
-import { Categoria, PagoServicio, VentaDoc, PagoVenta } from '@/types';
-import { queryDocuments, COLLECTIONS } from '@/lib/firebase/firestore';
-import { calcularMontoSinConsumir, sumInUSD } from '@/lib/utils/calculations';
-import { getVentasConUltimoPago } from '@/lib/services/ventaSyncService';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Monitor, Users, ShoppingCart, Eye, Search, ArrowUpDown, TrendingUp, ChevronDown } from 'lucide-react';
+import { Categoria } from '@/types';
 
 interface CategoriasTableProps {
   categorias: Categoria[];
@@ -53,134 +49,10 @@ export const CategoriasTable = memo(function CategoriasTable({
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [sortKey, setSortKey] = useState<keyof CategoriaRow | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
-  const [gastosMap, setGastosMap] = useState<Map<string, number>>(new Map());
-  const [ingresosMap, setIngresosMap] = useState<Map<string, number>>(new Map());
-  const [ventasCountMap, setVentasCountMap] = useState<Map<string, number>>(new Map());
-  const [ventasMap, setVentasMap] = useState<Map<string, VentaDoc[]>>(new Map());
-  const [isCalculatingGastos, setIsCalculatingGastos] = useState(false);
-  const [isCalculatingIngresos, setIsCalculatingIngresos] = useState(false);
-
   const handleViewCategoria = (categoriaId: string) => {
     router.push(`/servicios/${categoriaId}`);
   };
 
-  // Cargar gastos desde pagosServicio (historial permanente)
-  // Query DIRECTA por categoriaId - sin necesidad de cargar todos los servicios
-  useEffect(() => {
-    const fetchGastos = async () => {
-      setIsCalculatingGastos(true);
-      const gastosTemp = new Map<string, number>();
-
-      for (const categoria of categorias.filter(c => c.activo)) {
-        try {
-          // Query DIRECTA: obtener todos los pagos de esta categoría
-          // Gracias al campo denormalizado categoriaId en PagoServicio
-          const pagos = await queryDocuments<PagoServicio>(
-            COLLECTIONS.PAGOS_SERVICIO,
-            [{ field: 'categoriaId', operator: '==', value: categoria.id }]
-          );
-
-          // Convertir cada pago a USD antes de sumar
-          const totalGastosUSD = await sumInUSD(
-            pagos.map(pago => ({
-              monto: pago.monto || 0,
-              moneda: pago.moneda || 'USD'
-            }))
-          );
-          gastosTemp.set(categoria.id, totalGastosUSD);
-        } catch (error) {
-          console.error(`Error cargando gastos de categoría ${categoria.nombre}:`, error);
-          gastosTemp.set(categoria.id, 0);
-        }
-      }
-
-      setGastosMap(gastosTemp);
-      setIsCalculatingGastos(false);
-    };
-
-    if (categorias.length > 0) {
-      fetchGastos();
-    }
-  }, [categorias]);
-
-  // Cargar ingresos desde pagosVenta (historial permanente)
-  // Query DIRECTA por categoriaId - gracias al campo denormalizado
-  useEffect(() => {
-    const fetchIngresos = async () => {
-      setIsCalculatingIngresos(true);
-      const ingresosTemp = new Map<string, number>();
-
-      for (const categoria of categorias.filter(c => c.activo)) {
-        try {
-          // Query DIRECTA: obtener todos los pagos de esta categoría
-          // Funciona incluso si las ventas fueron eliminadas
-          const pagos = await queryDocuments<PagoVenta>(
-            COLLECTIONS.PAGOS_VENTA,
-            [{ field: 'categoriaId', operator: '==', value: categoria.id }]
-          );
-
-          // Convertir cada pago a USD antes de sumar
-          const totalIngresosUSD = await sumInUSD(
-            pagos.map(pago => ({
-              monto: pago.monto || 0,
-              moneda: pago.moneda || 'USD'
-            }))
-          );
-          ingresosTemp.set(categoria.id, totalIngresosUSD);
-        } catch (error) {
-          console.error(`Error cargando ingresos de categoría ${categoria.nombre}:`, error);
-          ingresosTemp.set(categoria.id, 0);
-        }
-      }
-
-      setIngresosMap(ingresosTemp);
-      setIsCalculatingIngresos(false);
-    };
-
-    if (categorias.length > 0) {
-      fetchIngresos();
-    }
-  }, [categorias]);
-
-  // Cargar ventas activas por categoría para calcular monto sin consumir
-  useEffect(() => {
-    const fetchVentas = async () => {
-      const ventasTemp = new Map<string, VentaDoc[]>();
-      const ventasCountTemp = new Map<string, number>();
-
-      for (const categoria of categorias.filter(c => c.activo)) {
-        try {
-          // Query: obtener todas las ventas de esta categoría (sin filtro de estado)
-          const todasVentas = await queryDocuments<VentaDoc>(
-            COLLECTIONS.VENTAS,
-            [{ field: 'categoriaId', operator: '==', value: categoria.id }]
-          );
-
-          // Guardar el conteo total de ventas (para "Suscripciones Totales")
-          ventasCountTemp.set(categoria.id, todasVentas.length);
-
-          // Filtrar manualmente las ventas activas
-          const ventasActivas = todasVentas.filter(v => (v.estado ?? 'activo') !== 'inactivo');
-
-          // Cargar datos actuales desde PagoVenta (fuente de verdad para fechas y precios)
-          const ventasConDatos = await getVentasConUltimoPago(ventasActivas);
-
-          ventasTemp.set(categoria.id, ventasConDatos);
-        } catch (error) {
-          console.error(`Error cargando ventas de categoría ${categoria.nombre}:`, error);
-          ventasTemp.set(categoria.id, []);
-          ventasCountTemp.set(categoria.id, 0);
-        }
-      }
-
-      setVentasMap(ventasTemp);
-      setVentasCountMap(ventasCountTemp);
-    };
-
-    if (categorias.length > 0) {
-      fetchVentas();
-    }
-  }, [categorias]);
 
   const rows = useMemo(() => {
     const categoriaData: CategoriaRow[] = categorias
@@ -191,26 +63,12 @@ export const CategoriasTable = memo(function CategoriasTable({
         const serviciosActivos = categoria.serviciosActivos ?? 0;
         const perfilesDisponibles = Math.max(0, categoria.perfilesDisponiblesTotal ?? 0);
 
-        // Calcular gastosTotal desde pagosServicio (historial permanente)
-        const gastosTotal = gastosMap.get(categoria.id) ?? 0;
-
-        // Calcular ingresoTotal desde pagosVenta (historial permanente)
-        const ingresoTotal = ingresosMap.get(categoria.id) ?? 0;
-
-        // Calcular suscripcionesTotales desde conteo real de ventas
-        const suscripcionesTotales = ventasCountMap.get(categoria.id) ?? 0;
+        // Todos los campos desde datos denormalizados — 0 queries extra
+        const gastosTotal = categoria.gastosTotal ?? 0;
+        const ingresoTotal = categoria.ingresosTotales ?? 0;
+        const suscripcionesTotales = categoria.ventasTotales ?? 0;
         const gananciaTotal = ingresoTotal - gastosTotal;
-
-        // Calcular monto sin consumir desde ventas activas
-        const ventasActivas = ventasMap.get(categoria.id) ?? [];
-        const montoSinConsumir = ventasActivas.reduce((sum, venta) => {
-          if (!venta.fechaInicio || !venta.fechaFin) return sum;
-          return sum + calcularMontoSinConsumir(
-            new Date(venta.fechaInicio),
-            new Date(venta.fechaFin),
-            venta.precioFinal || 0
-          );
-        }, 0);
+        const montoSinConsumir = 0;
 
         return {
           categoria,
@@ -226,7 +84,7 @@ export const CategoriasTable = memo(function CategoriasTable({
       });
 
     return categoriaData;
-  }, [categorias, gastosMap, ingresosMap, ventasCountMap, ventasMap]);
+  }, [categorias]);
 
   // Filtrar por búsqueda
   const filteredRows = useMemo(() => {
@@ -461,34 +319,22 @@ export const CategoriasTable = memo(function CategoriasTable({
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
-                      {isCalculatingIngresos ? (
-                        <span className="text-xs text-muted-foreground">Calculando...</span>
-                      ) : (
-                        <div className="flex items-center justify-center gap-1">
+                      <div className="flex items-center justify-center gap-1">
                           <span className={`${row.ingresoTotal === 0 ? 'text-muted-foreground' : 'text-blue-500'}`}>$</span>
                           <span className={`${row.ingresoTotal === 0 ? 'text-muted-foreground' : ''}`}>{row.ingresoTotal.toFixed(2)}</span>
                         </div>
-                      )}
                     </TableCell>
                     <TableCell className="text-center">
-                      {isCalculatingGastos ? (
-                        <span className="text-xs text-muted-foreground">Calculando...</span>
-                      ) : (
-                        <div className="flex items-center justify-center gap-1">
-                          <span className={`${row.gastosTotal === 0 ? 'text-muted-foreground' : 'text-red-500'}`}>$</span>
-                          <span className={`${row.gastosTotal === 0 ? 'text-muted-foreground' : ''}`}>{row.gastosTotal.toFixed(2)}</span>
-                        </div>
-                      )}
+                      <div className="flex items-center justify-center gap-1">
+                        <span className={`${row.gastosTotal === 0 ? 'text-muted-foreground' : 'text-red-500'}`}>$</span>
+                        <span className={`${row.gastosTotal === 0 ? 'text-muted-foreground' : ''}`}>{row.gastosTotal.toFixed(2)}</span>
+                      </div>
                     </TableCell>
                     <TableCell className="text-center">
-                      {isCalculatingIngresos || isCalculatingGastos ? (
-                        <span className="text-xs text-muted-foreground">Calculando...</span>
-                      ) : (
-                        <div className="flex items-center justify-center gap-1">
-                          <span className={`${row.gananciaTotal < 0 ? 'text-red-500' : row.gananciaTotal === 0 ? 'text-muted-foreground' : 'text-green-500'}`}>$</span>
-                          <span className={`${row.gananciaTotal < 0 ? 'text-red-500' : row.gananciaTotal === 0 ? 'text-muted-foreground' : ''}`}>{row.gananciaTotal.toFixed(2)}</span>
-                        </div>
-                      )}
+                      <div className="flex items-center justify-center gap-1">
+                        <span className={`${row.gananciaTotal < 0 ? 'text-red-500' : row.gananciaTotal === 0 ? 'text-muted-foreground' : 'text-green-500'}`}>$</span>
+                        <span className={`${row.gananciaTotal < 0 ? 'text-red-500' : row.gananciaTotal === 0 ? 'text-muted-foreground' : ''}`}>{row.gananciaTotal.toFixed(2)}</span>
+                      </div>
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center gap-1">
@@ -517,19 +363,25 @@ export const CategoriasTable = memo(function CategoriasTable({
       <div className="flex items-center justify-between px-2 py-4">
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Mostrar</span>
-          <Select value={String(itemsPerPage)} onValueChange={(val) => {
-            setItemsPerPage(Number(val));
-            setCurrentPage(1);
-          }}>
-            <SelectTrigger className="w-[70px] h-8">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="10">10</SelectItem>
-              <SelectItem value="25">25</SelectItem>
-              <SelectItem value="50">50</SelectItem>
-            </SelectContent>
-          </Select>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 w-[70px] px-2 justify-between">
+                {itemsPerPage}
+                <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {[10, 25, 50].map((size) => (
+                <DropdownMenuItem
+                  key={size}
+                  onClick={() => { setItemsPerPage(size); setCurrentPage(1); }}
+                  className={itemsPerPage === size ? 'bg-accent' : ''}
+                >
+                  {size}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <div className="flex items-center gap-4">

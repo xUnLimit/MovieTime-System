@@ -1,13 +1,28 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { Servicio, MetodoPago } from '@/types';
-import { getAll, getById, getCount, create as createDoc, update, remove, COLLECTIONS, logCacheHit } from '@/lib/firebase/firestore';
+import { getAll, getById, getCount, create as createDoc, update, remove, COLLECTIONS, logCacheHit, adjustCategoriaGastos } from '@/lib/firebase/firestore';
+import { adjustGastosStats, getMesKeyFromDate, getDiaKeyFromDate, upsertServicioPronostico } from '@/lib/services/dashboardStatsService';
+import type { ServicioPronostico } from '@/types/dashboard';
+
+function toServicioPronostico(s: Servicio): ServicioPronostico | null {
+  if (!s.activo || !s.fechaVencimiento || !s.cicloPago || s.costoServicio <= 0) return null;
+  return {
+    id: s.id,
+    fechaVencimiento: s.fechaVencimiento instanceof Date
+      ? s.fechaVencimiento.toISOString()
+      : String(s.fechaVencimiento),
+    cicloPago: s.cicloPago,
+    costoServicio: s.costoServicio,
+    moneda: s.moneda || 'USD',
+  };
+}
 import { doc as firestoreDoc, updateDoc, increment } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { crearPagoInicial } from '@/lib/services/pagosServicioService';
 import { useActivityLogStore } from '@/store/activityLogStore';
 import { useAuthStore } from '@/store/authStore';
-import { detectarCambios, generarResumenCambios } from '@/lib/utils/activityLogHelpers';
+import { detectarCambios } from '@/lib/utils/activityLogHelpers';
 
 // Helper para obtener contexto de usuario
 function getLogContext() {
@@ -138,14 +153,25 @@ export const useServiciosStore = create<ServiciosState>()(
             servicioData.notas
           );
 
-          // Actualizar contadores de la categoría (sin gastosTotal - ya no se usa)
+          // Actualizar contadores de la categoría
           const categoriaRef = firestoreDoc(db, COLLECTIONS.CATEGORIAS, servicioData.categoriaId);
           await updateDoc(categoriaRef, {
             totalServicios: increment(1),
             serviciosActivos: increment(1),
             perfilesDisponiblesTotal: increment(servicioData.perfilesDisponibles ?? 0),
-            // gastosTotal: ya no se actualiza - se calcula desde pagosServicio
           });
+          // Denormalizar gasto inicial en la categoría
+          if (servicioData.costoServicio) {
+            await adjustCategoriaGastos(servicioData.categoriaId, servicioData.costoServicio);
+          }
+
+          // Actualizar estadísticas del dashboard (non-blocking)
+          adjustGastosStats({
+            delta: servicioData.costoServicio ?? 0,
+            moneda: moneda ?? 'USD',
+            mes: getMesKeyFromDate(servicioData.fechaInicio ?? new Date()),
+            dia: getDiaKeyFromDate(servicioData.fechaInicio ?? new Date()),
+          }).catch(() => {});
 
           const newServicio: Servicio = {
             ...servicioData,
@@ -160,6 +186,9 @@ export const useServiciosStore = create<ServiciosState>()(
             servicios: [...state.servicios, newServicio],
             error: null
           }));
+
+          // Upsert servicio en pronóstico (non-blocking, sin getAll)
+          upsertServicioPronostico(toServicioPronostico(newServicio), newServicio.id).catch(() => {});
 
           // Registrar en log de actividad
           useActivityLogStore.getState().addLog({
@@ -272,15 +301,28 @@ export const useServiciosStore = create<ServiciosState>()(
           // Eliminar el servicio de Firestore
           await remove(COLLECTIONS.SERVICIOS, id);
 
-          // Decrementar contadores de la categoría (sin gastosTotal - ya no se usa)
+          // Decrementar contadores de la categoría
           const categoriaRef = firestoreDoc(db, COLLECTIONS.CATEGORIAS, servicio.categoriaId);
           const perfilesDisponibles = Math.max((servicio.perfilesDisponibles || 0) - (servicio.perfilesOcupados || 0), 0);
           await updateDoc(categoriaRef, {
             totalServicios: increment(-1),
             serviciosActivos: increment(servicio.activo ? -1 : 0),
             perfilesDisponiblesTotal: increment(-perfilesDisponibles),
-            // gastosTotal: ya no se actualiza - se calcula desde pagosServicio
           });
+          // Restar el gastosTotal acumulado del servicio de la categoría
+          if (servicio.gastosTotal) {
+            await adjustCategoriaGastos(servicio.categoriaId, -servicio.gastosTotal);
+          }
+
+          // Restar de estadísticas del dashboard (non-blocking)
+          if (servicio.costoServicio) {
+            adjustGastosStats({
+              delta: -(servicio.costoServicio),
+              moneda: servicio.moneda ?? 'USD',
+              mes: getMesKeyFromDate(servicio.fechaInicio ?? new Date()),
+              dia: getDiaKeyFromDate(servicio.fechaInicio ?? new Date()),
+            }).catch(() => {});
+          }
 
           // Eliminar notificaciones asociadas a este servicio
           try {
@@ -289,6 +331,9 @@ export const useServiciosStore = create<ServiciosState>()(
           } catch {
             // Notifications cleanup is best-effort, don't fail the delete
           }
+
+          // Eliminar servicio del pronóstico (non-blocking, sin getAll)
+          upsertServicioPronostico(null, id).catch(() => {});
 
           // Notificar a otras páginas que se eliminó un servicio
           if (typeof window !== 'undefined') {

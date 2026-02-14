@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 interface MetricCardProps {
   title: string;
   value: string | number;
+  valueColor?: string;
   description?: string;
   icon?: LucideIcon;
   iconColor?: string;
@@ -23,6 +24,7 @@ interface MetricCardProps {
 export const MetricCard = memo(function MetricCard({
   title,
   value,
+  valueColor,
   description,
   icon: Icon,
   iconColor,
@@ -31,17 +33,28 @@ export const MetricCard = memo(function MetricCard({
   trend,
   loading = false,
 }: MetricCardProps) {
+  // Layout original con borde izquierdo — estado loading usa contenido invisible + skeleton absoluto
   if (loading) {
     return (
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-4 w-4 rounded-full" />
+      <Card className={`py-3 gap-0 relative ${borderColor ? `border-l-4 ${borderColor}` : ''}`}>
+        {/* Contenido invisible para fijar la altura exacta igual al estado cargado */}
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 p-0 px-4 pb-1 invisible">
+          <CardTitle className="text-sm font-medium">Cargando</CardTitle>
+          {Icon && <Icon className="h-4 w-4" />}
         </CardHeader>
-        <CardContent>
-          <Skeleton className="h-8 w-32 mb-2" />
-          <Skeleton className="h-3 w-40" />
+        <CardContent className="px-4 pb-0 pt-0 invisible">
+          <div className="text-xl font-bold">$0.00</div>
+          {description && <p className="text-xs text-muted-foreground mt-1">{description}</p>}
         </CardContent>
+        {/* Skeleton superpuesto */}
+        <div className="absolute inset-0 flex flex-col justify-center px-4 gap-1.5">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-4 w-4 rounded-full" />
+          </div>
+          <Skeleton className="h-6 w-28" />
+          <Skeleton className="h-3 w-40" />
+        </div>
       </Card>
     );
   }
@@ -70,7 +83,7 @@ export const MetricCard = memo(function MetricCard({
         {Icon && <Icon className={`h-4 w-4 ${iconColor || 'text-muted-foreground'}`} />}
       </CardHeader>
       <CardContent className="px-4 pb-0 pt-0">
-        <div className="text-xl font-bold">{value}</div>
+        <div className={`text-xl font-bold ${valueColor ?? ''}`}>{value}</div>
         {description && (
           <p className="text-xs text-muted-foreground line-clamp-1 mt-1">{description}</p>
         )}

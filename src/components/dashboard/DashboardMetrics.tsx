@@ -1,42 +1,61 @@
 'use client';
 
+import { useDashboardStore } from '@/store/dashboardStore';
 import { MetricCard } from '@/components/shared/MetricCard';
-import { DollarSign, TrendingUp, TrendingDown, Wallet } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, CalendarRange } from 'lucide-react';
+import { usePronosticoFinanciero } from '@/hooks/use-pronostico-financiero';
+
+function formatUSD(value: number): string {
+  return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
 
 export function DashboardMetrics() {
+  const { stats, isLoading } = useDashboardStore();
+  const { meses, isLoading: isLoadingMensual } = usePronosticoFinanciero();
+  const ingresoMensual = meses[0]?.ingresos ?? null;
+
+  const gastosTotal = stats?.gastosTotal ?? 0;
+  const ingresosTotal = stats?.ingresosTotal ?? 0;
+  const gananciasTotal = ingresosTotal - gastosTotal;
+
   return (
     <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
       <MetricCard
         title="Gastos Totales"
-        value="$0.00"
-        description="Suma del costo de servicios"
+        value={isLoading ? '...' : formatUSD(gastosTotal)}
+        description="Suma del costo de todos los servicios"
         icon={TrendingDown}
         iconColor="text-red-500"
         borderColor="border-l-red-500"
+        loading={isLoading}
       />
       <MetricCard
         title="Ingresos Totales"
-        value="$0.00"
-        description="Suma de ingresos"
+        value={isLoading ? '...' : formatUSD(ingresosTotal)}
+        description="Suma de todas las ventas"
         icon={TrendingUp}
         iconColor="text-blue-500"
         borderColor="border-l-blue-500"
+        loading={isLoading}
       />
       <MetricCard
         title="Ganancias Totales"
-        value="$0.00"
-        description="Ingresos menos gastos"
+        value={isLoading ? '...' : formatUSD(gananciasTotal)}
+        valueColor={isLoading ? undefined : gananciasTotal >= 0 ? 'text-green-500' : 'text-red-500'}
+        description="Ingresos totales menos gastos totales"
         icon={Wallet}
-        iconColor="text-green-500"
-        borderColor="border-l-green-500"
+        iconColor={gananciasTotal >= 0 ? 'text-green-500' : 'text-red-500'}
+        borderColor={gananciasTotal >= 0 ? 'border-l-green-500' : 'border-l-red-500'}
+        loading={isLoading}
       />
       <MetricCard
-        title="Balance Mensual"
-        value="$0.00"
-        description="Este mes"
-        icon={DollarSign}
-        iconColor="text-orange-500"
-        borderColor="border-l-orange-500"
+        title="Ingreso Mensual Esperado"
+        value={isLoadingMensual ? '...' : (ingresoMensual !== null ? formatUSD(ingresoMensual) : '$0.00')}
+        description="Ingresos a recibir este mes"
+        icon={CalendarRange}
+        iconColor="text-blue-400"
+        borderColor="border-l-blue-400"
+        loading={isLoadingMensual}
       />
     </div>
   );

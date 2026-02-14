@@ -155,13 +155,6 @@ export function PagoDialog(props: PagoDialogProps) {
     if (props.context === 'venta') {
       if (isEdit) {
         if (props.pago) {
-          console.log('[PagoDialog] EDIT MODE - Datos del pago recibido:', {
-            id: props.pago.id,
-            descripcion: props.pago.descripcion,
-            fechaInicio: props.pago.fechaInicio,
-            fechaVencimiento: props.pago.fechaVencimiento,
-            fullPago: props.pago
-          });
           reset({
             periodoRenovacion: props.pago.cicloPago || '',
             metodoPagoId: (props.pago.metodoPagoId as string) || venta?.metodoPagoId || '',

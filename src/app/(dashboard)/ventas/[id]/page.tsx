@@ -152,13 +152,6 @@ function VentaDetallePageContent() {
 
     // Usar pagos de la colección pagosVenta
     if (pagosVenta.length > 0) {
-      console.log('[PaymentRows] PagosVenta from collection:', pagosVenta.map(p => ({
-        id: p.id,
-        isPagoInicial: p.isPagoInicial,
-        fechaInicio: p.fechaInicio,
-        fechaVencimiento: p.fechaVencimiento
-      })));
-
       return pagosVenta.map((p, index) => {
         // Si este pago no tiene fechas guardadas (legacy data), calcularlas a partir del anterior
         let fechaInicio = p.fechaInicio;
@@ -383,14 +376,6 @@ function VentaDetallePageContent() {
   };
 
   const handleEditarPago = async (pago: VentaPago) => {
-    console.log('[EditarPago] Pago data recibido:', {
-      id: pago.id,
-      descripcion: pago.descripcion,
-      fechaInicio: pago.fechaInicio,
-      fechaVencimiento: pago.fechaVencimiento,
-      fecha: pago.fecha,
-      fullPago: pago
-    });
     await loadMetodosPagoYPlanes(); // Cargar métodos de pago y planes antes de abrir el diálogo
     setPagoToEdit(pago);
     setEditarPagoDialogOpen(true);
@@ -418,7 +403,6 @@ function VentaDetallePageContent() {
     }
 
     try {
-      console.log('[EditarPago] Updating pago:', pagoToEdit.id);
       const metodoPagoSeleccionado = metodosPago.find((m) => m.id === data.metodoPagoId);
       const descuentoNumero = Number(data.descuento) || 0;
       const monto = Math.max(data.costo * (1 - descuentoNumero / 100), 0);
@@ -438,8 +422,6 @@ function VentaDetallePageContent() {
       });
 
       // ✅ NO sincronizar con VentaDoc - PagoVenta es la fuente de verdad
-
-      console.log('[EditarPago] Successfully updated, refreshing...');
 
       setEditarPagoDialogOpen(false);
       setPagoToEdit(null);
@@ -492,15 +474,11 @@ function VentaDetallePageContent() {
     }
 
     try {
-      console.log('[DeletePago] Deleting pago:', pagoToDelete.id);
-
       // Eliminar el pago de la colección pagosVenta (fuente de verdad)
       await remove(COLLECTIONS.PAGOS_VENTA, pagoToDelete.id);
 
       // ✅ NO sincronizar con VentaDoc - PagoVenta es la fuente de verdad
       // El pago más reciente que quede seguirá siendo la fuente de verdad
-
-      console.log('[DeletePago] Successfully deleted, refreshing...');
 
       setDeletePagoDialogOpen(false);
       setPagoToDelete(null);

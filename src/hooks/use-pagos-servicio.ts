@@ -27,7 +27,6 @@ export function usePagosServicio(servicioId: string | null) {
     if (!force) {
       const cached = pagosCache.get(servicioId);
       if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-        console.log(`[usePagosServicio] Cache hit for servicio ${servicioId}`);
         setPagos(cached.data);
         setRenovaciones(cached.data.filter(p => !p.isPagoInicial && p.descripcion !== 'Pago inicial').length);
         setIsLoading(false);

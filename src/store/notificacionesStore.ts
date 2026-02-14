@@ -79,7 +79,6 @@ export const useNotificacionesStore = create<NotificacionesState>((set, get) => 
       state.lastFetch &&
       Date.now() - state.lastFetch < CACHE_TTL
     ) {
-      console.log('[Cache] Hit (notificaciones) - sin lectura a Firestore');
       return;
     }
 
@@ -105,10 +104,6 @@ export const useNotificacionesStore = create<NotificacionesState>((set, get) => 
         lastFetch: Date.now(),
       });
 
-      // Log operation
-      console.log(
-        `[Firestore] getAll (notificaciones) -> ${notificaciones.length} docs (Ventas: ${ventasProximas}, Servicios: ${serviciosProximos})`
-      );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       set({
@@ -145,9 +140,6 @@ export const useNotificacionesStore = create<NotificacionesState>((set, get) => 
         serviciosProximos,
       });
 
-      console.log(
-        `[NotificacionesStore] Counts updated -> Total: ${totalNotificaciones} · Ventas: ${ventasProximas} · Servicios: ${serviciosProximos}`
-      );
     } catch (error) {
       console.error('[NotificacionesStore] Error fetching counts:', error);
       // Set to 0 on error

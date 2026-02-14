@@ -1,15 +1,180 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from 'recharts';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, eachMonthOfInterval } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { useDashboardStore } from '@/store/dashboardStore';
+import { Skeleton } from '@/components/ui/skeleton';
+import type { IngresosMes, IngresosDia } from '@/types/dashboard';
+
+interface DiaData {
+  dia: string;
+  ingresos: number;
+  gastos: number;
+}
 
 export function IngresosVsGastosChart() {
+  const [selectedMonth, setSelectedMonth] = useState('actual');
+  const { stats, isLoading } = useDashboardStore();
+
+  const data = useMemo((): DiaData[] => {
+    const ingresosPorMes: IngresosMes[] = stats?.ingresosPorMes ?? [];
+    const ingresosPorDia: IngresosDia[] = stats?.ingresosPorDia ?? [];
+    const currentDate = new Date();
+    if (selectedMonth === 'actual') {
+      // Usar datos reales por día desde dashboard_stats (0 reads extra)
+      const monthStart = startOfMonth(currentDate);
+      const monthEnd = endOfMonth(currentDate);
+      const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+      const today = new Date();
+
+      return days.map((day) => {
+        if (day > today) {
+          return { dia: format(day, 'd MMM', { locale: es }), ingresos: 0, gastos: 0 };
+        }
+        const diaKey = format(day, 'yyyy-MM-dd');
+        const entry = ingresosPorDia.find((d) => d.dia === diaKey);
+        return {
+          dia: format(day, 'd MMM', { locale: es }),
+          ingresos: entry?.ingresos ?? 0,
+          gastos: entry?.gastos ?? 0,
+        };
+      });
+    }
+
+    // Datos mensuales para 3, 6 o 12 meses
+    const monthsBack = selectedMonth === '3meses' ? 3 : selectedMonth === '6meses' ? 6 : 12;
+    const startDate = subMonths(currentDate, monthsBack - 1);
+    const months = eachMonthOfInterval({ start: startOfMonth(startDate), end: currentDate });
+
+    return months.map((month) => {
+      const mesKey = format(month, 'yyyy-MM');
+      const entry = ingresosPorMes.find((m) => m.mes === mesKey);
+      return {
+        dia: format(month, 'MMM', { locale: es }),
+        ingresos: entry?.ingresos ?? 0,
+        gastos: entry?.gastos ?? 0,
+      };
+    });
+  }, [selectedMonth, stats]);
+
   return (
     <Card className="py-3 gap-0">
-      <CardHeader className="p-0 px-4 pb-2">
-        <CardTitle className="text-base">Ingresos vs Gastos</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between p-0 px-4 pb-2">
+        <div>
+          <CardTitle className="text-base">Ingresos vs Gastos</CardTitle>
+          <CardDescription className="text-sm">
+            Comparativa mensual de los ingresos totales por ventas y los gastos totales en servicios.
+          </CardDescription>
+        </div>
+        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+          <SelectTrigger className="w-[140px] h-8 text-xs">
+            <SelectValue placeholder="Seleccionar mes" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="actual">Mes actual</SelectItem>
+            <SelectItem value="3meses">Últimos 3 meses</SelectItem>
+            <SelectItem value="6meses">Últimos 6 meses</SelectItem>
+            <SelectItem value="12meses">Últimos 12 meses</SelectItem>
+          </SelectContent>
+        </Select>
       </CardHeader>
-      <CardContent className="px-4 pt-0 pb-1 h-[320px] flex items-center justify-center">
-        <p className="text-sm text-muted-foreground">Gráfico de ingresos y gastos</p>
+      <CardContent className="px-4 pt-0 pb-1">
+        {isLoading ? (
+          <Skeleton className="w-full h-[320px] rounded-lg" />
+        ) : (
+        <ResponsiveContainer width="100%" height={320}>
+          <AreaChart data={data} margin={{ top: 15, right: 30, left: -20, bottom: 5 }}>
+            <defs>
+              <linearGradient id="colorIngresosRevenue" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8}/>
+                <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+              </linearGradient>
+              <linearGradient id="colorGastosRevenue" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#dc2626" stopOpacity={0.8}/>
+                <stop offset="95%" stopColor="#dc2626" stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#27272a" opacity={0.2} />
+            <XAxis
+              dataKey="dia"
+              stroke="#71717a"
+              fontSize={12}
+              tickLine={false}
+              axisLine={false}
+              interval={selectedMonth === 'actual' ? 1 : 0}
+              tick={{ fill: '#a1a1aa' }}
+            />
+            <YAxis
+              stroke="#71717a"
+              fontSize={12}
+              tickLine={false}
+              axisLine={false}
+              tickFormatter={(value) => `$${Number(value).toLocaleString()}`}
+              tick={{ fill: '#a1a1aa' }}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: '#09090b',
+                border: '1px solid #3f3f46',
+                borderRadius: '8px',
+              }}
+              formatter={(value: number | undefined) => {
+                if (value === undefined) return '';
+                return `$${value.toFixed(2)}`;
+              }}
+              labelStyle={{ color: '#ffffff' }}
+              animationDuration={0}
+            />
+            <Legend
+              verticalAlign="bottom"
+              height={20}
+              iconType="circle"
+              wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
+            />
+            <Area
+              type="monotone"
+              dataKey="ingresos"
+              stroke="#7c3aed"
+              strokeWidth={2}
+              fillOpacity={1}
+              fill="url(#colorIngresosRevenue)"
+              name="Ingresos"
+              animationDuration={1000}
+              animationEasing="ease-out"
+            />
+            <Area
+              type="monotone"
+              dataKey="gastos"
+              stroke="#dc2626"
+              strokeWidth={2}
+              fillOpacity={1}
+              fill="url(#colorGastosRevenue)"
+              name="Gastos"
+              animationDuration={1000}
+              animationEasing="ease-out"
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+        )}
       </CardContent>
     </Card>
   );

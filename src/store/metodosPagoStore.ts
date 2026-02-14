@@ -4,7 +4,7 @@ import { MetodoPago } from '@/types';
 import { getAll, getCount, queryDocuments, create as createDoc, update, remove, COLLECTIONS, logCacheHit } from '@/lib/firebase/firestore';
 import { useActivityLogStore } from '@/store/activityLogStore';
 import { useAuthStore } from '@/store/authStore';
-import { detectarCambios, generarResumenCambios } from '@/lib/utils/activityLogHelpers';
+import { detectarCambios } from '@/lib/utils/activityLogHelpers';
 
 // Helper para obtener contexto de usuario
 function getLogContext() {

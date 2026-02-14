@@ -21,6 +21,7 @@ function VentasPageContent() {
   const { deleteVenta, fetchCounts } = useVentasStore();
 
   const [activeTab, setActiveTab] = useState<'todas' | 'activas' | 'inactivas'>('todas');
+  const [pageSize, setPageSize] = useState(10);
   const [deleteVentaId, setDeleteVentaId] = useState<string | null>(null);
   const [deleteVentaServicioId, setDeleteVentaServicioId] = useState<string | undefined>(undefined);
   const [deleteVentaPerfilNumero, setDeleteVentaPerfilNumero] = useState<number | null | undefined>(undefined);
@@ -40,7 +41,7 @@ function VentasPageContent() {
   const { data: ventasPaginadas, isLoading, hasMore, page, hasPrevious, next, previous, refresh } = useServerPagination<VentaDoc>({
     collectionName: COLLECTIONS.VENTAS,
     filters,
-    pageSize: 10,
+    pageSize,
     orderByField: 'createdAt',
     orderDirection: 'desc',
   });
@@ -110,7 +111,6 @@ function VentasPageContent() {
   // Escuchar eventos de cambios en ventas desde otros módulos
   useEffect(() => {
     const handleVentaChange = () => {
-      console.log('[VentasPage] Venta change event detected, refreshing...');
       refresh();
       fetchCounts();
     };
@@ -180,6 +180,8 @@ function VentasPageContent() {
             page={page}
             onNext={next}
             onPrevious={previous}
+            pageSize={pageSize}
+            onPageSizeChange={(size) => { setPageSize(size); refresh(); }}
           />
         </TabsContent>
       </Tabs>

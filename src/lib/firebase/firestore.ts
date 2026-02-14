@@ -285,6 +285,26 @@ export async function adjustCategoriaSuscripciones(
 }
 
 /**
+ * Incrementa o decrementa el campo gastosTotal de una categoría de forma atómica.
+ * @param categoriaId – id del documento en la colección `categorias`
+ * @param gastosDelta – monto a sumar (+) o restar (-)
+ */
+export async function adjustCategoriaGastos(
+  categoriaId: string,
+  gastosDelta: number
+): Promise<void> {
+  if (!categoriaId) return;
+  try {
+    const docRef = doc(db, COLLECTIONS.CATEGORIAS, categoriaId);
+    await updateDoc(docRef, {
+      gastosTotal: increment(gastosDelta),
+    });
+  } catch (error) {
+    console.error(`Error ajustando gastosTotal para categoría ${categoriaId}:`, error);
+  }
+}
+
+/**
  * Collection names constants
  */
 export const COLLECTIONS = {

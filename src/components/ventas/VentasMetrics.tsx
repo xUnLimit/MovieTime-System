@@ -8,23 +8,27 @@ import { CreditCard, DollarSign, CalendarRange, Wallet, CheckCircle2, XCircle } 
 import { getAll, COLLECTIONS } from '@/lib/firebase/firestore';
 import { PagoVenta, VentaDoc } from '@/types';
 import { getVentasConUltimoPago, VentaConUltimoPago } from '@/lib/services/ventaSyncService';
+import { useIngresoMensualEsperado } from '@/hooks/use-ingreso-mensual-esperado';
 
 export const VentasMetrics = memo(function VentasMetrics() {
-  const { fetchVentas } = useVentasStore();
+  const { fetchCounts, totalVentas, ventasActivas, ventasInactivas } = useVentasStore();
+  const { value: ingresoMensual, isLoading: isLoadingMensual } = useIngresoMensualEsperado();
   const [pagosVentas, setPagosVentas] = useState<PagoVenta[]>([]);
   const [ventasConUltimoPago, setVentasConUltimoPago] = useState<VentaConUltimoPago[]>([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Función centralizada para cargar datos
   const loadMetrics = async () => {
-    console.log('[VentasMetrics] Loading metrics...');
-    await fetchVentas(true); // Force refresh
-    // Load all pagos from pagosVenta collection
-    const pagos = await getAll<PagoVenta>(COLLECTIONS.PAGOS_VENTA);
+    // Counts son gratuitos (no leen documentos)
+    await fetchCounts();
+
+    // Cargar pagos y ventas en paralelo para métricas financieras
+    const [pagos, allVentas] = await Promise.all([
+      getAll<PagoVenta>(COLLECTIONS.PAGOS_VENTA),
+      getAll<VentaDoc>(COLLECTIONS.VENTAS),
+    ]);
     setPagosVentas(pagos);
 
-    // Load all ventas with current data from last payment
-    const allVentas = await getAll<VentaDoc>(COLLECTIONS.VENTAS);
     const ventasConPagoActual = await getVentasConUltimoPago(allVentas);
     setVentasConUltimoPago(ventasConPagoActual);
   };
@@ -38,7 +42,6 @@ export const VentasMetrics = memo(function VentasMetrics() {
   // Escuchar eventos de cambios en ventas
   useEffect(() => {
     const handleVentaChange = () => {
-      console.log('[VentasMetrics] Venta change event detected');
       setRefreshTrigger(prev => prev + 1);
     };
 
@@ -85,7 +88,7 @@ export const VentasMetrics = memo(function VentasMetrics() {
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
       <MetricCard
         title="Ventas Totales"
-        value={metrics?.ventasTotales ?? 0}
+        value={totalVentas}
         icon={CreditCard}
         iconColor="text-purple-500"
         underlineColor="bg-purple-500"
@@ -99,7 +102,7 @@ export const VentasMetrics = memo(function VentasMetrics() {
       />
       <MetricCard
         title="Ingreso Mensual Esperado"
-        value={isCalculating ? 'Calculando...' : (metrics ? `$${metrics.ingresoMensualEsperado.toFixed(2)}` : '-')}
+        value={(isCalculating || isLoadingMensual) ? 'Calculando...' : (ingresoMensual !== null ? `$${ingresoMensual.toFixed(2)}` : '-')}
         icon={CalendarRange}
         iconColor="text-blue-500"
         underlineColor="bg-blue-500"
@@ -113,14 +116,14 @@ export const VentasMetrics = memo(function VentasMetrics() {
       />
       <MetricCard
         title="Ventas Activas"
-        value={metrics?.ventasActivas ?? 0}
+        value={ventasActivas}
         icon={CheckCircle2}
         iconColor="text-green-500"
         underlineColor="bg-green-500"
       />
       <MetricCard
         title="Ventas Inactivas"
-        value={metrics?.ventasInactivas ?? 0}
+        value={ventasInactivas}
         icon={XCircle}
         iconColor="text-red-500"
         underlineColor="bg-red-500"

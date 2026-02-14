@@ -283,7 +283,6 @@ async function limpiarNotificacionesHuerfanas(
     });
 
     if (huerfanas.length > 0) {
-      console.log(`[NotificationSync] Removing ${huerfanas.length} orphan notification(s)`);
       await Promise.all(huerfanas.map(notif => remove(COLLECTIONS.NOTIFICACIONES, notif.id)));
     }
   } catch (error) {
@@ -308,11 +307,8 @@ async function limpiarNotificacionesHuerfanas(
 export async function sincronizarNotificaciones(): Promise<void> {
   // Check if already synced today
   if (!debesSincronizar()) {
-    console.log('[NotificationSync] Already synced today, skipping');
     return;
   }
-
-  console.log('[NotificationSync] Starting daily synchronization...');
 
   try {
     // ✅ OPTIMIZED: Single query per entity (not two separate ones)
@@ -322,13 +318,10 @@ export async function sincronizarNotificaciones(): Promise<void> {
     const fechaLimite = addDays(new Date(), 7);
 
     // 1️⃣ Query ventas with single optimized query
-    console.log('[NotificationSync] Fetching ventas próximas/vencidas...');
     const ventasProximas = (await queryDocuments(COLLECTIONS.VENTAS, [
       { field: 'estado', operator: '==', value: 'activo' },
       { field: 'fechaFin', operator: '<=', value: fechaLimite },
     ])) as VentaDoc[];
-
-    console.log(`[NotificationSync] Found ${ventasProximas.length} ventas`);
 
     // Process each venta
     for (const venta of ventasProximas) {
@@ -340,13 +333,10 @@ export async function sincronizarNotificaciones(): Promise<void> {
     }
 
     // 2️⃣ Query servicios with single optimized query
-    console.log('[NotificationSync] Fetching servicios próximos/vencidos...');
     const serviciosProximos = (await queryDocuments(COLLECTIONS.SERVICIOS, [
       { field: 'activo', operator: '==', value: true },
       { field: 'fechaVencimiento', operator: '<=', value: fechaLimite },
     ])) as Servicio[];
-
-    console.log(`[NotificationSync] Found ${serviciosProximos.length} servicios`);
 
     // Process each servicio
     for (const servicio of serviciosProximos) {
@@ -358,13 +348,10 @@ export async function sincronizarNotificaciones(): Promise<void> {
     }
 
     // 3️⃣ Cleanup orphan notifications (venta/servicio deleted but notification remains)
-    console.log('[NotificationSync] Cleaning up orphan notifications...');
     await limpiarNotificacionesHuerfanas(ventasProximas, serviciosProximos);
 
     // Mark as synced today
     marcarSincronizado();
-
-    console.log('[NotificationSync] ✅ Synchronization complete');
   } catch (error) {
     console.error('[NotificationSync] ❌ Error during synchronization:', error);
     throw error;

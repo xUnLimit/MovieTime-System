@@ -144,6 +144,7 @@ export function Sidebar({ collapsed: controlledCollapsed, onCollapse }: SidebarP
             width={32}
             height={32}
             className="w-8 h-8"
+            priority
           />
         </div>
 

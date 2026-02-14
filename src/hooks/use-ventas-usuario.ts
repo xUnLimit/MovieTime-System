@@ -91,9 +91,6 @@ export function useVentasUsuario(usuarioId: string) {
           { field: 'clienteId', operator: '==', value: usuarioId },
         ]);
 
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[useVentasUsuario] Loaded ${ventasBase.length} ventas for user ${usuarioId.slice(0, 8)}`);
-        }
 
         if (cancelled) return;
 

@@ -27,6 +27,7 @@ export interface Categoria {
   perfilesDisponiblesTotal: number; // Suma de (perfilesDisponibles - perfilesOcupados) de servicios activos
   ventasTotales: number;            // Total de ventas (suscripciones) asociadas a servicios de esta categoría
   ingresosTotales: number;          // Suma total de ingresos de ventas de esta categoría
+  gastosTotal: number;              // Suma total de gastos (pagosServicio) de esta categoría
 
   createdAt: Date;
   updatedAt: Date;

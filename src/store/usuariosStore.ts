@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import { startOfDay } from 'date-fns';
+import { startOfDay, format } from 'date-fns';
 import { Usuario } from '@/types';
 import { getAll, getCount, getById, create as createDoc, update, remove, COLLECTIONS, logCacheHit } from '@/lib/firebase/firestore';
+import { adjustUsuariosPorMes, getDiaKeyFromDate } from '@/lib/services/dashboardStatsService';
 import { useActivityLogStore } from '@/store/activityLogStore';
 import { useAuthStore } from '@/store/authStore';
-import { detectarCambios, generarResumenCambios } from '@/lib/utils/activityLogHelpers';
+import { detectarCambios } from '@/lib/utils/activityLogHelpers';
 
 // Helper para obtener contexto de usuario
 function getLogContext() {
@@ -133,6 +134,14 @@ export const useUsuariosStore = create<UsuariosState>()(
             entidadId: id,
             entidadNombre: usuarioData.nombre,
             detalles: `${usuarioData.tipo === 'cliente' ? 'Cliente' : 'Revendedor'} creado: "${usuarioData.nombre}"`,
+          }).catch(() => {});
+
+          // Actualizar estadísticas del dashboard (non-blocking)
+          adjustUsuariosPorMes({
+            mes: format(new Date(), 'yyyy-MM'),
+            dia: getDiaKeyFromDate(new Date()),
+            tipo: usuarioData.tipo,
+            delta: 1,
           }).catch(() => {});
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Error al crear usuario';
@@ -291,6 +300,16 @@ export const useUsuariosStore = create<UsuariosState>()(
             entidadNombre: deletedUser?.nombre ?? id,
             detalles: `Usuario eliminado: "${deletedUser?.nombre}"`,
           }).catch(() => {});
+
+          // Restar de estadísticas del dashboard (non-blocking)
+          if (deletedUser?.createdAt) {
+            adjustUsuariosPorMes({
+              mes: format(new Date(deletedUser.createdAt), 'yyyy-MM'),
+              dia: getDiaKeyFromDate(new Date(deletedUser.createdAt)),
+              tipo: deletedUser.tipo,
+              delta: -1,
+            }).catch(() => {});
+          }
         } catch (error) {
           // Rollback on error - restaurar estado anterior completo
           const errorMessage = error instanceof Error ? error.message : 'Error al eliminar usuario';

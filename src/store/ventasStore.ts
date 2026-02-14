@@ -5,7 +5,20 @@ import { getAll, getById, getCount, create as createDoc, update, remove, COLLECT
 import { useActivityLogStore } from '@/store/activityLogStore';
 import { useAuthStore } from '@/store/authStore';
 import { format } from 'date-fns';
-import { detectarCambios, generarResumenCambios } from '@/lib/utils/activityLogHelpers';
+import { detectarCambios } from '@/lib/utils/activityLogHelpers';
+import { adjustIngresosStats, getMesKeyFromDate, getDiaKeyFromDate, upsertVentaPronostico } from '@/lib/services/dashboardStatsService';
+import type { VentaPronostico } from '@/types/dashboard';
+
+function toVentaPronostico(v: VentaDoc): VentaPronostico | null {
+  if (v.estado === 'inactivo' || !v.fechaFin || !v.cicloPago) return null;
+  return {
+    id: v.id,
+    fechaFin: v.fechaFin instanceof Date ? v.fechaFin.toISOString() : String(v.fechaFin),
+    cicloPago: v.cicloPago,
+    precioFinal: v.precioFinal || 0,
+    moneda: v.moneda || 'USD',
+  };
+}
 
 // Helper para obtener contexto de usuario
 function getLogContext() {
@@ -150,6 +163,19 @@ export const useVentasStore = create<VentasState>()(
             await adjustCategoriaSuscripciones(ventaDataLimpia.categoriaId, 1, ventaData.precioFinal);
           }
 
+          // Actualizar estadísticas del dashboard (non-blocking)
+          adjustIngresosStats({
+            delta: ventaData.precioFinal ?? 0,
+            moneda: ventaData.moneda ?? 'USD',
+            mes: getMesKeyFromDate(ventaData.fechaInicio ?? new Date()),
+            dia: getDiaKeyFromDate(ventaData.fechaInicio ?? new Date()),
+            categoriaId: ventaData.categoriaId ?? '',
+            categoriaNombre: ventaData.categoriaNombre ?? '',
+          }).catch(() => {});
+
+          // Upsert venta en pronóstico (non-blocking, sin getAll)
+          upsertVentaPronostico(toVentaPronostico(newVenta), newVenta.id).catch(() => {});
+
           // Dispatch event for cross-component updates
           if (typeof window !== 'undefined') {
             window.localStorage.setItem('venta-created', Date.now().toString());
@@ -222,7 +248,6 @@ export const useVentasStore = create<VentasState>()(
             ...ventaAnterior,
             ...finalUpdates
           }) : [];
-          const resumenCambios = generarResumenCambios(cambios);
 
           set((state) => ({
             ventas: state.ventas.map((venta) =>
@@ -242,6 +267,12 @@ export const useVentasStore = create<VentasState>()(
             detalles: `Venta actualizada: ${ventaActual?.clienteNombre} / ${ventaActual?.servicioNombre}`,
             cambios: cambios.length > 0 ? cambios : undefined,
           }).catch(() => {});
+
+          // Upsert venta actualizada en pronóstico (non-blocking, sin getAll)
+          const ventaActualizada = get().ventas.find((v) => v.id === id);
+          if (ventaActualizada) {
+            upsertVentaPronostico(toVentaPronostico(ventaActualizada), id).catch(() => {});
+          }
 
           // Dispatch event for cross-component updates
           if (typeof window !== 'undefined') {
@@ -311,6 +342,18 @@ export const useVentasStore = create<VentasState>()(
             );
           }
 
+          // Restar de estadísticas del dashboard (non-blocking)
+          if (ventaEliminada?.precioFinal) {
+            adjustIngresosStats({
+              delta: -(ventaEliminada.precioFinal),
+              moneda: ventaEliminada.moneda ?? 'USD',
+              mes: getMesKeyFromDate(ventaEliminada.fechaInicio ?? new Date()),
+              dia: getDiaKeyFromDate(ventaEliminada.fechaInicio ?? new Date()),
+              categoriaId: ventaEliminada.categoriaId ?? '',
+              categoriaNombre: ventaEliminada.categoriaNombre ?? '',
+            }).catch(() => {});
+          }
+
           // Eliminar notificaciones asociadas a esta venta
           try {
             const { useNotificacionesStore } = await import('./notificacionesStore');
@@ -328,6 +371,9 @@ export const useVentasStore = create<VentasState>()(
             entidadNombre: `${ventaEliminada?.clienteNombre ?? ''} — ${ventaEliminada?.servicioNombre ?? ''}`,
             detalles: `Venta eliminada: ${ventaEliminada?.clienteNombre} / ${ventaEliminada?.servicioNombre}`,
           }).catch(() => {});
+
+          // Eliminar venta del pronóstico (non-blocking, sin getAll)
+          upsertVentaPronostico(null, id).catch(() => {});
 
           // Notificar que se eliminó una venta
           if (typeof window !== 'undefined') {

@@ -11,13 +11,12 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { ArrowUpDown, ArrowUp, ArrowDown, ChevronDown } from 'lucide-react';
 import { LoadingSpinner } from './LoadingSpinner';
 import { EmptyState } from './EmptyState';
 
@@ -233,18 +232,25 @@ function DataTableComponent<T extends Record<string, unknown>>({
         <div className="flex items-center justify-between px-2 py-4">
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Mostrar</span>
-            <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
-              <SelectTrigger className="w-[70px] h-8">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 w-[70px] px-2 justify-between">
+                  {itemsPerPage}
+                  <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
                 {itemsPerPageOptions.map((option) => (
-                  <SelectItem key={option} value={option.toString()}>
+                  <DropdownMenuItem
+                    key={option}
+                    onClick={() => handleItemsPerPageChange(option.toString())}
+                    className={itemsPerPage === option ? 'bg-accent' : ''}
+                  >
                     {option}
-                  </SelectItem>
+                  </DropdownMenuItem>
                 ))}
-              </SelectContent>
-            </Select>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           <div className="flex items-center gap-4">

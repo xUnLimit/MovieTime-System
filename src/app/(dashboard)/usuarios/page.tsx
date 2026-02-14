@@ -18,13 +18,12 @@ import { Usuario } from '@/types';
 import { COLLECTIONS } from '@/lib/firebase/firestore';
 import { FilterOption } from '@/lib/firebase/pagination';
 
-const PAGE_SIZE = 10;
-
 function UsuariosPageContent() {
   const router = useRouter();
   const { totalClientes, totalRevendedores, totalNuevosHoy, totalUsuariosActivos, fetchCounts } = useUsuariosStore();
 
   const [activeTab, setActiveTab] = useState('todos');
+  const [pageSize, setPageSize] = useState(10);
 
   // Filtros según tab activo
   const filters: FilterOption[] = useMemo(() => {
@@ -37,14 +36,14 @@ function UsuariosPageContent() {
   const { data: pageData, isLoading, hasMore, hasPrevious, page, next, previous, refresh } = useServerPagination<Usuario>({
     collectionName: COLLECTIONS.USUARIOS,
     filters,
-    pageSize: PAGE_SIZE,
+    pageSize,
   });
 
   // Total según tab (para calcular páginas)
   const totalCurrentTab = activeTab === 'clientes' ? totalClientes : activeTab === 'revendedores' ? totalRevendedores : totalClientes + totalRevendedores;
-  const totalPages = Math.ceil(totalCurrentTab / PAGE_SIZE);
+  const totalPages = Math.ceil(totalCurrentTab / pageSize);
 
-  const paginationProps = { page, totalPages, hasPrevious, hasMore, onPrevious: previous, onNext: next };
+  const paginationProps = { page, totalPages, hasPrevious, hasMore, onPrevious: previous, onNext: next, pageSize, onPageSizeChange: (size: number) => { setPageSize(size); refresh(); } };
 
   useEffect(() => {
     fetchCounts();
@@ -54,7 +53,6 @@ function UsuariosPageContent() {
   // La sincronización entre páginas diferentes ya la maneja useVentasPorUsuarios via shouldInvalidateCache()
   useEffect(() => {
     const handleVentaDeleted = () => {
-      console.log('[UsuariosPage] Venta deleted in same page, invalidating cache and refreshing');
       invalidateVentasPorUsuariosCache();
       refresh();
     };

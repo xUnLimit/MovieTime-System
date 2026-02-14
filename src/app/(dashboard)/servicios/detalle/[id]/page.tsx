@@ -15,7 +15,7 @@ import { PagoDialog } from '@/components/shared/PagoDialog';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { queryDocuments, remove, update, COLLECTIONS, getById } from '@/lib/firebase/firestore';
+import { queryDocuments, remove, update, COLLECTIONS, getById, adjustCategoriaGastos } from '@/lib/firebase/firestore';
 import { doc as firestoreDoc, updateDoc, increment } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { Servicio, Categoria, MetodoPago, VentaDoc, PagoServicio } from '@/types';
@@ -285,11 +285,14 @@ function ServicioDetallePageContent() {
     try {
       await remove(COLLECTIONS.PAGOS_SERVICIO, pagoToDelete.id);
 
-      // Decrementar gastosTotal del servicio
+      // Decrementar gastosTotal del servicio y de la categoría
       const servicioRef = firestoreDoc(db, COLLECTIONS.SERVICIOS, id);
       await updateDoc(servicioRef, {
         gastosTotal: increment(-montoToRevert)
       });
+      if (servicio?.categoriaId) {
+        await adjustCategoriaGastos(servicio.categoriaId, -montoToRevert);
+      }
 
       refreshPagos();
 
@@ -340,11 +343,14 @@ function ServicioDetallePageContent() {
         data.notas
       );
 
-      // Incrementar gastosTotal del servicio
+      // Incrementar gastosTotal del servicio y de la categoría
       const servicioRef = firestoreDoc(db, COLLECTIONS.SERVICIOS, id);
       await updateDoc(servicioRef, {
         gastosTotal: increment(data.costo)
       });
+      if (servicio?.categoriaId) {
+        await adjustCategoriaGastos(servicio.categoriaId, data.costo);
+      }
 
       await updateServicio(id, {
         fechaInicio: data.fechaInicio,

@@ -11,7 +11,8 @@ import { CambiosModal } from './CambiosModal';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, RefreshCw, Eye } from 'lucide-react';
+import { Eye } from 'lucide-react';
+import { PaginationFooter } from '@/components/shared/PaginationFooter';
 
 interface LogTimelineProps {
   logs: ActivityLog[];
@@ -31,6 +32,8 @@ interface LogTimelineProps {
   onNext: () => void;
   onPrevious: () => void;
   onRefresh: () => void;
+  pageSize?: number;
+  onPageSizeChange?: (size: number) => void;
   // Delete handlers
   onDeleteSelected: (ids: string[]) => Promise<void>;
   onDeleteByDays: (days: number) => Promise<void>;
@@ -52,9 +55,10 @@ export function LogTimeline({
   page,
   onNext,
   onPrevious,
-  onRefresh,
   onDeleteSelected,
   onDeleteByDays,
+  pageSize,
+  onPageSizeChange,
 }: LogTimelineProps) {
   const [selectedLogs, setSelectedLogs] = useState<Set<string>>(new Set());
   const [selectedLog, setSelectedLog] = useState<ActivityLog | null>(null);
@@ -262,44 +266,16 @@ export function LogTimeline({
               pagination={false}
             />
 
-            {/* Controles de paginación server-side */}
-            <div className="flex items-center justify-between border-t border-border pt-4">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onRefresh}
-                  disabled={isLoading}
-                >
-                  <RefreshCw className="h-4 w-4 mr-1.5" />
-                  Actualizar
-                </Button>
-                <span className="text-sm text-muted-foreground">
-                  Página {page} • {logs.length} registros
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onPrevious}
-                  disabled={!hasPrevious || isLoading}
-                >
-                  <ChevronLeft className="h-4 w-4 mr-1" />
-                  Anterior
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onNext}
-                  disabled={!hasMore || isLoading}
-                >
-                  Siguiente
-                  <ChevronRight className="h-4 w-4 ml-1" />
-                </Button>
-              </div>
-            </div>
+            <PaginationFooter
+              page={page}
+              totalPages={hasMore ? page + 1 : page}
+              hasPrevious={hasPrevious}
+              hasMore={hasMore}
+              onPrevious={onPrevious}
+              onNext={onNext}
+              pageSize={pageSize}
+              onPageSizeChange={onPageSizeChange}
+            />
           </>
         )}
       </div>

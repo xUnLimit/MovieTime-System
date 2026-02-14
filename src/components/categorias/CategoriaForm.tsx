@@ -141,6 +141,7 @@ export function CategoriaForm({ mode, categoria }: CategoriaFormProps) {
           perfilesDisponiblesTotal: 0,
           ventasTotales: 0,
           ingresosTotales: 0,
+          gastosTotal: 0,
         });
         toast.success('Categoría creada exitosamente');
       } else if (categoria) {

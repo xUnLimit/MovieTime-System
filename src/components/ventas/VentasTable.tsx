@@ -30,6 +30,8 @@ interface VentasTableProps {
   page: number;
   onNext: () => void;
   onPrevious: () => void;
+  pageSize?: number;
+  onPageSizeChange?: (size: number) => void;
 }
 
 interface VentaRow {
@@ -70,6 +72,8 @@ export function VentasTable({
   page,
   onNext,
   onPrevious,
+  pageSize,
+  onPageSizeChange,
 }: VentasTableProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
@@ -315,6 +319,8 @@ export function VentasTable({
             hasMore={hasMore}
             onPrevious={onPrevious}
             onNext={onNext}
+            pageSize={pageSize}
+            onPageSizeChange={onPageSizeChange}
           />
         </div>
       )}
