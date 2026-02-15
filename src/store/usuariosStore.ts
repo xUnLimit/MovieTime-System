@@ -142,7 +142,7 @@ export const useUsuariosStore = create<UsuariosState>()(
             dia: getDiaKeyFromDate(new Date()),
             tipo: usuarioData.tipo,
             delta: 1,
-          }).catch(() => {});
+          }).catch((err) => console.error('[UsuariosStore] Error updating dashboard stats:', err));
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Error al crear usuario';
           set({ error: errorMessage });
@@ -308,7 +308,7 @@ export const useUsuariosStore = create<UsuariosState>()(
               dia: getDiaKeyFromDate(new Date(deletedUser.createdAt)),
               tipo: deletedUser.tipo,
               delta: -1,
-            }).catch(() => {});
+            }).catch((err) => console.error('[UsuariosStore] Error reverting dashboard stats:', err));
           }
         } catch (error) {
           // Rollback on error - restaurar estado anterior completo

@@ -2,7 +2,7 @@
 
 import { useDashboardStore } from '@/store/dashboardStore';
 import { MetricCard } from '@/components/shared/MetricCard';
-import { TrendingUp, TrendingDown, Wallet, CalendarRange } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, CalendarClock, CalendarRange } from 'lucide-react';
 import { usePronosticoFinanciero } from '@/hooks/use-pronostico-financiero';
 
 function formatUSD(value: number): string {
@@ -12,6 +12,7 @@ function formatUSD(value: number): string {
 export function DashboardMetrics() {
   const { stats, isLoading } = useDashboardStore();
   const { meses, isLoading: isLoadingMensual } = usePronosticoFinanciero();
+  const gastoMensual = meses[0]?.gastos ?? null;
   const ingresoMensual = meses[0]?.ingresos ?? null;
 
   const gastosTotal = stats?.gastosTotal ?? 0;
@@ -19,7 +20,7 @@ export function DashboardMetrics() {
   const gananciasTotal = ingresosTotal - gastosTotal;
 
   return (
-    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-5">
       <MetricCard
         title="Gastos Totales"
         value={isLoading ? '...' : formatUSD(gastosTotal)}
@@ -44,17 +45,26 @@ export function DashboardMetrics() {
         valueColor={isLoading ? undefined : gananciasTotal >= 0 ? 'text-green-500' : 'text-red-500'}
         description="Ingresos totales menos gastos totales"
         icon={Wallet}
-        iconColor={gananciasTotal >= 0 ? 'text-green-500' : 'text-red-500'}
-        borderColor={gananciasTotal >= 0 ? 'border-l-green-500' : 'border-l-red-500'}
+        iconColor="text-green-500"
+        borderColor="border-l-green-500"
         loading={isLoading}
+      />
+      <MetricCard
+        title="Gasto Mensual Esperado"
+        value={isLoadingMensual ? '...' : (gastoMensual !== null ? formatUSD(gastoMensual) : '$0.00')}
+        description="Gastos a pagar este mes"
+        icon={CalendarClock}
+        iconColor="text-purple-500"
+        borderColor="border-l-purple-500"
+        loading={isLoadingMensual}
       />
       <MetricCard
         title="Ingreso Mensual Esperado"
         value={isLoadingMensual ? '...' : (ingresoMensual !== null ? formatUSD(ingresoMensual) : '$0.00')}
         description="Ingresos a recibir este mes"
         icon={CalendarRange}
-        iconColor="text-blue-400"
-        borderColor="border-l-blue-400"
+        iconColor="text-orange-500"
+        borderColor="border-l-orange-500"
         loading={isLoadingMensual}
       />
     </div>

@@ -46,7 +46,6 @@ export const useDashboardStore = create<DashboardState>()(
         set({ isLoading: true, error: null });
 
         try {
-          // All fetches in parallel — 7 reads total (1 doc + 6 logs + 3 free counts)
           const [stats, ventasActivas, totalClientes, totalRevendedores, recentActivity] =
             await Promise.all([
               getDashboardStats(),
@@ -59,7 +58,6 @@ export const useDashboardStore = create<DashboardState>()(
               getCount(COLLECTIONS.USUARIOS, [
                 { field: 'tipo', operator: '==', value: 'revendedor' },
               ]),
-              // Direct query: orderBy + limit = exactly 6 reads
               getDocs(
                 query(
                   collection(db, COLLECTIONS.ACTIVITY_LOG),
@@ -82,57 +80,6 @@ export const useDashboardStore = create<DashboardState>()(
             error: null,
             lastFetch: Date.now(),
           });
-
-          // Seed inicial: si nunca se han guardado los datos fuente del pronóstico,
-          // los cargamos una sola vez en background para poblar el campo en Firestore.
-          // Desde ahí en adelante, los upserts incrementales los mantienen actualizados.
-          if (!stats.ventasPronostico || !stats.serviciosPronostico) {
-            Promise.all([
-              import('./ventasStore'),
-              import('./serviciosStore'),
-              import('@/lib/services/dashboardStatsService'),
-            ]).then(async ([{ useVentasStore }, { useServiciosStore }, ds]) => {
-              await Promise.all([
-                useVentasStore.getState().fetchVentas(),
-                useServiciosStore.getState().fetchServicios(),
-              ]);
-              const ventas = useVentasStore.getState().ventas;
-              const servicios = useServiciosStore.getState().servicios;
-
-              const ventasP = ventas
-                .filter((v) => v.estado !== 'inactivo' && v.fechaFin && v.cicloPago)
-                .map((v) => ({
-                  id: v.id,
-                  fechaFin: v.fechaFin instanceof Date ? v.fechaFin.toISOString() : String(v.fechaFin),
-                  cicloPago: v.cicloPago!,
-                  precioFinal: v.precioFinal || 0,
-                  moneda: v.moneda || 'USD',
-                }));
-
-              const serviciosP = servicios
-                .filter((s) => s.activo && s.fechaVencimiento && s.cicloPago && s.costoServicio > 0)
-                .map((s) => ({
-                  id: s.id,
-                  fechaVencimiento: s.fechaVencimiento instanceof Date
-                    ? s.fechaVencimiento.toISOString()
-                    : String(s.fechaVencimiento),
-                  cicloPago: s.cicloPago!,
-                  costoServicio: s.costoServicio,
-                  moneda: s.moneda || 'USD',
-                }));
-
-              await Promise.all([
-                ds.syncVentasPronostico(ventasP),
-                ds.syncServiciosPronostico(serviciosP),
-              ]);
-
-              set((state) => ({
-                stats: state.stats
-                  ? { ...state.stats, ventasPronostico: ventasP, serviciosPronostico: serviciosP }
-                  : state.stats,
-              }));
-            }).catch(() => {});
-          }
 
         } catch (error) {
           const errorMessage =

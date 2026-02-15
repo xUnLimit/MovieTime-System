@@ -46,7 +46,8 @@
       "Bash(Write-Host \"Done\")",
       "Bash(git diff:*)",
       "Bash(git -C \"c:/Users/iTs_A/Desktop/MovieTime System\" checkout HEAD -- \"src/components/servicios/CategoriasTable.tsx\" \"src/app/\\(dashboard\\)/servicios/page.tsx\")",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "Bash(cat:*)"
     ]
   }
 }

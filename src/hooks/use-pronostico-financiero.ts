@@ -1,11 +1,12 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { addMonths, startOfMonth, endOfMonth, isWithinInterval, format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { CYCLE_MONTHS } from '@/lib/constants';
-import type { PronosticoMensual, VentaPronostico, ServicioPronostico } from '@/types/dashboard';
+import type { PronosticoMensual } from '@/types/dashboard';
+import { currencyService } from '@/lib/services/currencyService';
 
 export interface MesPronostico extends PronosticoMensual {
   mesKey: string;
@@ -31,53 +32,68 @@ function caeEnMes(
   return isWithinInterval(fecha, { start, end });
 }
 
-function calcularMes(
-  ventas: VentaPronostico[],
-  servicios: ServicioPronostico[],
-  offset: number
-): Omit<MesPronostico, 'ingresos' | 'gastos' | 'ganancias'> & { ventasDelMes: VentaPronostico[]; serviciosDelMes: ServicioPronostico[] } {
-  const targetMonth = addMonths(startOfMonth(new Date()), offset);
-  const inicioMes = startOfMonth(targetMonth);
-  const finMes = endOfMonth(targetMonth);
-
-  const ventasDelMes = ventas.filter((v) => {
-    if (!v.fechaFin || !v.cicloPago) return false;
-    return caeEnMes(new Date(v.fechaFin), v.cicloPago as keyof typeof CYCLE_MONTHS, inicioMes, finMes);
-  });
-
-  const serviciosDelMes = servicios.filter((s) => {
-    if (!s.fechaVencimiento || !s.cicloPago) return false;
-    return caeEnMes(new Date(s.fechaVencimiento), s.cicloPago as keyof typeof CYCLE_MONTHS, inicioMes, finMes);
-  });
-
-  const mes = format(targetMonth, 'MMMM yyyy', { locale: es }).replace(/^\w/, (c) => c.toUpperCase());
-  const mesKey = format(targetMonth, 'yyyy-MM');
-
-  return { mes, mesKey, ventasDelMes, serviciosDelMes };
-}
-
 export function usePronosticoFinanciero(): UsePronosticoFinancieroResult {
-  const { stats, isLoading } = useDashboardStore();
+  const { stats, isLoading: statsLoading } = useDashboardStore();
+  const [meses, setMeses] = useState<MesPronostico[]>([]);
+  const [isCalculating, setIsCalculating] = useState(false);
 
-  const meses = useMemo((): MesPronostico[] => {
-    const ventas = stats?.ventasPronostico ?? [];
-    const servicios = stats?.serviciosPronostico ?? [];
+  useEffect(() => {
+    const calcular = async () => {
+      const ventas = stats?.ventasPronostico ?? [];
+      const servicios = stats?.serviciosPronostico ?? [];
 
-    // If no source data at all, return empty (first-ever load before any sync)
-    if (ventas.length === 0 && servicios.length === 0) return [];
+      if (ventas.length === 0 && servicios.length === 0) {
+        setMeses([]);
+        return;
+      }
 
-    return Array.from({ length: 4 }, (_, offset) => {
-      const { mes, mesKey, ventasDelMes, serviciosDelMes } = calcularMes(ventas, servicios, offset);
+      setIsCalculating(true);
+      try {
+        // Pre-load exchange rates once, then use sync conversion for all items
+        await currencyService.ensureRatesLoaded();
 
-      // Synchronous sum in USD — uses exchange rates cached in currencyService (no fetch)
-      // All amounts are already in their original currency; we approximate in USD using
-      // the cached rate. If the rate isn't cached yet, we fall back to raw sum.
-      const ingresos = ventasDelMes.reduce((sum, v) => sum + (v.precioFinal || 0), 0);
-      const gastos = serviciosDelMes.reduce((sum, s) => sum + (s.costoServicio || 0), 0);
+        const mesesCalculados = Array.from({ length: 4 }, (_, offset) => {
+          const targetMonth = addMonths(startOfMonth(new Date()), offset);
+          const inicioMes = startOfMonth(targetMonth);
+          const finMes = endOfMonth(targetMonth);
 
-      return { mes, mesKey, ingresos, gastos, ganancias: ingresos - gastos };
-    });
+          const ventasDelMes = ventas.filter((v) => {
+            if (!v.fechaFin || !v.cicloPago) return false;
+            return caeEnMes(new Date(v.fechaFin), v.cicloPago as keyof typeof CYCLE_MONTHS, inicioMes, finMes);
+          });
+
+          const serviciosDelMes = servicios.filter((s) => {
+            if (!s.fechaVencimiento || !s.cicloPago) return false;
+            return caeEnMes(new Date(s.fechaVencimiento), s.cicloPago as keyof typeof CYCLE_MONTHS, inicioMes, finMes);
+          });
+
+          // Sync conversion — no await needed, rates are already cached
+          const ingresos = ventasDelMes.reduce(
+            (sum, v) => sum + currencyService.convertToUSDSync(v.precioFinal || 0, v.moneda || 'USD'),
+            0
+          );
+          const gastos = serviciosDelMes.reduce(
+            (sum, s) => sum + currencyService.convertToUSDSync(s.costoServicio || 0, s.moneda || 'USD'),
+            0
+          );
+
+          const mes = format(targetMonth, 'MMMM yyyy', { locale: es }).replace(/^\w/, (c) => c.toUpperCase());
+          const mesKey = format(targetMonth, 'yyyy-MM');
+
+          return { mes, mesKey, ingresos, gastos, ganancias: ingresos - gastos };
+        });
+
+        setMeses(mesesCalculados);
+      } catch (error) {
+        console.error('[PronosticoFinanciero] Error calculando:', error);
+        setMeses([]);
+      } finally {
+        setIsCalculating(false);
+      }
+    };
+
+    calcular();
   }, [stats?.ventasPronostico, stats?.serviciosPronostico]);
 
-  return { meses, isLoading };
+  return { meses, isLoading: statsLoading || isCalculating };
 }

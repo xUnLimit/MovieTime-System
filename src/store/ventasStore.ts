@@ -8,6 +8,7 @@ import { format } from 'date-fns';
 import { detectarCambios } from '@/lib/utils/activityLogHelpers';
 import { adjustIngresosStats, getMesKeyFromDate, getDiaKeyFromDate, upsertVentaPronostico } from '@/lib/services/dashboardStatsService';
 import type { VentaPronostico } from '@/types/dashboard';
+import { currencyService } from '@/lib/services/currencyService';
 
 function toVentaPronostico(v: VentaDoc): VentaPronostico | null {
   if (v.estado === 'inactivo' || !v.fechaFin || !v.cicloPago) return null;
@@ -158,9 +159,10 @@ export const useVentasStore = create<VentasState>()(
             detalles: `Venta creada: ${ventaData.clienteNombre} / ${ventaData.servicioNombre} — $${ventaData.precioFinal ?? 0} ${ventaData.moneda ?? 'USD'} — ${format(ventaData.fechaInicio ?? new Date(), 'dd/MM/yyyy')} al ${format(ventaData.fechaFin ?? new Date(), 'dd/MM/yyyy')} (${ventaData.cicloPago})`,
           }).catch(() => {});
 
-          // Actualizar contadores de la categoría
+          // Actualizar contadores de la categoría (convertir precio a USD)
           if (ventaDataLimpia.categoriaId && ventaData.precioFinal) {
-            await adjustCategoriaSuscripciones(ventaDataLimpia.categoriaId, 1, ventaData.precioFinal);
+            const precioFinalUSD = await currencyService.convertToUSD(ventaData.precioFinal, ventaData.moneda ?? 'USD');
+            await adjustCategoriaSuscripciones(ventaDataLimpia.categoriaId, 1, precioFinalUSD);
           }
 
           // Actualizar estadísticas del dashboard (non-blocking)
@@ -171,10 +173,26 @@ export const useVentasStore = create<VentasState>()(
             dia: getDiaKeyFromDate(ventaData.fechaInicio ?? new Date()),
             categoriaId: ventaData.categoriaId ?? '',
             categoriaNombre: ventaData.categoriaNombre ?? '',
-          }).catch(() => {});
+          }).catch((err) => console.error('[VentasStore] Error updating dashboard ingresos:', err));
 
-          // Upsert venta en pronóstico (non-blocking, sin getAll)
-          upsertVentaPronostico(toVentaPronostico(newVenta), newVenta.id).catch(() => {});
+          // Actualizar dashboard store local INMEDIATAMENTE + upsert a Firestore en background
+          const ventaPronostico = toVentaPronostico(newVenta);
+          if (ventaPronostico) {
+            // 1. Actualizar estado local del dashboard de inmediato (antes de que el usuario navegue)
+            import('./dashboardStore').then(({ useDashboardStore }) => {
+              const currentStats = useDashboardStore.getState().stats;
+              if (currentStats) {
+                const existing = currentStats.ventasPronostico ?? [];
+                const updated = [...existing.filter(v => v.id !== newVenta.id), ventaPronostico];
+                useDashboardStore.setState({
+                  stats: { ...currentStats, ventasPronostico: updated },
+                });
+              }
+            }).catch(() => {});
+
+            // 2. Persistir a Firestore en background (non-blocking)
+            upsertVentaPronostico(ventaPronostico, newVenta.id).catch((err) => console.error('[VentasStore] Error upserting pronostico:', err));
+          }
 
           // Dispatch event for cross-component updates
           if (typeof window !== 'undefined') {
@@ -268,10 +286,28 @@ export const useVentasStore = create<VentasState>()(
             cambios: cambios.length > 0 ? cambios : undefined,
           }).catch(() => {});
 
-          // Upsert venta actualizada en pronóstico (non-blocking, sin getAll)
+          // Actualizar dashboard store local INMEDIATAMENTE + upsert a Firestore en background
           const ventaActualizada = get().ventas.find((v) => v.id === id);
           if (ventaActualizada) {
-            upsertVentaPronostico(toVentaPronostico(ventaActualizada), id).catch(() => {});
+            const ventaPronostico = toVentaPronostico(ventaActualizada);
+            // 1. Actualizar estado local del dashboard de inmediato
+            import('./dashboardStore').then(({ useDashboardStore }) => {
+              const currentStats = useDashboardStore.getState().stats;
+              if (currentStats) {
+                const existing = currentStats.ventasPronostico ?? [];
+                const updated = ventaPronostico
+                  ? existing.some(v => v.id === id)
+                    ? existing.map(v => v.id === id ? ventaPronostico : v)
+                    : [...existing, ventaPronostico]
+                  : existing.filter(v => v.id !== id);
+                useDashboardStore.setState({
+                  stats: { ...currentStats, ventasPronostico: updated },
+                });
+              }
+            }).catch(() => {});
+
+            // 2. Persistir a Firestore en background (non-blocking)
+            upsertVentaPronostico(ventaPronostico, id).catch((err) => console.error('[VentasStore] Error upserting pronostico:', err));
           }
 
           // Dispatch event for cross-component updates
@@ -333,12 +369,13 @@ export const useVentasStore = create<VentasState>()(
             await adjustServiciosActivos(ventaEliminada.clienteId, -1);
           }
 
-          // Decrementar contadores de la categoría
+          // Decrementar contadores de la categoría (convertir precio a USD)
           if (ventaEliminada?.categoriaId && ventaEliminada?.precioFinal) {
+            const precioFinalUSD = await currencyService.convertToUSD(ventaEliminada.precioFinal, ventaEliminada.moneda ?? 'USD');
             await adjustCategoriaSuscripciones(
               ventaEliminada.categoriaId,
               -1,
-              -ventaEliminada.precioFinal
+              -precioFinalUSD
             );
           }
 
@@ -351,7 +388,7 @@ export const useVentasStore = create<VentasState>()(
               dia: getDiaKeyFromDate(ventaEliminada.fechaInicio ?? new Date()),
               categoriaId: ventaEliminada.categoriaId ?? '',
               categoriaNombre: ventaEliminada.categoriaNombre ?? '',
-            }).catch(() => {});
+            }).catch((err) => console.error('[VentasStore] Error reverting dashboard ingresos:', err));
           }
 
           // Eliminar notificaciones asociadas a esta venta
@@ -372,8 +409,17 @@ export const useVentasStore = create<VentasState>()(
             detalles: `Venta eliminada: ${ventaEliminada?.clienteNombre} / ${ventaEliminada?.servicioNombre}`,
           }).catch(() => {});
 
-          // Eliminar venta del pronóstico (non-blocking, sin getAll)
-          upsertVentaPronostico(null, id).catch(() => {});
+          // Actualizar dashboard store local INMEDIATAMENTE + persistir a Firestore en background
+          import('./dashboardStore').then(({ useDashboardStore }) => {
+            const currentStats = useDashboardStore.getState().stats;
+            if (currentStats) {
+              const updated = (currentStats.ventasPronostico ?? []).filter(v => v.id !== id);
+              useDashboardStore.setState({
+                stats: { ...currentStats, ventasPronostico: updated },
+              });
+            }
+          }).catch(() => {});
+          upsertVentaPronostico(null, id).catch((err) => console.error('[VentasStore] Error removing pronostico:', err));
 
           // Notificar que se eliminó una venta
           if (typeof window !== 'undefined') {

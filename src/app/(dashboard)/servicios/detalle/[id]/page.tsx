@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { getCurrencySymbol } from '@/lib/constants';
 import { formatearFecha, sumInUSD, formatAggregateInUSD } from '@/lib/utils/calculations';
+import { currencyService } from '@/lib/services/currencyService';
 import { usePagosServicio } from '@/hooks/use-pagos-servicio';
 import { crearPagoRenovacion } from '@/lib/services/pagosServicioService';
 import { useActivityLogStore } from '@/store/activityLogStore';
@@ -224,10 +225,10 @@ function ServicioDetallePageContent() {
   const handleConfirmEditarPago = async (data: PagoFormData) => {
     if (!pagoToEdit) return;
     try {
-      // Calcular diferencia entre monto viejo y nuevo
-      const montoDiff = data.costo - (pagoToEdit.monto ?? 0);
-
       const metodoPagoSeleccionado = metodosPago.find((m) => m.id === data.metodoPagoId);
+      const nuevaMoneda = data.moneda || metodoPagoSeleccionado?.moneda || 'USD';
+      const viejaMoneda = pagoToEdit.moneda || metodoPago?.moneda || 'USD';
+
       await update(COLLECTIONS.PAGOS_SERVICIO, pagoToEdit.id, {
         fechaInicio: data.fechaInicio,
         fechaVencimiento: data.fechaVencimiento,
@@ -235,15 +236,20 @@ function ServicioDetallePageContent() {
         cicloPago: data.periodoRenovacion as 'mensual' | 'trimestral' | 'semestral' | 'anual',
         metodoPagoId: data.metodoPagoId,
         metodoPagoNombre: data.metodoPagoNombre || metodoPagoSeleccionado?.nombre,  // Denormalizado
-        moneda: data.moneda || metodoPagoSeleccionado?.moneda,                      // Denormalizado
+        moneda: nuevaMoneda,                                                         // Denormalizado
         notas: data.notas || '',
       });
 
-      // Ajustar gastosTotal del servicio con la diferencia si cambió el monto
-      if (montoDiff !== 0 && servicio) {
+      // Ajustar gastosTotal del servicio con la diferencia convertida a USD
+      const [nuevoUSD, viejoUSD] = await Promise.all([
+        currencyService.convertToUSD(data.costo, nuevaMoneda),
+        currencyService.convertToUSD(pagoToEdit.monto ?? 0, viejaMoneda),
+      ]);
+      const montoDiffUSD = nuevoUSD - viejoUSD;
+      if (montoDiffUSD !== 0 && servicio) {
         const servicioRef = firestoreDoc(db, COLLECTIONS.SERVICIOS, id);
         await updateDoc(servicioRef, {
-          gastosTotal: increment(montoDiff)
+          gastosTotal: increment(montoDiffUSD)
         });
       }
 
@@ -285,13 +291,15 @@ function ServicioDetallePageContent() {
     try {
       await remove(COLLECTIONS.PAGOS_SERVICIO, pagoToDelete.id);
 
-      // Decrementar gastosTotal del servicio y de la categoría
+      // Decrementar gastosTotal del servicio y de la categoría (convertido a USD)
+      const montoToRevertMoneda = pagoToDelete.moneda || metodoPago?.moneda || 'USD';
+      const montoToRevertUSD = await currencyService.convertToUSD(montoToRevert, montoToRevertMoneda);
       const servicioRef = firestoreDoc(db, COLLECTIONS.SERVICIOS, id);
       await updateDoc(servicioRef, {
-        gastosTotal: increment(-montoToRevert)
+        gastosTotal: increment(-montoToRevertUSD)
       });
       if (servicio?.categoriaId) {
-        await adjustCategoriaGastos(servicio.categoriaId, -montoToRevert);
+        await adjustCategoriaGastos(servicio.categoriaId, -montoToRevertUSD);
       }
 
       refreshPagos();
@@ -343,13 +351,14 @@ function ServicioDetallePageContent() {
         data.notas
       );
 
-      // Incrementar gastosTotal del servicio y de la categoría
+      // Incrementar gastosTotal del servicio y de la categoría (convertido a USD)
+      const costoRenovacionUSD = await currencyService.convertToUSD(data.costo, data.moneda || metodoPagoSeleccionado?.moneda || 'USD');
       const servicioRef = firestoreDoc(db, COLLECTIONS.SERVICIOS, id);
       await updateDoc(servicioRef, {
-        gastosTotal: increment(data.costo)
+        gastosTotal: increment(costoRenovacionUSD)
       });
       if (servicio?.categoriaId) {
-        await adjustCategoriaGastos(servicio.categoriaId, data.costo);
+        await adjustCategoriaGastos(servicio.categoriaId, costoRenovacionUSD);
       }
 
       await updateServicio(id, {

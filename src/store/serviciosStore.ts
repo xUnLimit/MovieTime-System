@@ -3,6 +3,7 @@ import { devtools } from 'zustand/middleware';
 import { Servicio, MetodoPago } from '@/types';
 import { getAll, getById, getCount, create as createDoc, update, remove, COLLECTIONS, logCacheHit, adjustCategoriaGastos } from '@/lib/firebase/firestore';
 import { adjustGastosStats, getMesKeyFromDate, getDiaKeyFromDate, upsertServicioPronostico } from '@/lib/services/dashboardStatsService';
+import { currencyService } from '@/lib/services/currencyService';
 import type { ServicioPronostico } from '@/types/dashboard';
 
 function toServicioPronostico(s: Servicio): ServicioPronostico | null {
@@ -160,9 +161,10 @@ export const useServiciosStore = create<ServiciosState>()(
             serviciosActivos: increment(1),
             perfilesDisponiblesTotal: increment(servicioData.perfilesDisponibles ?? 0),
           });
-          // Denormalizar gasto inicial en la categoría
+          // Denormalizar gasto inicial en la categoría (convertido a USD)
           if (servicioData.costoServicio) {
-            await adjustCategoriaGastos(servicioData.categoriaId, servicioData.costoServicio);
+            const costoUSD = await currencyService.convertToUSD(servicioData.costoServicio, moneda ?? 'USD');
+            await adjustCategoriaGastos(servicioData.categoriaId, costoUSD);
           }
 
           // Actualizar estadísticas del dashboard (non-blocking)
@@ -171,7 +173,7 @@ export const useServiciosStore = create<ServiciosState>()(
             moneda: moneda ?? 'USD',
             mes: getMesKeyFromDate(servicioData.fechaInicio ?? new Date()),
             dia: getDiaKeyFromDate(servicioData.fechaInicio ?? new Date()),
-          }).catch(() => {});
+          }).catch((err) => console.error('[ServiciosStore] Error updating dashboard gastos:', err));
 
           const newServicio: Servicio = {
             ...servicioData,
@@ -187,8 +189,21 @@ export const useServiciosStore = create<ServiciosState>()(
             error: null
           }));
 
-          // Upsert servicio en pronóstico (non-blocking, sin getAll)
-          upsertServicioPronostico(toServicioPronostico(newServicio), newServicio.id).catch(() => {});
+          // Actualizar dashboard store local INMEDIATAMENTE + persistir a Firestore en background
+          const servicioPronostico = toServicioPronostico(newServicio);
+          if (servicioPronostico) {
+            import('./dashboardStore').then(({ useDashboardStore }) => {
+              const currentStats = useDashboardStore.getState().stats;
+              if (currentStats) {
+                const existing = currentStats.serviciosPronostico ?? [];
+                const updated = [...existing.filter(s => s.id !== newServicio.id), servicioPronostico];
+                useDashboardStore.setState({
+                  stats: { ...currentStats, serviciosPronostico: updated },
+                });
+              }
+            }).catch(() => {});
+            upsertServicioPronostico(servicioPronostico, newServicio.id).catch((err) => console.error('[ServiciosStore] Error upserting pronostico:', err));
+          }
 
           // Registrar en log de actividad
           useActivityLogStore.getState().addLog({
@@ -321,7 +336,7 @@ export const useServiciosStore = create<ServiciosState>()(
               moneda: servicio.moneda ?? 'USD',
               mes: getMesKeyFromDate(servicio.fechaInicio ?? new Date()),
               dia: getDiaKeyFromDate(servicio.fechaInicio ?? new Date()),
-            }).catch(() => {});
+            }).catch((err) => console.error('[ServiciosStore] Error reverting dashboard gastos:', err));
           }
 
           // Eliminar notificaciones asociadas a este servicio
@@ -332,8 +347,17 @@ export const useServiciosStore = create<ServiciosState>()(
             // Notifications cleanup is best-effort, don't fail the delete
           }
 
-          // Eliminar servicio del pronóstico (non-blocking, sin getAll)
-          upsertServicioPronostico(null, id).catch(() => {});
+          // Actualizar dashboard store local INMEDIATAMENTE + persistir a Firestore en background
+          import('./dashboardStore').then(({ useDashboardStore }) => {
+            const currentStats = useDashboardStore.getState().stats;
+            if (currentStats) {
+              const updated = (currentStats.serviciosPronostico ?? []).filter(s => s.id !== id);
+              useDashboardStore.setState({
+                stats: { ...currentStats, serviciosPronostico: updated },
+              });
+            }
+          }).catch(() => {});
+          upsertServicioPronostico(null, id).catch((err) => console.error('[ServiciosStore] Error removing pronostico:', err));
 
           // Notificar a otras páginas que se eliminó un servicio
           if (typeof window !== 'undefined') {

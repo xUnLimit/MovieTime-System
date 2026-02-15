@@ -271,6 +271,29 @@ class CurrencyService {
   }
 
   /**
+   * Pre-load rates into memory cache. Call once before batch sync conversions.
+   * After this resolves, convertToUSDSync() can be used without await.
+   */
+  async ensureRatesLoaded(): Promise<void> {
+    await this.getRates();
+  }
+
+  /**
+   * Synchronous USD conversion using memory-cached rates.
+   * MUST call ensureRatesLoaded() first. Falls back to 1.0 if cache is empty.
+   */
+  convertToUSDSync(amount: number, fromCurrency: string = 'USD'): number {
+    if (fromCurrency === 'USD' || !fromCurrency) return amount;
+    if (!this.memoryCache?.rates) return amount;
+
+    const rateKey = `USD_${fromCurrency.toUpperCase()}`;
+    const rate = this.memoryCache.rates[rateKey];
+    if (!rate) return amount;
+
+    return amount / rate;
+  }
+
+  /**
    * Clear memory cache (useful for testing)
    */
   clearMemoryCache(): void {
