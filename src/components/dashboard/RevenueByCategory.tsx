@@ -86,7 +86,10 @@ export function RevenueByCategory() {
                   backgroundColor: '#09090b',
                   border: '1px solid #3f3f46',
                   borderRadius: '6px',
+                  color: '#ffffff',
                 }}
+                labelStyle={{ color: '#ffffff' }}
+                itemStyle={{ color: '#ffffff' }}
                 formatter={(value: number | undefined) => [`$${(value ?? 0).toFixed(2)} USD`, 'Rentabilidad']}
                 cursor={{ fill: 'hsl(var(--muted))', opacity: 0.2 }}
               />

@@ -55,7 +55,7 @@ export function RecentActivity() {
         {/* pb-2 = espacio abajo (8px) */}
         {/* flex-1 = ocupa todo el espacio vertical disponible */}
         {/* flex flex-col = layout en columna (actividades arriba, botón abajo) */}
-        <div className="space-y-1.5 flex-1 pt-0">
+        <div className="space-y-1.5 pt-0">
           {/* space-y-1.5 = espacio vertical entre elementos (6px) */}
           {isLoading ? (
             <div className="w-full space-y-1.5">
@@ -106,7 +106,7 @@ export function RecentActivity() {
             </div>
           )}
         </div>
-        <div className="pt-3 mt-auto">
+        <div className="pt-6">
           <Button variant="outline" className="w-full" asChild>
             <Link href="/log-actividad">
               Ver todo el historial

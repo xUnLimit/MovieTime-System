@@ -5,6 +5,9 @@ import {
   User as FirebaseUser,
   createUserWithEmailAndPassword,
   updateProfile,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
 } from 'firebase/auth';
 import { auth } from './config';
 import { User } from '@/types';
@@ -12,8 +15,10 @@ import { User } from '@/types';
 /**
  * Sign in with email and password
  */
-export async function signIn(email: string, password: string): Promise<FirebaseUser> {
+export async function signIn(email: string, password: string, rememberMe: boolean = false): Promise<FirebaseUser> {
   try {
+    // Set Firebase persistence based on "Recordarme" option
+    await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     return userCredential.user;
   } catch (error) {

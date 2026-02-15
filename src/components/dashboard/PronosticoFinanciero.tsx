@@ -66,7 +66,7 @@ export function PronosticoFinanciero() {
   const todasPositivas = meses.length > 0 && meses.every((m) => m.ganancias >= 0);
 
   return (
-    <Card className="flex flex-col py-3 gap-0 h-full">
+    <Card className="flex flex-col py-3 gap-0 h-full overflow-hidden">
       <CardHeader className="p-0 px-4 pb-3">
         <div className="flex items-center gap-2">
           <Lightbulb className="h-4 w-4 text-yellow-500 shrink-0" />
@@ -77,7 +77,7 @@ export function PronosticoFinanciero() {
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="px-4 pt-0 pb-0 flex-1 space-y-2">
+      <CardContent className="px-4 pt-0 pb-0 flex-1 space-y-2 overflow-y-auto min-h-0">
         {isLoading ? (
           <>
             <MesRowSkeleton />

@@ -36,7 +36,7 @@ export default function LoginPage() {
     }
 
     try {
-      await login(email, password);
+      await login(email, password, rememberMe);
       toast.success('Inicio de sesión exitoso');
       router.push('/dashboard');
     } catch (error) {
