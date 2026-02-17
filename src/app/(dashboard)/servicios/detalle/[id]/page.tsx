@@ -95,7 +95,7 @@ function ServicioDetallePageContent() {
         // 1. Cargar el servicio (categoriaNombre ya está denormalizado)
         const servicioData = await getById<Servicio>(COLLECTIONS.SERVICIOS, id);
         if (!servicioData) {
-          toast.error('Servicio no encontrado');
+          toast.error('Servicio no encontrado', { description: 'No se encontró el servicio con el ID proporcionado.' });
           setServicio(null);
           return;
         }
@@ -119,7 +119,7 @@ function ServicioDetallePageContent() {
         // Nota: metodosPago (para dropdown) se carga en lazy load al abrir diálogo de renovación
       } catch (error) {
         console.error('Error cargando datos del servicio:', error);
-        toast.error('Error cargando datos del servicio');
+        toast.error('Error al cargar el servicio', { description: 'Ocurrió un problema al obtener los datos. Intenta nuevamente.' });
         setServicio(null);
       } finally {
         setIsLoadingData(false);
@@ -174,7 +174,7 @@ function ServicioDetallePageContent() {
   const handleConfirmDelete = async () => {
     try {
       await deleteServicio(id);
-      toast.success('Servicio eliminado');
+      toast.success('Servicio eliminado', { description: 'El servicio ha sido eliminado correctamente.' });
 
       // Refrescar categorías y contadores de servicios para actualizar widgets
       await Promise.all([
@@ -274,7 +274,7 @@ function ServicioDetallePageContent() {
       }
 
       refreshPagos();
-      toast.success('Pago actualizado correctamente');
+      toast.success('Pago actualizado', { description: 'Los datos del pago han sido actualizados correctamente.' });
       setPagoToEdit(null);
       setEditarPagoDialogOpen(false);
     } catch (error) {
@@ -324,7 +324,7 @@ function ServicioDetallePageContent() {
           }
         }
       }
-      toast.success('Renovación eliminada');
+      toast.success('Renovación eliminada', { description: 'El registro de pago ha sido eliminado del historial.' });
       setPagoToDelete(null);
     } catch (error) {
       console.error('Error al eliminar renovación:', error);
@@ -391,7 +391,7 @@ function ServicioDetallePageContent() {
         detalles: `Servicio renovado: "${servicio?.nombre}" — $${data.costo} ${data.moneda ?? 'USD'} — hasta ${format(data.fechaVencimiento, 'dd/MM/yyyy')} (${data.periodoRenovacion})`,
       }).catch(() => {});
 
-      toast.success('Renovación registrada exitosamente');
+      toast.success('Renovación registrada', { description: 'El nuevo período de pago se ha registrado correctamente.' });
       setRenovarDialogOpen(false);
     } catch (error) {
       console.error('Error al registrar la renovación:', error);
@@ -647,7 +647,15 @@ function ServicioDetallePageContent() {
                   <p className="text-sm font-medium flex items-center gap-2">
                     {servicio.correo || 'Sin especificar'}
                     {servicio.correo && (
-                      <Button variant="ghost" size="icon" className="h-6 w-6">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => {
+                          navigator.clipboard.writeText(servicio.correo!);
+                          toast.success('Email copiado', { description: 'El email se ha copiado al portapapeles.' });
+                        }}
+                      >
                         <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                         </svg>
@@ -660,7 +668,15 @@ function ServicioDetallePageContent() {
                   <p className="text-sm font-medium flex items-center gap-2">
                     {servicio.contrasena || 'Sin especificar'}
                     {servicio.contrasena && (
-                      <Button variant="ghost" size="icon" className="h-6 w-6">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => {
+                          navigator.clipboard.writeText(servicio.contrasena!);
+                          toast.success('Contraseña copiada', { description: 'La contraseña se ha copiado al portapapeles.' });
+                        }}
+                      >
                         <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                         </svg>

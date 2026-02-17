@@ -48,7 +48,7 @@ function VerMetodoPagoPageContent() {
     if (metodo) {
       try {
         await deleteMetodoPago(metodo.id);
-        toast.success('Método de pago eliminado');
+        toast.success('Método de pago eliminado', { description: 'El método de pago ha sido eliminado correctamente.' });
         router.push('/metodos-pago');
       } catch (error) {
         toast.error('Error al eliminar método de pago', { description: error instanceof Error ? error.message : undefined });
@@ -58,7 +58,7 @@ function VerMetodoPagoPageContent() {
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
-    toast.success(`${label} copiado al portapapeles`);
+    toast.success(`${label} copiado`, { description: `${label} copiado al portapapeles exitosamente.` });
   };
 
   const tipoCuentaLabels: Record<string, string> = {

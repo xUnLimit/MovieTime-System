@@ -92,7 +92,7 @@ function UsuarioDetallesPageContent() {
   const handleConfirmDelete = async () => {
     try {
       await deleteUsuario(usuario!.id);
-      toast.success(`${usuario?.tipo === 'revendedor' ? 'Revendedor' : 'Cliente'} eliminado`);
+      toast.success(`${usuario?.tipo === 'revendedor' ? 'Revendedor' : 'Cliente'} eliminado`, { description: 'El usuario ha sido eliminado correctamente del sistema.' });
       router.push('/usuarios');
     } catch (error) {
       toast.error('Error al eliminar usuario', { description: error instanceof Error ? error.message : undefined });

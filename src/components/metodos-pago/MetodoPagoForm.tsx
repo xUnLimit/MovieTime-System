@@ -327,7 +327,7 @@ export function MetodoPagoForm({ mode, metodoPago, returnTo = '/metodos-pago' }:
         }
         await createMetodoPago(metodoPagoData);
         await fetchCounts(); // Actualizar métricas
-        toast.success('Método de pago creado exitosamente');
+        toast.success('Método de pago creado', { description: 'El nuevo método de pago ha sido registrado correctamente.' });
       } else if (metodoPago) {
         const updates: Partial<MetodoPago> = {
           nombre: data.nombre,
@@ -350,7 +350,7 @@ export function MetodoPagoForm({ mode, metodoPago, returnTo = '/metodos-pago' }:
         }
         await updateMetodoPago(metodoPago.id, updates);
         await fetchCounts(); // Actualizar métricas
-        toast.success('Método de pago actualizado exitosamente');
+        toast.success('Método de pago actualizado', { description: 'Los datos del método de pago han sido guardados correctamente.' });
       }
       router.push(returnTo);
     } catch (error) {

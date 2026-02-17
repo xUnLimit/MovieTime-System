@@ -59,7 +59,7 @@ export function TemplateEditor({ templates }: TemplateEditorProps) {
   const handleCopyPlaceholder = async (placeholder: string) => {
     try {
       await navigator.clipboard.writeText(placeholder);
-      toast.success('Placeholder copiado');
+      toast.success('Placeholder copiado', { description: 'El placeholder ha sido copiado al portapapeles.' });
     } catch (error) {
       toast.error('Error al copiar', { description: error instanceof Error ? error.message : undefined });
     }
@@ -78,7 +78,7 @@ export function TemplateEditor({ templates }: TemplateEditorProps) {
           contenido,
           placeholders: detectedPlaceholders,
         });
-        toast.success('Plantilla actualizada');
+        toast.success('Plantilla actualizada', { description: 'Los cambios en la plantilla han sido guardados correctamente.' });
       } else {
         // Create new template
         const tipoLabel = TIPO_TEMPLATES.find((t) => t.value === selectedTipo)?.label || selectedTipo;
@@ -89,7 +89,7 @@ export function TemplateEditor({ templates }: TemplateEditorProps) {
           placeholders: detectedPlaceholders,
           activo: true,
         });
-        toast.success('Plantilla creada');
+        toast.success('Plantilla creada', { description: 'La nueva plantilla de mensaje ha sido creada correctamente.' });
       }
     } catch (error) {
       toast.error('Error al guardar plantilla', { description: error instanceof Error ? error.message : undefined });

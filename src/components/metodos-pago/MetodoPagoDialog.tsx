@@ -121,10 +121,10 @@ export function MetodoPagoDialog({
 
       if (metodoPago) {
         await updateMetodoPago(metodoPago.id, metodoPagoData);
-        toast.success('Método de pago actualizado');
+        toast.success('Método de pago actualizado', { description: 'Los datos del método de pago han sido guardados correctamente.' });
       } else {
         await createMetodoPago(metodoPagoData);
-        toast.success('Método de pago creado');
+        toast.success('Método de pago creado', { description: 'El nuevo método de pago ha sido registrado correctamente.' });
       }
       onOpenChange(false);
     } catch (error) {

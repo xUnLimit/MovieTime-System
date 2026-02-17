@@ -279,7 +279,7 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
         });
       }
 
-      toast.success('Servicio actualizado exitosamente');
+      toast.success('Servicio actualizado', { description: 'Los datos del servicio han sido guardados correctamente.' });
 
       // Refrescar pagos y contadores
       refreshPagos();

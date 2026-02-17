@@ -210,11 +210,11 @@ export function UsuarioForm({
         // Actualizar usuario existente (incluyendo cambio de tipo si es necesario)
         await updateUsuario(usuario.id, usuarioData);
         const cambioTipo = usuario.tipo !== data.tipoUsuario;
-        toast.success(cambioTipo ? `Usuario convertido a ${data.tipoUsuario}` : `${data.tipoUsuario === 'cliente' ? 'Cliente' : 'Revendedor'} actualizado`);
+        toast.success(cambioTipo ? 'Tipo de usuario actualizado' : `${data.tipoUsuario === 'cliente' ? 'Cliente' : 'Revendedor'} actualizado`, { description: cambioTipo ? `El usuario ha sido convertido a ${data.tipoUsuario} correctamente.` : 'Los datos del usuario han sido actualizados correctamente.' });
       } else {
         // Crear nuevo usuario
         await createUsuario(usuarioData);
-        toast.success(`${data.tipoUsuario === 'cliente' ? 'Cliente' : 'Revendedor'} creado`);
+        toast.success(`${data.tipoUsuario === 'cliente' ? 'Cliente' : 'Revendedor'} creado`, { description: `El nuevo ${data.tipoUsuario} ha sido registrado correctamente en el sistema.` });
       }
 
       onSuccess?.();

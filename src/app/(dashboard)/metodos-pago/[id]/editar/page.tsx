@@ -28,7 +28,7 @@ function EditarMetodoPagoPageContent() {
         setMetodoPago(data);
       } catch (error) {
         console.error('Error cargando método de pago:', error);
-        toast.error('Error cargando método de pago');
+        toast.error('Error al cargar el método de pago', { description: 'No se pudieron obtener los datos. Intenta nuevamente.' });
         setMetodoPago(null);
       } finally {
         setLoading(false);

@@ -70,7 +70,7 @@ export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Reven
           createdAt: revendedorToDelete.createdAt,
           serviciosActivos: revendedorToDelete.serviciosActivos,
         });
-        toast.success('Revendedor eliminado');
+        toast.success('Revendedor eliminado', { description: 'El revendedor ha sido eliminado correctamente del sistema.' });
         setDeleteDialogOpen(false);
         setRevendedorToDelete(null);
         onRefresh();

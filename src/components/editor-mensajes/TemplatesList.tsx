@@ -25,7 +25,7 @@ export function TemplatesList({ templates, onEdit, onPreview }: TemplatesListPro
   const handleToggleActive = async (template: TemplateMensaje) => {
     try {
       await updateTemplate(template.id, { activo: !template.activo });
-      toast.success(`Template ${template.activo ? 'desactivado' : 'activado'}`);
+      toast.success(`Template ${template.activo ? 'desactivado' : 'activado'}`, { description: template.activo ? 'El template ha sido desactivado y no se usará en notificaciones.' : 'El template está activo y listo para usarse.' });
     } catch (error) {
       toast.error('Error al actualizar template', { description: error instanceof Error ? error.message : undefined });
     }
@@ -40,7 +40,7 @@ export function TemplatesList({ templates, onEdit, onPreview }: TemplatesListPro
     if (templateToDelete) {
       try {
         await deleteTemplate(templateToDelete.id);
-        toast.success('Template eliminado');
+        toast.success('Template eliminado', { description: 'El template de mensaje ha sido eliminado correctamente.' });
       } catch (error) {
         toast.error('Error al eliminar template', { description: error instanceof Error ? error.message : undefined });
       }
@@ -50,7 +50,7 @@ export function TemplatesList({ templates, onEdit, onPreview }: TemplatesListPro
   const handleCopy = async (template: TemplateMensaje) => {
     try {
       await navigator.clipboard.writeText(template.contenido);
-      toast.success('Contenido copiado');
+      toast.success('Contenido copiado', { description: 'El contenido de la plantilla ha sido copiado al portapapeles.' });
     } catch (error) {
       toast.error('Error al copiar', { description: error instanceof Error ? error.message : undefined });
     }

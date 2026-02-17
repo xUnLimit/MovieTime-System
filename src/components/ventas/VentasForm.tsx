@@ -544,7 +544,7 @@ export function VentasForm() {
     }
     if (!isValid) return;
     if (items.length === 0) {
-      toast.error('Agregue al menos un item');
+      toast.error('Sin servicios', { description: 'Agrega al menos un servicio antes de continuar.' });
       return;
     }
     setIsDatosTabComplete(true);
@@ -554,11 +554,11 @@ export function VentasForm() {
   const handleGuardarVenta = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (items.length === 0) {
-      toast.error('Agregue al menos un item');
+      toast.error('Sin servicios', { description: 'Agrega al menos un servicio antes de guardar la venta.' });
       return;
     }
     if (!clienteIdValue || !metodoPagoIdValue || !fechaInicioValue || !fechaFinValue) {
-      toast.error('Complete los datos requeridos');
+      toast.error('Datos incompletos', { description: 'Completa todos los campos requeridos para guardar la venta.' });
       return;
     }
     const clienteNombre = clienteSeleccionado
@@ -629,7 +629,7 @@ export function VentasForm() {
           adjustVentasActivas(clienteIdValue, items.length);
         }
       }
-      toast.success('Venta registrada');
+      toast.success('Venta registrada', { description: 'La venta ha sido guardada correctamente en el sistema.' });
       if (notifyCliente && estadoVenta !== 'inactivo') {
         const phoneRaw = clienteSeleccionado?.telefono || '';
         const phone = phoneRaw.replace(/\D/g, '');

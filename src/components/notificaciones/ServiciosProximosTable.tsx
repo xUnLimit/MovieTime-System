@@ -219,9 +219,9 @@ export function ServiciosProximosTable() {
   const copyToClipboard = async (text: string, label: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      toast.success(`${label} copiado al portapapeles`);
+      toast.success(`${label} copiado`, { description: `${label} copiado al portapapeles exitosamente.` });
     } catch {
-      toast.error(`Error al copiar ${label}`);
+      toast.error('Error al copiar', { description: `No se pudo copiar ${label} al portapapeles.` });
     }
   };
 
@@ -244,12 +244,11 @@ export function ServiciosProximosTable() {
     try {
       await toggleResaltada(notif.id, !notif.resaltada);
       toast.success(
-        notif.resaltada
-          ? 'Notificación desmarcada'
-          : 'Notificación resaltada para seguimiento'
+        notif.resaltada ? 'Notificación desmarcada' : 'Notificación resaltada',
+        { description: notif.resaltada ? 'La notificación ya no está marcada para seguimiento.' : 'La notificación ha sido marcada para seguimiento.' }
       );
     } catch {
-      toast.error('Error al actualizar la notificación');
+      toast.error('Error al actualizar notificación', { description: 'No se pudo cambiar el estado de la notificación. Intenta nuevamente.' });
     }
   };
 

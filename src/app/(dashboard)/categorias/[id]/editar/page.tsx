@@ -28,7 +28,7 @@ function EditarCategoriaPageContent() {
         setCategoria(data);
       } catch (error) {
         console.error('Error cargando categoría:', error);
-        toast.error('Error cargando categoría');
+        toast.error('Error al cargar la categoría', { description: 'No se pudieron obtener los datos. Intenta nuevamente.' });
         setCategoria(null);
       } finally {
         setLoading(false);

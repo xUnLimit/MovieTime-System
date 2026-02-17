@@ -31,13 +31,13 @@ export default function LoginPage() {
     e.preventDefault();
 
     if (!email || !password) {
-      toast.error('Por favor completa todos los campos');
+      toast.error('Campos incompletos', { description: 'Por favor ingresa tu email y contraseña para continuar.' });
       return;
     }
 
     try {
       await login(email, password, rememberMe);
-      toast.success('Inicio de sesión exitoso');
+      toast.success('Inicio de sesión exitoso', { description: 'Bienvenido de vuelta al sistema.' });
       router.push('/dashboard');
     } catch (error) {
       toast.error('Credenciales inválidas', { description: error instanceof Error ? error.message : undefined });

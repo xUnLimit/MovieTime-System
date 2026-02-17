@@ -144,7 +144,7 @@ export function CategoriaForm({ mode, categoria, returnTo = '/categorias' }: Cat
           ingresosTotales: 0,
           gastosTotal: 0,
         });
-        toast.success('Categoría creada exitosamente');
+        toast.success('Categoría creada', { description: 'La nueva categoría ha sido registrada correctamente.' });
       } else if (categoria) {
         await updateCategoria(categoria.id, {
           nombre: data.nombre,
@@ -154,7 +154,7 @@ export function CategoriaForm({ mode, categoria, returnTo = '/categorias' }: Cat
           notas: data.notas,
           activo: categoria.activo,
         });
-        toast.success('Categoría actualizada exitosamente');
+        toast.success('Categoría actualizada', { description: 'Los cambios en la categoría han sido guardados correctamente.' });
       }
       router.push(returnTo);
     } catch (error) {

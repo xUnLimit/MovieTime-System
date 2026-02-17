@@ -93,7 +93,7 @@ export function CategoriaDialog({
     try {
       if (categoria) {
         await updateCategoria(categoria.id, data);
-        toast.success('Categoría actualizada');
+        toast.success('Categoría actualizada', { description: 'Los cambios en la categoría han sido guardados correctamente.' });
       } else {
         // Inicializar campos denormalizados para nueva categoría
         await createCategoria({
@@ -105,7 +105,7 @@ export function CategoriaDialog({
           ingresosTotales: 0,
           gastosTotal: 0,
         });
-        toast.success('Categoría creada');
+        toast.success('Categoría creada', { description: 'La nueva categoría ha sido registrada correctamente.' });
       }
       onOpenChange(false);
     } catch (error) {

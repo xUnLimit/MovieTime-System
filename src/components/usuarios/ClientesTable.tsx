@@ -70,7 +70,7 @@ export function ClientesTable({ clientes, onEdit, onView, title = 'Clientes', is
           createdAt: clienteToDelete.createdAt,
           serviciosActivos: clienteToDelete.serviciosActivos,
         });
-        toast.success('Cliente eliminado');
+        toast.success('Cliente eliminado', { description: 'El cliente ha sido eliminado correctamente del sistema.' });
         setDeleteDialogOpen(false);
         setClienteToDelete(null);
         onRefresh();

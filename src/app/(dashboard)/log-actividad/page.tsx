@@ -56,11 +56,11 @@ function LogActividadPageContent() {
   const handleDeleteSelected = async (ids: string[]) => {
     try {
       await Promise.all(ids.map(id => remove(COLLECTIONS.ACTIVITY_LOG, id)));
-      toast.success(`${ids.length} registro(s) eliminado(s)`);
+      toast.success('Registros eliminados', { description: `${ids.length} registro(s) han sido eliminados del log de actividad.` });
       refresh();
     } catch (error) {
       console.error('Error deleting logs:', error);
-      toast.error('Error al eliminar registros');
+      toast.error('Error al eliminar registros', { description: 'No se pudieron eliminar los registros seleccionados. Intenta nuevamente.' });
     }
   };
 
@@ -72,11 +72,11 @@ function LogActividadPageContent() {
         { field: 'timestamp', operator: '<', value: cutoff }
       ]);
       await Promise.all(oldLogs.map(log => remove(COLLECTIONS.ACTIVITY_LOG, log.id)));
-      toast.success(`${oldLogs.length} registro(s) antiguo(s) eliminado(s)`);
+      toast.success('Registros antiguos eliminados', { description: `${oldLogs.length} registro(s) anterior(es) al período seleccionado han sido eliminados.` });
       refresh();
     } catch (error) {
       console.error('Error deleting old logs:', error);
-      toast.error('Error al eliminar registros antiguos');
+      toast.error('Error al eliminar registros', { description: 'No se pudieron eliminar los registros antiguos. Intenta nuevamente.' });
     }
   };
 

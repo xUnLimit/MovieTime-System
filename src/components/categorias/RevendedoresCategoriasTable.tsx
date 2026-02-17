@@ -54,7 +54,7 @@ export function RevendedoresCategoriasTable({ categorias, title = 'Categorías d
     if (categoriaToDelete) {
       try {
         await deleteCategoria(categoriaToDelete.id);
-        toast.success('Categoría eliminada');
+        toast.success('Categoría eliminada', { description: 'La categoría ha sido eliminada correctamente.' });
       } catch (error) {
         toast.error('Error al eliminar categoría', { description: error instanceof Error ? error.message : undefined });
       }

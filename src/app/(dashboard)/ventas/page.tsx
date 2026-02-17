@@ -128,7 +128,7 @@ function VentasPageContent() {
     if (!deleteVentaId) return;
     try {
       await deleteVenta(deleteVentaId, deleteVentaServicioId, deleteVentaPerfilNumero, deletePagos);
-      toast.success(deletePagos ? 'Venta y pagos eliminados correctamente' : 'Venta eliminada correctamente');
+      toast.success(deletePagos ? 'Venta y pagos eliminados' : 'Venta eliminada', { description: deletePagos ? 'La venta y todos sus pagos asociados han sido eliminados.' : 'La venta ha sido eliminada. Los pagos se conservaron.' });
       setDeleteVentaId(null);
       setDeleteVentaServicioId(undefined);
       setDeleteVentaPerfilNumero(undefined);

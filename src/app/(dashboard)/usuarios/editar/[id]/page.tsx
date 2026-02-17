@@ -36,7 +36,7 @@ function EditarUsuarioPageContent() {
         setMetodosPago(metodosData);
       } catch (error) {
         console.error('Error cargando datos:', error);
-        toast.error('Error cargando datos del usuario');
+        toast.error('Error al cargar el usuario', { description: 'No se pudieron obtener los datos. Intenta nuevamente.' });
         setUsuario(null);
       } finally {
         setLoading(false);

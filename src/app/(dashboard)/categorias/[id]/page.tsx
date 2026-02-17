@@ -46,7 +46,7 @@ function VerCategoriaPageContent() {
     if (categoria) {
       try {
         await deleteCategoria(categoria.id);
-        toast.success('Categoría eliminada');
+        toast.success('Categoría eliminada', { description: 'La categoría ha sido eliminada correctamente.' });
         router.push('/categorias');
       } catch (error) {
         toast.error('Error al eliminar categoría', { description: error instanceof Error ? error.message : undefined });

@@ -529,7 +529,7 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
         adjustVentasActivas(venta.clienteId, +1);
       }
 
-      toast.success('Venta actualizada');
+      toast.success('Venta actualizada', { description: 'Los datos de la venta han sido guardados correctamente.' });
       router.push(`/ventas/${venta.id}`);
     } catch (error) {
       console.error('Error actualizando venta:', error);

@@ -38,9 +38,9 @@ export function ServiciosTable({ servicios, onEdit }: ServiciosTableProps) {
         await deleteServicio(servicioToDelete.id, deletePayments);
 
         if (deletePayments) {
-          toast.success('Servicio y registros de pago eliminados');
+          toast.success('Servicio eliminado', { description: 'El servicio y todos sus registros de pago han sido eliminados.' });
         } else {
-          toast.success('Servicio eliminado (registros de pago conservados)');
+          toast.success('Servicio eliminado', { description: 'El servicio fue eliminado. Los registros de pago se conservaron.' });
         }
 
         // Refrescar categorías y contadores de servicios para actualizar widgets
@@ -57,7 +57,7 @@ export function ServiciosTable({ servicios, onEdit }: ServiciosTableProps) {
   const handleCopyCredentials = (servicio: Servicio) => {
     const text = `Correo: ${servicio.correo}\nContraseña: ${servicio.contrasena}`;
     navigator.clipboard.writeText(text);
-    toast.success('Credenciales copiadas');
+    toast.success('Credenciales copiadas', { description: 'El correo y contraseña han sido copiados al portapapeles.' });
   };
 
   const columns: Column<Servicio>[] = [

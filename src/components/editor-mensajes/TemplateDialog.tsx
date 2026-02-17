@@ -116,10 +116,10 @@ export function TemplateDialog({ open, onOpenChange, template }: TemplateDialogP
 
       if (template) {
         await updateTemplate(template.id, templateData);
-        toast.success('Template actualizado');
+        toast.success('Template actualizado', { description: 'Los cambios en el template han sido guardados correctamente.' });
       } else {
         await createTemplate(templateData);
-        toast.success('Template creado');
+        toast.success('Template creado', { description: 'El nuevo template de mensaje ha sido creado correctamente.' });
       }
       onOpenChange(false);
     } catch (error) {

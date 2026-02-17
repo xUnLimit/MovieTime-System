@@ -70,7 +70,7 @@ function NotificacionesPageContent() {
         await sincronizarNotificaciones();
       } catch (error) {
         console.error('Error initializing notifications:', error);
-        toast.error('Error cargando notificaciones');
+        toast.error('Error al cargar notificaciones', { description: 'No se pudieron obtener las notificaciones. Intenta nuevamente.' });
       }
     };
 
@@ -86,10 +86,10 @@ function NotificacionesPageContent() {
       await sincronizarNotificacionesForzado();
       await fetchNotificaciones(true);
       await fetchCounts();
-      toast.success('Sincronización completada');
+      toast.success('Sincronización completada', { description: 'Las notificaciones han sido actualizadas correctamente.' });
     } catch (error) {
       console.error('Error during sync:', error);
-      toast.error('Error durante sincronización');
+      toast.error('Error durante sincronización', { description: 'No se pudo completar la sincronización. Intenta nuevamente.' });
     } finally {
       setIsSyncing(false);
     }

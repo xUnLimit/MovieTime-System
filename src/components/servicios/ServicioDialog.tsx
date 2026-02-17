@@ -135,10 +135,10 @@ export function ServicioDialog({
 
       if (servicio) {
         await updateServicio(servicio.id, servicioData);
-        toast.success('Servicio actualizado');
+        toast.success('Servicio actualizado', { description: 'Los datos del servicio han sido guardados correctamente.' });
       } else {
         await createServicio(servicioData);
-        toast.success('Servicio creado');
+        toast.success('Servicio creado', { description: 'El nuevo servicio ha sido registrado correctamente en el sistema.' });
       }
 
       // Refrescar categorías para actualizar contadores

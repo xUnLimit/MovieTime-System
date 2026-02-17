@@ -319,10 +319,10 @@ export function ServicioForm({ servicio, returnTo = '/servicios' }: ServicioForm
           ...servicio,
           ...servicioData,
         });
-        toast.success('Servicio actualizado exitosamente');
+        toast.success('Servicio actualizado', { description: 'Los datos del servicio han sido guardados correctamente.' });
       } else {
         await createServicio(servicioData);
-        toast.success('Servicio creado exitosamente');
+        toast.success('Servicio creado', { description: 'El nuevo servicio ha sido registrado correctamente en el sistema.' });
       }
 
       // Refrescar categorías y contadores de servicios para que se actualicen los widgets

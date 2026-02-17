@@ -107,7 +107,7 @@ export function TodosUsuariosTable({
           createdAt: usuarioToDelete.original.createdAt,
           serviciosActivos: usuarioToDelete.original.serviciosActivos,
         });
-        toast.success(`${usuarioToDelete.tipo} eliminado`);
+        toast.success(`${usuarioToDelete.tipo} eliminado`, { description: 'El usuario ha sido eliminado correctamente del sistema.' });
         setDeleteDialogOpen(false);
         setUsuarioToDelete(null);
         onRefresh();
