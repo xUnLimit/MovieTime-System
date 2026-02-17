@@ -360,9 +360,21 @@ export async function sincronizarNotificaciones(): Promise<void> {
 
 /**
  * Force refresh notifications (bypass cache)
- * Useful for testing or manual refresh
+ * Deletes ALL existing notifications and rebuilds from scratch.
+ * This guarantees the UI only shows notifications that match the current database state.
  */
 export async function sincronizarNotificacionesForzado(): Promise<void> {
+  // 1️⃣ Delete all existing notifications so stale/incorrect ones don't linger
+  try {
+    const todasNotificaciones = (await getAll(COLLECTIONS.NOTIFICACIONES)) as (Notificacion & { id: string })[];
+    if (todasNotificaciones.length > 0) {
+      await Promise.all(todasNotificaciones.map(n => remove(COLLECTIONS.NOTIFICACIONES, n.id)));
+    }
+  } catch (error) {
+    console.warn('[NotificationSync] Error clearing notifications before forced sync:', error);
+  }
+
+  // 2️⃣ Run full sync from scratch (bypass daily cache)
   if (typeof window !== 'undefined') {
     localStorage.removeItem('lastNotificationSync');
   }
