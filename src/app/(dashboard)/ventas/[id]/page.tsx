@@ -527,7 +527,7 @@ function VentaDetallePageContent() {
   if (loading) {
     return (
       <div className="space-y-4">
-        <h1 className="text-3xl font-bold tracking-tight">Cargando venta...</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Cargando venta...</h1>
       </div>
     );
   }
@@ -536,7 +536,7 @@ function VentaDetallePageContent() {
     return (
       <div className="space-y-4">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight">Venta no encontrada</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Venta no encontrada</h1>
           <p className="text-sm text-muted-foreground">
             <Link href="/" className="hover:text-foreground transition-colors">Dashboard</Link>
             {' / '}
@@ -557,15 +557,15 @@ function VentaDetallePageContent() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <Link href="/ventas">
-            <Button variant="outline" size="icon" className="h-8 w-8">
+            <Button variant="outline" size="icon" className="h-8 w-8 flex-shrink-0">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Detalles de Venta: {venta.clienteNombre}</h1>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Detalles de Venta: {venta.clienteNombre}</h1>
             <p className="text-sm text-muted-foreground">
               <Link href="/" className="hover:text-foreground transition-colors">Dashboard</Link>
               {' / '}
@@ -611,7 +611,7 @@ function VentaDetallePageContent() {
             <Badge className={estadoBadgeClass}>{estadoLabel}</Badge>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr] gap-y-6 md:gap-x-64">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-6 md:gap-x-8">
             <div>
               <p className="text-xs text-muted-foreground">Cliente</p>
               {venta.clienteId ? (
@@ -656,7 +656,7 @@ function VentaDetallePageContent() {
             </div>
           </div>
 
-          <div className="border-t pt-5 grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr] gap-y-6 md:gap-x-64">
+          <div className="border-t pt-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-6 md:gap-x-8">
             <div>
               <p className="text-xs text-muted-foreground">Fecha de Inicio</p>
               <p className="text-sm font-medium flex items-center gap-2">

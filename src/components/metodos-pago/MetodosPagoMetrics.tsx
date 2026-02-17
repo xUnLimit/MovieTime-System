@@ -13,7 +13,7 @@ export const MetodosPagoMetrics = memo(function MetodosPagoMetrics() {
   }, [fetchCounts]);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
       <MetricCard
         title="Total Métodos"
         value={totalMetodos}

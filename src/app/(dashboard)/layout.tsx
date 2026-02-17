@@ -7,6 +7,7 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { DashboardErrorFallback } from '@/components/shared/DashboardErrorFallback';
 import { sincronizarNotificaciones } from '@/lib/services/notificationSyncService';
+import { Menu } from 'lucide-react';
 
 export default function DashboardLayout({
   children
@@ -16,6 +17,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const { isAuthenticated, isHydrated } = useAuthStore();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   useEffect(() => {
     // Solo redirigir después de que Zustand se haya hidratado
@@ -55,13 +57,30 @@ export default function DashboardLayout({
     <ErrorBoundary fallback={<DashboardErrorFallback />}>
       <div className="flex h-screen overflow-hidden">
         {/* Sidebar */}
-        <Sidebar collapsed={sidebarCollapsed} onCollapse={setSidebarCollapsed} />
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          onCollapse={setSidebarCollapsed}
+          mobileOpen={mobileSidebarOpen}
+          onMobileClose={() => setMobileSidebarOpen(false)}
+        />
 
         {/* Main Content */}
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex flex-1 flex-col overflow-hidden min-w-0">
+          {/* Mobile top bar */}
+          <div className="flex items-center h-14 px-4 border-b border-border bg-background md:hidden flex-shrink-0">
+            <button
+              onClick={() => setMobileSidebarOpen(true)}
+              className="flex items-center justify-center h-9 w-9 rounded-lg text-foreground hover:bg-muted transition-colors"
+              aria-label="Abrir menú"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <span className="ml-3 text-base font-semibold">MovieTime PTY</span>
+          </div>
+
           {/* Main */}
           <main className="flex-1 overflow-y-auto bg-background">
-            <div className="h-full p-6">
+            <div className="h-full p-3 sm:p-4 md:p-6">
               {children}
             </div>
           </main>

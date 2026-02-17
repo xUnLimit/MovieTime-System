@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { ArrowLeft, Pencil, Trash2, RefreshCw, User, ChevronDown, DollarSign, Monitor, Calendar, Tag } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2, RefreshCw, User, ChevronDown, DollarSign, Monitor, Calendar, Tag, ExternalLink } from 'lucide-react';
 import { useServiciosStore } from '@/store/serviciosStore';
 import { useCategoriasStore } from '@/store/categoriasStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
@@ -35,6 +35,7 @@ import { useActivityLogStore } from '@/store/activityLogStore';
 import { useAuthStore } from '@/store/authStore';
 
 interface PerfilVenta {
+  ventaId?: string;
   clienteNombre?: string;
   createdAt?: Date;
   precioFinal?: number;
@@ -45,6 +46,9 @@ interface PerfilVenta {
   servicioNombre?: string;
   servicioCorreo?: string;
   moneda?: string;
+  perfilNombre?: string;
+  codigo?: string;
+  cicloPago?: string;
 }
 
 interface PagoFormData {
@@ -144,6 +148,7 @@ function ServicioDetallePageContent() {
         const ventas = ventasConDatos
           .filter((venta) => (venta.estado ?? 'activo') !== 'inactivo')
           .map((venta) => ({
+          ventaId: venta.id || undefined,
           perfilNumero: venta.perfilNumero ?? null,
           clienteNombre: venta.clienteNombre || undefined,
           createdAt: venta.createdAt,
@@ -155,6 +160,9 @@ function ServicioDetallePageContent() {
           servicioNombre: venta.servicioNombre,
           servicioCorreo: venta.servicioCorreo || '',
           moneda: venta.moneda || undefined,
+          perfilNombre: venta.perfilNombre || undefined,
+          codigo: venta.codigo || undefined,
+          cicloPago: venta.cicloPago || undefined,
         }));
         setVentasServicio(ventas);
       } catch (error) {
@@ -441,36 +449,30 @@ function ServicioDetallePageContent() {
     ventasServicio.forEach((venta) => {
       if (!venta.perfilNumero) return;
       const existing = map.get(venta.perfilNumero);
+      const entry: PerfilVenta = {
+        ventaId: venta.ventaId,
+        clienteNombre: venta.clienteNombre,
+        createdAt: venta.createdAt,
+        precioFinal: venta.precioFinal,
+        descuento: venta.descuento,
+        fechaInicio: venta.fechaInicio,
+        fechaFin: venta.fechaFin,
+        notas: venta.notas,
+        servicioNombre: venta.servicioNombre,
+        servicioCorreo: venta.servicioCorreo,
+        moneda: venta.moneda,
+        perfilNombre: venta.perfilNombre,
+        codigo: venta.codigo,
+        cicloPago: venta.cicloPago,
+      };
       if (!existing) {
-        map.set(venta.perfilNumero, {
-          clienteNombre: venta.clienteNombre,
-          createdAt: venta.createdAt,
-          precioFinal: venta.precioFinal,
-          descuento: venta.descuento,
-          fechaInicio: venta.fechaInicio,
-          fechaFin: venta.fechaFin,
-          notas: venta.notas,
-          servicioNombre: venta.servicioNombre,
-          servicioCorreo: venta.servicioCorreo,
-          moneda: venta.moneda,
-        });
+        map.set(venta.perfilNumero, entry);
         return;
       }
       const existingDate = existing.createdAt?.getTime() ?? 0;
       const nextDate = venta.createdAt?.getTime() ?? 0;
       if (nextDate >= existingDate) {
-        map.set(venta.perfilNumero, {
-          clienteNombre: venta.clienteNombre,
-          createdAt: venta.createdAt,
-          precioFinal: venta.precioFinal,
-          descuento: venta.descuento,
-          fechaInicio: venta.fechaInicio,
-          fechaFin: venta.fechaFin,
-          notas: venta.notas,
-          servicioNombre: venta.servicioNombre,
-          servicioCorreo: venta.servicioCorreo,
-          moneda: venta.moneda,
-        });
+        map.set(venta.perfilNumero, entry);
       }
     });
     return map;
@@ -481,7 +483,7 @@ function ServicioDetallePageContent() {
     return (
       <div className="space-y-4">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight">Cargando servicio...</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Cargando servicio...</h1>
           <p className="text-sm text-muted-foreground">
             <Link href="/" className="hover:text-foreground transition-colors">Dashboard</Link>
             {' / '}
@@ -501,7 +503,7 @@ function ServicioDetallePageContent() {
     return (
       <div className="space-y-4">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight">Servicio no encontrado</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Servicio no encontrado</h1>
           <p className="text-sm text-muted-foreground">
             <Link href="/" className="hover:text-foreground transition-colors">
               Dashboard
@@ -548,15 +550,15 @@ function ServicioDetallePageContent() {
     <>
       <div className="space-y-5">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <Link href="/servicios">
-              <Button variant="outline" size="icon" className="h-8 w-8">
+              <Button variant="outline" size="icon" className="h-8 w-8 flex-shrink-0">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             </Link>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">Servicio: {servicio.nombre}</h1>
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Servicio: {servicio.nombre}</h1>
               <p className="text-sm text-muted-foreground">
                 <Link href="/" className="hover:text-foreground transition-colors">
                   Dashboard
@@ -718,7 +720,7 @@ function ServicioDetallePageContent() {
                   const venta = perfil.venta;
                   const ventaCurrency = getCurrencySymbol(venta?.moneda || metodoPago?.moneda);
                   const diasRestantes =
-                    venta?.fechaFin ? Math.max(Math.ceil((new Date(venta.fechaFin).getTime() - Date.now()) / (1000 * 60 * 60 * 24)), 0) : null;
+                    venta?.fechaFin ? Math.ceil((new Date(venta.fechaFin).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
                   return (
                   <div
                     key={index}
@@ -764,44 +766,92 @@ function ServicioDetallePageContent() {
                     {perfil.estado === 'ocupado' && expandedProfileIndex === index && venta && (
                       <div className="mt-4 space-y-3">
                         <div className="pt-3 border-t border-border">
-                          <p className="text-sm text-muted-foreground mb-2">Detalles de la venta:</p>
-                          <div className="space-y-2 text-sm">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-sm text-muted-foreground">Detalles de la venta:</p>
+                            {venta.ventaId && (
+                              <Link href={`/ventas/${venta.ventaId}`}>
+                                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1 bg-black text-white hover:bg-black/80 hover:text-white">
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                  Ver venta
+                                </Button>
+                              </Link>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-2 text-sm">
+                            {/* Columna 1: Cliente, Precio, Descuento */}
+                            <div className="space-y-2">
                               <div className="flex items-center gap-2">
-                                <User className="h-4 w-4 text-muted-foreground" />
-                                <span className="font-medium">{venta.clienteNombre || 'Sin cliente'}</span>
+                                <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                                <span className="font-medium truncate">{venta.clienteNombre || 'Sin cliente'}</span>
                               </div>
                               <div className="flex items-center gap-2">
-                                <Calendar className="h-4 w-4 text-muted-foreground" />
+                                <DollarSign className="h-4 w-4 text-muted-foreground shrink-0" />
+                                <span className="font-medium">{ventaCurrency} {(venta.precioFinal ?? 0).toFixed(2)}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Tag className="h-4 w-4 text-muted-foreground shrink-0" />
+                                <span className="font-medium">Desc: {(venta.descuento ?? 0).toFixed(2)}%</span>
+                              </div>
+                            </div>
+                            {/* Columna 2: Ciclo, Inicio, Vence */}
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <RefreshCw className="h-4 w-4 text-muted-foreground shrink-0" />
+                                <span className="text-muted-foreground">Ciclo:</span>
+                                <span className="font-medium">{venta.cicloPago ? getCicloPagoLabel(venta.cicloPago) : '—'}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
                                 <span className="font-medium">
                                   Inicio: {venta.fechaInicio ? format(new Date(venta.fechaInicio), 'd MMM yyyy', { locale: es }) : '—'}
                                 </span>
                               </div>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div className="flex items-center gap-2">
-                                <DollarSign className="h-4 w-4 text-muted-foreground" />
-                                <span className="font-medium">{ventaCurrency} {(venta.precioFinal ?? 0).toFixed(2)}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Calendar className="h-4 w-4 text-muted-foreground" />
+                                <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
                                 <span className="font-medium">
                                   Vence: {venta.fechaFin ? format(new Date(venta.fechaFin), 'd MMM yyyy', { locale: es }) : '—'}
                                 </span>
                               </div>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Columna 3: Perfil, Código, Días restantes */}
+                            <div className="space-y-2">
                               <div className="flex items-center gap-2">
-                                <Tag className="h-4 w-4 text-muted-foreground" />
-                                <span className="font-medium">Desc: {(venta.descuento ?? 0).toFixed(2)}%</span>
+                                <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                                <span className="text-muted-foreground">Perfil:</span>
+                                <span className="font-medium truncate">{venta.perfilNombre || '—'}</span>
                               </div>
-                              {diasRestantes !== null && (
+                              {venta.codigo && (
                                 <div className="flex items-center gap-2">
-                                  <Badge variant="secondary" className="bg-green-600/20 text-green-400 hover:bg-green-600/30">
-                                    {diasRestantes} dias restantes
-                                  </Badge>
+                                  <Tag className="h-4 w-4 text-muted-foreground shrink-0" />
+                                  <span className="text-muted-foreground">Código:</span>
+                                  <span className="font-medium select-all">{venta.codigo}</span>
                                 </div>
                               )}
+                              {diasRestantes !== null && (() => {
+                                let badgeClass: string;
+                                let badgeText: string;
+                                if (diasRestantes < 0) {
+                                  const d = Math.abs(diasRestantes);
+                                  badgeClass = 'border-red-500/50 bg-red-500/20 text-red-300';
+                                  badgeText = `${d} día${d > 1 ? 's' : ''} de retraso`;
+                                } else if (diasRestantes === 0) {
+                                  badgeClass = 'border-red-500/50 bg-red-500/20 text-red-300';
+                                  badgeText = 'Vence hoy';
+                                } else if (diasRestantes <= 7) {
+                                  badgeClass = 'border-yellow-500/50 bg-yellow-500/20 text-yellow-300';
+                                  badgeText = `${diasRestantes} día${diasRestantes > 1 ? 's' : ''} restante${diasRestantes > 1 ? 's' : ''}`;
+                                } else {
+                                  badgeClass = 'border-green-500/50 bg-green-500/20 text-green-300';
+                                  badgeText = `${diasRestantes} día${diasRestantes > 1 ? 's' : ''} restante${diasRestantes > 1 ? 's' : ''}`;
+                                }
+                                return (
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className={badgeClass}>
+                                      {badgeText}
+                                    </Badge>
+                                  </div>
+                                );
+                              })()}
                             </div>
                           </div>
                         </div>

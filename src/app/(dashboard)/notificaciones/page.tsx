@@ -28,7 +28,7 @@ function NotificacionesMetrics() {
     useNotificacionesStore();
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
       <MetricCard
         title="Total Notificaciones"
         value={totalNotificaciones}
@@ -97,10 +97,10 @@ function NotificacionesPageContent() {
 
   return (
     <div className="space-y-4">
-      {/* Page Header - matching Categorías style */}
-      <div className="flex items-center justify-between">
+      {/* Page Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight">Notificaciones</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Notificaciones</h1>
           <p className="text-sm text-muted-foreground">
             <Link href="/" className="hover:text-foreground transition-colors">
               Dashboard
@@ -108,7 +108,7 @@ function NotificacionesPageContent() {
             / <span className="text-foreground">Notificaciones</span>
           </p>
         </div>
-        <Button onClick={handleForzarSync} disabled={isSyncing} variant="outline">
+        <Button onClick={handleForzarSync} disabled={isSyncing} variant="outline" className="self-start sm:self-auto">
           <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
           {isSyncing ? 'Sincronizando...' : 'Actualizar'}
         </Button>

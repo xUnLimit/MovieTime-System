@@ -44,9 +44,9 @@ function CrearUsuarioPageContent() {
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             </Link>
-            <h1 className="text-3xl font-bold tracking-tight">Nuevo Usuario</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Nuevo Usuario</h1>
           </div>
-          <p className="text-sm text-muted-foreground ml-10">
+          <p className="text-sm text-muted-foreground ml-10 sm:ml-10">
             <Link href="/dashboard" className="hover:text-foreground transition-colors">Dashboard</Link> / <Link href="/usuarios" className="hover:text-foreground transition-colors">Clientes</Link> / <span className="text-foreground">Crear</span>
           </p>
         </div>

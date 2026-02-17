@@ -78,15 +78,15 @@ export function IngresosVsGastosChart() {
 
   return (
     <Card className="py-3 gap-0">
-      <CardHeader className="flex flex-row items-center justify-between p-0 px-4 pb-2">
+      <CardHeader className="flex flex-col gap-2 p-0 px-4 pb-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <CardTitle className="text-base">Ingresos vs Gastos</CardTitle>
-          <CardDescription className="text-sm">
+          <CardDescription className="text-sm hidden sm:block">
             Comparativa mensual de los ingresos totales por ventas y los gastos totales en servicios.
           </CardDescription>
         </div>
         <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-          <SelectTrigger className="w-[140px] h-8 text-xs">
+          <SelectTrigger className="w-full sm:w-[140px] h-8 text-xs">
             <SelectValue placeholder="Seleccionar mes" />
           </SelectTrigger>
           <SelectContent>

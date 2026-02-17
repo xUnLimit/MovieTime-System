@@ -49,7 +49,7 @@ function EditarMetodoPagoPageContent() {
     return (
       <div className="space-y-4">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight">Método de pago no encontrado</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Método de pago no encontrado</h1>
           <p className="text-sm text-muted-foreground">
             <Link href="/dashboard" className="hover:text-foreground transition-colors">
               Dashboard
@@ -87,7 +87,7 @@ function EditarMetodoPagoPageContent() {
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             </Link>
-            <h1 className="text-3xl font-bold tracking-tight">Editar Método de Pago</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Editar Método de Pago</h1>
           </div>
           <p className="text-sm text-muted-foreground ml-10">
             <Link href="/" className="hover:text-foreground transition-colors">

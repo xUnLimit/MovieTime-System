@@ -67,7 +67,7 @@ function EditarUsuarioPageContent() {
     return (
       <div className="space-y-4">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight">Usuario no encontrado</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Usuario no encontrado</h1>
           <p className="text-sm text-muted-foreground">
             <Link href="/dashboard" className="hover:text-foreground transition-colors">
               Dashboard
@@ -104,7 +104,7 @@ function EditarUsuarioPageContent() {
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             </Link>
-            <h1 className="text-3xl font-bold tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
               Editar {tipoUsuario === 'cliente' ? 'Cliente' : 'Revendedor'}
             </h1>
           </div>

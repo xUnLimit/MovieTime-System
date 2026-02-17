@@ -16,7 +16,8 @@ import {
   FileText,
   Moon,
   Sun,
-  ChevronLeft
+  ChevronLeft,
+  X
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useSidebarState } from '@/hooks/use-sidebar';
@@ -95,9 +96,11 @@ const navigationSections: NavSection[] = [
 interface SidebarProps {
   collapsed?: boolean;
   onCollapse?: (collapsed: boolean) => void;
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
 }
 
-export function Sidebar({ collapsed: controlledCollapsed, onCollapse }: SidebarProps = {}) {
+export function Sidebar({ collapsed: controlledCollapsed, onCollapse, mobileOpen = false, onMobileClose }: SidebarProps = {}) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const { isOpen, toggle } = useSidebarState();
@@ -119,23 +122,31 @@ export function Sidebar({ collapsed: controlledCollapsed, onCollapse }: SidebarP
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [collapsed]);
 
+  // Close mobile sidebar on route change
+  useEffect(() => {
+    if (mobileOpen && onMobileClose) {
+      onMobileClose();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
   };
 
-  return (
+  const sidebarContent = (isMobile: boolean) => (
     <aside
-      data-collapsed={collapsed}
+      data-collapsed={isMobile ? false : collapsed}
       className={cn(
-        "group/sidebar relative flex flex-col bg-sidebar border-r border-sidebar-border",
-        "transition-[width] duration-300 ease-in-out"
+        "relative flex flex-col bg-sidebar border-r border-sidebar-border h-full",
+        !isMobile && "transition-[width] duration-300 ease-in-out"
       )}
       style={{
-        width: collapsed ? '48px' : '200px'
+        width: isMobile ? '200px' : (collapsed ? '48px' : '200px')
       }}
     >
       {/* Header - Logo y Título */}
-      <div className="relative h-16 border-b border-sidebar-border overflow-hidden">
+      <div className="relative h-16 border-b border-sidebar-border overflow-hidden flex-shrink-0">
         {/* Logo - Posición ABSOLUTA FIJA (no se mueve) */}
         <div className="absolute top-1/2 -translate-y-1/2 left-3 flex h-8 w-8 items-center justify-center">
           <Image
@@ -152,13 +163,23 @@ export function Sidebar({ collapsed: controlledCollapsed, onCollapse }: SidebarP
         <span
           className="absolute top-1/2 -translate-y-1/2 left-14 text-base font-semibold whitespace-nowrap"
           style={{
-            opacity: collapsed ? 0 : 1,
+            opacity: isMobile ? 1 : (collapsed ? 0 : 1),
             transition: 'opacity 200ms ease-in-out',
-            pointerEvents: collapsed ? 'none' : 'auto'
+            pointerEvents: (!isMobile && collapsed) ? 'none' : 'auto'
           }}
         >
           MovieTime PTY
         </span>
+
+        {/* Botón cerrar en mobile */}
+        {isMobile && (
+          <button
+            onClick={onMobileClose}
+            className="absolute top-1/2 -translate-y-1/2 right-3 flex items-center justify-center h-7 w-7 rounded-md text-sidebar-foreground hover:bg-sidebar-accent"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       {/* Navigation */}
@@ -171,7 +192,7 @@ export function Sidebar({ collapsed: controlledCollapsed, onCollapse }: SidebarP
                 <p
                   className="text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap"
                   style={{
-                    opacity: collapsed ? 0 : 1,
+                    opacity: isMobile ? 1 : (collapsed ? 0 : 1),
                     transition: 'opacity 200ms ease-in-out'
                   }}
                 >
@@ -197,7 +218,7 @@ export function Sidebar({ collapsed: controlledCollapsed, onCollapse }: SidebarP
                         ? "bg-primary/15 text-foreground border-l-2 border-primary font-medium"
                         : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                     )}
-                    title={collapsed ? item.name : undefined}
+                    title={(!isMobile && collapsed) ? item.name : undefined}
                   >
                     {/* Icono - Posición ABSOLUTA FIJA */}
                     <div className="absolute left-0 w-11 h-9 flex items-center justify-center">
@@ -208,9 +229,9 @@ export function Sidebar({ collapsed: controlledCollapsed, onCollapse }: SidebarP
                     <span
                       className="absolute left-11 text-sm whitespace-nowrap flex items-center gap-2"
                       style={{
-                        opacity: collapsed ? 0 : 1,
+                        opacity: isMobile ? 1 : (collapsed ? 0 : 1),
                         transition: 'opacity 200ms ease-in-out',
-                        pointerEvents: collapsed ? 'none' : 'auto'
+                        pointerEvents: (!isMobile && collapsed) ? 'none' : 'auto'
                       }}
                     >
                       {item.name}
@@ -235,7 +256,7 @@ export function Sidebar({ collapsed: controlledCollapsed, onCollapse }: SidebarP
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-sidebar-border mt-auto">
+      <div className="border-t border-sidebar-border mt-auto flex-shrink-0">
         <div className="p-2 space-y-1">
           {/* Botón Tema */}
           <button
@@ -245,7 +266,7 @@ export function Sidebar({ collapsed: controlledCollapsed, onCollapse }: SidebarP
               "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
               "transition-colors duration-200"
             )}
-            title={collapsed ? "Tema" : undefined}
+            title={(!isMobile && collapsed) ? "Tema" : undefined}
           >
             <div className="absolute left-0 w-11 h-9 flex items-center justify-center">
               {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
@@ -253,47 +274,73 @@ export function Sidebar({ collapsed: controlledCollapsed, onCollapse }: SidebarP
             <span
               className="absolute left-11 text-sm whitespace-nowrap"
               style={{
-                opacity: collapsed ? 0 : 1,
+                opacity: isMobile ? 1 : (collapsed ? 0 : 1),
                 transition: 'opacity 200ms ease-in-out',
-                pointerEvents: collapsed ? 'none' : 'auto'
+                pointerEvents: (!isMobile && collapsed) ? 'none' : 'auto'
               }}
             >
               Tema
             </span>
           </button>
 
-          {/* Botón Colapsar */}
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className={cn(
-              "relative flex items-center h-9 w-full rounded-lg overflow-hidden",
-              "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-              "transition-colors duration-200"
-            )}
-            title={collapsed ? "Expandir" : "Colapsar"}
-          >
-            <div className="absolute left-0 w-11 h-9 flex items-center justify-center">
-              <ChevronLeft
-                className="h-4 w-4"
-                style={{
-                  transform: collapsed ? 'rotate(180deg)' : 'rotate(0deg)',
-                  transition: 'transform 300ms ease-in-out'
-                }}
-              />
-            </div>
-            <span
-              className="absolute left-11 text-sm whitespace-nowrap"
-              style={{
-                opacity: collapsed ? 0 : 1,
-                transition: 'opacity 200ms ease-in-out',
-                pointerEvents: collapsed ? 'none' : 'auto'
-              }}
+          {/* Botón Colapsar - solo en desktop */}
+          {!isMobile && (
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              className={cn(
+                "relative flex items-center h-9 w-full rounded-lg overflow-hidden",
+                "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                "transition-colors duration-200"
+              )}
+              title={collapsed ? "Expandir" : "Colapsar"}
             >
-              Colapsar
-            </span>
-          </button>
+              <div className="absolute left-0 w-11 h-9 flex items-center justify-center">
+                <ChevronLeft
+                  className="h-4 w-4"
+                  style={{
+                    transform: collapsed ? 'rotate(180deg)' : 'rotate(0deg)',
+                    transition: 'transform 300ms ease-in-out'
+                  }}
+                />
+              </div>
+              <span
+                className="absolute left-11 text-sm whitespace-nowrap"
+                style={{
+                  opacity: collapsed ? 0 : 1,
+                  transition: 'opacity 200ms ease-in-out',
+                  pointerEvents: collapsed ? 'none' : 'auto'
+                }}
+              >
+                Colapsar
+              </span>
+            </button>
+          )}
         </div>
       </div>
     </aside>
+  );
+
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <div className="hidden md:flex h-screen">
+        {sidebarContent(false)}
+      </div>
+
+      {/* Mobile overlay + drawer */}
+      {mobileOpen && (
+        <>
+          {/* Overlay */}
+          <div
+            className="fixed inset-0 z-40 bg-black/50 md:hidden"
+            onClick={onMobileClose}
+          />
+          {/* Drawer */}
+          <div className="fixed inset-y-0 left-0 z-50 md:hidden flex h-full">
+            {sidebarContent(true)}
+          </div>
+        </>
+      )}
+    </>
   );
 }

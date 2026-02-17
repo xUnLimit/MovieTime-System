@@ -68,7 +68,7 @@ export function NotificationBell() {
         </Button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-80 p-4">
+      <DropdownMenuContent align="end" className="w-[min(320px,calc(100vw-2rem))] p-4">
         <div className="grid gap-4">
           {/* Header - solo cuando hay notificaciones */}
           {unreadNotifications.length > 0 && (

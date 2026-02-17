@@ -83,7 +83,7 @@ function LogActividadPageContent() {
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <h1 className="text-3xl font-bold tracking-tight">Log de Actividad</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Log de Actividad</h1>
         <p className="text-sm text-muted-foreground">
           <Link href="/dashboard" className="hover:text-foreground transition-colors">Dashboard</Link> / <span className="text-foreground">Log de Actividad</span>
         </p>

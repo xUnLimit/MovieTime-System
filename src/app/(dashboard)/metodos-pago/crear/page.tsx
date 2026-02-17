@@ -18,7 +18,7 @@ function CrearMetodoPagoPageContent() {
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             </Link>
-            <h1 className="text-3xl font-bold tracking-tight">Nuevo Método de Pago</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Nuevo Método de Pago</h1>
           </div>
           <p className="text-sm text-muted-foreground ml-10">
             <Link href="/" className="hover:text-foreground transition-colors">

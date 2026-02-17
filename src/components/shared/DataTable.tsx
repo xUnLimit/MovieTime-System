@@ -229,7 +229,7 @@ function DataTableComponent<T extends Record<string, unknown>>({
       </div>
 
       {pagination && (
-        <div className="flex items-center justify-between px-2 py-4">
+        <div className="flex flex-col gap-3 px-2 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Mostrar</span>
             <DropdownMenu>
@@ -253,7 +253,7 @@ function DataTableComponent<T extends Record<string, unknown>>({
             </DropdownMenu>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center justify-between sm:justify-end gap-4">
             <span className="text-sm text-muted-foreground">
               Página {currentPage} de {totalPages}
             </span>

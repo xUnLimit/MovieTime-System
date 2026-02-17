@@ -86,7 +86,7 @@ function VerMetodoPagoPageContent() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <h1 className="text-3xl font-bold tracking-tight">Cargando método de pago...</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Cargando método de pago...</h1>
         </div>
         <div className="rounded-lg border bg-card p-6">
           <p className="text-muted-foreground">Cargando datos...</p>
@@ -104,7 +104,7 @@ function VerMetodoPagoPageContent() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <h1 className="text-3xl font-bold tracking-tight">Método de pago no encontrado</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Método de pago no encontrado</h1>
         </div>
         <div className="rounded-lg border bg-card p-6">
           <p className="text-muted-foreground">El método de pago que buscas no existe.</p>

@@ -132,14 +132,14 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-sm text-muted-foreground">
             Vista general de métricas y rendimiento
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Button
             variant="outline"
             size="sm"
@@ -147,7 +147,8 @@ export default function DashboardPage() {
             disabled={isRecalculating}
           >
             <RefreshCw className={`mr-2 h-4 w-4 ${isRecalculating ? 'animate-spin' : ''}`} />
-            {isRecalculating ? 'Recalculando...' : 'Recalcular métricas'}
+            <span className="hidden sm:inline">{isRecalculating ? 'Recalculando...' : 'Recalcular métricas'}</span>
+            <span className="sm:hidden">{isRecalculating ? '...' : 'Recalcular'}</span>
           </Button>
           <NotificationBell />
           <UserMenu />
@@ -156,14 +157,16 @@ export default function DashboardPage() {
 
       <DashboardMetrics />
 
-      <div className="grid gap-4 grid-cols-1 lg:grid-cols-4">
-        <div className="lg:col-span-3">
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+        <div className="md:col-span-2 lg:col-span-3">
           <IngresosVsGastosChart />
         </div>
-        <PronosticoFinanciero />
+        <div className="md:col-span-2 lg:col-span-1">
+          <PronosticoFinanciero />
+        </div>
       </div>
 
-      <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
         <CrecimientoUsuarios />
         <RevenueByCategory />
         <RecentActivity />

@@ -46,14 +46,14 @@ function CategoriasPageContent() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight">Categorías</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Categorías</h1>
           <p className="text-sm text-muted-foreground">
             <Link href="/" className="hover:text-foreground transition-colors">Dashboard</Link> / <span className="text-foreground">Categorías</span>
           </p>
         </div>
-        <Link href="/categorias/crear">
+        <Link href="/categorias/crear" className="self-start sm:self-auto">
           <Button>
             <Plus className="h-4 w-4 mr-2" />
             Nueva Categoría
