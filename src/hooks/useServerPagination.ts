@@ -34,14 +34,19 @@ export function useServerPagination<T>({
   const prevFiltersRef = useRef(JSON.stringify(filters));
 
   const filtersKey = JSON.stringify(filters);
+  const prevPageSizeRef = useRef(pageSize);
 
   useEffect(() => {
     let cancelled = false;
     let currentPageIndex = pageIndex;
 
-    // Reset paginación si cambian los filtros
-    if (prevFiltersRef.current !== filtersKey) {
+    // Reset paginación si cambian los filtros o el pageSize
+    const filtersChanged = prevFiltersRef.current !== filtersKey;
+    const pageSizeChanged = prevPageSizeRef.current !== pageSize;
+
+    if (filtersChanged || pageSizeChanged) {
       prevFiltersRef.current = filtersKey;
+      prevPageSizeRef.current = pageSize;
       cursorsRef.current = [undefined];
       currentPageIndex = 0;
       if (pageIndex !== 0) {
@@ -80,7 +85,7 @@ export function useServerPagination<T>({
     fetchPage();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageIndex, filtersKey, refreshKey]);
+  }, [pageIndex, filtersKey, pageSize, refreshKey]);
 
   const next = useCallback(() => setPageIndex(p => p + 1), []);
   const previous = useCallback(() => setPageIndex(p => Math.max(0, p - 1)), []);

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
-import { getDashboardStats } from '@/lib/services/dashboardStatsService';
+import { getDashboardStats, rebuildDashboardStats } from '@/lib/services/dashboardStatsService';
 import { getCount, COLLECTIONS, logCacheHit, convertTimestamps } from '@/lib/firebase/firestore';
 import type { DashboardStats, DashboardCounts } from '@/types/dashboard';
 import type { ActivityLog } from '@/types';
@@ -12,10 +12,12 @@ interface DashboardState {
   counts: DashboardCounts;
   recentActivity: ActivityLog[];
   isLoading: boolean;
+  isRecalculating: boolean;
   error: string | null;
   lastFetch: number | null;
 
   fetchDashboard: (force?: boolean) => Promise<void>;
+  recalculateDashboard: () => Promise<void>;
 }
 
 const CACHE_TIMEOUT = 5 * 60 * 1000; // 5 minutes
@@ -33,6 +35,7 @@ export const useDashboardStore = create<DashboardState>()(
       counts: EMPTY_COUNTS,
       recentActivity: [],
       isLoading: false,
+      isRecalculating: false,
       error: null,
       lastFetch: null,
 
@@ -86,6 +89,22 @@ export const useDashboardStore = create<DashboardState>()(
             error instanceof Error ? error.message : 'Error al cargar el dashboard';
           console.error('Error fetching dashboard:', error);
           set({ isLoading: false, error: errorMessage });
+        }
+      },
+
+      recalculateDashboard: async () => {
+        set({ isRecalculating: true, error: null });
+        try {
+          await rebuildDashboardStats();
+          // Force-refresh after rebuild so UI reflects new data immediately
+          await get().fetchDashboard(true);
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : 'Error al recalcular el dashboard';
+          console.error('Error recalculating dashboard:', error);
+          set({ error: errorMessage });
+        } finally {
+          set({ isRecalculating: false });
         }
       },
     }),

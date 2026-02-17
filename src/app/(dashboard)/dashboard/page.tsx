@@ -10,13 +10,26 @@ import { PronosticoFinanciero } from '@/components/dashboard/PronosticoFinancier
 import { UserMenu } from '@/components/layout/UserMenu';
 import { NotificationBell } from '@/components/notificaciones/NotificationBell';
 import { useDashboardStore } from '@/store/dashboardStore';
+import { Button } from '@/components/ui/button';
+import { RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function DashboardPage() {
-  const { fetchDashboard } = useDashboardStore();
+  const { fetchDashboard, recalculateDashboard, isRecalculating } = useDashboardStore();
 
   useEffect(() => {
     fetchDashboard();
   }, [fetchDashboard]);
+
+  const handleRecalculate = async () => {
+    const toastId = toast.loading('Recalculando métricas desde Firestore...');
+    try {
+      await recalculateDashboard();
+      toast.success('Métricas actualizadas correctamente', { id: toastId });
+    } catch {
+      toast.error('Error al recalcular las métricas', { id: toastId });
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -28,6 +41,15 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRecalculate}
+            disabled={isRecalculating}
+          >
+            <RefreshCw className={`mr-2 h-4 w-4 ${isRecalculating ? 'animate-spin' : ''}`} />
+            {isRecalculating ? 'Recalculando...' : 'Recalcular métricas'}
+          </Button>
           <NotificationBell />
           <UserMenu />
         </div>

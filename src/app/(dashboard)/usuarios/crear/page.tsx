@@ -31,7 +31,7 @@ function CrearUsuarioPageContent() {
   };
 
   const handleCancel = () => {
-    router.back();
+    router.push('/usuarios');
   };
 
   return (

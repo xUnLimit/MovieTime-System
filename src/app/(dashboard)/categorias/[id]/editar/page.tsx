@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
+import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
@@ -13,6 +13,8 @@ import { toast } from 'sonner';
 
 function EditarCategoriaPageContent() {
   const params = useParams();
+  const searchParams = useSearchParams();
+  const from = searchParams.get('from') || '/categorias';
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const [categoria, setCategoria] = useState<Categoria | null>(null);
   const [loading, setLoading] = useState(true);
@@ -80,7 +82,7 @@ function EditarCategoriaPageContent() {
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <Link href="/categorias">
+            <Link href={from}>
               <Button variant="ghost" size="icon" className="h-8 w-8">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
@@ -102,7 +104,7 @@ function EditarCategoriaPageContent() {
 
       {/* Form Card */}
       <div className="bg-card border rounded-lg p-6">
-        <CategoriaForm mode="edit" categoria={categoria} />
+        <CategoriaForm mode="edit" categoria={categoria} returnTo={from} />
       </div>
     </div>
   );
@@ -111,7 +113,9 @@ function EditarCategoriaPageContent() {
 export default function EditarCategoriaPage() {
   return (
     <ModuleErrorBoundary moduleName="Editar Categoría">
-      <EditarCategoriaPageContent />
+      <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="text-muted-foreground">Cargando...</div></div>}>
+        <EditarCategoriaPageContent />
+      </Suspense>
     </ModuleErrorBoundary>
   );
 }

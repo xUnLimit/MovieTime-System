@@ -165,7 +165,7 @@ export function ServiciosCategoriaTable({ servicios }: ServiciosCategoriaTablePr
                             <Eye className="h-4 w-4 mr-2" />
                             Ver detalles
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => router.push(`/servicios/${servicio.id}/editar`)}>
+                          <DropdownMenuItem onClick={() => router.push(`/servicios/${servicio.id}/editar?from=/servicios/${servicio.categoriaId}`)}>
                             <Pencil className="h-4 w-4 mr-2" />
                             Editar
                           </DropdownMenuItem>

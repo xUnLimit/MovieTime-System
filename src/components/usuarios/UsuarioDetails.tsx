@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { useEffect, useMemo, useState } from 'react';
-import { User, MessageCircle, Monitor, Calendar, Clock, MoreHorizontal, RefreshCw, Copy } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { User, MessageCircle, Monitor, Calendar, Clock, MoreHorizontal, RefreshCw, Copy, Eye, Pencil } from 'lucide-react';
 import { differenceInCalendarDays } from 'date-fns';
 import {
   Table,
@@ -33,6 +34,7 @@ interface UsuarioDetailsProps {
 }
 
 export function UsuarioDetails({ usuario, onVentaDeleted }: UsuarioDetailsProps) {
+  const router = useRouter();
   const isRevendedor = usuario.tipo === 'revendedor';
   const { ventas: ventasUsuario, renovacionesByServicio, deleteVenta } = useVentasUsuario(usuario.id);
   const [servicios, setServicios] = useState<Record<string, { correo: string; contrasena: string; nombre: string }>>({});
@@ -368,6 +370,18 @@ export function UsuarioDetails({ usuario, onVentaDeleted }: UsuarioDetailsProps)
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => router.push(`/ventas/${row.id}`)}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            Ver detalle
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => router.push(`/ventas/${row.id}/editar`)}
+                          >
+                            <Pencil className="h-4 w-4 mr-2" />
+                            Editar venta
+                          </DropdownMenuItem>
                           <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
                             onClick={() => handleDeleteVenta(row.id, row.servicioId, row.perfilNumero)}

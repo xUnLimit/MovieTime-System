@@ -142,7 +142,7 @@ function VerMetodoPagoPageContent() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => router.push(`/metodos-pago/${metodo.id}/editar`)}>
+          <Button variant="outline" size="sm" onClick={() => router.push(`/metodos-pago/${metodo.id}/editar?from=/metodos-pago/${metodo.id}`)}>
             <Edit className="h-3.5 w-3.5 mr-1.5" />
             Editar
           </Button>

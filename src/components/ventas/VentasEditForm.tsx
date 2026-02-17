@@ -1010,7 +1010,7 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
           </>
         ) : (
           <>
-            <Button type="button" variant="outline" onClick={() => router.push('/ventas')}>
+            <Button type="button" variant="outline" onClick={() => router.push(`/ventas/${venta.id}`)}>
               Cancelar
             </Button>
             <Button

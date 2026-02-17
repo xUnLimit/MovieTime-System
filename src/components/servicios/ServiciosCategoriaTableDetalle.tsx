@@ -47,6 +47,9 @@ interface ServiciosCategoriaTableDetalleProps {
   hasMore?: boolean;
   hasPrevious?: boolean;
   page?: number;
+  showPagination?: boolean;
+  pageSize?: number;
+  onPageSizeChange?: (size: number) => void;
   onNext: () => void;
   onPrevious: () => void;
 }
@@ -66,6 +69,9 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
   hasMore = false,
   hasPrevious = false,
   page = 1,
+  showPagination = true,
+  pageSize = 10,
+  onPageSizeChange,
   onNext,
   onPrevious,
 }: ServiciosCategoriaTableDetalleProps) {
@@ -158,9 +164,9 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
       ),
     },
     {
-      key: 'fechaVencimiento',
+      key: 'fechaVencimientoDisplay',
       header: 'Fecha de Vencimiento',
-      sortable: true,
+      sortable: false,
       align: 'center',
       width: '12%',
       render: (item) => (
@@ -183,9 +189,9 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
       ),
     },
     {
-      key: 'diasRestantes',
+      key: 'fechaVencimiento',
       header: 'Días Restantes',
-      sortable: false,
+      sortable: true,
       align: 'center',
       width: '11%',
       render: (item) => {
@@ -344,14 +350,18 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
             }}
           />
 
-          <PaginationFooter
-            page={page}
-            totalPages={hasMore ? page + 1 : page}
-            hasPrevious={hasPrevious}
-            hasMore={hasMore}
-            onPrevious={onPrevious}
-            onNext={onNext}
-          />
+          {showPagination && (
+            <PaginationFooter
+              page={page}
+              totalPages={hasMore ? page + 1 : page}
+              hasPrevious={hasPrevious}
+              hasMore={hasMore}
+              onPrevious={onPrevious}
+              onNext={onNext}
+              pageSize={pageSize}
+              onPageSizeChange={onPageSizeChange}
+            />
+          )}
         </div>
       </Card>
 

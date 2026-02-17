@@ -61,17 +61,12 @@ export function CrecimientoUsuarios() {
 
     return months.map((month) => {
       const mesKey = format(month, 'yyyy-MM');
-      const totalClientes = usuariosPorMes
-        .filter((m) => m.mes <= mesKey)
-        .reduce((sum, m) => sum + (m.clientes ?? 0), 0);
-      const totalRevendedores = usuariosPorMes
-        .filter((m) => m.mes <= mesKey)
-        .reduce((sum, m) => sum + (m.revendedores ?? 0), 0);
+      const entry = usuariosPorMes.find((m) => m.mes === mesKey);
 
       return {
         dia: format(month, 'MMM', { locale: es }),
-        clientes: totalClientes,
-        revendedores: totalRevendedores,
+        clientes: entry?.clientes ?? 0,
+        revendedores: entry?.revendedores ?? 0,
       };
     });
   }, [selectedPeriod, stats]);

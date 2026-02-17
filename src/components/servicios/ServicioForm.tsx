@@ -57,9 +57,10 @@ type FormData = z.infer<typeof servicioSchema>;
 
 interface ServicioFormProps {
   servicio?: Servicio;
+  returnTo?: string;
 }
 
-export function ServicioForm({ servicio }: ServicioFormProps) {
+export function ServicioForm({ servicio, returnTo = '/servicios' }: ServicioFormProps) {
   const router = useRouter();
   const { createServicio, updateServicio, fetchCounts } = useServiciosStore();
   const { categorias, fetchCategorias } = useCategoriasStore();
@@ -330,7 +331,7 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
         fetchCounts(true), // Force refresh para actualizar inmediatamente
       ]);
 
-      router.push('/servicios');
+      router.push(returnTo);
     } catch (error) {
       toast.error(servicio?.id ? 'Error al actualizar el servicio' : 'Error al crear el servicio', { description: error instanceof Error ? error.message : undefined });
       console.error(error);
@@ -338,7 +339,7 @@ export function ServicioForm({ servicio }: ServicioFormProps) {
   };
 
   const onCancel = () => {
-    router.push('/servicios');
+    router.push(returnTo);
   };
 
   const getCicloLabel = (ciclo: string) => {

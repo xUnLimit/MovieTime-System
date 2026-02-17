@@ -111,9 +111,10 @@ const MONEDAS = ['USD', 'EUR', 'COP', 'MXN', 'CRC', 'VES', 'ARS', 'CLP', 'PEN', 
 interface MetodoPagoFormProps {
   mode: 'create' | 'edit';
   metodoPago?: MetodoPago;
+  returnTo?: string;
 }
 
-export function MetodoPagoForm({ mode, metodoPago }: MetodoPagoFormProps) {
+export function MetodoPagoForm({ mode, metodoPago, returnTo = '/metodos-pago' }: MetodoPagoFormProps) {
   const router = useRouter();
   const { createMetodoPago, updateMetodoPago, fetchCounts } = useMetodosPagoStore();
   const [activeTab, setActiveTab] = useState('basica');
@@ -351,7 +352,7 @@ export function MetodoPagoForm({ mode, metodoPago }: MetodoPagoFormProps) {
         await fetchCounts(); // Actualizar métricas
         toast.success('Método de pago actualizado exitosamente');
       }
-      router.push('/metodos-pago');
+      router.push(returnTo);
     } catch (error) {
       const message = mode === 'create' ? 'Error al crear el método de pago' : 'Error al actualizar el método de pago';
       toast.error(message, { description: error instanceof Error ? error.message : undefined });
@@ -360,7 +361,7 @@ export function MetodoPagoForm({ mode, metodoPago }: MetodoPagoFormProps) {
   };
 
   const onCancel = () => {
-    router.push('/metodos-pago');
+    router.push(returnTo);
   };
 
   const getAsociadoALabel = (tipo: string) => {

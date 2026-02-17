@@ -18,10 +18,12 @@ import { FilterOption } from '@/lib/firebase/pagination';
 import { getVentasConUltimoPago, VentaConUltimoPago } from '@/lib/services/ventaSyncService';
 
 function VentasPageContent() {
-  const { deleteVenta, fetchCounts } = useVentasStore();
+  const { deleteVenta, fetchCounts, fetchVentas, ventas } = useVentasStore();
 
   const [activeTab, setActiveTab] = useState<'todas' | 'activas' | 'inactivas'>('todas');
   const [pageSize, setPageSize] = useState(10);
+  const [searchQuery, setSearchQuery] = useState('');
+  const isSearchMode = searchQuery.trim().length > 0;
   const [deleteVentaId, setDeleteVentaId] = useState<string | null>(null);
   const [deleteVentaServicioId, setDeleteVentaServicioId] = useState<string | undefined>(undefined);
   const [deleteVentaPerfilNumero, setDeleteVentaPerfilNumero] = useState<number | null | undefined>(undefined);
@@ -37,8 +39,8 @@ function VentasPageContent() {
     return [];
   }, [activeTab]);
 
-  // Paginación server-side
-  const { data: ventasPaginadas, isLoading, hasMore, page, hasPrevious, next, previous, refresh } = useServerPagination<VentaDoc>({
+  // Paginación server-side (solo cuando NO hay búsqueda activa)
+  const { data: ventasPaginadas, isLoading: isLoadingPage, hasMore, page, hasPrevious, next, previous, refresh } = useServerPagination<VentaDoc>({
     collectionName: COLLECTIONS.VENTAS,
     filters,
     pageSize,
@@ -46,31 +48,63 @@ function VentasPageContent() {
     orderDirection: 'desc',
   });
 
+  // Modo búsqueda: fetchAll con cache y filtrar en memoria
+  const [isLoadingSearch, setIsLoadingSearch] = useState(false);
+  useEffect(() => {
+    if (!isSearchMode) return;
+    let cancelled = false;
+    const load = async () => {
+      setIsLoadingSearch(true);
+      await fetchVentas();
+      if (!cancelled) setIsLoadingSearch(false);
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [isSearchMode, fetchVentas]);
+
+  const searchResults = useMemo((): VentaDoc[] => {
+    if (!isSearchMode) return [];
+    const q = searchQuery.trim().toLowerCase();
+    const base = activeTab === 'activas'
+      ? ventas.filter(v => v.estado === 'activo')
+      : activeTab === 'inactivas'
+        ? ventas.filter(v => v.estado === 'inactivo')
+        : ventas;
+    return base.filter(v =>
+      (v.clienteNombre ?? '').toLowerCase().includes(q) ||
+      (v.servicioNombre ?? '').toLowerCase().includes(q) ||
+      (v.servicioCorreo ?? '').toLowerCase().includes(q)
+    );
+  }, [isSearchMode, searchQuery, ventas, activeTab]);
+
+  const ventasParaMostrar = isSearchMode ? searchResults : ventasPaginadas;
+  const isLoadingVentas = isSearchMode ? isLoadingSearch : isLoadingPage;
+
   // Cargar datos del último pago desde PagoVenta
   const [ventasConUltimoPago, setVentasConUltimoPago] = useState<VentaConUltimoPago[]>([]);
   const [loadingDatos, setLoadingDatos] = useState(false);
 
   useEffect(() => {
     const cargarDatosUltimoPago = async () => {
-      if (ventasPaginadas.length === 0) {
+      if (ventasParaMostrar.length === 0) {
         setVentasConUltimoPago([]);
         return;
       }
 
       setLoadingDatos(true);
       try {
-        const ventasConPagoActual = await getVentasConUltimoPago(ventasPaginadas);
+        const ventasConPagoActual = await getVentasConUltimoPago(ventasParaMostrar);
         setVentasConUltimoPago(ventasConPagoActual);
       } catch (error) {
         console.error('Error cargando datos del último pago de ventas:', error);
-        setVentasConUltimoPago(ventasPaginadas as VentaConUltimoPago[]);
+        setVentasConUltimoPago(ventasParaMostrar as VentaConUltimoPago[]);
       } finally {
         setLoadingDatos(false);
       }
     };
 
     cargarDatosUltimoPago();
-  }, [ventasPaginadas]);
+  }, [ventasParaMostrar]);
 
   const tituloTab = useMemo(() => {
     switch (activeTab) {
@@ -146,7 +180,7 @@ function VentasPageContent() {
 
       <VentasMetrics />
 
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)}>
+      <Tabs value={activeTab} onValueChange={(value) => { setActiveTab(value as typeof activeTab); setSearchQuery(''); }}>
         <TabsList className="bg-transparent rounded-none p-0 h-auto inline-flex border-b border-border">
           <TabsTrigger
             value="todas"
@@ -171,15 +205,18 @@ function VentasPageContent() {
         <TabsContent value={activeTab} className="space-y-4">
           <VentasTable
             ventas={ventasConUltimoPago}
-            isLoading={isLoading || loadingDatos}
+            isLoading={isLoadingVentas || loadingDatos}
             title={tituloTab}
             onDelete={handleDeleteVenta}
-            // Paginación
-            hasMore={hasMore}
-            hasPrevious={hasPrevious}
-            page={page}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            // Paginación (oculta en modo búsqueda)
+            hasMore={isSearchMode ? false : hasMore}
+            hasPrevious={isSearchMode ? false : hasPrevious}
+            page={isSearchMode ? 1 : page}
             onNext={next}
             onPrevious={previous}
+            showPagination={!isSearchMode}
             pageSize={pageSize}
             onPageSizeChange={(size) => { setPageSize(size); refresh(); }}
           />

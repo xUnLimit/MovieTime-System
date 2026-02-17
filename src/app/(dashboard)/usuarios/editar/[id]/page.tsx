@@ -48,11 +48,11 @@ function EditarUsuarioPageContent() {
   const tipoUsuario = usuario?.tipo ?? 'cliente';
 
   const handleSuccess = () => {
-    router.push('/usuarios');
+    router.push(`/usuarios/${id}`);
   };
 
   const handleCancel = () => {
-    router.back();
+    router.push(`/usuarios/${id}`);
   };
 
   if (loading) {
@@ -99,7 +99,7 @@ function EditarUsuarioPageContent() {
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <Link href="/usuarios">
+            <Link href={`/usuarios/${id}`}>
               <Button variant="ghost" size="icon" className="h-8 w-8">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
@@ -115,6 +115,10 @@ function EditarUsuarioPageContent() {
             /{' '}
             <Link href="/usuarios" className="hover:text-foreground transition-colors">
               Usuarios
+            </Link>{' '}
+            /{' '}
+            <Link href={`/usuarios/${id}`} className="hover:text-foreground transition-colors">
+              {usuario?.nombre || 'Detalle'}
             </Link>{' '}
             / <span className="text-foreground">Editar</span>
           </p>

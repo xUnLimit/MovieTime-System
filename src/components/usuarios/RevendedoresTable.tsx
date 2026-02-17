@@ -25,15 +25,16 @@ interface RevendedoresTableProps {
   onView?: (revendedor: Usuario) => void;
   title?: string;
   isLoading?: boolean;
-  pagination: PaginationFooterProps;
+  pagination?: PaginationFooterProps;
+  searchQuery: string;
+  onSearchChange: (value: string) => void;
   onRefresh: () => void;
 }
 
-export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Revendedores', isLoading = false, pagination, onRefresh }: RevendedoresTableProps) {
+export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Revendedores', isLoading = false, pagination, searchQuery, onSearchChange, onRefresh }: RevendedoresTableProps) {
   const { deleteUsuario } = useUsuariosStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [revendedorToDelete, setRevendedorToDelete] = useState<Usuario | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
   const [metodoPagoFilter, setMetodoPagoFilter] = useState('todos');
 
   // IDs de revendedores de la página actual para la query de ventas
@@ -49,17 +50,12 @@ export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Reven
     return Array.from(metodos).filter(Boolean);
   }, [revendedores]);
 
-  // Filtrar revendedores
+  // Filtrar revendedores por método de pago (la búsqueda por nombre/teléfono la maneja el page)
   const filteredRevendedores = useMemo(() => {
-    return revendedores.filter((revendedor) => {
-      const matchesSearch =
-        revendedor.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        revendedor.telefono.includes(searchQuery);
-      const matchesMetodo =
-        metodoPagoFilter === 'todos' || revendedor.metodoPagoNombre === metodoPagoFilter;
-      return matchesSearch && matchesMetodo;
-    });
-  }, [revendedores, searchQuery, metodoPagoFilter]);
+    return revendedores.filter((revendedor) =>
+      metodoPagoFilter === 'todos' || revendedor.metodoPagoNombre === metodoPagoFilter
+    );
+  }, [revendedores, metodoPagoFilter]);
 
   const handleDelete = (revendedor: Usuario) => {
     setRevendedorToDelete(revendedor);
@@ -180,7 +176,7 @@ export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Reven
             <Input
               placeholder="Buscar por nombre o teléfono..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => onSearchChange(e.target.value)}
               className="pl-9"
             />
           </div>
@@ -244,7 +240,7 @@ export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Reven
               );
             }}
           />
-          <PaginationFooter {...pagination} />
+          {pagination && <PaginationFooter {...pagination} />}
         </div>
       </Card>
 

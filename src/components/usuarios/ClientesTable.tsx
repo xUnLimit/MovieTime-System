@@ -25,15 +25,16 @@ interface ClientesTableProps {
   onView?: (cliente: Usuario) => void;
   title?: string;
   isLoading?: boolean;
-  pagination: PaginationFooterProps;
+  pagination?: PaginationFooterProps;
+  searchQuery: string;
+  onSearchChange: (value: string) => void;
   onRefresh: () => void;
 }
 
-export function ClientesTable({ clientes, onEdit, onView, title = 'Clientes', isLoading = false, pagination, onRefresh }: ClientesTableProps) {
+export function ClientesTable({ clientes, onEdit, onView, title = 'Clientes', isLoading = false, pagination, searchQuery, onSearchChange, onRefresh }: ClientesTableProps) {
   const { deleteUsuario } = useUsuariosStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clienteToDelete, setClienteToDelete] = useState<Usuario | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
   const [metodoPagoFilter, setMetodoPagoFilter] = useState('todos');
 
   // IDs de clientes de la página actual para la query de ventas
@@ -49,17 +50,12 @@ export function ClientesTable({ clientes, onEdit, onView, title = 'Clientes', is
     return Array.from(metodos).filter(Boolean);
   }, [clientes]);
 
-  // Filtrar clientes
+  // Filtrar clientes por método de pago (la búsqueda por nombre/teléfono la maneja el page)
   const filteredClientes = useMemo(() => {
-    return clientes.filter((cliente) => {
-      const matchesSearch =
-        cliente.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        cliente.telefono.includes(searchQuery);
-      const matchesMetodo =
-        metodoPagoFilter === 'todos' || cliente.metodoPagoNombre === metodoPagoFilter;
-      return matchesSearch && matchesMetodo;
-    });
-  }, [clientes, searchQuery, metodoPagoFilter]);
+    return clientes.filter((cliente) =>
+      metodoPagoFilter === 'todos' || cliente.metodoPagoNombre === metodoPagoFilter
+    );
+  }, [clientes, metodoPagoFilter]);
 
   const handleDelete = (cliente: Usuario) => {
     setClienteToDelete(cliente);
@@ -180,7 +176,7 @@ export function ClientesTable({ clientes, onEdit, onView, title = 'Clientes', is
             <Input
               placeholder="Buscar por nombre o teléfono..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => onSearchChange(e.target.value)}
               className="pl-9"
             />
           </div>
@@ -244,7 +240,7 @@ export function ClientesTable({ clientes, onEdit, onView, title = 'Clientes', is
               );
             }}
           />
-          <PaginationFooter {...pagination} />
+          {pagination && <PaginationFooter {...pagination} />}
         </div>
       </Card>
 

@@ -37,9 +37,10 @@ type FormData = z.infer<typeof categoriaSchema>;
 interface CategoriaFormProps {
   mode: 'create' | 'edit';
   categoria?: Categoria;
+  returnTo?: string;
 }
 
-export function CategoriaForm({ mode, categoria }: CategoriaFormProps) {
+export function CategoriaForm({ mode, categoria, returnTo = '/categorias' }: CategoriaFormProps) {
   const router = useRouter();
   const { createCategoria, updateCategoria } = useCategoriasStore();
   const [activeTab, setActiveTab] = useState('general');
@@ -155,7 +156,7 @@ export function CategoriaForm({ mode, categoria }: CategoriaFormProps) {
         });
         toast.success('Categoría actualizada exitosamente');
       }
-      router.push('/categorias');
+      router.push(returnTo);
     } catch (error) {
       const message = mode === 'create' ? 'Error al crear la categoría' : 'Error al actualizar la categoría';
       toast.error(message, { description: error instanceof Error ? error.message : undefined });
@@ -210,7 +211,7 @@ export function CategoriaForm({ mode, categoria }: CategoriaFormProps) {
   };
 
   const onCancel = () => {
-    router.push('/categorias');
+    router.push(returnTo);
   };
 
   const getAsociadoLabel = (tipo: string) => {

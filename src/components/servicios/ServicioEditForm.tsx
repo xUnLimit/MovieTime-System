@@ -58,9 +58,10 @@ type FormData = z.infer<typeof servicioEditSchema>;
 
 interface ServicioEditFormProps {
   servicio: Servicio;
+  returnTo?: string;
 }
 
-export function ServicioEditForm({ servicio }: ServicioEditFormProps) {
+export function ServicioEditForm({ servicio, returnTo = '/servicios' }: ServicioEditFormProps) {
   const router = useRouter();
   const { updateServicio, fetchCounts } = useServiciosStore();
   const { categorias, fetchCategorias } = useCategoriasStore();
@@ -287,7 +288,7 @@ export function ServicioEditForm({ servicio }: ServicioEditFormProps) {
         fetchCounts(true),
       ]);
 
-      router.push('/servicios');
+      router.push(returnTo);
     } catch (error) {
       toast.error('Error al actualizar el servicio', { description: error instanceof Error ? error.message : undefined });
       console.error(error);
@@ -295,7 +296,7 @@ export function ServicioEditForm({ servicio }: ServicioEditFormProps) {
   };
 
   const onCancel = () => {
-    router.push('/servicios');
+    router.push(returnTo);
   };
 
   const getCicloLabel = (ciclo: string) => {

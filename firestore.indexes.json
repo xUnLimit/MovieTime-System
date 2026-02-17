@@ -61,6 +61,23 @@
       "collectionGroup": "servicios",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "categoriaId", "order": "ASCENDING" },
+        { "fieldPath": "correo", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "servicios",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "categoriaId", "order": "ASCENDING" },
+        { "fieldPath": "activo", "order": "ASCENDING" },
+        { "fieldPath": "correo", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "servicios",
+      "queryScope": "COLLECTION",
+      "fields": [
         { "fieldPath": "tipo", "order": "ASCENDING" },
         { "fieldPath": "fechaVencimiento", "order": "ASCENDING" }
       ]

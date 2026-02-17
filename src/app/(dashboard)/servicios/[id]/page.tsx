@@ -9,6 +9,7 @@ import { ServiciosCategoriaMetrics } from '@/components/servicios/ServiciosCateg
 import { ServiciosCategoriaFilters } from '@/components/servicios/ServiciosCategoriaFilters';
 import { ServiciosCategoriaTableDetalle } from '@/components/servicios/ServiciosCategoriaTableDetalle';
 import { useCategoriasStore } from '@/store/categoriasStore';
+import { useServiciosStore } from '@/store/serviciosStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 import { useServerPagination } from '@/hooks/useServerPagination';
 import { COLLECTIONS } from '@/lib/firebase/firestore';
@@ -21,11 +22,14 @@ function ServiciosCategoriaPageContent() {
   const categoriaId = params.id as string;
 
   const { categorias, fetchCategorias } = useCategoriasStore();
+  const { fetchServicios, servicios: todosLosServicios } = useServiciosStore();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [cicloFilter, setCicloFilter] = useState('todos');
   const [perfilFilter, setPerfilFilter] = useState('todos');
   const [estadoFilter, setEstadoFilter] = useState('activo');
+  const [pageSize, setPageSize] = useState(10);
+  const isSearchMode = searchTerm.trim().length > 0;
 
   useEffect(() => {
     fetchCategorias();
@@ -46,10 +50,10 @@ function ServiciosCategoriaPageContent() {
     return baseFilters;
   }, [categoriaId, estadoFilter]);
 
-  // Paginación con filtros
+  // Paginación con filtros (solo cuando NO hay búsqueda activa)
   const {
-    data: servicios,
-    isLoading,
+    data: serviciosPaginados,
+    isLoading: isLoadingPage,
     hasMore,
     hasPrevious,
     page,
@@ -59,8 +63,46 @@ function ServiciosCategoriaPageContent() {
   } = useServerPagination<Servicio>({
     collectionName: COLLECTIONS.SERVICIOS,
     filters,
-    pageSize: 10,
+    pageSize,
+    orderByField: 'correo',
+    orderDirection: 'asc',
   });
+
+  // Modo búsqueda: fetchAll con cache y filtrar en memoria
+  const [isLoadingSearch, setIsLoadingSearch] = useState(false);
+  useEffect(() => {
+    if (!isSearchMode) return;
+    let cancelled = false;
+    const load = async () => {
+      setIsLoadingSearch(true);
+      await fetchServicios();
+      if (!cancelled) setIsLoadingSearch(false);
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [isSearchMode, fetchServicios]);
+
+  const searchResults = useMemo((): Servicio[] => {
+    if (!isSearchMode) return [];
+    const q = searchTerm.trim().toLowerCase();
+    return todosLosServicios.filter(s => {
+      if (s.categoriaId !== categoriaId) return false;
+      if (estadoFilter === 'activo' && !s.activo) return false;
+      if (estadoFilter === 'inactivo' && s.activo) return false;
+      const matchSearch =
+        (s.nombre ?? '').toLowerCase().includes(q) ||
+        (s.correo ?? '').toLowerCase().includes(q);
+      const matchCiclo = cicloFilter === 'todos' || s.cicloPago === cicloFilter;
+      const perfilesLibres = (s.perfilesDisponibles || 0) - (s.perfilesOcupados || 0);
+      const matchPerfil = perfilFilter === 'todos' ||
+        (perfilFilter === 'con_disponibles' && perfilesLibres > 0) ||
+        (perfilFilter === 'sin_disponibles' && perfilesLibres <= 0);
+      return matchSearch && matchCiclo && matchPerfil;
+    });
+  }, [isSearchMode, searchTerm, todosLosServicios, categoriaId, estadoFilter, cicloFilter, perfilFilter]);
+
+  const isLoading = isSearchMode ? isLoadingSearch : isLoadingPage;
+  const servicios = isSearchMode ? searchResults : serviciosPaginados;
 
   const categoria = categorias.find(c => c.id === categoriaId);
 
@@ -85,29 +127,22 @@ function ServiciosCategoriaPageContent() {
     };
   }, [refresh]);
 
-  // Aplicar filtros client-side (búsqueda, ciclo, perfil)
+  // En modo búsqueda, los filtros ya se aplicaron en searchResults.
+  // En modo paginación, aplicar filtros client-side (ciclo, perfil) sobre la página actual.
   const serviciosFiltrados = useMemo(() => {
+    if (isSearchMode) return servicios;
     return servicios.filter(servicio => {
-      // Filtro de búsqueda
-      const matchSearch = searchTerm === '' ||
-        servicio.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        servicio.correo?.toLowerCase().includes(searchTerm.toLowerCase());
-
-      // Filtro de ciclo de pago
       const matchCiclo = cicloFilter === 'todos' || servicio.cicloPago === cicloFilter;
-
-      // Filtro de perfil
       const perfilesLibres = (servicio.perfilesDisponibles || 0) - (servicio.perfilesOcupados || 0);
       const matchPerfil = perfilFilter === 'todos' ||
         (perfilFilter === 'con_disponibles' && perfilesLibres > 0) ||
         (perfilFilter === 'sin_disponibles' && perfilesLibres <= 0);
-
-      return matchSearch && matchCiclo && matchPerfil;
+      return matchCiclo && matchPerfil;
     });
-  }, [servicios, searchTerm, cicloFilter, perfilFilter]);
+  }, [servicios, isSearchMode, cicloFilter, perfilFilter]);
 
   const handleEdit = (id: string) => {
-    router.push(`/servicios/${id}/editar`);
+    router.push(`/servicios/${id}/editar?from=/servicios/${categoriaId}`);
   };
 
   const handleView = (id: string) => {
@@ -141,7 +176,7 @@ function ServiciosCategoriaPageContent() {
             <Link href="/" className="hover:text-foreground transition-colors">Dashboard</Link> / <Link href="/servicios" className="hover:text-foreground transition-colors">Servicios</Link> / <span className="text-foreground">{categoria.nombre}</span>
           </p>
         </div>
-        <Link href="/servicios/crear">
+        <Link href={`/servicios/crear?from=/servicios/${categoriaId}`}>
           <Button>
             <Plus className="mr-2 h-4 w-4" />
             Nuevo Servicio
@@ -168,9 +203,12 @@ function ServiciosCategoriaPageContent() {
         perfilFilter={perfilFilter}
         onPerfilChange={setPerfilFilter}
         isLoading={isLoading}
-        hasMore={hasMore}
-        hasPrevious={hasPrevious}
-        page={page}
+        hasMore={isSearchMode ? false : hasMore}
+        hasPrevious={isSearchMode ? false : hasPrevious}
+        page={isSearchMode ? 1 : page}
+        showPagination={!isSearchMode}
+        pageSize={pageSize}
+        onPageSizeChange={setPageSize}
         onNext={next}
         onPrevious={previous}
       />

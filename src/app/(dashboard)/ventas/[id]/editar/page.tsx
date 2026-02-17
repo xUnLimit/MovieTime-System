@@ -76,7 +76,7 @@ function EditarVentaPageContent() {
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <Link href="/ventas">
+            <Link href={`/ventas/${id}`}>
               <Button variant="ghost" size="icon" className="h-8 w-8">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
@@ -90,6 +90,10 @@ function EditarVentaPageContent() {
             /{' '}
             <Link href="/ventas" className="hover:text-foreground transition-colors">
               Ventas
+            </Link>{' '}
+            /{' '}
+            <Link href={`/ventas/${id}`} className="hover:text-foreground transition-colors">
+              Detalle
             </Link>{' '}
             / <span className="text-foreground">Editar</span>
           </p>

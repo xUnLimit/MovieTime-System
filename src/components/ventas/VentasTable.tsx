@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -24,12 +24,15 @@ interface VentasTableProps {
   isLoading: boolean;
   title: string;
   onDelete?: (ventaId: string, servicioId?: string, perfilNumero?: number | null) => void;
+  searchQuery: string;
+  onSearchChange: (value: string) => void;
   // Paginación
   hasMore: boolean;
   hasPrevious: boolean;
   page: number;
   onNext: () => void;
   onPrevious: () => void;
+  showPagination?: boolean;
   pageSize?: number;
   onPageSizeChange?: (size: number) => void;
 }
@@ -67,16 +70,18 @@ export function VentasTable({
   isLoading,
   title,
   onDelete,
+  searchQuery,
+  onSearchChange,
   hasMore,
   hasPrevious,
   page,
   onNext,
   onPrevious,
+  showPagination = true,
   pageSize,
   onPageSizeChange,
 }: VentasTableProps) {
   const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState('');
 
   const rows = useMemo(() => {
     return ventas.map((venta) => {
@@ -119,16 +124,9 @@ export function VentasTable({
     });
   }, [ventas]);
 
-  const filteredRows = useMemo(() => {
-    if (!searchQuery) return rows;
-    return rows.filter((row) => {
-      return (
-        row.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        row.clienteDetalle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        row.servicio.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    });
-  }, [rows, searchQuery]);
+  // El filtrado por searchQuery lo maneja el page (búsqueda global).
+  // Aquí solo usamos rows directamente.
+  const filteredRows = rows;
 
   const columns: Column<VentaRow>[] = [
     {
@@ -262,7 +260,7 @@ export function VentasTable({
           <Input
             placeholder="Buscar por cliente, servicio o email..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => onSearchChange(e.target.value)}
             className="pl-9"
           />
         </div>
@@ -312,16 +310,18 @@ export function VentasTable({
       )}
       />
 
-          <PaginationFooter
-            page={page}
-            totalPages={hasMore ? page + 1 : page}
-            hasPrevious={hasPrevious}
-            hasMore={hasMore}
-            onPrevious={onPrevious}
-            onNext={onNext}
-            pageSize={pageSize}
-            onPageSizeChange={onPageSizeChange}
-          />
+          {showPagination && (
+            <PaginationFooter
+              page={page}
+              totalPages={hasMore ? page + 1 : page}
+              hasPrevious={hasPrevious}
+              hasMore={hasMore}
+              onPrevious={onPrevious}
+              onNext={onNext}
+              pageSize={pageSize}
+              onPageSizeChange={onPageSizeChange}
+            />
+          )}
         </div>
       )}
     </Card>

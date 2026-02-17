@@ -20,10 +20,12 @@ import { FilterOption } from '@/lib/firebase/pagination';
 
 function UsuariosPageContent() {
   const router = useRouter();
-  const { totalClientes, totalRevendedores, totalNuevosHoy, totalUsuariosActivos, fetchCounts } = useUsuariosStore();
+  const { totalClientes, totalRevendedores, totalNuevosHoy, totalUsuariosActivos, fetchCounts, fetchUsuarios, usuarios } = useUsuariosStore();
 
   const [activeTab, setActiveTab] = useState('todos');
   const [pageSize, setPageSize] = useState(10);
+  const [searchQuery, setSearchQuery] = useState('');
+  const isSearchMode = searchQuery.trim().length > 0;
 
   // Filtros según tab activo
   const filters: FilterOption[] = useMemo(() => {
@@ -32,12 +34,44 @@ function UsuariosPageContent() {
     return [];
   }, [activeTab]);
 
-  // Paginación server-side
-  const { data: pageData, isLoading, hasMore, hasPrevious, page, next, previous, refresh } = useServerPagination<Usuario>({
+  // Paginación server-side (solo cuando NO hay búsqueda activa)
+  const { data: pageData, isLoading: isLoadingPage, hasMore, hasPrevious, page, next, previous, refresh } = useServerPagination<Usuario>({
     collectionName: COLLECTIONS.USUARIOS,
     filters,
     pageSize,
   });
+
+  // Modo búsqueda: fetchAll con cache y filtrar en memoria
+  const [isLoadingSearch, setIsLoadingSearch] = useState(false);
+  useEffect(() => {
+    if (!isSearchMode) return;
+    let cancelled = false;
+    const load = async () => {
+      setIsLoadingSearch(true);
+      await fetchUsuarios();
+      if (!cancelled) setIsLoadingSearch(false);
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [isSearchMode, fetchUsuarios]);
+
+  const searchResults = useMemo(() => {
+    if (!isSearchMode) return [];
+    const q = searchQuery.trim().toLowerCase();
+    const base = activeTab === 'clientes'
+      ? usuarios.filter(u => u.tipo === 'cliente')
+      : activeTab === 'revendedores'
+        ? usuarios.filter(u => u.tipo === 'revendedor')
+        : usuarios;
+    return base.filter(u =>
+      u.nombre.toLowerCase().includes(q) ||
+      (u.apellido ?? '').toLowerCase().includes(q) ||
+      u.telefono.includes(q)
+    );
+  }, [isSearchMode, searchQuery, usuarios, activeTab]);
+
+  const isLoading = isSearchMode ? isLoadingSearch : isLoadingPage;
+  const displayData = isSearchMode ? searchResults : pageData;
 
   // Total según tab (para calcular páginas)
   const totalCurrentTab = activeTab === 'clientes' ? totalClientes : activeTab === 'revendedores' ? totalRevendedores : totalClientes + totalRevendedores;
@@ -96,7 +130,7 @@ function UsuariosPageContent() {
         totalNuevosHoy={totalNuevosHoy}
       />
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={(tab) => { setActiveTab(tab); setSearchQuery(''); }}>
         <TabsList className="bg-transparent rounded-none p-0 h-auto inline-flex border-b border-border">
           <TabsTrigger
             value="todos"
@@ -120,35 +154,41 @@ function UsuariosPageContent() {
 
         <TabsContent value="todos" className="space-y-4">
           <TodosUsuariosTable
-            usuarios={pageData}
+            usuarios={displayData}
             onEdit={handleEdit}
             onView={handleView}
             title="Todos los usuarios"
             isLoading={isLoading}
-            pagination={paginationProps}
+            pagination={isSearchMode ? undefined : paginationProps}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
             onRefresh={refresh}
           />
         </TabsContent>
 
         <TabsContent value="clientes" className="space-y-4">
           <ClientesTable
-            clientes={pageData}
+            clientes={displayData}
             onEdit={handleEdit}
             onView={handleView}
             title="Clientes"
             isLoading={isLoading}
-            pagination={paginationProps}
+            pagination={isSearchMode ? undefined : paginationProps}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
             onRefresh={refresh}
           />
         </TabsContent>
 
         <TabsContent value="revendedores" className="space-y-4">
           <RevendedoresTable
-            revendedores={pageData}
+            revendedores={displayData}
             onEdit={handleEdit}
             onView={handleView}
             isLoading={isLoading}
-            pagination={paginationProps}
+            pagination={isSearchMode ? undefined : paginationProps}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
             onRefresh={refresh}
           />
         </TabsContent>

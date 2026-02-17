@@ -38,7 +38,9 @@ interface TodosUsuariosTableProps {
   onView?: (usuario: Usuario) => void;
   title?: string;
   isLoading?: boolean;
-  pagination: PaginationFooterProps;
+  pagination?: PaginationFooterProps;
+  searchQuery: string;
+  onSearchChange: (value: string) => void;
   onRefresh: () => void;
 }
 
@@ -49,12 +51,13 @@ export function TodosUsuariosTable({
   title = 'Todos los usuarios',
   isLoading = false,
   pagination,
+  searchQuery,
+  onSearchChange,
   onRefresh,
 }: TodosUsuariosTableProps) {
   const { deleteUsuario } = useUsuariosStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [usuarioToDelete, setUsuarioToDelete] = useState<UsuarioDisplay | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
   const [metodoPagoFilter, setMetodoPagoFilter] = useState('todos');
   // IDs de todos los usuarios (clientes Y revendedores) de la página actual (máx 10) para la query de ventas
   const usuarioIds = useMemo(
@@ -84,17 +87,12 @@ export function TodosUsuariosTable({
     return Array.from(metodos).filter(Boolean);
   }, [usuariosDisplay]);
 
-  // Filtrar usuarios
+  // Filtrar usuarios por método de pago (la búsqueda por nombre/teléfono la maneja el page)
   const filteredUsuarios = useMemo(() => {
-    return usuariosDisplay.filter((usuario) => {
-      const matchesSearch =
-        usuario.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        usuario.telefono.includes(searchQuery);
-      const matchesMetodo =
-        metodoPagoFilter === 'todos' || usuario.metodoPagoNombre === metodoPagoFilter;
-      return matchesSearch && matchesMetodo;
-    });
-  }, [usuariosDisplay, searchQuery, metodoPagoFilter]);
+    return usuariosDisplay.filter((usuario) =>
+      metodoPagoFilter === 'todos' || usuario.metodoPagoNombre === metodoPagoFilter
+    );
+  }, [usuariosDisplay, metodoPagoFilter]);
 
   const handleDelete = (usuario: UsuarioDisplay) => {
     setUsuarioToDelete(usuario);
@@ -229,7 +227,7 @@ export function TodosUsuariosTable({
             <Input
               placeholder="Buscar por nombre o teléfono..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => onSearchChange(e.target.value)}
               className="pl-9"
             />
           </div>
@@ -292,7 +290,7 @@ export function TodosUsuariosTable({
             );
           }}
         />
-        <PaginationFooter {...pagination} />
+        {pagination && <PaginationFooter {...pagination} />}
       </Card>
 
       <ConfirmDialog
