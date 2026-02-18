@@ -117,9 +117,12 @@ function resetDiaIfNewMonth<T extends { dia: string }>(arr: T[], currentMes: str
 }
 
 function keepLast12Months<T extends { mes: string }>(arr: T[]): T[] {
-  return arr
-    .sort((a, b) => a.mes.localeCompare(b.mes))
-    .slice(-12);
+  const currentMes = getCurrentMesKey();
+  const sorted = arr.sort((a, b) => a.mes.localeCompare(b.mes));
+  // Keep up to 12 past+current months, plus all future months (charts extend into future)
+  const past = sorted.filter((m) => m.mes <= currentMes).slice(-12);
+  const future = sorted.filter((m) => m.mes > currentMes);
+  return [...past, ...future];
 }
 
 /**

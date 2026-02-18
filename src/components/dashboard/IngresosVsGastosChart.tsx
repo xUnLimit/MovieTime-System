@@ -19,7 +19,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, eachMonthOfInterval } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, eachMonthOfInterval, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -41,15 +41,12 @@ export function IngresosVsGastosChart() {
     const currentDate = new Date();
     if (selectedMonth === 'actual') {
       // Usar datos reales por día desde dashboard_stats (0 reads extra)
+      // Incluye días futuros del mes actual si tienen datos registrados
       const monthStart = startOfMonth(currentDate);
       const monthEnd = endOfMonth(currentDate);
       const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
-      const today = new Date();
 
       return days.map((day) => {
-        if (day > today) {
-          return { dia: format(day, 'd MMM', { locale: es }), ingresos: 0, gastos: 0 };
-        }
         const diaKey = format(day, 'yyyy-MM-dd');
         const entry = ingresosPorDia.find((d) => d.dia === diaKey);
         return {
@@ -61,15 +58,27 @@ export function IngresosVsGastosChart() {
     }
 
     // Datos mensuales para 3, 6 o 12 meses
+    // Extiende el rango hacia adelante para incluir meses futuros con datos
     const monthsBack = selectedMonth === '3meses' ? 3 : selectedMonth === '6meses' ? 6 : 12;
     const startDate = subMonths(currentDate, monthsBack - 1);
-    const months = eachMonthOfInterval({ start: startOfMonth(startDate), end: currentDate });
+
+    const currentMesKey = format(currentDate, 'yyyy-MM');
+    const futureMesKeys = ingresosPorMes
+      .map((m) => m.mes)
+      .filter((mes) => mes > currentMesKey)
+      .sort();
+    const lastFutureMes = futureMesKeys.length > 0
+      ? parseISO(futureMesKeys[futureMesKeys.length - 1] + '-01')
+      : currentDate;
+    const endDate = lastFutureMes > currentDate ? lastFutureMes : currentDate;
+
+    const months = eachMonthOfInterval({ start: startOfMonth(startDate), end: endDate });
 
     return months.map((month) => {
       const mesKey = format(month, 'yyyy-MM');
       const entry = ingresosPorMes.find((m) => m.mes === mesKey);
       return {
-        dia: format(month, 'MMM', { locale: es }),
+        dia: format(month, 'MMM yyyy', { locale: es }),
         ingresos: entry?.ingresos ?? 0,
         gastos: entry?.gastos ?? 0,
       };

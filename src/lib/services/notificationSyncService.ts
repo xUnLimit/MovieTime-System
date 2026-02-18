@@ -31,6 +31,13 @@ import type { VentaDoc } from '@/types/ventas';
 import type { Servicio } from '@/types/servicios';
 
 /**
+ * In-memory flag to prevent concurrent sync executions.
+ * Without this, layout.tsx and notificaciones/page.tsx mount simultaneously
+ * and both pass the localStorage check before either writes marcarSincronizado().
+ */
+let sincronizandoEnCurso = false;
+
+/**
  * Check if we've already synchronized today
  * Uses localStorage to store last sync date (local time)
  */
@@ -310,6 +317,14 @@ export async function sincronizarNotificaciones(): Promise<void> {
     return;
   }
 
+  // Prevent concurrent executions: layout.tsx and notificaciones/page.tsx
+  // both mount at the same time and both pass debesSincronizar() before
+  // either writes marcarSincronizado(), causing duplicate notifications.
+  if (sincronizandoEnCurso) {
+    return;
+  }
+  sincronizandoEnCurso = true;
+
   try {
     // ✅ OPTIMIZED: Single query per entity (not two separate ones)
     // This query includes both próximas AND vencidas because:
@@ -355,6 +370,8 @@ export async function sincronizarNotificaciones(): Promise<void> {
   } catch (error) {
     console.error('[NotificationSync] ❌ Error during synchronization:', error);
     throw error;
+  } finally {
+    sincronizandoEnCurso = false;
   }
 }
 
@@ -374,9 +391,10 @@ export async function sincronizarNotificacionesForzado(): Promise<void> {
     console.warn('[NotificationSync] Error clearing notifications before forced sync:', error);
   }
 
-  // 2️⃣ Run full sync from scratch (bypass daily cache)
+  // 2️⃣ Run full sync from scratch (bypass daily cache and in-memory flag)
   if (typeof window !== 'undefined') {
     localStorage.removeItem('lastNotificationSync');
   }
+  sincronizandoEnCurso = false;
   await sincronizarNotificaciones();
 }
