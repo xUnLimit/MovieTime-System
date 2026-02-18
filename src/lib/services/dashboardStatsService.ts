@@ -427,7 +427,11 @@ export async function rebuildDashboardStats(): Promise<void> {
 
   const stats: DashboardStats = { ...EMPTY_STATS };
 
+  // Pre-build lookup maps for O(1) access inside loops
+  const ventasPorId = new Map(ventas.map((v) => [v.id, v]));
+
   // ---------- INGRESOS ----------
+  const currentMes = getCurrentMesKey();
   for (const pago of pagosVenta) {
     const monto = pago.monto || 0;
     const moneda = pago.moneda || 'USD';
@@ -449,7 +453,6 @@ export async function rebuildDashboardStats(): Promise<void> {
       stats.ingresosPorMes.push({ mes, ingresos: usd, gastos: 0 });
     }
 
-    const currentMes = getCurrentMesKey();
     if (mes === currentMes) {
       const diaEntry = stats.ingresosPorDia.find((d) => d.dia === dia);
       if (diaEntry) {
@@ -459,18 +462,15 @@ export async function rebuildDashboardStats(): Promise<void> {
       }
     }
 
-    // ingresosPorCategoria (use categoriaId + categoriaNombre from the venta)
-    const venta = ventas.find((v) => v.id === pago.ventaId);
-    if (venta?.categoriaId) {
-      const catEntry = stats.ingresosPorCategoria.find((c) => c.categoriaId === venta.categoriaId);
+    // ingresosPorCategoria — use categoriaId from pago (denormalized), fall back to venta
+    const categoriaId = pago.categoriaId || ventasPorId.get(pago.ventaId)?.categoriaId;
+    if (categoriaId) {
+      const categoriaNombre = ventasPorId.get(pago.ventaId)?.categoriaNombre || categoriaId;
+      const catEntry = stats.ingresosPorCategoria.find((c) => c.categoriaId === categoriaId);
       if (catEntry) {
         catEntry.total += usd;
       } else {
-        stats.ingresosPorCategoria.push({
-          categoriaId: venta.categoriaId,
-          nombre: venta.categoriaNombre || venta.categoriaId,
-          total: usd,
-        });
+        stats.ingresosPorCategoria.push({ categoriaId, nombre: categoriaNombre, total: usd });
       }
     }
   }
