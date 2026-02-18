@@ -11,6 +11,8 @@ import { UserMenu } from '@/components/layout/UserMenu';
 import { NotificationBell } from '@/components/notificaciones/NotificationBell';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { useNotificacionesStore } from '@/store/notificacionesStore';
+import { useServiciosStore } from '@/store/serviciosStore';
+import { useCategoriasStore } from '@/store/categoriasStore';
 import { esNotificacionVenta, esNotificacionServicio } from '@/types/notificaciones';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Bell, ArrowRight } from 'lucide-react';
@@ -20,6 +22,8 @@ import Link from 'next/link';
 export default function DashboardPage() {
   const { fetchDashboard, recalculateDashboard, isRecalculating } = useDashboardStore();
   const { fetchNotificaciones } = useNotificacionesStore();
+  const { resyncPerfilesDisponiblesTotal } = useServiciosStore();
+  const { fetchCategorias } = useCategoriasStore();
   const toastShown = useRef(false);
 
   useEffect(() => {
@@ -121,12 +125,17 @@ export default function DashboardPage() {
   }, []);
 
   const handleRecalculate = async () => {
-    const toastId = toast.loading('Recalculando métricas desde Firestore...');
+    const toastId = toast.loading('Sincronizando sistema...');
     try {
+      // 1. Resync contadores de perfiles disponibles en categorías
+      await resyncPerfilesDisponiblesTotal();
+      // 2. Recalcular métricas del dashboard (rebuild desde Firestore)
       await recalculateDashboard();
-      toast.success('Métricas actualizadas correctamente', { id: toastId });
+      // 3. Refrescar categorías para reflejar los contadores actualizados
+      await fetchCategorias(true);
+      toast.success('Sistema sincronizado correctamente', { id: toastId });
     } catch {
-      toast.error('Error al recalcular las métricas', { id: toastId });
+      toast.error('Error al sincronizar el sistema', { id: toastId });
     }
   };
 

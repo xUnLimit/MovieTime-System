@@ -58,6 +58,7 @@ interface ServiciosState {
   getServiciosByCategoria: (categoriaId: string) => Servicio[];
   getServiciosDisponibles: () => Servicio[];
   updatePerfilOcupado: (id: string, shouldIncrement: boolean) => Promise<void>;
+  resyncPerfilesDisponiblesTotal: () => Promise<{ categoriasActualizadas: number }>;
 }
 
 const CACHE_TIMEOUT = 5 * 60 * 1000;
@@ -255,6 +256,19 @@ export const useServiciosStore = create<ServiciosState>()(
               serviciosActivos: increment(delta),
               // Si se desactiva, restar perfiles disponibles. Si se activa, sumarlos.
               perfilesDisponiblesTotal: increment(updates.activo ? perfilesLibres : -perfilesLibres),
+            });
+          }
+
+          // Si se cambia perfilesDisponibles y el servicio está activo, actualizar el contador de la categoría
+          if (
+            updates.perfilesDisponibles !== undefined &&
+            updates.perfilesDisponibles !== servicio.perfilesDisponibles &&
+            (updates.activo ?? servicio.activo)
+          ) {
+            const categoriaRef = firestoreDoc(db, COLLECTIONS.CATEGORIAS, servicio.categoriaId);
+            const delta = updates.perfilesDisponibles - servicio.perfilesDisponibles;
+            await updateDoc(categoriaRef, {
+              perfilesDisponiblesTotal: increment(delta),
             });
           }
 
@@ -456,7 +470,29 @@ export const useServiciosStore = create<ServiciosState>()(
             }));
           }
         }
-      }
+      },
+
+      resyncPerfilesDisponiblesTotal: async () => {
+        // Lee todos los servicios y recalcula perfilesDisponiblesTotal por categoría desde cero
+        const servicios = await getAll<Servicio>(COLLECTIONS.SERVICIOS);
+
+        // Agrupar por categoría y sumar perfiles libres de servicios activos
+        const totalPorCategoria = new Map<string, number>();
+        for (const s of servicios) {
+          if (!s.activo) continue;
+          const libres = Math.max((s.perfilesDisponibles || 0) - (s.perfilesOcupados || 0), 0);
+          totalPorCategoria.set(s.categoriaId, (totalPorCategoria.get(s.categoriaId) ?? 0) + libres);
+        }
+
+        // Sobrescribir el campo en cada categoría afectada
+        const updates = Array.from(totalPorCategoria.entries()).map(([categoriaId, total]) => {
+          const ref = firestoreDoc(db, COLLECTIONS.CATEGORIAS, categoriaId);
+          return updateDoc(ref, { perfilesDisponiblesTotal: total });
+        });
+        await Promise.all(updates);
+
+        return { categoriasActualizadas: updates.length };
+      },
     }),
     { name: 'servicios-store' }
   )

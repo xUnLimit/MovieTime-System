@@ -29,7 +29,7 @@ import { CURRENCY_SYMBOLS, CYCLE_MONTHS } from '@/lib/constants';
 import { usePagosServicio } from '@/hooks/use-pagos-servicio';
 import { update, COLLECTIONS } from '@/lib/firebase/firestore';
 
-const servicioEditSchema = z.object({
+const createServicioEditSchema = (perfilesOcupados: number) => z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   categoriaId: z.string().min(1, 'Debe seleccionar una categoría'),
   tipoPlan: z.enum(['cuenta_completa', 'perfiles'], {
@@ -46,7 +46,11 @@ const servicioEditSchema = z.object({
     .refine((val) => val !== '', 'Por favor ingrese el número de perfiles')
     .refine((val) => !isNaN(Number(val)), 'Debe ingresar un valor numérico')
     .refine((val) => Number(val) >= 1, 'Debe tener al menos 1 perfil disponible')
-    .refine((val) => Number.isInteger(Number(val)), 'El número de perfiles debe ser un valor entero'),
+    .refine((val) => Number.isInteger(Number(val)), 'El número de perfiles debe ser un valor entero')
+    .refine(
+      (val) => Number(val) >= perfilesOcupados,
+      `No se puede reducir por debajo de los ${perfilesOcupados} perfil${perfilesOcupados !== 1 ? 'es' : ''} actualmente ocupado${perfilesOcupados !== 1 ? 's' : ''}`
+    ),
   cicloPago: z.enum(['mensual', 'trimestral', 'semestral', 'anual']),
   fechaInicio: z.date(),
   fechaVencimiento: z.date(),
@@ -54,7 +58,7 @@ const servicioEditSchema = z.object({
   notas: z.string().optional(),
 });
 
-type FormData = z.infer<typeof servicioEditSchema>;
+type FormData = z.infer<ReturnType<typeof createServicioEditSchema>>;
 
 interface ServicioEditFormProps {
   servicio: Servicio;
@@ -99,7 +103,7 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
     watch,
     clearErrors,
   } = useForm<FormData>({
-    resolver: zodResolver(servicioEditSchema),
+    resolver: zodResolver(createServicioEditSchema(servicio.perfilesOcupados || 0)),
     defaultValues: {
       nombre: servicio.nombre || '',
       categoriaId: servicio.categoriaId || '',
