@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { PaginationFooter } from '@/components/shared/PaginationFooter';
-import { Search, MoreHorizontal, Monitor, User, Clock, Edit, Trash2, Eye } from 'lucide-react';
+import { Search, MoreHorizontal, Monitor, User, Clock, Edit, Trash2, Eye, RefreshCw } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -55,6 +55,7 @@ interface VentaRow {
   montoSinConsumir: number;
   moneda: string;
   estado: 'activa' | 'suspendida' | 'inactiva';
+  renovaciones: number;
   categoriaId?: string;
   original: VentaDoc;
 }
@@ -125,6 +126,7 @@ export function VentasTable({
         montoSinConsumir,
         moneda,
         estado,
+        renovaciones: (venta as VentaDoc & { renovaciones?: number }).renovaciones ?? 0,
         categoriaId: venta.categoriaId,
         original: venta,
       } satisfies VentaRow;
@@ -253,6 +255,19 @@ export function VentasTable({
         <div className="text-center font-medium">
           <span className="text-green-500">{getCurrencySymbol(item.moneda)}</span>
           <span className="text-foreground"> {item.montoSinConsumir.toFixed(2)}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'renovaciones',
+      header: 'Renovaciones',
+      sortable: true,
+      width: '9%',
+      align: 'center',
+      render: (item) => (
+        <div className="flex items-center justify-center gap-1.5 font-medium">
+          <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-white">{item.renovaciones}</span>
         </div>
       ),
     },

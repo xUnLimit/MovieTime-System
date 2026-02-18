@@ -549,15 +549,35 @@ export async function rebuildDashboardStats(): Promise<void> {
   }
 
   // ---------- PRONÓSTICO ----------
+  // Group pagosVenta by ventaId, pick the most recent (highest fechaVencimiento) per venta
+  const pagosPorVentaMap = new Map<string, PagoVentaType>();
+  for (const pago of pagosVenta) {
+    const existing = pagosPorVentaMap.get(pago.ventaId);
+    const pagoFecha = pago.fechaVencimiento
+      ? (pago.fechaVencimiento instanceof Date ? pago.fechaVencimiento : new Date(pago.fechaVencimiento as unknown as string))
+      : new Date(0);
+    const existingFecha = existing?.fechaVencimiento
+      ? (existing.fechaVencimiento instanceof Date ? existing.fechaVencimiento : new Date(existing.fechaVencimiento as unknown as string))
+      : new Date(0);
+    if (!existing || pagoFecha > existingFecha) {
+      pagosPorVentaMap.set(pago.ventaId, pago);
+    }
+  }
+
   stats.ventasPronostico = ventas
     .filter((v) => v.estado !== 'inactivo' && v.fechaFin && v.cicloPago)
-    .map((v) => ({
-      id: v.id!,
-      fechaFin: v.fechaFin instanceof Date ? v.fechaFin.toISOString() : String(v.fechaFin),
-      cicloPago: v.cicloPago as string,
-      precioFinal: v.precioFinal || 0,
-      moneda: v.moneda || 'USD',
-    }));
+    .map((v) => {
+      const ultimoPago = pagosPorVentaMap.get(v.id!);
+      return {
+        id: v.id!,
+        fechaFin: v.fechaFin instanceof Date ? v.fechaFin.toISOString() : String(v.fechaFin),
+        cicloPago: v.cicloPago as string,
+        // Use the actual price from the most recent PagoVenta (source of truth)
+        // Fall back to deprecated VentaDoc.precioFinal only if no payment found
+        precioFinal: ultimoPago ? (ultimoPago.monto || 0) : (v.precioFinal || 0),
+        moneda: ultimoPago ? (ultimoPago.moneda || 'USD') : (v.moneda || 'USD'),
+      };
+    });
 
   stats.serviciosPronostico = servicios
     .filter((s) => s.activo && s.fechaVencimiento && s.cicloPago && s.costoServicio > 0)

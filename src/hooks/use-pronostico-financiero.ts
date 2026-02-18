@@ -52,14 +52,20 @@ export function usePronosticoFinanciero(): UsePronosticoFinancieroResult {
         // Pre-load exchange rates once, then use sync conversion for all items
         await currencyService.ensureRatesLoaded();
 
+        const hoy = new Date();
+        const inicioMesActual = startOfMonth(hoy);
+
         const mesesCalculados = Array.from({ length: 4 }, (_, offset) => {
-          const targetMonth = addMonths(startOfMonth(new Date()), offset);
+          const targetMonth = addMonths(startOfMonth(hoy), offset);
           const inicioMes = startOfMonth(targetMonth);
           const finMes = endOfMonth(targetMonth);
 
           const ventasDelMes = ventas.filter((v) => {
             if (!v.fechaFin || !v.cicloPago) return false;
-            return caeEnMes(new Date(v.fechaFin), v.cicloPago as keyof typeof CYCLE_MONTHS, inicioMes, finMes);
+            const fechaFin = new Date(v.fechaFin);
+            // Ventas vencidas antes del mes actual → incluir siempre en el mes actual
+            if (offset === 0 && fechaFin < inicioMesActual) return true;
+            return caeEnMes(fechaFin, v.cicloPago as keyof typeof CYCLE_MONTHS, inicioMes, finMes);
           });
 
           const serviciosDelMes = servicios.filter((s) => {

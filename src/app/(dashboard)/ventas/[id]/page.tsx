@@ -31,6 +31,7 @@ import { crearPagoRenovacion } from '@/lib/services/pagosVentaService';
 import { getVentaConUltimoPago } from '@/lib/services/ventaSyncService';
 import { CYCLE_MONTHS } from '@/lib/constants';
 import { useNotificacionesStore } from '@/store/notificacionesStore';
+import { upsertVentaPronostico } from '@/lib/services/dashboardStatsService';
 
 const getCicloPagoLabel = (ciclo?: string) => {
   const labels: Record<string, string> = {
@@ -143,7 +144,7 @@ function VentaDetallePageContent() {
 
   const diasRestantes = useMemo(() => {
     if (!venta?.fechaFin) return 0;
-    return Math.max(differenceInCalendarDays(venta.fechaFin, new Date()), 0);
+    return differenceInCalendarDays(venta.fechaFin, new Date());
   }, [venta?.fechaFin]);
 
   const perfilDisplay = venta?.perfilNombre?.trim() || '—';
@@ -337,6 +338,15 @@ function VentaDetallePageContent() {
         fechaInicio: data.fechaInicio,
         cicloPago: data.periodoRenovacion,
       });
+
+      // Actualizar ventasPronostico en el dashboard con el nuevo fechaFin y precioFinal
+      upsertVentaPronostico({
+        id: venta.id,
+        fechaFin: data.fechaVencimiento.toISOString(),
+        cicloPago: data.periodoRenovacion,
+        precioFinal: monto,
+        moneda: data.moneda || metodoPagoSeleccionado?.moneda || venta.moneda || 'USD',
+      }, venta.id).catch(() => {});
 
       // Recargar la venta actualizada (sin loading screen)
       if (id && venta) {
@@ -684,8 +694,24 @@ function VentaDetallePageContent() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Días Restantes</p>
-              <Badge className="mt-1 bg-green-600/20 text-green-400">
-                {diasRestantes} días restantes
+              <Badge
+                variant="outline"
+                className={`mt-1 font-normal ${
+                  diasRestantes < 0
+                    ? 'border-red-500/50 bg-red-500/20 text-red-300'
+                    : diasRestantes === 0
+                      ? 'border-red-500/50 bg-red-500/20 text-red-300'
+                      : diasRestantes <= 7
+                        ? 'border-yellow-500/50 bg-yellow-500/20 text-yellow-300'
+                        : 'border-green-500/50 bg-green-500/20 text-green-300'
+                }`}
+              >
+                {diasRestantes < 0
+                  ? `${Math.abs(diasRestantes)} día${Math.abs(diasRestantes) !== 1 ? 's' : ''} de retraso`
+                  : diasRestantes === 0
+                    ? 'Vence hoy'
+                    : `${diasRestantes} día${diasRestantes !== 1 ? 's' : ''} restante${diasRestantes !== 1 ? 's' : ''}`
+                }
               </Badge>
             </div>
           </div>

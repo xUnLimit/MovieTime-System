@@ -21,6 +21,7 @@ export interface VentaConUltimoPago extends VentaDoc {
   metodoPagoId?: string;
   metodoPagoNombre: string;
   moneda: string;
+  renovaciones: number;
   // Note: cicloPago, fechaInicio, fechaFin are required in VentaDoc parent
 }
 
@@ -57,6 +58,8 @@ export async function getVentaConUltimoPago(
 
   const pagoMasReciente = sorted[0];
 
+  const renovaciones = pagosList.filter(p => p.isPagoInicial === false).length;
+
   // Si no hay pagos, retornar valores por defecto
   if (!pagoMasReciente) {
     return {
@@ -67,6 +70,7 @@ export async function getVentaConUltimoPago(
       metodoPagoId: undefined,
       metodoPagoNombre: '',
       moneda: 'USD',
+      renovaciones: 0,
       // Denormalized fields from venta (required)
       cicloPago: venta.cicloPago || 'mensual',
       fechaInicio: venta.fechaInicio || new Date(),
@@ -83,6 +87,7 @@ export async function getVentaConUltimoPago(
     metodoPagoId: pagoMasReciente.metodoPagoId,
     metodoPagoNombre: pagoMasReciente.metodoPago,
     moneda: pagoMasReciente.moneda ?? 'USD',
+    renovaciones,
     // Denormalized fields from payment (required)
     cicloPago: pagoMasReciente.cicloPago || 'mensual',
     fechaInicio: pagoMasReciente.fechaInicio ?? new Date(),
@@ -131,13 +136,13 @@ export async function getVentasConUltimoPago(
   // Combinar cada venta con su pago más reciente
   return ventas.map(venta => {
     const pagosVenta = pagosPorVenta.get(venta.id) ?? [];
+    const renovaciones = pagosVenta.filter(p => p.isPagoInicial === false).length;
 
     // Ordenar por fechaVencimiento descendente para encontrar el pago vigente (más reciente)
     const sorted = pagosVenta.sort((a, b) => {
-      // Manejar casos donde fechaVencimiento puede ser undefined/null
       const dateA = a.fechaVencimiento
         ? (a.fechaVencimiento instanceof Date ? a.fechaVencimiento : new Date(a.fechaVencimiento))
-        : new Date(0); // Fecha muy antigua si no hay fechaVencimiento
+        : new Date(0);
       const dateB = b.fechaVencimiento
         ? (b.fechaVencimiento instanceof Date ? b.fechaVencimiento : new Date(b.fechaVencimiento))
         : new Date(0);
@@ -156,7 +161,7 @@ export async function getVentasConUltimoPago(
         metodoPagoId: undefined,
         metodoPagoNombre: '',
         moneda: 'USD',
-        // Denormalized fields from venta (required)
+        renovaciones: 0,
         cicloPago: venta.cicloPago || 'mensual',
         fechaInicio: venta.fechaInicio || new Date(),
         fechaFin: venta.fechaFin || new Date(),
@@ -171,6 +176,7 @@ export async function getVentasConUltimoPago(
       metodoPagoId: pagoMasReciente.metodoPagoId,
       metodoPagoNombre: pagoMasReciente.metodoPago,
       moneda: pagoMasReciente.moneda ?? 'USD',
+      renovaciones,
       cicloPago: pagoMasReciente.cicloPago || 'mensual',
       fechaInicio: pagoMasReciente.fechaInicio ?? new Date(),
       fechaFin: pagoMasReciente.fechaVencimiento ?? new Date(),
