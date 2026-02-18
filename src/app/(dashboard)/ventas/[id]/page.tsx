@@ -30,6 +30,7 @@ import { usePagosVenta } from '@/hooks/use-pagos-venta';
 import { crearPagoRenovacion } from '@/lib/services/pagosVentaService';
 import { getVentaConUltimoPago } from '@/lib/services/ventaSyncService';
 import { CYCLE_MONTHS } from '@/lib/constants';
+import { useNotificacionesStore } from '@/store/notificacionesStore';
 
 const getCicloPagoLabel = (ciclo?: string) => {
   const labels: Record<string, string> = {
@@ -48,6 +49,7 @@ function VentaDetallePageContent() {
   const id = params.id as string;
 
   const { updatePerfilOcupado } = useServiciosStore();
+  const { deleteNotificacionesPorVenta, fetchNotificaciones } = useNotificacionesStore();
 
   // Estados locales para datos específicos de esta venta
   const [venta, setVenta] = useState<VentaDoc | null>(null);
@@ -328,8 +330,13 @@ function VentaDetallePageContent() {
         descuentoNumero                         // Porcentaje de descuento
       );
 
-      // ✅ NO actualizar VentaDoc - los datos de pago viven solo en PagoVenta
-      // El nuevo pago de renovación es ahora la fuente de verdad
+      // Actualizar fechaFin y fechaInicio en VentaDoc para que el sync de notificaciones
+      // vea la nueva fecha y no vuelva a crear la notificación
+      await update(COLLECTIONS.VENTAS, id, {
+        fechaFin: data.fechaVencimiento,
+        fechaInicio: data.fechaInicio,
+        cicloPago: data.periodoRenovacion,
+      });
 
       // Recargar la venta actualizada (sin loading screen)
       if (id && venta) {
@@ -364,6 +371,10 @@ function VentaDetallePageContent() {
 
       // Recargar los pagos
       refreshPagos();
+
+      // Eliminar notificación asociada a esta venta y refrescar el store
+      await deleteNotificacionesPorVenta(id);
+      fetchNotificaciones(true);
 
       // Cerrar el diálogo
       setRenovarDialogOpen(false);

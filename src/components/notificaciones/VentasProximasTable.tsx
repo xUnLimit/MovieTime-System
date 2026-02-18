@@ -155,7 +155,7 @@ function formatearFecha(fecha: Date): string {
 
 export function VentasProximasTable() {
   const router = useRouter();
-  const { notificaciones, toggleLeida, toggleResaltada, deleteNotificacionesPorVenta } = useNotificacionesStore();
+  const { notificaciones, toggleLeida, toggleResaltada, deleteNotificacionesPorVenta, fetchNotificaciones } = useNotificacionesStore();
   const { getTemplateByTipo } = useTemplatesStore();
   const { fetchMetodosPagoUsuarios } = useMetodosPagoStore();
   const { updateVenta, fetchVentas } = useVentasStore();
@@ -375,6 +375,7 @@ export function VentasProximasTable() {
 
       // ✅ Eliminar notificaciones de esta venta (auto-cleanup al renovar)
       await deleteNotificacionesPorVenta(notifSeleccionada.ventaId);
+      fetchNotificaciones(true);
 
       toast.success('Venta renovada exitosamente');
 
@@ -453,6 +454,7 @@ export function VentasProximasTable() {
 
       // 4. Delete notification
       await deleteNotificacionesPorVenta(notifSeleccionada.ventaId);
+      fetchNotificaciones(true);
 
       // Registrar en log de actividad
       useActivityLogStore.getState().addLog({

@@ -11,6 +11,7 @@ import { VentasTable } from '@/components/ventas/VentasTable';
 import { VentasMetrics } from '@/components/ventas/VentasMetrics';
 import { useServerPagination } from '@/hooks/useServerPagination';
 import { useVentasStore } from '@/store/ventasStore';
+import { useCategoriasStore } from '@/store/categoriasStore';
 import { toast } from 'sonner';
 import { COLLECTIONS } from '@/lib/firebase/firestore';
 import { VentaDoc } from '@/types';
@@ -19,11 +20,14 @@ import { getVentasConUltimoPago, VentaConUltimoPago } from '@/lib/services/venta
 
 function VentasPageContent() {
   const { deleteVenta, fetchCounts, fetchVentas, ventas } = useVentasStore();
+  const { categorias, fetchCategorias } = useCategoriasStore();
 
   const [activeTab, setActiveTab] = useState<'todas' | 'activas' | 'inactivas'>('todas');
   const [pageSize, setPageSize] = useState(10);
   const [searchQuery, setSearchQuery] = useState('');
-  const isSearchMode = searchQuery.trim().length > 0;
+  const [selectedCategoriaId, setSelectedCategoriaId] = useState<string>('todas');
+  const isCategoriaFiltered = selectedCategoriaId !== 'todas';
+  const isSearchMode = searchQuery.trim().length > 0 || isCategoriaFiltered;
   const [deleteVentaId, setDeleteVentaId] = useState<string | null>(null);
   const [deleteVentaServicioId, setDeleteVentaServicioId] = useState<string | undefined>(undefined);
   const [deleteVentaPerfilNumero, setDeleteVentaPerfilNumero] = useState<number | null | undefined>(undefined);
@@ -48,7 +52,10 @@ function VentasPageContent() {
     orderDirection: 'desc',
   });
 
-  // Modo búsqueda: fetchAll con cache y filtrar en memoria
+  // Cargar categorías al montar
+  useEffect(() => { fetchCategorias(); }, [fetchCategorias]);
+
+  // Modo búsqueda/filtro: fetchAll con cache y filtrar en memoria
   const [isLoadingSearch, setIsLoadingSearch] = useState(false);
   useEffect(() => {
     if (!isSearchMode) return;
@@ -65,17 +72,23 @@ function VentasPageContent() {
   const searchResults = useMemo((): VentaDoc[] => {
     if (!isSearchMode) return [];
     const q = searchQuery.trim().toLowerCase();
-    const base = activeTab === 'activas'
+    let base = activeTab === 'activas'
       ? ventas.filter(v => v.estado === 'activo')
       : activeTab === 'inactivas'
         ? ventas.filter(v => v.estado === 'inactivo')
         : ventas;
-    return base.filter(v =>
-      (v.clienteNombre ?? '').toLowerCase().includes(q) ||
-      (v.servicioNombre ?? '').toLowerCase().includes(q) ||
-      (v.servicioCorreo ?? '').toLowerCase().includes(q)
-    );
-  }, [isSearchMode, searchQuery, ventas, activeTab]);
+    if (isCategoriaFiltered) {
+      base = base.filter(v => v.categoriaId === selectedCategoriaId);
+    }
+    if (q) {
+      base = base.filter(v =>
+        (v.clienteNombre ?? '').toLowerCase().includes(q) ||
+        (v.servicioNombre ?? '').toLowerCase().includes(q) ||
+        (v.servicioCorreo ?? '').toLowerCase().includes(q)
+      );
+    }
+    return base;
+  }, [isSearchMode, searchQuery, ventas, activeTab, isCategoriaFiltered, selectedCategoriaId]);
 
   const ventasParaMostrar = isSearchMode ? searchResults : ventasPaginadas;
   const isLoadingVentas = isSearchMode ? isLoadingSearch : isLoadingPage;
@@ -180,7 +193,7 @@ function VentasPageContent() {
 
       <VentasMetrics />
 
-      <Tabs value={activeTab} onValueChange={(value) => { setActiveTab(value as typeof activeTab); setSearchQuery(''); }}>
+      <Tabs value={activeTab} onValueChange={(value) => { setActiveTab(value as typeof activeTab); setSearchQuery(''); setSelectedCategoriaId('todas'); }}>
         <TabsList className="bg-transparent rounded-none p-0 h-auto inline-flex border-b border-border">
           <TabsTrigger
             value="todas"
@@ -210,7 +223,10 @@ function VentasPageContent() {
             onDelete={handleDeleteVenta}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
-            // Paginación (oculta en modo búsqueda)
+            categorias={categorias}
+            selectedCategoriaId={selectedCategoriaId}
+            onCategoriaChange={(id) => { setSelectedCategoriaId(id); }}
+            // Paginación (oculta en modo búsqueda/filtro)
             hasMore={isSearchMode ? false : hasMore}
             hasPrevious={isSearchMode ? false : hasPrevious}
             page={isSearchMode ? 1 : page}

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { PaginationFooter } from '@/components/shared/PaginationFooter';
 import { Search, MoreHorizontal, Monitor, User, Clock, Edit, Trash2, Eye } from 'lucide-react';
@@ -14,7 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { VentaDoc } from '@/types';
+import { VentaDoc, Categoria } from '@/types';
 import { cn } from '@/lib/utils';
 import { getCurrencySymbol } from '@/lib/constants';
 import { formatearFecha, calcularMontoSinConsumir } from '@/lib/utils/calculations';
@@ -26,6 +27,9 @@ interface VentasTableProps {
   onDelete?: (ventaId: string, servicioId?: string, perfilNumero?: number | null) => void;
   searchQuery: string;
   onSearchChange: (value: string) => void;
+  categorias?: Categoria[];
+  selectedCategoriaId?: string;
+  onCategoriaChange?: (id: string) => void;
   // Paginación
   hasMore: boolean;
   hasPrevious: boolean;
@@ -72,6 +76,9 @@ export function VentasTable({
   onDelete,
   searchQuery,
   onSearchChange,
+  categorias = [],
+  selectedCategoriaId = 'todas',
+  onCategoriaChange,
   hasMore,
   hasPrevious,
   page,
@@ -254,7 +261,7 @@ export function VentasTable({
   return (
     <Card className="p-4 pb-2">
       <h3 className="text-xl font-semibold">{title}</h3>
-      <div className="flex items-center gap-4 -mb-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center -mb-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -264,6 +271,21 @@ export function VentasTable({
             className="pl-9"
           />
         </div>
+        {categorias.length > 0 && (
+          <Select value={selectedCategoriaId} onValueChange={onCategoriaChange}>
+            <SelectTrigger className="w-full sm:w-[200px]">
+              <SelectValue placeholder="Todas las categorías" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas las categorías</SelectItem>
+              {categorias.map((cat) => (
+                <SelectItem key={cat.id} value={cat.id}>
+                  {cat.nombre}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {isLoading ? (
