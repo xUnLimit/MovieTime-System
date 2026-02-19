@@ -57,7 +57,9 @@
       "Bash(done)",
       "Bash(do if ! grep -q \"''use client''\" \"$f\")",
       "Bash(then echo \"MISSING ''use client'': $f\")",
-      "Bash(then echo \"MISSING: $f\")"
+      "Bash(then echo \"MISSING: $f\")",
+      "Bash(npx skills find:*)",
+      "Bash(npx skills:*)"
     ]
   }
 }

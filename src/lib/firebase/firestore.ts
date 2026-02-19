@@ -257,11 +257,6 @@ export async function adjustServiciosActivos(clienteId: string, delta: number): 
 }
 
 /**
- * @deprecated Use adjustServiciosActivos instead
- */
-export const adjustVentasActivas = adjustServiciosActivos;
-
-/**
  * Incrementa o decrementa los contadores de ventas e ingresos de una categoría de forma atómica.
  * @param categoriaId – id del documento en la colección `categorias`
  * @param ventasDelta – +1 al crear venta, -1 al eliminar

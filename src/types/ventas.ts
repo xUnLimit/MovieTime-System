@@ -1,6 +1,3 @@
-/**
- * @deprecated Use PagoVenta en su lugar. Este tipo existe para compatibilidad con código legacy.
- */
 export interface VentaPago {
   id?: string;
   fecha?: Date | null;
@@ -67,30 +64,17 @@ export interface VentaDoc {
   codigo?: string;
   notas?: string;
 
-  // ✅ CAMPOS DENORMALIZADOS - Mantener sincronizados con PagoVenta más reciente
-  // Se populan cuando se crea o renueva una venta
-  // Requeridos para sincronización de notificaciones
-  fechaInicio?: Date;     // Denormalizado del último pago para notificaciones
-  fechaFin?: Date;        // Denormalizado del último pago (fecha de vencimiento)
-  cicloPago?: 'mensual' | 'trimestral' | 'semestral' | 'anual';  // Denormalizado del último pago
+  fechaInicio?: Date;
+  fechaFin?: Date;
+  cicloPago?: 'mensual' | 'trimestral' | 'semestral' | 'anual';
 
-  // ⚠️ CAMPOS DEPRECADOS - Mantener por compatibilidad con datos existentes
-  // Usar getVentaConUltimoPago() para obtener valores actuales desde pagosVenta
-  /** @deprecated Leer desde PagoVenta más reciente */
   metodoPagoId?: string;
-  /** @deprecated Leer desde PagoVenta más reciente */
   metodoPagoNombre?: string;
-  /** @deprecated Leer desde PagoVenta más reciente */
   moneda?: string;
-  /** @deprecated Leer desde PagoVenta más reciente */
   precio?: number;
-  /** @deprecated Leer desde PagoVenta más reciente */
   descuento?: number;
-  /** @deprecated Leer desde PagoVenta más reciente */
   precioFinal?: number;
-  /** @deprecated No usado */
   totalVenta?: number;
-  /** @deprecated Los pagos ahora se guardan en la colección pagosVenta */
   pagos?: VentaPago[];
 
   createdAt?: Date;

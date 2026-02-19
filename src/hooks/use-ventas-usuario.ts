@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { COLLECTIONS, queryDocuments, remove, adjustVentasActivas, adjustCategoriaSuscripciones } from '@/lib/firebase/firestore';
+import { COLLECTIONS, queryDocuments, remove, adjustServiciosActivos, adjustCategoriaSuscripciones } from '@/lib/firebase/firestore';
 import { useServiciosStore } from '@/store/serviciosStore';
 import { getVentasConUltimoPago } from '@/lib/services/ventaSyncService';
 import type { VentaDoc } from '@/types';
@@ -200,7 +200,7 @@ export function useVentasUsuario(usuarioId: string) {
 
       // Decrementar ventasActivas si la venta eliminada era activa
       if (ventaEliminada && (ventaEliminada.estado ?? 'activo') !== 'inactivo') {
-        await adjustVentasActivas(usuarioId, -1);
+        await adjustServiciosActivos(usuarioId, -1);
       }
 
       // Decrementar contadores de la categoría
