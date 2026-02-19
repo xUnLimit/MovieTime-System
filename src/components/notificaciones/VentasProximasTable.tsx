@@ -377,12 +377,55 @@ export function VentasProximasTable() {
       await deleteNotificacionesPorVenta(notifSeleccionada.ventaId);
       fetchNotificaciones(true);
 
-      toast.success('Venta renovada exitosamente');
-
       // Refresh data
       await fetchVentas(true);
 
       setRenovarDialogOpen(false);
+
+      // Si el usuario eligió notificar por WhatsApp, agregar acción al toast
+      if (data.notificarWhatsApp) {
+        const templateRenovacion = getTemplateByTipo('renovacion');
+        if (templateRenovacion) {
+          try {
+            const clienteSoloNombre = notifSeleccionada.clienteNombre.split(' ')[0];
+            const mensaje = generarMensajeVenta(templateRenovacion.contenido, {
+              clienteNombre: notifSeleccionada.clienteNombre,
+              clienteSoloNombre,
+              servicioNombre: notifSeleccionada.servicioNombre,
+              categoriaNombre: notifSeleccionada.categoriaNombre,
+              perfilNombre: notifSeleccionada.perfilNombre || '',
+              correo: notifSeleccionada.servicioCorreo || '',
+              contrasena: notifSeleccionada.servicioContrasena || '',
+              codigo: notifSeleccionada.codigo,
+              fechaVencimiento: data.fechaVencimiento,
+              monto,
+            });
+            const phone = notifSeleccionada.clienteTelefono
+              ? notifSeleccionada.clienteTelefono.replace(/[^\d+]/g, '')
+              : '';
+            toast.success('Venta renovada exitosamente', {
+              duration: Infinity,
+              action: {
+                label: 'Enviar WhatsApp',
+                onClick: () => {
+                  const base = phone
+                    ? `https://web.whatsapp.com/send?phone=${phone}&text=`
+                    : `https://web.whatsapp.com/send?text=`;
+                  window.open(base + encodeURIComponent(mensaje), '_blank', 'noopener,noreferrer');
+                },
+              },
+              actionButtonStyle: { backgroundColor: '#15803d', color: '#fff' },
+            });
+          } catch {
+            toast.success('Venta renovada exitosamente');
+          }
+        } else {
+          toast.success('Venta renovada exitosamente');
+        }
+      } else {
+        toast.success('Venta renovada exitosamente');
+      }
+
       setNotifSeleccionada(null);
     } catch (error) {
       console.error('Error renovando venta:', error);
@@ -773,8 +816,13 @@ export function VentasProximasTable() {
           metodosPago={metodosPagoUsuarios}
           onConfirm={handleConfirmRenovacion}
           clienteNombre={notifSeleccionada.clienteNombre}
+          clienteSoloNombre={notifSeleccionada.clienteNombre.split(' ')[0]}
           servicioNombre={notifSeleccionada.servicioNombre}
           categoriaNombre={notifSeleccionada.categoriaNombre}
+          perfilNombre={notifSeleccionada.perfilNombre}
+          correo={notifSeleccionada.servicioCorreo}
+          contrasena={notifSeleccionada.servicioContrasena}
+          codigo={notifSeleccionada.codigo}
         />
       )}
 

@@ -22,6 +22,8 @@ import { useServiciosStore } from '@/store/serviciosStore';
 import { COLLECTIONS, getById, remove, timestampToDate, update, adjustVentasActivas, queryDocuments, adjustCategoriaSuscripciones } from '@/lib/firebase/firestore';
 import { toast } from 'sonner';
 import { PagoDialog } from '@/components/shared/PagoDialog';
+import { useTemplatesStore } from '@/store/templatesStore';
+import { generarMensajeVenta } from '@/lib/utils/whatsapp';
 import { formatearFecha } from '@/lib/utils/calculations';
 import { VentaDoc, VentaPago, PagoVenta, MetodoPago } from '@/types';
 import { Plan } from '@/types/categorias';
@@ -51,6 +53,7 @@ function VentaDetallePageContent() {
 
   const { updatePerfilOcupado } = useServiciosStore();
   const { deleteNotificacionesPorVenta, fetchNotificaciones } = useNotificacionesStore();
+  const { getTemplateByTipo } = useTemplatesStore();
 
   // Estados locales para datos específicos de esta venta
   const [venta, setVenta] = useState<VentaDoc | null>(null);
@@ -91,6 +94,7 @@ function VentaDetallePageContent() {
         servicioId: (doc.servicioId as string) || '',
         servicioNombre: (doc.servicioNombre as string) || 'Servicio',
         servicioCorreo: (doc.servicioCorreo as string) || '',
+        clienteTelefono: (doc.clienteTelefono as string) || undefined,
         perfilNumero: (doc.perfilNumero as number | null | undefined) ?? null,
         perfilNombre: (doc.perfilNombre as string) || '',
         codigo: (doc.codigo as string) || '',
@@ -306,6 +310,7 @@ function VentaDetallePageContent() {
     fechaVencimiento: Date;
     notas?: string;
     moneda?: string;
+    notificarWhatsApp?: boolean;
   }) => {
     if (!venta) return;
     try {
@@ -362,6 +367,7 @@ function VentaDetallePageContent() {
             servicioNombre: (doc.servicioNombre as string) || 'Servicio',
             servicioCorreo: (doc.servicioCorreo as string) || undefined,
             servicioContrasena: (doc.servicioContrasena as string) || undefined,
+            clienteTelefono: (doc.clienteTelefono as string) || undefined,
             estado: (doc.estado as VentaDoc['estado']) ?? 'activo',
             perfilNumero: (doc.perfilNumero as number) ?? null,
             perfilNombre: (doc.perfilNombre as string) || undefined,
@@ -389,7 +395,50 @@ function VentaDetallePageContent() {
       // Cerrar el diálogo
       setRenovarDialogOpen(false);
 
-      toast.success('Venta renovada exitosamente');
+      // Si el usuario eligió notificar por WhatsApp, agregar acción al toast
+      if (data.notificarWhatsApp && venta) {
+        const templateRenovacion = getTemplateByTipo('renovacion');
+        if (templateRenovacion) {
+          try {
+            const monto = Math.max(data.costo * (1 - (Number(data.descuento) || 0) / 100), 0);
+            const clienteSoloNombre = venta.clienteNombre.split(' ')[0];
+            const mensaje = generarMensajeVenta(templateRenovacion.contenido, {
+              clienteNombre: venta.clienteNombre,
+              clienteSoloNombre,
+              servicioNombre: venta.servicioNombre,
+              categoriaNombre: venta.categoriaNombre || '',
+              perfilNombre: venta.perfilNombre || '',
+              correo: venta.servicioCorreo || '',
+              contrasena: venta.servicioContrasena || servicioContrasena || '',
+              codigo: venta.codigo || '',
+              fechaVencimiento: data.fechaVencimiento,
+              monto,
+            });
+            const phone = venta.clienteTelefono
+              ? venta.clienteTelefono.replace(/[^\d+]/g, '')
+              : '';
+            toast.success('Venta renovada exitosamente', {
+              duration: Infinity,
+              action: {
+                label: 'Enviar WhatsApp',
+                onClick: () => {
+                  const base = phone
+                    ? `https://web.whatsapp.com/send?phone=${phone}&text=`
+                    : `https://web.whatsapp.com/send?text=`;
+                  window.open(base + encodeURIComponent(mensaje), '_blank', 'noopener,noreferrer');
+                },
+              },
+              actionButtonStyle: { backgroundColor: '#15803d', color: '#fff' },
+            });
+          } catch {
+            toast.success('Venta renovada exitosamente');
+          }
+        } else {
+          toast.success('Venta renovada exitosamente');
+        }
+      } else {
+        toast.success('Venta renovada exitosamente');
+      }
     } catch (error) {
       console.error('Error renovando venta:', error);
       toast.error('Error al renovar venta');
@@ -461,6 +510,7 @@ function VentaDetallePageContent() {
             servicioNombre: (doc.servicioNombre as string) || 'Servicio',
             servicioCorreo: (doc.servicioCorreo as string) || undefined,
             servicioContrasena: (doc.servicioContrasena as string) || undefined,
+            clienteTelefono: (doc.clienteTelefono as string) || undefined,
             estado: (doc.estado as VentaDoc['estado']) ?? 'activo',
             perfilNumero: (doc.perfilNumero as number) ?? null,
             perfilNombre: (doc.perfilNombre as string) || undefined,
@@ -518,6 +568,7 @@ function VentaDetallePageContent() {
             servicioNombre: (doc.servicioNombre as string) || 'Servicio',
             servicioCorreo: (doc.servicioCorreo as string) || undefined,
             servicioContrasena: (doc.servicioContrasena as string) || undefined,
+            clienteTelefono: (doc.clienteTelefono as string) || undefined,
             estado: (doc.estado as VentaDoc['estado']) ?? 'activo',
             perfilNumero: (doc.perfilNumero as number) ?? null,
             perfilNombre: (doc.perfilNombre as string) || undefined,
@@ -532,6 +583,14 @@ function VentaDetallePageContent() {
           };
           const ventaActualizada = await getVentaConUltimoPago(ventaBase);
           setVenta(ventaActualizada);
+
+          // Sincronizar fechaFin/fechaInicio/cicloPago en Firestore para que el
+          // sistema de notificaciones detecte correctamente la venta tras la eliminación
+          await update(COLLECTIONS.VENTAS, id, {
+            fechaFin: ventaActualizada.fechaFin,
+            fechaInicio: ventaActualizada.fechaInicio,
+            cicloPago: ventaActualizada.cicloPago,
+          });
         }
       }
 
@@ -805,6 +864,14 @@ function VentaDetallePageContent() {
         categoriaPlanes={categoriaPlanes}
         tipoPlan={undefined}
         onConfirm={handleConfirmRenovacion}
+        clienteNombre={venta.clienteNombre}
+        clienteSoloNombre={venta.clienteNombre.split(' ')[0]}
+        servicioNombre={venta.servicioNombre}
+        categoriaNombre={venta.categoriaNombre}
+        perfilNombre={venta.perfilNombre}
+        correo={venta.servicioCorreo}
+        contrasena={venta.servicioContrasena || servicioContrasena}
+        codigo={venta.codigo}
       />
 
       <PagoDialog

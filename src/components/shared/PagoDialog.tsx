@@ -59,6 +59,10 @@ interface BaseProps {
   clienteSoloNombre?: string;
   servicioNombre?: string;
   categoriaNombre?: string;
+  perfilNombre?: string;
+  correo?: string;
+  contrasena?: string;
+  codigo?: string;
 }
 
 interface VentaDialogProps extends BaseProps {
@@ -250,9 +254,10 @@ export function PagoDialog(props: PagoDialogProps) {
         clienteSoloNombre: props.clienteSoloNombre,
         servicioNombre: props.servicioNombre || 'Servicio',
         categoriaNombre: props.categoriaNombre || 'Categoría',
-        perfilNombre: '',
-        correo: '',
-        contrasena: '',
+        perfilNombre: props.perfilNombre || '',
+        correo: props.correo || '',
+        contrasena: props.contrasena || '',
+        codigo: props.codigo || '',
         fechaVencimiento: fechaVencimientoValue || new Date(),
         monto: precioFinal,
       });
@@ -271,6 +276,10 @@ export function PagoDialog(props: PagoDialogProps) {
     props.clienteSoloNombre,
     props.servicioNombre,
     props.categoriaNombre,
+    props.perfilNombre,
+    props.correo,
+    props.contrasena,
+    props.codigo,
     getTemplateByTipo,
     isVenta,
   ]);

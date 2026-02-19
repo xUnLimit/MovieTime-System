@@ -105,7 +105,7 @@ function prioridadSubio(anterior: string, nueva: string): boolean {
  * @param venta - VentaDoc with denormalized fechaFin
  * @returns void - Skips silently if venta is missing required fields
  */
-async function procesarNotificacionVenta(venta: VentaDoc): Promise<void> {
+async function procesarNotificacionVenta(venta: VentaDoc, forzarActualizacion = false): Promise<void> {
   // Validate required denormalized field (fechaFin es el único crítico para calcular diasRestantes)
   if (!venta.fechaFin) {
     console.warn(
@@ -171,14 +171,14 @@ async function procesarNotificacionVenta(venta: VentaDoc): Promise<void> {
     // Update existing notification
     const notif = notifExistente[0] as NotificacionVenta;
 
-    // Only update if diasRestantes changed
-    if (notif.diasRestantes !== diasRestantes) {
+    // Update if diasRestantes changed, or if forced refresh
+    if (forzarActualizacion || notif.diasRestantes !== diasRestantes) {
       const aumentoPrioridad = prioridadSubio(notif.prioridad, nuevaPrioridad);
 
       await update(COLLECTIONS.NOTIFICACIONES, notif.id, {
         ...datosNotificacion,
         leida: aumentoPrioridad ? false : notif.leida, // Mark as unread if priority increased
-        resaltada: notif.resaltada, // Keep existing highlighted state
+        resaltada: notif.resaltada, // Always preserve highlighted state
       });
     }
   } else {
@@ -193,7 +193,7 @@ async function procesarNotificacionVenta(venta: VentaDoc): Promise<void> {
  * @param servicio - Servicio document
  * @returns void - Skips silently if servicio is missing required fields
  */
-async function procesarNotificacionServicio(servicio: Servicio): Promise<void> {
+async function procesarNotificacionServicio(servicio: Servicio, forzarActualizacion = false): Promise<void> {
   if (!servicio.fechaVencimiento) {
     console.warn(
       `[NotificationSync] Servicio ${servicio.id} missing fechaVencimiento. Skipping.`
@@ -248,13 +248,14 @@ async function procesarNotificacionServicio(servicio: Servicio): Promise<void> {
     // Update existing
     const notif = notifExistente[0] as NotificacionServicio;
 
-    if (notif.diasRestantes !== diasRestantes) {
+    // Update if diasRestantes changed, or if forced refresh
+    if (forzarActualizacion || notif.diasRestantes !== diasRestantes) {
       const aumentoPrioridad = prioridadSubio(notif.prioridad, nuevaPrioridad);
 
       await update(COLLECTIONS.NOTIFICACIONES, notif.id, {
         ...datosNotificacion,
         leida: aumentoPrioridad ? false : notif.leida,
-        resaltada: notif.resaltada,
+        resaltada: notif.resaltada, // Always preserve highlighted state
       });
     }
   } else {
@@ -311,9 +312,9 @@ async function limpiarNotificacionesHuerfanas(
  *   sincronizarNotificaciones().catch(error => console.error(error));
  * }, []);
  */
-export async function sincronizarNotificaciones(): Promise<void> {
-  // Check if already synced today
-  if (!debesSincronizar()) {
+export async function sincronizarNotificaciones(forzarActualizacion = false): Promise<void> {
+  // Check if already synced today (skip check when forcing)
+  if (!forzarActualizacion && !debesSincronizar()) {
     return;
   }
 
@@ -341,7 +342,7 @@ export async function sincronizarNotificaciones(): Promise<void> {
     // Process each venta
     for (const venta of ventasProximas) {
       try {
-        await procesarNotificacionVenta(venta);
+        await procesarNotificacionVenta(venta, forzarActualizacion);
       } catch (error) {
         console.error(`[NotificationSync] Error processing venta ${venta.id}:`, error);
       }
@@ -356,7 +357,7 @@ export async function sincronizarNotificaciones(): Promise<void> {
     // Process each servicio
     for (const servicio of serviciosProximos) {
       try {
-        await procesarNotificacionServicio(servicio);
+        await procesarNotificacionServicio(servicio, forzarActualizacion);
       } catch (error) {
         console.error(`[NotificationSync] Error processing servicio ${servicio.id}:`, error);
       }
@@ -377,24 +378,17 @@ export async function sincronizarNotificaciones(): Promise<void> {
 
 /**
  * Force refresh notifications (bypass cache)
- * Deletes ALL existing notifications and rebuilds from scratch.
- * This guarantees the UI only shows notifications that match the current database state.
+ * Updates all notifications with fresh data while preserving leida/resaltada state.
+ * Also removes orphan notifications for deleted ventas/servicios.
  */
 export async function sincronizarNotificacionesForzado(): Promise<void> {
-  // 1️⃣ Delete all existing notifications so stale/incorrect ones don't linger
-  try {
-    const todasNotificaciones = (await getAll(COLLECTIONS.NOTIFICACIONES)) as (Notificacion & { id: string })[];
-    if (todasNotificaciones.length > 0) {
-      await Promise.all(todasNotificaciones.map(n => remove(COLLECTIONS.NOTIFICACIONES, n.id)));
-    }
-  } catch (error) {
-    console.warn('[NotificationSync] Error clearing notifications before forced sync:', error);
-  }
-
-  // 2️⃣ Run full sync from scratch (bypass daily cache and in-memory flag)
+  // Reset daily cache and in-memory flag so sincronizarNotificaciones runs unconditionally
   if (typeof window !== 'undefined') {
     localStorage.removeItem('lastNotificationSync');
   }
   sincronizandoEnCurso = false;
-  await sincronizarNotificaciones();
+
+  // Run full sync with forzarActualizacion=true: updates every notification
+  // with fresh data from Firestore but preserves leida and resaltada state
+  await sincronizarNotificaciones(true);
 }

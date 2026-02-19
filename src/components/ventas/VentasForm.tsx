@@ -58,6 +58,7 @@ interface VentaItem {
   servicioId: string;
   servicioNombre: string;
   servicioCorreo?: string;
+  servicioContrasena?: string;
   cicloPago?: 'mensual' | 'trimestral' | 'semestral' | 'anual';
   fechaInicio?: Date;
   fechaFin?: Date;
@@ -366,7 +367,7 @@ export function VentasForm() {
   const previewCodigo = previewItem?.codigo || watch('codigo')?.trim() || '—';
   const previewPerfilNombre = previewItem?.perfilNombre?.trim() || '—';
   const previewCorreo = previewServicio?.correo || previewItem?.servicioCorreo || '—';
-  const previewContrasena = previewServicio?.contrasena || '—';
+  const previewContrasena = previewServicio?.contrasena || previewItem?.servicioContrasena || '—';
   const previewCategoriaNombre = previewCategoria?.nombre || previewItem?.servicioNombre || 'Servicio';
   const previewServicioNombre = previewItem?.servicioNombre || previewServicio?.nombre || 'Servicio';
   const formatItemsList = (names: string[]) => {
@@ -405,7 +406,7 @@ export function VentasForm() {
           '{servicio}': item.servicioNombre || servicio?.nombre || 'Servicio',
           '{categoria}': categoria?.nombre || item.servicioNombre || 'Servicio',
           '{correo}': servicio?.correo || item.servicioCorreo || '—',
-          '{contrasena}': servicio?.contrasena || '—',
+          '{contrasena}': servicio?.contrasena || item.servicioContrasena || '—',
           '{perfil_nombre}': item.perfilNombre?.trim() || '—',
           '{codigo}': item.codigo || '—',
           '{vencimiento}': item.fechaFin ? formatearFechaWhatsApp(new Date(item.fechaFin)) : '—',
@@ -495,6 +496,7 @@ export function VentasForm() {
         servicioId,
         servicioNombre: servicioSeleccionado?.nombre || plan.nombre,
         servicioCorreo: servicioSeleccionado?.correo,
+        servicioContrasena: servicioSeleccionado?.contrasena,
         cicloPago: plan.cicloPago,
         fechaInicio: fechaInicioValue ? new Date(fechaInicioValue) : undefined,
         fechaFin: fechaFinValue ? new Date(fechaFinValue) : undefined,
@@ -590,6 +592,7 @@ export function VentasForm() {
           servicioId: item.servicioId,
           servicioNombre: item.servicioNombre,
           servicioCorreo: item.servicioCorreo ?? '',
+          servicioContrasena: item.servicioContrasena ?? '',
           cicloPago: item.cicloPago || 'mensual',
           perfilNumero: item.perfilNumero ?? null,
           precio: item.precio,
@@ -629,34 +632,25 @@ export function VentasForm() {
           adjustVentasActivas(clienteIdValue, items.length);
         }
       }
-      toast.success('Venta registrada', { description: 'La venta ha sido guardada correctamente en el sistema.' });
-      if (notifyCliente && estadoVenta !== 'inactivo') {
+      if (notifyCliente && estadoVenta !== 'inactivo' && previewMessage) {
         const phoneRaw = clienteSeleccionado?.telefono || '';
-        const phone = phoneRaw.replace(/\D/g, '');
-        if (phone && previewMessage) {
-          const toastId = toast.custom(() => (
-            <div className="w-full max-w-md rounded-xl border border-border bg-card px-4 py-3 shadow-lg">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-semibold">Venta Creada</p>
-                  <p className="text-xs text-muted-foreground">La venta se ha registrado exitosamente.</p>
-                </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  className="bg-green-700 hover:bg-green-800 text-white"
-                  onClick={() => {
-                    const link = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(previewMessage)}`;
-                    window.open(link, '_blank', 'noopener,noreferrer');
-                    toast.dismiss(toastId);
-                  }}
-                >
-                  Enviar WhatsApp
-                </Button>
-              </div>
-            </div>
-          ), { duration: Infinity });
-        }
+        const phone = phoneRaw.replace(/[^\d+]/g, '');
+        toast.success('Venta registrada', {
+          description: 'La venta ha sido guardada correctamente en el sistema.',
+          duration: Infinity,
+          action: {
+            label: 'Enviar WhatsApp',
+            onClick: () => {
+              const base = phone
+                ? `https://web.whatsapp.com/send?phone=${phone}&text=`
+                : `https://web.whatsapp.com/send?text=`;
+              window.open(base + encodeURIComponent(previewMessage), '_blank', 'noopener,noreferrer');
+            },
+          },
+          actionButtonStyle: { backgroundColor: '#15803d', color: '#fff' },
+        });
+      } else {
+        toast.success('Venta registrada', { description: 'La venta ha sido guardada correctamente en el sistema.' });
       }
       router.push('/ventas');
     } catch (error) {
