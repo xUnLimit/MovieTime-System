@@ -19,7 +19,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, eachMonthOfInterval, parseISO } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, eachMonthOfInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -58,22 +58,11 @@ export function IngresosVsGastosChart() {
       });
     }
 
-    // Datos mensuales para 3, 6 o 12 meses
-    // Extiende el rango hacia adelante para incluir meses futuros con datos
+    // Datos mensuales para 3, 6 o 12 meses (solo hasta el mes actual)
     const monthsBack = selectedMonth === '3meses' ? 3 : selectedMonth === '6meses' ? 6 : 12;
     const startDate = subMonths(currentDate, monthsBack - 1);
 
-    const currentMesKey = format(currentDate, 'yyyy-MM');
-    const futureMesKeys = ingresosPorMes
-      .map((m) => m.mes)
-      .filter((mes) => mes > currentMesKey)
-      .sort();
-    const lastFutureMes = futureMesKeys.length > 0
-      ? parseISO(futureMesKeys[futureMesKeys.length - 1] + '-01')
-      : currentDate;
-    const endDate = lastFutureMes > currentDate ? lastFutureMes : currentDate;
-
-    const months = eachMonthOfInterval({ start: startOfMonth(startDate), end: endDate });
+    const months = eachMonthOfInterval({ start: startOfMonth(startDate), end: startOfMonth(currentDate) });
     const mesMap = new Map(ingresosPorMes.map(m => [m.mes, m]));
 
     return months.map((month) => {
