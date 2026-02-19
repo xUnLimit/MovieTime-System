@@ -347,6 +347,8 @@ function VentaDetallePageContent() {
       // Actualizar ventasPronostico en el dashboard con el nuevo fechaFin y precioFinal
       upsertVentaPronostico({
         id: venta.id,
+        categoriaId: venta.categoriaId ?? '',
+        fechaInicio: data.fechaInicio.toISOString(),
         fechaFin: data.fechaVencimiento.toISOString(),
         cicloPago: data.periodoRenovacion,
         precioFinal: monto,

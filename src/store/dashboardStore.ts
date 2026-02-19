@@ -15,8 +15,11 @@ interface DashboardState {
   isRecalculating: boolean;
   error: string | null;
   lastFetch: number | null;
+  lastStatsFetch: number | null;
 
   fetchDashboard: (force?: boolean) => Promise<void>;
+  /** Solo carga el doc config/dashboard_stats (sin counts de usuarios ni actividad) */
+  fetchDashboardStats: (force?: boolean) => Promise<void>;
   recalculateDashboard: () => Promise<void>;
 }
 
@@ -38,6 +41,7 @@ export const useDashboardStore = create<DashboardState>()(
       isRecalculating: false,
       error: null,
       lastFetch: null,
+      lastStatsFetch: null,
 
       fetchDashboard: async (force = false) => {
         const { lastFetch } = get();
@@ -89,6 +93,20 @@ export const useDashboardStore = create<DashboardState>()(
             error instanceof Error ? error.message : 'Error al cargar el dashboard';
           console.error('Error fetching dashboard:', error);
           set({ isLoading: false, error: errorMessage });
+        }
+      },
+
+      fetchDashboardStats: async (force = false) => {
+        const { lastStatsFetch, stats } = get();
+        if (!force && stats && lastStatsFetch && Date.now() - lastStatsFetch < CACHE_TIMEOUT) {
+          logCacheHit('dashboard-stats');
+          return;
+        }
+        try {
+          const freshStats = await getDashboardStats();
+          set({ stats: freshStats, lastStatsFetch: Date.now() });
+        } catch (error) {
+          console.error('Error fetching dashboard stats:', error);
         }
       },
 

@@ -7,22 +7,25 @@ import Link from 'next/link';
 import { CategoriasTable } from '@/components/servicios/CategoriasTable';
 import { ServiciosMetrics } from '@/components/servicios/ServiciosMetrics';
 import { useCategoriasStore } from '@/store/categoriasStore';
+import { useDashboardStore } from '@/store/dashboardStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 
 function ServiciosPageContent() {
   const { categorias, fetchCategorias } = useCategoriasStore();
+  const { fetchDashboardStats } = useDashboardStore();
 
   // Cargar datos iniciales (siempre refresca para mostrar datos actualizados)
   useEffect(() => {
     fetchCategorias(true);
-  }, [fetchCategorias]);
+    fetchDashboardStats();
+  }, [fetchCategorias, fetchDashboardStats]);
 
   // Refrescar cuando el usuario vuelve a la página
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        // Forzar refresh cuando la página vuelve a estar visible
         fetchCategorias(true);
+        fetchDashboardStats(true);
       }
     };
 
@@ -30,19 +33,20 @@ function ServiciosPageContent() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [fetchCategorias]);
+  }, [fetchCategorias, fetchDashboardStats]);
 
   // Refrescar cuando se navega de vuelta a esta página desde otra ruta
   useEffect(() => {
     const handleFocus = () => {
       fetchCategorias(true);
+      fetchDashboardStats(true);
     };
 
     window.addEventListener('focus', handleFocus);
     return () => {
       window.removeEventListener('focus', handleFocus);
     };
-  }, [fetchCategorias]);
+  }, [fetchCategorias, fetchDashboardStats]);
 
   // Escuchar cuando se elimina un servicio desde otra página
   useEffect(() => {

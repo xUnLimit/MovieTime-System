@@ -30,6 +30,23 @@ export function invalidateVentasPorUsuariosCache() {
   ventasCache.clear();
 }
 
+/** Query con chunks para evitar el límite de 30 del operador 'in' de Firestore */
+async function queryVentasPorClienteIds(clienteIds: string[]): Promise<VentaDoc[]> {
+  const CHUNK_SIZE = 30;
+  const chunks: string[][] = [];
+  for (let i = 0; i < clienteIds.length; i += CHUNK_SIZE) {
+    chunks.push(clienteIds.slice(i, i + CHUNK_SIZE));
+  }
+  const results = await Promise.all(
+    chunks.map(chunk =>
+      queryDocuments<VentaDoc>(COLLECTIONS.VENTAS, [
+        { field: 'clienteId', operator: 'in', value: chunk },
+      ])
+    )
+  );
+  return results.flat();
+}
+
 /**
  * Revisa si hubo un cambio en ventas (via localStorage) más reciente que el cache.
  * localStorage.setItem NO dispara el evento 'storage' en la misma pestaña,
@@ -89,10 +106,8 @@ export function useVentasPorUsuarios(clienteIds: string[], { enabled = true } = 
     const load = async () => {
       setIsLoading(true);
       try {
-        // Paso 1: Cargar ventas base (solo metadatos)
-        const ventasBase = await queryDocuments<VentaDoc>(COLLECTIONS.VENTAS, [
-          { field: 'clienteId', operator: 'in', value: clienteIds },
-        ]);
+        // Paso 1: Cargar ventas base (solo metadatos) — chunks de 30 para evitar límite 'in'
+        const ventasBase = await queryVentasPorClienteIds(clienteIds);
 
         if (cancelled) return;
 
@@ -154,9 +169,8 @@ export function useVentasPorUsuarios(clienteIds: string[], { enabled = true } = 
 
       setIsLoading(true);
       try {
-        const ventasBase = await queryDocuments<VentaDoc>(COLLECTIONS.VENTAS, [
-          { field: 'clienteId', operator: 'in', value: clienteIds },
-        ]);
+        // chunks de 30 para evitar límite 'in'
+        const ventasBase = await queryVentasPorClienteIds(clienteIds);
         const ventasConDatos = await getVentasConUltimoPago(ventasBase);
         const now = new Date();
         const result: Record<string, VentasUsuarioStats> = {};

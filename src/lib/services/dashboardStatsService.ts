@@ -48,6 +48,8 @@ export async function getDashboardStats(): Promise<DashboardStats> {
           .filter((v) => v.estado !== 'inactivo' && v.fechaFin && v.cicloPago)
           .map((v) => ({
             id: v.id,
+            categoriaId: v.categoriaId ?? '',
+            fechaInicio: v.fechaInicio instanceof Date ? v.fechaInicio.toISOString() : String(v.fechaInicio ?? new Date()),
             fechaFin: v.fechaFin instanceof Date ? v.fechaFin.toISOString() : String(v.fechaFin),
             cicloPago: v.cicloPago as string,
             precioFinal: v.precioFinal || 0,
@@ -573,10 +575,16 @@ export async function rebuildDashboardStats(): Promise<void> {
       const ultimoPago = pagosPorVentaMap.get(v.id!);
       return {
         id: v.id!,
-        fechaFin: v.fechaFin instanceof Date ? v.fechaFin.toISOString() : String(v.fechaFin),
+        categoriaId: v.categoriaId ?? '',
+        fechaInicio: ultimoPago?.fechaInicio instanceof Date
+          ? ultimoPago.fechaInicio.toISOString()
+          : v.fechaInicio instanceof Date
+            ? v.fechaInicio.toISOString()
+            : String(v.fechaInicio ?? new Date()),
+        fechaFin: ultimoPago?.fechaVencimiento instanceof Date
+          ? ultimoPago.fechaVencimiento.toISOString()
+          : v.fechaFin instanceof Date ? v.fechaFin.toISOString() : String(v.fechaFin),
         cicloPago: v.cicloPago as string,
-        // Use the actual price from the most recent PagoVenta (source of truth)
-        // Fall back to deprecated VentaDoc.precioFinal only if no payment found
         precioFinal: ultimoPago ? (ultimoPago.monto || 0) : (v.precioFinal || 0),
         moneda: ultimoPago ? (ultimoPago.moneda || 'USD') : (v.moneda || 'USD'),
       };

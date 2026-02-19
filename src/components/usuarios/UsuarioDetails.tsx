@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, MessageCircle, Monitor, Calendar, Clock, MoreHorizontal, RefreshCw, Copy, Eye, Pencil } from 'lucide-react';
+import { User, MessageCircle, Monitor, Calendar, Clock, MoreHorizontal, RefreshCw, Copy, Eye, Pencil, AlertTriangle } from 'lucide-react';
 import { differenceInCalendarDays } from 'date-fns';
 import {
   Table,
@@ -27,6 +27,7 @@ import { useVentasUsuario } from '@/hooks/use-ventas-usuario';
 import { getCurrencySymbol } from '@/lib/constants';
 import { queryDocuments, COLLECTIONS } from '@/lib/firebase/firestore';
 import { formatearFecha, formatearFechaHora } from '@/lib/utils/calculations';
+import { toast } from 'sonner';
 
 interface UsuarioDetailsProps {
   usuario: Usuario;
@@ -48,12 +49,14 @@ export function UsuarioDetails({ usuario, onVentaDeleted }: UsuarioDetailsProps)
     window.open(`https://web.whatsapp.com/send?phone=${phone}`, '_blank');
   };
 
-  const handleCopy = async (value: string) => {
-    if (!value) return;
+  const handleCopy = async (value: string, label?: string) => {
+    if (!value || value === '—') return;
     try {
       await navigator.clipboard.writeText(value);
+      toast.success(label ? `${label} copiado` : 'Copiado al portapapeles');
     } catch (error) {
       console.error('Error copiando:', error);
+      toast.error('No se pudo copiar');
     }
   };
 
@@ -140,7 +143,7 @@ export function UsuarioDetails({ usuario, onVentaDeleted }: UsuarioDetailsProps)
       const servicio = servicios[venta.servicioId];
 
       const totalDias     = venta.fechaInicio && venta.fechaFin ? Math.max(differenceInCalendarDays(venta.fechaFin, venta.fechaInicio), 0) : 0;
-      const diasRestantes = venta.fechaFin ? Math.max(differenceInCalendarDays(venta.fechaFin, now), 0) : 0;
+      const diasRestantes = venta.fechaFin ? differenceInCalendarDays(venta.fechaFin, now) : 0;
       const ratioRestante = totalDias > 0 ? Math.min(diasRestantes / totalDias, 1) : 0;
       const montoSinConsumir = totalDias > 0 ? Math.max(venta.precioFinal * ratioRestante, 0) : 0;
 
@@ -300,7 +303,7 @@ export function UsuarioDetails({ usuario, onVentaDeleted }: UsuarioDetailsProps)
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7"
-                          onClick={() => handleCopy(row.correo)}
+                          onClick={() => handleCopy(row.correo, 'Correo')}
                         >
                           <Copy className="h-3.5 w-3.5" />
                         </Button>
@@ -314,7 +317,7 @@ export function UsuarioDetails({ usuario, onVentaDeleted }: UsuarioDetailsProps)
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7"
-                          onClick={() => handleCopy(row.contrasena)}
+                          onClick={() => handleCopy(row.contrasena, 'Contraseña')}
                         >
                           <Copy className="h-3.5 w-3.5" />
                         </Button>
@@ -353,9 +356,24 @@ export function UsuarioDetails({ usuario, onVentaDeleted }: UsuarioDetailsProps)
                       </span>
                     </TableCell>
                     <TableCell className="text-center">
-                      <Badge variant="secondary" className="bg-green-600/20 text-green-400 hover:bg-green-600/30">
-                        {row.diasRestantes} días restantes
-                      </Badge>
+                      {row.diasRestantes < 0 ? (
+                        <Badge variant="outline" className="border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300 gap-1">
+                          <AlertTriangle className="h-3 w-3 shrink-0" />
+                          {Math.abs(row.diasRestantes)} día{Math.abs(row.diasRestantes) !== 1 ? 's' : ''} de retraso
+                        </Badge>
+                      ) : row.diasRestantes === 0 ? (
+                        <Badge variant="outline" className="border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300">
+                          Vence hoy
+                        </Badge>
+                      ) : row.diasRestantes <= 7 ? (
+                        <Badge variant="outline" className="border-yellow-500/50 bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-300">
+                          {row.diasRestantes} día{row.diasRestantes !== 1 ? 's' : ''} restante{row.diasRestantes !== 1 ? 's' : ''}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="border-green-500/50 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300">
+                          {row.diasRestantes} días restantes
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-center">
                       <Badge className={row.estado === 'Activa' ? 'bg-green-600/20 text-green-400' : 'bg-red-600/20 text-red-400'}>

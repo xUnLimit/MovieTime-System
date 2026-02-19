@@ -2,6 +2,7 @@
 
 import { memo, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useVentasPorCategorias } from '@/hooks/use-ventas-por-categorias';
 import {
   Table,
   TableBody,
@@ -53,6 +54,11 @@ export const CategoriasTable = memo(function CategoriasTable({
     router.push(`/servicios/${categoriaId}`);
   };
 
+  const categoriaIds = useMemo(
+    () => categorias.filter(c => c.activo).map(c => c.id),
+    [categorias]
+  );
+  const { stats: ventasPorCategoria, isLoading: isLoadingVentas } = useVentasPorCategorias(categoriaIds);
 
   const rows = useMemo(() => {
     const categoriaData: CategoriaRow[] = categorias
@@ -68,7 +74,7 @@ export const CategoriasTable = memo(function CategoriasTable({
         const ingresoTotal = categoria.ingresosTotales ?? 0;
         const suscripcionesTotales = categoria.ventasTotales ?? 0;
         const gananciaTotal = ingresoTotal - gastosTotal;
-        const montoSinConsumir = 0;
+        const montoSinConsumir = ventasPorCategoria[categoria.id]?.montoSinConsumir ?? 0;
 
         return {
           categoria,
@@ -84,7 +90,7 @@ export const CategoriasTable = memo(function CategoriasTable({
       });
 
     return categoriaData;
-  }, [categorias]);
+  }, [categorias, ventasPorCategoria]);
 
   // Filtrar por búsqueda
   const filteredRows = useMemo(() => {
@@ -337,10 +343,16 @@ export const CategoriasTable = memo(function CategoriasTable({
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <span className={`${row.montoSinConsumir === 0 ? 'text-muted-foreground' : 'text-orange-500'}`}>$</span>
-                        <span className={`${row.montoSinConsumir === 0 ? 'text-muted-foreground' : ''}`}>{row.montoSinConsumir.toFixed(2)}</span>
-                      </div>
+                      {isLoadingVentas ? (
+                        <div className="flex items-center justify-center">
+                          <div className="h-4 w-16 animate-pulse rounded bg-muted" />
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center gap-1">
+                          <span className={`${row.montoSinConsumir === 0 ? 'text-muted-foreground' : 'text-orange-500'}`}>$</span>
+                          <span className={`${row.montoSinConsumir === 0 ? 'text-muted-foreground' : ''}`}>{row.montoSinConsumir.toFixed(2)}</span>
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell className="text-center pr-6">
                       <Button

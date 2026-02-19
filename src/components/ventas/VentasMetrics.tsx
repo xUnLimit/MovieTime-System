@@ -1,74 +1,30 @@
 'use client';
 
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect } from 'react';
 import { MetricCard } from '@/components/shared/MetricCard';
 import { useVentasStore } from '@/store/ventasStore';
-import { calculateVentasMetrics, VentasMetrics as VentasMetricsType } from '@/lib/services/metricsService';
+import { useDashboardStore } from '@/store/dashboardStore';
 import { CreditCard, DollarSign, CalendarRange, Wallet, CheckCircle2, XCircle } from 'lucide-react';
-import { getAll, COLLECTIONS } from '@/lib/firebase/firestore';
-import { PagoVenta, VentaDoc } from '@/types';
-import { getVentasConUltimoPago, VentaConUltimoPago } from '@/lib/services/ventaSyncService';
 import { useIngresoMensualEsperado } from '@/hooks/use-ingreso-mensual-esperado';
+import { useMontoSinConsumirTotal } from '@/hooks/use-monto-sin-consumir-total';
 
-interface VentasMetricsProps {
-  externalRefreshKey?: number;
-}
-
-export const VentasMetrics = memo(function VentasMetrics({ externalRefreshKey }: VentasMetricsProps) {
+export const VentasMetrics = memo(function VentasMetrics() {
   const { fetchCounts, totalVentas, ventasActivas, ventasInactivas } = useVentasStore();
+  const { stats: dashboardStats, fetchDashboardStats } = useDashboardStore();
   const { value: ingresoMensual, isLoading: isLoadingMensual } = useIngresoMensualEsperado();
-  const [pagosVentas, setPagosVentas] = useState<PagoVenta[]>([]);
-  const [ventasConUltimoPago, setVentasConUltimoPago] = useState<VentaConUltimoPago[]>([]);
+  const { value: montoSinConsumir, isLoading: isLoadingMonto } = useMontoSinConsumirTotal();
 
-  // Función centralizada para cargar datos
-  const loadMetrics = async () => {
-    // Counts son gratuitos (no leen documentos)
-    await fetchCounts();
+  useEffect(() => {
+    fetchCounts();
+    fetchDashboardStats();
+  }, [fetchCounts, fetchDashboardStats]);
 
-    // Cargar pagos y ventas en paralelo para métricas financieras
-    const [pagos, allVentas] = await Promise.all([
-      getAll<PagoVenta>(COLLECTIONS.PAGOS_VENTA),
-      getAll<VentaDoc>(COLLECTIONS.VENTAS),
-    ]);
-    setPagosVentas(pagos);
+  const ingresoTotal = dashboardStats?.ingresosTotal ?? null;
 
-    const ventasConPagoActual = await getVentasConUltimoPago(allVentas);
-    setVentasConUltimoPago(ventasConPagoActual);
+  const formatValue = (val: number | null, loading: boolean) => {
+    if (loading || val === null) return 'Calculando...';
+    return `$${val.toFixed(2)}`;
   };
-
-  // Cargar datos iniciales y cuando el padre notifica un cambio (externalRefreshKey)
-  useEffect(() => {
-    loadMetrics();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [externalRefreshKey]);
-
-  const [metrics, setMetrics] = useState<VentasMetricsType | null>(null);
-  const [isCalculating, setIsCalculating] = useState(false);
-
-  // Calcular métricas de forma asíncrona con conversión de moneda
-  useEffect(() => {
-    const calculate = async () => {
-      setIsCalculating(true);
-      try {
-        const result = await calculateVentasMetrics(ventasConUltimoPago, pagosVentas);
-        setMetrics(result);
-      } catch (error) {
-        console.error('[VentasMetrics] Error calculating metrics:', error);
-        // Fallback a métricas en cero en caso de error
-        setMetrics({
-          ventasTotales: 0,
-          ingresoTotal: 0,
-          ingresoMensualEsperado: 0,
-          montoSinConsumir: 0,
-          ventasActivas: 0,
-          ventasInactivas: 0
-        });
-      } finally {
-        setIsCalculating(false);
-      }
-    };
-    calculate();
-  }, [ventasConUltimoPago, pagosVentas]);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
@@ -81,21 +37,21 @@ export const VentasMetrics = memo(function VentasMetrics({ externalRefreshKey }:
       />
       <MetricCard
         title="Ingreso Total"
-        value={isCalculating ? 'Calculando...' : (metrics ? `$${metrics.ingresoTotal.toFixed(2)}` : '-')}
+        value={formatValue(ingresoTotal, dashboardStats === null)}
         icon={DollarSign}
         iconColor="text-orange-500"
         underlineColor="bg-orange-500"
       />
       <MetricCard
         title="Ingreso Mensual Esperado"
-        value={(isCalculating || isLoadingMensual) ? 'Calculando...' : (ingresoMensual !== null ? `$${ingresoMensual.toFixed(2)}` : '-')}
+        value={isLoadingMensual ? 'Calculando...' : (ingresoMensual !== null ? `$${ingresoMensual.toFixed(2)}` : '-')}
         icon={CalendarRange}
         iconColor="text-blue-500"
         underlineColor="bg-blue-500"
       />
       <MetricCard
         title="Monto Sin Consumir"
-        value={isCalculating ? 'Calculando...' : (metrics ? `$${metrics.montoSinConsumir.toFixed(2)}` : '-')}
+        value={formatValue(montoSinConsumir, isLoadingMonto)}
         icon={Wallet}
         iconColor="text-emerald-500"
         underlineColor="bg-emerald-500"

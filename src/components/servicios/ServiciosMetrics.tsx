@@ -4,13 +4,16 @@ import { memo, useEffect } from 'react';
 import { MetricCard } from '@/components/shared/MetricCard';
 import { Tag, Monitor, CheckCircle, ShoppingBag } from 'lucide-react';
 import { useServiciosStore } from '@/store/serviciosStore';
+import { useVentasStore } from '@/store/ventasStore';
 
 export const ServiciosMetrics = memo(function ServiciosMetrics() {
   const { totalServicios, serviciosActivos, totalCategoriasActivas, fetchCounts } = useServiciosStore();
+  const { totalVentas, fetchCounts: fetchVentasCounts } = useVentasStore();
 
   useEffect(() => {
     fetchCounts();
-  }, [fetchCounts]);
+    fetchVentasCounts();
+  }, [fetchCounts, fetchVentasCounts]);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -37,7 +40,7 @@ export const ServiciosMetrics = memo(function ServiciosMetrics() {
       />
       <MetricCard
         title="Suscripciones Totales"
-        value={0}
+        value={totalVentas}
         icon={ShoppingBag}
         underlineColor="bg-purple-500"
         iconColor="text-purple-500"

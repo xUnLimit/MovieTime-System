@@ -36,7 +36,10 @@ import { useTemplatesStore } from '@/store/templatesStore';
 import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import type { MetodoPago } from '@/types/metodos-pago';
 import { useVentasStore } from '@/store/ventasStore';
+import { useServiciosStore } from '@/store/serviciosStore';
 import type { VentaDoc } from '@/types/ventas';
+import { update, adjustServiciosActivos } from '@/lib/firebase/firestore';
+import { crearPagoRenovacion } from '@/lib/services/pagosVentaService';
 import { generarMensajeVenta, openWhatsApp } from '@/lib/utils/whatsapp';
 import { PagoDialog } from '@/components/shared/PagoDialog';
 import type { EnrichedPagoDialogFormData } from '@/components/shared/PagoDialog';
@@ -332,8 +335,7 @@ export function VentasProximasTable() {
     if (!notifSeleccionada) return;
 
     try {
-      const { crearPagoRenovacion } = await import('@/lib/services/pagosVentaService');
-      const { metodosPago } = await import('@/store/metodosPagoStore').then(m => m.useMetodosPagoStore.getState());
+      const { metodosPago } = useMetodosPagoStore.getState();
 
       const metodoPagoSeleccionado = metodosPago.find((m) => m.id === data.metodoPagoId);
       const descuentoNumero = Number(data.descuento) || 0;
@@ -478,9 +480,6 @@ export function VentasProximasTable() {
     if (!notifSeleccionada) return;
 
     try {
-      const { update, adjustServiciosActivos } = await import('@/lib/firebase/firestore');
-      const { useServiciosStore } = await import('@/store/serviciosStore');
-
       // 1. Update venta to inactive
       await update('ventas', notifSeleccionada.ventaId, {
         estado: 'inactivo',

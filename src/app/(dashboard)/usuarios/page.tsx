@@ -63,11 +63,15 @@ function UsuariosPageContent() {
       : activeTab === 'revendedores'
         ? usuarios.filter(u => u.tipo === 'revendedor')
         : usuarios;
-    return base.filter(u =>
-      u.nombre.toLowerCase().includes(q) ||
-      (u.apellido ?? '').toLowerCase().includes(q) ||
-      u.telefono.includes(q)
-    );
+    return base.filter(u => {
+      const nombreCompleto = `${u.nombre} ${u.apellido ?? ''}`.toLowerCase();
+      return (
+        nombreCompleto.includes(q) ||
+        u.nombre.toLowerCase().includes(q) ||
+        (u.apellido ?? '').toLowerCase().includes(q) ||
+        u.telefono.includes(q)
+      );
+    });
   }, [isSearchMode, searchQuery, usuarios, activeTab]);
 
   const isLoading = isSearchMode ? isLoadingSearch : isLoadingPage;

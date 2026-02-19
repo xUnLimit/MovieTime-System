@@ -14,6 +14,8 @@ function toVentaPronostico(v: VentaDoc): VentaPronostico | null {
   if (v.estado === 'inactivo' || !v.fechaFin || !v.cicloPago) return null;
   return {
     id: v.id,
+    categoriaId: v.categoriaId ?? '',
+    fechaInicio: v.fechaInicio instanceof Date ? v.fechaInicio.toISOString() : String(v.fechaInicio ?? new Date()),
     fechaFin: v.fechaFin instanceof Date ? v.fechaFin.toISOString() : String(v.fechaFin),
     cicloPago: v.cicloPago,
     precioFinal: v.precioFinal || 0,

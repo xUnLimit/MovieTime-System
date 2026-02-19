@@ -32,7 +32,6 @@ function VentasPageContent() {
   const [deleteVentaServicioId, setDeleteVentaServicioId] = useState<string | undefined>(undefined);
   const [deleteVentaPerfilNumero, setDeleteVentaPerfilNumero] = useState<number | null | undefined>(undefined);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [metricsRefreshKey, setMetricsRefreshKey] = useState(0);
 
   // Construir filtros basados en el tab activo
   const filters = useMemo((): FilterOption[] => {
@@ -157,12 +156,10 @@ function VentasPageContent() {
   };
 
   // Escuchar eventos de cambios en ventas desde otros módulos
-  // También incrementa metricsRefreshKey para notificar a VentasMetrics (evita listeners duplicados)
   useEffect(() => {
     const handleVentaChange = () => {
       refresh();
       fetchCounts();
-      setMetricsRefreshKey(prev => prev + 1);
     };
 
     window.addEventListener('venta-created', handleVentaChange);
@@ -194,7 +191,7 @@ function VentasPageContent() {
         </Link>
       </div>
 
-      <VentasMetrics externalRefreshKey={metricsRefreshKey} />
+      <VentasMetrics />
 
       <Tabs value={activeTab} onValueChange={(value) => { setActiveTab(value as typeof activeTab); setSearchQuery(''); setSelectedCategoriaId('todas'); }}>
         <TabsList className="bg-transparent rounded-none p-0 h-auto inline-flex border-b border-border">

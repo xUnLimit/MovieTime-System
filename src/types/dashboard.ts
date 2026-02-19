@@ -32,9 +32,11 @@ export interface DashboardStats {
   updatedAt?: Date;
 }
 
-/** Minimal venta fields needed to compute the forecast */
+/** Minimal venta fields needed to compute the forecast and monto sin consumir */
 export interface VentaPronostico {
   id: string;
+  categoriaId: string;    // needed for per-category monto sin consumir
+  fechaInicio: string;    // ISO string — needed for monto sin consumir ratio
   fechaFin: string;       // ISO string — avoids Firestore Timestamp complexity
   cicloPago: string;
   precioFinal: number;
