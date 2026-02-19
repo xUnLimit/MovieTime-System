@@ -125,11 +125,29 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
     return Math.ceil(diff / (1000 * 3600 * 24));
   };
 
-  const getBadgeColor = (dias: number) => {
-    if (dias < 0) return 'text-red-600';
-    if (dias <= 3) return 'text-red-500';
-    if (dias <= 7) return 'text-yellow-500';
-    return 'text-green-500';
+  const getEstadoBadge = (dias: number): { className: string; text: string } => {
+    if (dias < 0) {
+      const d = Math.abs(dias);
+      return {
+        className: 'border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
+        text: `${d} día${d > 1 ? 's' : ''} de retraso`,
+      };
+    } else if (dias === 0) {
+      return {
+        className: 'border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
+        text: 'Vence hoy',
+      };
+    } else if (dias <= 7) {
+      return {
+        className: 'border-yellow-500/50 bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-300',
+        text: `${dias} día${dias > 1 ? 's' : ''} restante${dias > 1 ? 's' : ''}`,
+      };
+    } else {
+      return {
+        className: 'border-green-500/50 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300',
+        text: `${dias} día${dias > 1 ? 's' : ''} restante${dias > 1 ? 's' : ''}`,
+      };
+    }
   };
 
   const columns: Column<Servicio>[] = [
@@ -201,12 +219,10 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
         }
 
         const dias = calcularDiasRestantes(item.fechaVencimiento);
+        const { className, text } = getEstadoBadge(dias);
         return (
-          <Badge
-            variant="outline"
-            className={`${getBadgeColor(dias)} border-current`}
-          >
-            {dias > 0 ? `${dias} días restantes` : `${Math.abs(dias)} días vencido`}
+          <Badge variant="outline" className={className}>
+            {text}
           </Badge>
         );
       },

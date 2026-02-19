@@ -30,6 +30,9 @@ function ServiciosCategoriaPageContent() {
   const [estadoFilter, setEstadoFilter] = useState('activo');
   const [pageSize, setPageSize] = useState(10);
   const isSearchMode = searchTerm.trim().length > 0;
+  // Si hay filtros client-side activos (ciclo o perfil), necesitamos fetchAll para no perder resultados de otras páginas
+  const needsFullFetch = cicloFilter !== 'todos' || perfilFilter !== 'todos';
+  const isFetchAllMode = isSearchMode || needsFullFetch;
 
   useEffect(() => {
     fetchCategorias();
@@ -68,28 +71,28 @@ function ServiciosCategoriaPageContent() {
     orderDirection: 'asc',
   });
 
-  // Modo búsqueda: fetchAll con cache y filtrar en memoria
-  const [isLoadingSearch, setIsLoadingSearch] = useState(false);
+  // Modo fetchAll: cuando hay búsqueda activa O filtros client-side (ciclo/perfil)
+  const [isLoadingFetchAll, setIsLoadingFetchAll] = useState(false);
   useEffect(() => {
-    if (!isSearchMode) return;
+    if (!isFetchAllMode) return;
     let cancelled = false;
     const load = async () => {
-      setIsLoadingSearch(true);
+      setIsLoadingFetchAll(true);
       await fetchServicios();
-      if (!cancelled) setIsLoadingSearch(false);
+      if (!cancelled) setIsLoadingFetchAll(false);
     };
     load();
     return () => { cancelled = true; };
-  }, [isSearchMode, fetchServicios]);
+  }, [isFetchAllMode, fetchServicios]);
 
-  const searchResults = useMemo((): Servicio[] => {
-    if (!isSearchMode) return [];
+  const fetchAllResults = useMemo((): Servicio[] => {
+    if (!isFetchAllMode) return [];
     const q = searchTerm.trim().toLowerCase();
     return todosLosServicios.filter(s => {
       if (s.categoriaId !== categoriaId) return false;
       if (estadoFilter === 'activo' && !s.activo) return false;
       if (estadoFilter === 'inactivo' && s.activo) return false;
-      const matchSearch =
+      const matchSearch = !isSearchMode ||
         (s.nombre ?? '').toLowerCase().includes(q) ||
         (s.correo ?? '').toLowerCase().includes(q);
       const matchCiclo = cicloFilter === 'todos' || s.cicloPago === cicloFilter;
@@ -99,10 +102,10 @@ function ServiciosCategoriaPageContent() {
         (perfilFilter === 'sin_disponibles' && perfilesLibres <= 0);
       return matchSearch && matchCiclo && matchPerfil;
     });
-  }, [isSearchMode, searchTerm, todosLosServicios, categoriaId, estadoFilter, cicloFilter, perfilFilter]);
+  }, [isFetchAllMode, isSearchMode, searchTerm, todosLosServicios, categoriaId, estadoFilter, cicloFilter, perfilFilter]);
 
-  const isLoading = isSearchMode ? isLoadingSearch : isLoadingPage;
-  const servicios = isSearchMode ? searchResults : serviciosPaginados;
+  const isLoading = isFetchAllMode ? isLoadingFetchAll : isLoadingPage;
+  const servicios = isFetchAllMode ? fetchAllResults : serviciosPaginados;
 
   const categoria = categorias.find(c => c.id === categoriaId);
 
@@ -127,19 +130,9 @@ function ServiciosCategoriaPageContent() {
     };
   }, [refresh]);
 
-  // En modo búsqueda, los filtros ya se aplicaron en searchResults.
-  // En modo paginación, aplicar filtros client-side (ciclo, perfil) sobre la página actual.
-  const serviciosFiltrados = useMemo(() => {
-    if (isSearchMode) return servicios;
-    return servicios.filter(servicio => {
-      const matchCiclo = cicloFilter === 'todos' || servicio.cicloPago === cicloFilter;
-      const perfilesLibres = (servicio.perfilesDisponibles || 0) - (servicio.perfilesOcupados || 0);
-      const matchPerfil = perfilFilter === 'todos' ||
-        (perfilFilter === 'con_disponibles' && perfilesLibres > 0) ||
-        (perfilFilter === 'sin_disponibles' && perfilesLibres <= 0);
-      return matchCiclo && matchPerfil;
-    });
-  }, [servicios, isSearchMode, cicloFilter, perfilFilter]);
+  // En modo fetchAll, los filtros ya están aplicados en fetchAllResults.
+  // En modo paginación pura (sin filtros), no se necesita filtrado adicional.
+  const serviciosFiltrados = servicios;
 
   const handleEdit = (id: string) => {
     router.push(`/servicios/${id}/editar?from=/servicios/${categoriaId}`);
@@ -203,10 +196,10 @@ function ServiciosCategoriaPageContent() {
         perfilFilter={perfilFilter}
         onPerfilChange={setPerfilFilter}
         isLoading={isLoading}
-        hasMore={isSearchMode ? false : hasMore}
-        hasPrevious={isSearchMode ? false : hasPrevious}
-        page={isSearchMode ? 1 : page}
-        showPagination={!isSearchMode}
+        hasMore={isFetchAllMode ? false : hasMore}
+        hasPrevious={isFetchAllMode ? false : hasPrevious}
+        page={isFetchAllMode ? 1 : page}
+        showPagination={!isFetchAllMode}
         pageSize={pageSize}
         onPageSizeChange={setPageSize}
         onNext={next}
