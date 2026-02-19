@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 /**
  * Next.js 16 Proxy (Edge Runtime)
@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
  *
  * In production, this will verify JWT tokens or session cookies.
  */
-export default function proxy(_request: NextRequest) {
+export default function proxy(): NextResponse {
   // Allow all routes - auth is handled client-side
   // This allows Zustand to hydrate from localStorage before redirecting
   return NextResponse.next();
