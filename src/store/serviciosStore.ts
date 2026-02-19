@@ -174,6 +174,8 @@ export const useServiciosStore = create<ServiciosState>()(
             moneda: moneda ?? 'USD',
             mes: getMesKeyFromDate(servicioData.fechaInicio ?? new Date()),
             dia: getDiaKeyFromDate(servicioData.fechaInicio ?? new Date()),
+            categoriaId: servicioData.categoriaId,
+            categoriaNombre: servicioData.categoriaNombre,
           }).catch((err) => console.error('[ServiciosStore] Error updating dashboard gastos:', err));
 
           const newServicio: Servicio = {
@@ -350,6 +352,8 @@ export const useServiciosStore = create<ServiciosState>()(
               moneda: servicio.moneda ?? 'USD',
               mes: getMesKeyFromDate(servicio.fechaInicio ?? new Date()),
               dia: getDiaKeyFromDate(servicio.fechaInicio ?? new Date()),
+              categoriaId: servicio.categoriaId,
+              categoriaNombre: servicio.categoriaNombre,
             }).catch((err) => console.error('[ServiciosStore] Error reverting dashboard gastos:', err));
           }
 

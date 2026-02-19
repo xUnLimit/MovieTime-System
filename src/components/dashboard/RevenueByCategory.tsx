@@ -31,14 +31,13 @@ export function RevenueByCategory() {
 
   const { data, hasData } = useMemo(() => {
     const ingresosPorCategoria: IngresoCategoria[] = stats?.ingresosPorCategoria ?? [];
-    const hasData = ingresosPorCategoria.length > 0 && ingresosPorCategoria.some((c) => c.total > 0);
-    const data = ingresosPorCategoria
-      .filter((c) => c.total > 0)
-      .sort((a, b) => b.total - a.total)
-      .map((c) => ({
-        categoria: c.nombre,
-        rentabilidad: Math.round(c.total),
-      }));
+    const mapped = ingresosPorCategoria.map((c) => ({
+      categoria: c.nombre,
+      rentabilidad: Math.round(c.total - (c.gastos ?? 0)),
+    }));
+    const filtered = mapped.filter((c) => c.rentabilidad !== 0);
+    const hasData = filtered.length > 0;
+    const data = filtered.sort((a, b) => b.rentabilidad - a.rentabilidad);
     return { data, hasData };
   }, [stats]);
 
@@ -90,7 +89,7 @@ export function RevenueByCategory() {
                 }}
                 labelStyle={{ color: '#ffffff' }}
                 itemStyle={{ color: '#ffffff' }}
-                formatter={(value: number | undefined) => [`$${(value ?? 0).toFixed(2)} USD`, 'Rentabilidad']}
+                formatter={(value: number | undefined) => [`$${(value ?? 0).toFixed(2)} USD`, 'Ganancia neta']}
                 cursor={{ fill: 'hsl(var(--muted))', opacity: 0.2 }}
               />
               <Bar

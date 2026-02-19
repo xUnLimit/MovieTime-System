@@ -79,7 +79,8 @@ export interface IngresosMes {
 export interface IngresoCategoria {
   categoriaId: string;
   nombre: string;
-  total: number; // USD
+  total: number; // USD — ingresos (pagosVenta)
+  gastos?: number; // USD — gastos (pagosServicio)
 }
 
 export interface DashboardCounts {

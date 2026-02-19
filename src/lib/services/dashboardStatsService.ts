@@ -222,9 +222,11 @@ export async function adjustGastosStats(params: {
   moneda: string;
   mes: string; // "YYYY-MM"
   dia: string; // "YYYY-MM-DD"
+  categoriaId?: string;
+  categoriaNombre?: string;
 }): Promise<void> {
   try {
-    const { delta, moneda, mes, dia } = params;
+    const { delta, moneda, mes, dia, categoriaId, categoriaNombre } = params;
     const deltaUSD = await currencyService.convertToUSD(Math.abs(delta), moneda);
     const signedDelta = delta < 0 ? -deltaUSD : deltaUSD;
 
@@ -257,6 +259,21 @@ export async function adjustGastosStats(params: {
           diaEntry.gastos = Math.max(0, diaEntry.gastos + signedDelta);
         } else {
           stats.ingresosPorDia.push({ dia, ingresos: 0, gastos: Math.max(0, signedDelta) });
+        }
+      }
+
+      // Update gastos por categoría
+      if (categoriaId) {
+        const catEntry = stats.ingresosPorCategoria.find((c) => c.categoriaId === categoriaId);
+        if (catEntry) {
+          catEntry.gastos = Math.max(0, (catEntry.gastos ?? 0) + signedDelta);
+        } else {
+          stats.ingresosPorCategoria.push({
+            categoriaId,
+            nombre: categoriaNombre ?? categoriaId,
+            total: 0,
+            gastos: Math.max(0, signedDelta),
+          });
         }
       }
 
@@ -481,6 +498,9 @@ export async function rebuildDashboardStats(): Promise<void> {
   }
 
   // ---------- GASTOS ----------
+  // Build a map of servicioId -> categoriaId from servicios for fallback lookup
+  const serviciosCategoriaMap = new Map(servicios.map((s) => [s.id, { categoriaId: s.categoriaId, categoriaNombre: s.categoriaNombre }]));
+
   for (const pago of pagosServicio) {
     const monto = pago.monto || 0;
     const moneda = pago.moneda || 'USD';
@@ -509,6 +529,18 @@ export async function rebuildDashboardStats(): Promise<void> {
         diaEntry.gastos += usd;
       } else {
         stats.ingresosPorDia.push({ dia, ingresos: 0, gastos: usd });
+      }
+    }
+
+    // gastos por categoría — categoriaId está denormalizado en PagoServicio
+    const categoriaId = pago.categoriaId || serviciosCategoriaMap.get(pago.servicioId)?.categoriaId;
+    if (categoriaId) {
+      const catEntry = stats.ingresosPorCategoria.find((c) => c.categoriaId === categoriaId);
+      if (catEntry) {
+        catEntry.gastos = (catEntry.gastos ?? 0) + usd;
+      } else {
+        const categoriaNombre = serviciosCategoriaMap.get(pago.servicioId)?.categoriaNombre ?? categoriaId;
+        stats.ingresosPorCategoria.push({ categoriaId, nombre: categoriaNombre, total: 0, gastos: usd });
       }
     }
   }
