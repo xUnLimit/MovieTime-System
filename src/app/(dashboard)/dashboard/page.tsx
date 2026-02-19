@@ -1,12 +1,88 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { DashboardMetrics } from '@/components/dashboard/DashboardMetrics';
-import { IngresosVsGastosChart } from '@/components/dashboard/IngresosVsGastosChart';
-import { RevenueByCategory } from '@/components/dashboard/RevenueByCategory';
 import { RecentActivity } from '@/components/dashboard/RecentActivity';
-import { CrecimientoUsuarios } from '@/components/dashboard/CrecimientoUsuarios';
 import { PronosticoFinanciero } from '@/components/dashboard/PronosticoFinanciero';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+
+// Skeletons que usan los mismos componentes y clases exactas que cada chart real
+function IngresosVsGastosChartSkeleton() {
+  // Replica exacta del estado isLoading=true del componente real:
+  // header y descripción se muestran con texto real, solo el chart es skeleton.
+  return (
+    <Card className="py-3 gap-0">
+      <CardHeader className="flex flex-col gap-2 p-0 px-4 pb-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <CardTitle className="text-base">Ingresos vs Gastos</CardTitle>
+          <CardDescription className="text-sm hidden sm:block">
+            Comparativa mensual de los ingresos totales por ventas y los gastos totales en servicios.
+          </CardDescription>
+        </div>
+        <Skeleton className="h-8 w-full sm:w-[140px] rounded-md" />
+      </CardHeader>
+      <CardContent className="px-4 pt-0 pb-1">
+        <Skeleton className="w-full h-[320px] rounded-lg" />
+      </CardContent>
+    </Card>
+  );
+}
+
+function CrecimientoUsuariosSkeleton() {
+  // Replica exacta del estado isLoading=true del componente real:
+  // header y descripción con texto real, solo el chart es skeleton.
+  return (
+    <Card className="py-1">
+      <CardHeader className="flex flex-row items-center justify-between pt-3 pb-2 px-6">
+        <div className="space-y-0.5">
+          <CardTitle className="text-base">Crecimiento de Usuarios</CardTitle>
+          <CardDescription className="text-sm">
+            Nuevos clientes y revendedores adquiridos por mes.
+          </CardDescription>
+        </div>
+        <Skeleton className="h-7 w-[140px] rounded-md" />
+      </CardHeader>
+      <CardContent className="pt-0 px-6 pb-2">
+        <Skeleton className="w-full h-[240px] rounded-lg" />
+      </CardContent>
+    </Card>
+  );
+}
+
+function RevenueByCategorySkeleton() {
+  // Replica exacta del estado isLoading=true del componente real:
+  // header y descripción con texto real, solo el contenido es skeleton.
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div>
+          <CardTitle className="text-base">Rentabilidad por Categoría</CardTitle>
+          <CardDescription className="text-sm">
+            Ganancia neta generada por cada categoría de servicio.
+          </CardDescription>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-1 h-[220px]">
+        <Skeleton className="w-full h-full rounded-lg" />
+      </CardContent>
+    </Card>
+  );
+}
+
+const IngresosVsGastosChart = dynamic(
+  () => import('@/components/dashboard/IngresosVsGastosChart').then(m => ({ default: m.IngresosVsGastosChart })),
+  { loading: () => <IngresosVsGastosChartSkeleton />, ssr: false }
+);
+const CrecimientoUsuarios = dynamic(
+  () => import('@/components/dashboard/CrecimientoUsuarios').then(m => ({ default: m.CrecimientoUsuarios })),
+  { loading: () => <CrecimientoUsuariosSkeleton />, ssr: false }
+);
+const RevenueByCategory = dynamic(
+  () => import('@/components/dashboard/RevenueByCategory').then(m => ({ default: m.RevenueByCategory })),
+  { loading: () => <RevenueByCategorySkeleton />, ssr: false }
+);
 import { UserMenu } from '@/components/layout/UserMenu';
 import { NotificationBell } from '@/components/notificaciones/NotificationBell';
 import { useDashboardStore } from '@/store/dashboardStore';

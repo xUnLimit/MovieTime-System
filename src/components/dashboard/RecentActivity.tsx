@@ -58,13 +58,15 @@ export function RecentActivity() {
         <div className="space-y-1.5 pt-0">
           {/* space-y-1.5 = espacio vertical entre elementos (6px) */}
           {isLoading ? (
-            <div className="w-full space-y-1.5">
+            <div className="w-full space-y-1.5 animate-pulse">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="flex items-start gap-1.5">
-                  <Skeleton className="h-7 w-7 rounded-full shrink-0" />
-                  <div className="flex-1 space-y-1 pt-0.5">
-                    <Skeleton className="h-3.5 w-full" />
-                    <Skeleton className="h-3 w-20" />
+                  <div className="flex-shrink-0">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted/50" />
+                  </div>
+                  <div className="flex-1 space-y-0 min-w-0">
+                    <p className="text-sm leading-tight rounded bg-muted/50">&nbsp;</p>
+                    <p className="text-xs rounded bg-muted/50 w-20">&nbsp;</p>
                   </div>
                 </div>
               ))}

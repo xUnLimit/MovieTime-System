@@ -10,12 +10,15 @@ import { PagoVenta, VentaDoc } from '@/types';
 import { getVentasConUltimoPago, VentaConUltimoPago } from '@/lib/services/ventaSyncService';
 import { useIngresoMensualEsperado } from '@/hooks/use-ingreso-mensual-esperado';
 
-export const VentasMetrics = memo(function VentasMetrics() {
+interface VentasMetricsProps {
+  externalRefreshKey?: number;
+}
+
+export const VentasMetrics = memo(function VentasMetrics({ externalRefreshKey }: VentasMetricsProps) {
   const { fetchCounts, totalVentas, ventasActivas, ventasInactivas } = useVentasStore();
   const { value: ingresoMensual, isLoading: isLoadingMensual } = useIngresoMensualEsperado();
   const [pagosVentas, setPagosVentas] = useState<PagoVenta[]>([]);
   const [ventasConUltimoPago, setVentasConUltimoPago] = useState<VentaConUltimoPago[]>([]);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Función centralizada para cargar datos
   const loadMetrics = async () => {
@@ -33,28 +36,11 @@ export const VentasMetrics = memo(function VentasMetrics() {
     setVentasConUltimoPago(ventasConPagoActual);
   };
 
-  // Cargar datos iniciales y cuando cambia refreshTrigger
+  // Cargar datos iniciales y cuando el padre notifica un cambio (externalRefreshKey)
   useEffect(() => {
     loadMetrics();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshTrigger]);
-
-  // Escuchar eventos de cambios en ventas
-  useEffect(() => {
-    const handleVentaChange = () => {
-      setRefreshTrigger(prev => prev + 1);
-    };
-
-    window.addEventListener('venta-created', handleVentaChange);
-    window.addEventListener('venta-updated', handleVentaChange);
-    window.addEventListener('venta-deleted', handleVentaChange);
-
-    return () => {
-      window.removeEventListener('venta-created', handleVentaChange);
-      window.removeEventListener('venta-updated', handleVentaChange);
-      window.removeEventListener('venta-deleted', handleVentaChange);
-    };
-  }, []);
+  }, [externalRefreshKey]);
 
   const [metrics, setMetrics] = useState<VentasMetricsType | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);

@@ -45,10 +45,11 @@ export function IngresosVsGastosChart() {
       const monthStart = startOfMonth(currentDate);
       const monthEnd = endOfMonth(currentDate);
       const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+      const diaMap = new Map(ingresosPorDia.map(d => [d.dia, d]));
 
       return days.map((day) => {
         const diaKey = format(day, 'yyyy-MM-dd');
-        const entry = ingresosPorDia.find((d) => d.dia === diaKey);
+        const entry = diaMap.get(diaKey);
         return {
           dia: format(day, 'd MMM', { locale: es }),
           ingresos: entry?.ingresos ?? 0,
@@ -73,10 +74,11 @@ export function IngresosVsGastosChart() {
     const endDate = lastFutureMes > currentDate ? lastFutureMes : currentDate;
 
     const months = eachMonthOfInterval({ start: startOfMonth(startDate), end: endDate });
+    const mesMap = new Map(ingresosPorMes.map(m => [m.mes, m]));
 
     return months.map((month) => {
       const mesKey = format(month, 'yyyy-MM');
-      const entry = ingresosPorMes.find((m) => m.mes === mesKey);
+      const entry = mesMap.get(mesKey);
       return {
         dia: format(month, 'MMM yyyy', { locale: es }),
         ingresos: entry?.ingresos ?? 0,

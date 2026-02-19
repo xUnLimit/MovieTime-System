@@ -40,13 +40,14 @@ export function CrecimientoUsuarios() {
       const monthEnd = endOfMonth(currentDate);
       const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
       const today = new Date();
+      const diaMap = new Map(usuariosPorDia.map(d => [d.dia, d]));
 
       return days.map((day) => {
         if (day > today) {
           return { dia: day.getDate().toString(), clientes: 0, revendedores: 0 };
         }
         const diaKey = format(day, 'yyyy-MM-dd');
-        const entry = usuariosPorDia.find((d) => d.dia === diaKey);
+        const entry = diaMap.get(diaKey);
         return {
           dia: day.getDate().toString(),
           clientes: entry?.clientes ?? 0,
@@ -58,10 +59,11 @@ export function CrecimientoUsuarios() {
     const monthsBack = selectedPeriod === '3meses' ? 3 : selectedPeriod === '6meses' ? 6 : 12;
     const startDate = subMonths(currentDate, monthsBack - 1);
     const months = eachMonthOfInterval({ start: startOfMonth(startDate), end: currentDate });
+    const mesMap = new Map(usuariosPorMes.map(m => [m.mes, m]));
 
     return months.map((month) => {
       const mesKey = format(month, 'yyyy-MM');
-      const entry = usuariosPorMes.find((m) => m.mes === mesKey);
+      const entry = mesMap.get(mesKey);
 
       return {
         dia: format(month, 'MMM', { locale: es }),

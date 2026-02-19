@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Usuario } from '@/types';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { Card } from '@/components/ui/card';
@@ -80,12 +80,12 @@ export function ClientesTable({ clientes, onEdit, onView, title = 'Clientes', is
     }
   };
 
-  const handleWhatsApp = (cliente: Usuario) => {
+  const handleWhatsApp = useCallback((cliente: Usuario) => {
     const phone = cliente.telefono.replace(/\D/g, '');
     window.open(`https://wa.me/${phone}`, '_blank');
-  };
+  }, []);
 
-  const columns: Column<Usuario>[] = [
+  const columns: Column<Usuario>[] = useMemo(() => [
     {
       key: 'nombre',
       header: 'Nombre',
@@ -164,7 +164,7 @@ export function ClientesTable({ clientes, onEdit, onView, title = 'Clientes', is
         </Button>
       ),
     },
-  ];
+  ], [ventasPorUsuario, handleWhatsApp]);
 
   return (
     <>

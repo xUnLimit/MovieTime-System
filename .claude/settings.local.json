@@ -49,7 +49,15 @@
       "Bash(xargs:*)",
       "Bash(cat:*)",
       "Bash(npx next:*)",
-      "Bash(node_modules/.bin/tsc:*)"
+      "Bash(node_modules/.bin/tsc:*)",
+      "Bash(while read f)",
+      "Bash(do if grep -q \"^''use client''\" \"$f\")",
+      "Bash(then echo \"$f\")",
+      "Bash(fi:*)",
+      "Bash(done)",
+      "Bash(do if ! grep -q \"''use client''\" \"$f\")",
+      "Bash(then echo \"MISSING ''use client'': $f\")",
+      "Bash(then echo \"MISSING: $f\")"
     ]
   }
 }

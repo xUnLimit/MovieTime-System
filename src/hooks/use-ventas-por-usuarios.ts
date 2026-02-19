@@ -37,14 +37,11 @@ export function invalidateVentasPorUsuariosCache() {
  */
 function shouldInvalidateCache(cachedTs: number): boolean {
   if (typeof window === 'undefined') return false;
-  const keys = ['venta-deleted', 'venta-created', 'venta-updated'];
-  for (const key of keys) {
-    const val = window.localStorage.getItem(key);
+  for (const key of ['venta-deleted', 'venta-created', 'venta-updated']) {
+    const val = localStorage.getItem(key);
     if (val) {
       const changeTs = parseInt(val, 10);
-      if (!isNaN(changeTs) && changeTs > cachedTs) {
-        return true;
-      }
+      if (!isNaN(changeTs) && changeTs > cachedTs) return true;
     }
   }
   return false;

@@ -19,6 +19,12 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 
+const tipoLabels: Record<string, string> = {
+  cliente: 'Cliente',
+  revendedor: 'Revendedor',
+  ambos: 'Cliente',
+};
+
 interface TodasCategoriasTableProps {
   categorias: Categoria[];
   title?: string;
@@ -59,13 +65,7 @@ export function TodasCategoriasTable({ categorias, title = 'Todas las categoría
     }
   };
 
-  const tipoLabels: Record<string, string> = {
-    cliente: 'Cliente',
-    revendedor: 'Revendedor',
-    ambos: 'Cliente',
-  };
-
-  const columns: Column<Categoria>[] = [
+  const columns: Column<Categoria>[] = useMemo(() => [
     {
       key: 'nombre',
       header: 'Nombre',
@@ -109,7 +109,7 @@ export function TodasCategoriasTable({ categorias, title = 'Todas las categoría
         </Badge>
       ),
     },
-  ];
+  ], []);
 
   return (
     <>

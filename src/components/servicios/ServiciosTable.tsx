@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Servicio } from '@/types';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { Badge } from '@/components/ui/badge';
@@ -54,13 +54,13 @@ export function ServiciosTable({ servicios, onEdit }: ServiciosTableProps) {
     }
   };
 
-  const handleCopyCredentials = (servicio: Servicio) => {
+  const handleCopyCredentials = useCallback((servicio: Servicio) => {
     const text = `Correo: ${servicio.correo}\nContraseña: ${servicio.contrasena}`;
     navigator.clipboard.writeText(text);
     toast.success('Credenciales copiadas', { description: 'El correo y contraseña han sido copiados al portapapeles.' });
-  };
+  }, []);
 
-  const columns: Column<Servicio>[] = [
+  const columns: Column<Servicio>[] = useMemo(() => [
     {
       key: 'nombre',
       header: 'Servicio',
@@ -146,7 +146,7 @@ export function ServiciosTable({ servicios, onEdit }: ServiciosTableProps) {
         </Badge>
       ),
     },
-  ];
+  ], [handleCopyCredentials]);
 
   return (
     <>

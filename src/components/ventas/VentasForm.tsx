@@ -30,7 +30,7 @@ import { useTemplatesStore } from '@/store/templatesStore';
 import { useVentasStore } from '@/store/ventasStore';
 import { toast } from 'sonner';
 import type { Servicio } from '@/types/servicios';
-import { COLLECTIONS, queryDocuments, adjustVentasActivas } from '@/lib/firebase/firestore';
+import { COLLECTIONS, queryDocuments, adjustServiciosActivos } from '@/lib/firebase/firestore';
 import { Switch } from '@/components/ui/switch';
 import { formatearFechaWhatsApp, getSaludo } from '@/lib/utils/whatsapp';
 import { getCurrencySymbol } from '@/lib/constants';
@@ -629,7 +629,7 @@ export function VentasForm() {
         });
         // Incrementar ventasActivas en el usuario (una vez por item creado)
         if (clienteIdValue) {
-          adjustVentasActivas(clienteIdValue, items.length);
+          adjustServiciosActivos(clienteIdValue, items.length);
         }
       }
       if (notifyCliente && estadoVenta !== 'inactivo' && previewMessage) {

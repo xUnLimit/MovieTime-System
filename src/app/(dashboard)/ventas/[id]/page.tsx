@@ -19,7 +19,7 @@ import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 import { useServiciosStore } from '@/store/serviciosStore';
-import { COLLECTIONS, getById, remove, timestampToDate, update, adjustVentasActivas, queryDocuments, adjustCategoriaSuscripciones } from '@/lib/firebase/firestore';
+import { COLLECTIONS, getById, remove, timestampToDate, update, adjustServiciosActivos, queryDocuments, adjustCategoriaSuscripciones } from '@/lib/firebase/firestore';
 import { toast } from 'sonner';
 import { PagoDialog } from '@/components/shared/PagoDialog';
 import { useTemplatesStore } from '@/store/templatesStore';
@@ -281,7 +281,7 @@ function VentaDetallePageContent() {
 
       // Decrementar contador de servicios activos del cliente
       if (venta.clienteId && (venta.estado ?? 'activo') !== 'inactivo') {
-        adjustVentasActivas(venta.clienteId, -1);
+        adjustServiciosActivos(venta.clienteId, -1);
       }
 
       // Decrementar contadores de la categoría
