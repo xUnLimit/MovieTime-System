@@ -109,7 +109,7 @@ export function generarMensajeVenta(
     correo: venta.correo,
     contrasena: venta.contrasena,
     vencimiento: formatearFechaWhatsApp(venta.fechaVencimiento),
-    monto: venta.monto.toFixed(2),
+    monto: `$${venta.monto.toFixed(2)}`,
     codigo: venta.codigo ?? '',
     items: venta.items ?? '',
     diasRetraso: venta.diasRetraso

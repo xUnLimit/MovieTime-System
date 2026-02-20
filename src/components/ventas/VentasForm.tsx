@@ -410,7 +410,7 @@ export function VentasForm() {
           '{perfil_nombre}': item.perfilNombre?.trim() || '—',
           '{codigo}': item.codigo || '—',
           '{vencimiento}': item.fechaFin ? formatearFechaWhatsApp(new Date(item.fechaFin)) : '—',
-          '{monto}': item.precioFinal?.toFixed(2) || '0.00',
+          '{monto}': `$${item.precioFinal?.toFixed(2) || '0.00'}`,
         };
         return replaceAllPlaceholders(block, { ...globals, ...itemValues });
       }).join('\n\n');
@@ -431,7 +431,7 @@ export function VentasForm() {
       '{correo}': previewCorreo,
       '{contrasena}': previewContrasena,
       '{vencimiento}': previewFechaVencimiento ? formatearFechaWhatsApp(new Date(previewFechaVencimiento)) : '—',
-      '{monto}': previewMonto.toFixed(2),
+      '{monto}': `$${previewMonto.toFixed(2)}`,
       '{codigo}': previewCodigo,
     };
     return renderTemplateWithItems(content, placeholders);

@@ -263,7 +263,7 @@ export function ServiciosProximosTable() {
    * Handle Ver Servicio - Navigate to service detail page
    */
   const handleVerServicio = (notif: NotificacionServicio & { id: string }) => {
-    router.push(`/servicios/${notif.servicioId}`);
+    router.push(`/servicios/detalle/${notif.servicioId}`);
   };
 
   return (
