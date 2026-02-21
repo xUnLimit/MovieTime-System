@@ -118,14 +118,6 @@ function resetDiaIfNewMonth<T extends { dia: string }>(arr: T[], currentMes: str
   return arr.filter((d) => d.dia.startsWith(currentMes));
 }
 
-function keepLast12Months<T extends { mes: string }>(arr: T[]): T[] {
-  const currentMes = getCurrentMesKey();
-  const sorted = arr.sort((a, b) => a.mes.localeCompare(b.mes));
-  // Keep up to 12 past+current months, plus all future months (charts extend into future)
-  const past = sorted.filter((m) => m.mes <= currentMes).slice(-12);
-  const future = sorted.filter((m) => m.mes > currentMes);
-  return [...past, ...future];
-}
 
 /**
  * Parse raw Firestore data into a full DashboardStats object.
@@ -180,7 +172,6 @@ export async function adjustIngresosStats(params: {
       } else {
         stats.ingresosPorMes.push({ mes, ingresos: Math.max(0, signedDelta), gastos: 0 });
       }
-      stats.ingresosPorMes = keepLast12Months(stats.ingresosPorMes);
 
       // Update ingresosPorDia (solo mes actual)
       const currentMes = getCurrentMesKey();
@@ -248,7 +239,6 @@ export async function adjustGastosStats(params: {
       } else {
         stats.ingresosPorMes.push({ mes, ingresos: 0, gastos: Math.max(0, signedDelta) });
       }
-      stats.ingresosPorMes = keepLast12Months(stats.ingresosPorMes);
 
       // Update ingresosPorDia gastos field (solo mes actual)
       const currentMes = getCurrentMesKey();
@@ -320,8 +310,6 @@ export async function adjustUsuariosPorMes(params: {
           revendedores: tipo === 'revendedor' ? Math.max(0, delta) : 0,
         });
       }
-      stats.usuariosPorMes = keepLast12Months(stats.usuariosPorMes);
-
       // Update usuariosPorDia (solo mes actual)
       const currentMes = getCurrentMesKey();
       stats.usuariosPorDia = resetDiaIfNewMonth(stats.usuariosPorDia, currentMes);
@@ -634,9 +622,9 @@ export async function rebuildDashboardStats(): Promise<void> {
       moneda: s.moneda || 'USD',
     }));
 
-  // Keep only last 12 months
-  stats.ingresosPorMes = keepLast12Months(stats.ingresosPorMes);
-  stats.usuariosPorMes = keepLast12Months(stats.usuariosPorMes);
+  // Sort chronologically (no month cap — full history is preserved)
+  stats.ingresosPorMes = stats.ingresosPorMes.sort((a, b) => a.mes.localeCompare(b.mes));
+  stats.usuariosPorMes = stats.usuariosPorMes.sort((a, b) => a.mes.localeCompare(b.mes));
 
   // ---------- RECALCULAR gastosTotal POR SERVICIO ----------
   // Agrupar pagosServicio por servicioId y sumar en USD

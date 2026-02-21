@@ -1,6 +1,8 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useDashboardStore } from '@/store/dashboardStore';
+import { useDashboardFilterStore } from '@/store/dashboardFilterStore';
 import { MetricCard } from '@/components/shared/MetricCard';
 import { TrendingUp, TrendingDown, Wallet, CalendarClock, CalendarRange } from 'lucide-react';
 import { usePronosticoFinanciero } from '@/hooks/use-pronostico-financiero';
@@ -11,12 +13,20 @@ function formatUSD(value: number): string {
 
 export function DashboardMetrics() {
   const { stats, isLoading } = useDashboardStore();
+  const { selectedYear } = useDashboardFilterStore();
   const { meses, isLoading: isLoadingMensual } = usePronosticoFinanciero();
   const gastoMensual = meses[0]?.gastos ?? null;
   const ingresoMensual = meses[0]?.ingresos ?? null;
 
-  const gastosTotal = stats?.gastosTotal ?? 0;
-  const ingresosTotal = stats?.ingresosTotal ?? 0;
+  const { gastosTotal, ingresosTotal } = useMemo(() => {
+    const cutoff = `${selectedYear}-01`;
+    const filtered = (stats?.ingresosPorMes ?? []).filter((m) => m.mes >= cutoff);
+    return {
+      ingresosTotal: filtered.reduce((sum, m) => sum + (m.ingresos ?? 0), 0),
+      gastosTotal: filtered.reduce((sum, m) => sum + (m.gastos ?? 0), 0),
+    };
+  }, [stats?.ingresosPorMes, selectedYear]);
+
   const gananciasTotal = ingresosTotal - gastosTotal;
 
   return (
@@ -24,7 +34,7 @@ export function DashboardMetrics() {
       <MetricCard
         title="Gastos Totales"
         value={isLoading ? '...' : formatUSD(gastosTotal)}
-        description="Suma del costo de todos los servicios"
+        description={`Gastos acumulados desde ${selectedYear}`}
         icon={TrendingDown}
         iconColor="text-red-500"
         borderColor="border-l-red-500"
@@ -33,7 +43,7 @@ export function DashboardMetrics() {
       <MetricCard
         title="Ingresos Totales"
         value={isLoading ? '...' : formatUSD(ingresosTotal)}
-        description="Suma de todas las ventas"
+        description={`Ingresos acumulados desde ${selectedYear}`}
         icon={TrendingUp}
         iconColor="text-blue-500"
         borderColor="border-l-blue-500"
@@ -43,7 +53,7 @@ export function DashboardMetrics() {
         title="Ganancias Totales"
         value={isLoading ? '...' : formatUSD(gananciasTotal)}
         valueColor={isLoading ? undefined : gananciasTotal >= 0 ? 'text-green-500' : 'text-red-500'}
-        description="Ingresos totales menos gastos totales"
+        description={`Ingresos menos gastos desde ${selectedYear}`}
         icon={Wallet}
         iconColor="text-green-500"
         borderColor="border-l-green-500"
