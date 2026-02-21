@@ -56,6 +56,16 @@ import type { NotificacionServicio } from '@/types/notificaciones';
 import { getCurrencySymbol } from '@/lib/constants';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { PagoDialog, EnrichedPagoDialogFormData } from '@/components/shared/PagoDialog';
+import { queryDocuments, COLLECTIONS, update, getById, adjustCategoriaGastos } from '@/lib/firebase/firestore';
+import { doc as firestoreDoc, updateDoc, increment } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
+import { MetodoPago, Servicio } from '@/types';
+import { crearPagoRenovacion, obtenerPagosDeServicio } from '@/lib/services/pagosServicioService';
+import { currencyService } from '@/lib/services/currencyService';
+import { useActivityLogStore } from '@/store/activityLogStore';
+import { useAuthStore } from '@/store/authStore';
+import { format } from 'date-fns';
 
 /**
  * Get bell icon color based on days remaining
@@ -156,11 +166,19 @@ function formatearFecha(fecha: Date): string {
 export function ServiciosProximosTable() {
   const router = useRouter();
   const { notificaciones, toggleLeida, toggleResaltada } = useNotificacionesStore();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [estadoFilter, setEstadoFilter] = useState<string>('todos');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
+
+  // Renovar modal state
+  const [renovarDialogOpen, setRenovarDialogOpen] = useState(false);
+  const [notifParaRenovar, setNotifParaRenovar] = useState<NotificacionServicio & { id: string } | null>(null);
+  const [servicioParaRenovar, setServicioParaRenovar] = useState<Servicio | null>(null);
+  const [metodosPagoServicio, setMetodosPagoServicio] = useState<MetodoPago[]>([]);
+  const [, setIsLoadingRenovar] = useState(false);
 
   // Get servicio notifications (type-safe filtering)
   const serviciosNotificaciones = useMemo(() => {
@@ -253,10 +271,104 @@ export function ServiciosProximosTable() {
   };
 
   /**
-   * Handle Renovar - Navigate to service detail where payment can be made
+   * Handle Renovar - Open PagoDialog inline (same as servicios/detalle/[id])
    */
-  const handleRenovar = (notif: NotificacionServicio & { id: string }) => {
-    router.push(`/servicios/detalle/${notif.servicioId}`);
+  const handleRenovar = async (notif: NotificacionServicio & { id: string }) => {
+    setIsLoadingRenovar(true);
+    try {
+      // Load servicio data and métodos de pago in parallel
+      const [servicioData, metodos] = await Promise.all([
+        getById<Servicio>(COLLECTIONS.SERVICIOS, notif.servicioId),
+        metodosPagoServicio.length > 0
+          ? Promise.resolve(metodosPagoServicio)
+          : queryDocuments<MetodoPago>(COLLECTIONS.METODOS_PAGO, [
+              { field: 'asociadoA', operator: '==', value: 'servicio' },
+            ]),
+      ]);
+
+      if (!servicioData) {
+        toast.error('Servicio no encontrado', { description: 'No se pudo cargar el servicio para renovar.' });
+        return;
+      }
+
+      setServicioParaRenovar(servicioData);
+      setMetodosPagoServicio(metodos);
+      setNotifParaRenovar(notif);
+      setRenovarDialogOpen(true);
+    } catch {
+      toast.error('Error al cargar datos', { description: 'No se pudieron cargar los datos del servicio.' });
+    } finally {
+      setIsLoadingRenovar(false);
+    }
+  };
+
+  /**
+   * Handle confirm renovation - mirrors servicios/detalle/[id] handleConfirmRenovacion
+   */
+  const handleConfirmRenovacion = async (data: EnrichedPagoDialogFormData) => {
+    if (!servicioParaRenovar || !notifParaRenovar) return;
+    const servicioId = servicioParaRenovar.id;
+    try {
+      const metodoPagoSeleccionado = metodosPagoServicio.find((m) => m.id === data.metodoPagoId);
+      const pagosExistentes = await obtenerPagosDeServicio(servicioId);
+      const numeroRenovacion = pagosExistentes.filter(p => !p.isPagoInicial && p.descripcion !== 'Pago inicial').length + 1;
+
+      await crearPagoRenovacion(
+        servicioId,
+        servicioParaRenovar.categoriaId || '',
+        data.costo,
+        data.metodoPagoId,
+        data.metodoPagoNombre || metodoPagoSeleccionado?.nombre || '',
+        data.moneda || metodoPagoSeleccionado?.moneda || 'USD',
+        data.periodoRenovacion as 'mensual' | 'trimestral' | 'semestral' | 'anual',
+        data.fechaInicio,
+        data.fechaVencimiento,
+        numeroRenovacion,
+        data.notas
+      );
+
+      // Increment gastosTotal on servicio and categoría (converted to USD)
+      const costoUSD = await currencyService.convertToUSD(
+        data.costo,
+        data.moneda || metodoPagoSeleccionado?.moneda || 'USD'
+      );
+      const servicioRef = firestoreDoc(db, COLLECTIONS.SERVICIOS, servicioId);
+      await updateDoc(servicioRef, { gastosTotal: increment(costoUSD) });
+      if (servicioParaRenovar.categoriaId) {
+        await adjustCategoriaGastos(servicioParaRenovar.categoriaId, costoUSD);
+      }
+
+      // Update servicio with new dates and cost
+      await update(COLLECTIONS.SERVICIOS, servicioId, {
+        fechaInicio: data.fechaInicio,
+        fechaVencimiento: data.fechaVencimiento,
+        costoServicio: data.costo,
+        metodoPagoId: data.metodoPagoId || undefined,
+        metodoPagoNombre: data.metodoPagoNombre || metodoPagoSeleccionado?.nombre,
+        moneda: data.moneda || metodoPagoSeleccionado?.moneda,
+        cicloPago: data.periodoRenovacion as 'mensual' | 'trimestral' | 'semestral' | 'anual',
+      });
+
+      // Log activity
+      const user = useAuthStore.getState().user;
+      useActivityLogStore.getState().addLog({
+        usuarioId: user?.id ?? 'sistema',
+        usuarioEmail: user?.email ?? 'sistema',
+        accion: 'renovacion',
+        entidad: 'servicio',
+        entidadId: servicioId,
+        entidadNombre: servicioParaRenovar.nombre ?? servicioId,
+        detalles: `Servicio renovado desde notificaciones: "${servicioParaRenovar.nombre}" — $${data.costo} ${data.moneda ?? 'USD'} — hasta ${format(data.fechaVencimiento, 'dd/MM/yyyy')} (${data.periodoRenovacion})`,
+      }).catch(() => {});
+
+      toast.success('Renovación registrada', { description: 'El nuevo período de pago se ha registrado correctamente.' });
+      setRenovarDialogOpen(false);
+      setNotifParaRenovar(null);
+      setServicioParaRenovar(null);
+    } catch (error) {
+      console.error('Error al registrar la renovación:', error);
+      toast.error('Error al registrar la renovación', { description: error instanceof Error ? error.message : undefined });
+    }
   };
 
   /**
@@ -543,6 +655,25 @@ export function ServiciosProximosTable() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Renovar Dialog - same modal as servicios/detalle/[id] */}
+      {servicioParaRenovar && (
+        <PagoDialog
+          context="servicio"
+          mode="renew"
+          open={renovarDialogOpen}
+          onOpenChange={(open) => {
+            setRenovarDialogOpen(open);
+            if (!open) {
+              setNotifParaRenovar(null);
+              setServicioParaRenovar(null);
+            }
+          }}
+          servicio={servicioParaRenovar}
+          metodosPago={metodosPagoServicio}
+          onConfirm={handleConfirmRenovacion}
+        />
       )}
     </Card>
   );

@@ -43,6 +43,7 @@ type PagoDialogFormData = z.infer<typeof pagoDialogSchema>;
 export type EnrichedPagoDialogFormData = PagoDialogFormData & {
   metodoPagoNombre?: string;
   moneda?: string;
+  mensajeWhatsApp?: string;
 };
 
 type PagoDialogMode = 'edit' | 'renew';
@@ -315,6 +316,8 @@ export function PagoDialog(props: PagoDialogProps) {
       ...data,
       metodoPagoNombre: metodoPago?.nombre,
       moneda: metodoPago?.moneda,
+      // Pasar el mensaje editado (solo si hay WhatsApp activado)
+      mensajeWhatsApp: data.notificarWhatsApp && previewMessage ? previewMessage : undefined,
     };
     props.onConfirm(enrichedData);
     props.onOpenChange(false);
@@ -595,11 +598,12 @@ export function PagoDialog(props: PagoDialogProps) {
               {notificarWhatsAppValue && (
                 <div className="mt-4 space-y-2">
                   <p className="text-sm font-semibold">Vista Previa del Mensaje</p>
+                  <p className="text-xs text-muted-foreground">Puedes ajustar el mensaje antes de enviarlo. Los cambios no se guardan en las plantillas.</p>
                   <Textarea
                     value={previewMessage}
-                    readOnly
+                    onChange={(e) => setPreviewMessage(e.target.value)}
                     rows={10}
-                    className="min-h-[220px] resize-none text-sm leading-relaxed bg-background/60"
+                    className="min-h-[220px] resize-y text-sm leading-relaxed"
                   />
                 </div>
               )}

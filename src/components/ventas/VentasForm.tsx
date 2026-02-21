@@ -120,6 +120,7 @@ export function VentasForm() {
   const [fechaFinOpen, setFechaFinOpen] = useState(false);
   const [perfilesOcupadosVenta, setPerfilesOcupadosVenta] = useState<Record<string, Set<number>>>({});
   const [notifyCliente, setNotifyCliente] = useState(false);
+  const [editedMessage, setEditedMessage] = useState('');
   const [searchCliente, setSearchCliente] = useState('');
 
   const {
@@ -451,6 +452,11 @@ export function VentasForm() {
     renderTemplateWithItems,
   ]);
 
+  // Sync editedMessage when template-generated preview changes (only if user hasn't edited it yet)
+  useEffect(() => {
+    setEditedMessage(previewMessage);
+  }, [previewMessage]);
+
   const handleAddItem = () => {
     const categoria = categorias.find((c) => c.id === categoriaId);
     const plan = planesDisponibles.find((p) => p.id === planId);
@@ -632,9 +638,10 @@ export function VentasForm() {
           adjustServiciosActivos(clienteIdValue, items.length);
         }
       }
-      if (notifyCliente && estadoVenta !== 'inactivo' && previewMessage) {
+      if (notifyCliente && estadoVenta !== 'inactivo' && editedMessage) {
         const phoneRaw = clienteSeleccionado?.telefono || '';
         const phone = phoneRaw.replace(/[^\d+]/g, '');
+        const mensajeAEnviar = editedMessage;
         toast.success('Venta registrada', {
           description: 'La venta ha sido guardada correctamente en el sistema.',
           duration: Infinity,
@@ -644,7 +651,7 @@ export function VentasForm() {
               const base = phone
                 ? `https://web.whatsapp.com/send?phone=${phone}&text=`
                 : `https://web.whatsapp.com/send?text=`;
-              window.open(base + encodeURIComponent(previewMessage), '_blank', 'noopener,noreferrer');
+              window.open(base + encodeURIComponent(mensajeAEnviar), '_blank', 'noopener,noreferrer');
             },
           },
           actionButtonStyle: { backgroundColor: '#15803d', color: '#fff' },
@@ -1334,11 +1341,12 @@ export function VentasForm() {
               {notifyCliente && estadoValue !== 'inactivo' && (
                 <div className="mt-4 space-y-2">
                   <p className="text-sm font-semibold">Editar Mensaje de Notificación</p>
+                  <p className="text-xs text-muted-foreground">Puedes ajustar el mensaje antes de enviarlo. Los cambios no se guardan en las plantillas.</p>
                   <Textarea
-                    value={previewMessage}
-                    readOnly
+                    value={editedMessage}
+                    onChange={(e) => setEditedMessage(e.target.value)}
                     rows={10}
-                    className="min-h-[220px] resize-none text-sm leading-relaxed bg-background/60"
+                    className="min-h-[220px] resize-y text-sm leading-relaxed"
                   />
                 </div>
               )}
