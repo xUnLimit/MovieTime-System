@@ -75,6 +75,7 @@ export interface VentaDoc {
   descuento?: number;
   precioFinal?: number;
   totalVenta?: number;
+  /** @deprecated Payments are stored in the `pagosVenta` collection. Use `getVentaConUltimoPago()` from ventaSyncService instead. */
   pagos?: VentaPago[];
 
   createdAt?: Date;

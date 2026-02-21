@@ -19,7 +19,6 @@ import {
   queryDocuments,
   create,
   update,
-  getAll,
   remove,
 } from '@/lib/firebase/firestore';
 import type {
@@ -100,6 +99,17 @@ function prioridadSubio(anterior: string, nueva: string): boolean {
 }
 
 /**
+ * Remove duplicate notifications for the same entity, keeping only the first found.
+ * Duplicates can arise from race conditions between layout.tsx and notificaciones/page.tsx.
+ */
+async function eliminarDuplicados(notifs: (Notificacion & { id: string })[]): Promise<void> {
+  if (notifs.length > 1) {
+    const extras = notifs.slice(1);
+    await Promise.all(extras.map(n => remove(COLLECTIONS.NOTIFICACIONES, n.id)));
+  }
+}
+
+/**
  * Process a single venta and create/update notification
  *
  * @param venta - VentaDoc with denormalized fechaFin
@@ -168,6 +178,11 @@ async function procesarNotificacionVenta(venta: VentaDoc, forzarActualizacion = 
   };
 
   if (notifExistente.length > 0) {
+    // Best-effort cleanup: don't let a failed remove block the main update
+    eliminarDuplicados(notifExistente).catch(e =>
+      console.warn(`[NotificationSync] Failed to remove duplicate notifs for venta ${venta.id}:`, e)
+    );
+
     // Update existing notification
     const notif = notifExistente[0] as NotificacionVenta;
 
@@ -245,6 +260,11 @@ async function procesarNotificacionServicio(servicio: Servicio, forzarActualizac
   };
 
   if (notifExistente.length > 0) {
+    // Best-effort cleanup: don't let a failed remove block the main update
+    eliminarDuplicados(notifExistente).catch(e =>
+      console.warn(`[NotificationSync] Failed to remove duplicate notifs for servicio ${servicio.id}:`, e)
+    );
+
     // Update existing
     const notif = notifExistente[0] as NotificacionServicio;
 
@@ -273,22 +293,23 @@ async function limpiarNotificacionesHuerfanas(
   serviciosActivos: Servicio[]
 ): Promise<void> {
   try {
-    // Get all existing notifications
-    const todasNotificaciones = (await getAll(COLLECTIONS.NOTIFICACIONES)) as (Notificacion & { id: string })[];
-
     const ventaIdsActivos = new Set(ventasActivas.map(v => v.id));
     const servicioIdsActivos = new Set(serviciosActivos.map(s => s.id));
 
-    const huerfanas = todasNotificaciones.filter(notif => {
-      if (notif.entidad === 'venta') {
-        // Orphan if the venta is no longer in the active+expiring set
-        return !ventaIdsActivos.has((notif as NotificacionVenta).ventaId);
-      } else if (notif.entidad === 'servicio') {
-        // Orphan if the servicio is no longer in the active+expiring set
-        return !servicioIdsActivos.has((notif as NotificacionServicio).servicioId);
-      }
-      return false;
-    });
+    // Query each entity type separately — avoids getAll() on the full collection
+    const [notifVentas, notifServicios] = await Promise.all([
+      queryDocuments(COLLECTIONS.NOTIFICACIONES, [
+        { field: 'entidad', operator: '==', value: 'venta' },
+      ]) as Promise<(NotificacionVenta & { id: string })[]>,
+      queryDocuments(COLLECTIONS.NOTIFICACIONES, [
+        { field: 'entidad', operator: '==', value: 'servicio' },
+      ]) as Promise<(NotificacionServicio & { id: string })[]>,
+    ]);
+
+    const huerfanas: (Notificacion & { id: string })[] = [
+      ...notifVentas.filter(n => !ventaIdsActivos.has(n.ventaId)),
+      ...notifServicios.filter(n => !servicioIdsActivos.has(n.servicioId)),
+    ];
 
     if (huerfanas.length > 0) {
       await Promise.all(huerfanas.map(notif => remove(COLLECTIONS.NOTIFICACIONES, notif.id)));
@@ -326,6 +347,12 @@ export async function sincronizarNotificaciones(forzarActualizacion = false): Pr
   }
   sincronizandoEnCurso = true;
 
+  // Mark as synced immediately to prevent a second caller (e.g., notificaciones/page.tsx)
+  // from passing debesSincronizar() before this run finishes and creating duplicates.
+  if (!forzarActualizacion) {
+    marcarSincronizado();
+  }
+
   try {
     // ✅ OPTIMIZED: Single query per entity (not two separate ones)
     // This query includes both próximas AND vencidas because:
@@ -340,10 +367,12 @@ export async function sincronizarNotificaciones(forzarActualizacion = false): Pr
     ])) as VentaDoc[];
 
     // Process each venta
+    let huboFallosParciales = false;
     for (const venta of ventasProximas) {
       try {
         await procesarNotificacionVenta(venta, forzarActualizacion);
       } catch (error) {
+        huboFallosParciales = true;
         console.error(`[NotificationSync] Error processing venta ${venta.id}:`, error);
       }
     }
@@ -359,16 +388,24 @@ export async function sincronizarNotificaciones(forzarActualizacion = false): Pr
       try {
         await procesarNotificacionServicio(servicio, forzarActualizacion);
       } catch (error) {
+        huboFallosParciales = true;
         console.error(`[NotificationSync] Error processing servicio ${servicio.id}:`, error);
       }
     }
 
+    // If any individual item failed, revert the sync marker so it retries today
+    if (huboFallosParciales && !forzarActualizacion && typeof window !== 'undefined') {
+      localStorage.removeItem('lastNotificationSync');
+      console.warn('[NotificationSync] Partial failures detected — sync will retry on next load.');
+    }
+
     // 3️⃣ Cleanup orphan notifications (venta/servicio deleted but notification remains)
     await limpiarNotificacionesHuerfanas(ventasProximas, serviciosProximos);
-
-    // Mark as synced today
-    marcarSincronizado();
   } catch (error) {
+    // Revert the early marcarSincronizado() so the sync can retry later today
+    if (!forzarActualizacion && typeof window !== 'undefined') {
+      localStorage.removeItem('lastNotificationSync');
+    }
     console.error('[NotificationSync] ❌ Error during synchronization:', error);
     throw error;
   } finally {

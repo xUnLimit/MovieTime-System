@@ -79,6 +79,13 @@ interface ItemErrors {
   precio?: string;
 }
 
+interface MetodoPagoOption {
+  id: string;
+  nombre: string;
+  asociadoA: string;
+  moneda: string;
+}
+
 const MESES_POR_CICLO: Record<string, number> = {
   mensual: 1,
   trimestral: 3,
@@ -97,7 +104,7 @@ export function VentasForm() {
   const templateNotificacion = useTemplatesStore((state) => state.getTemplateByTipo('suscripcion'));
 
   // Estado local para métodos de pago filtrados (solo usuarios)
-  const [metodosPagoUsuarios, setMetodosPagoUsuarios] = useState<Array<{ id: string; nombre: string; asociadoA: string; moneda: string }>>([]);
+  const [metodosPagoUsuarios, setMetodosPagoUsuarios] = useState<MetodoPagoOption[]>([]);
 
   // Estado local para servicios (cargados solo cuando se selecciona categoría)
   const [serviciosCategoria, setServiciosCategoria] = useState<Servicio[]>([]);
@@ -162,7 +169,7 @@ export function VentasForm() {
     // Cargar métodos de pago filtrados (solo usuarios)
     const loadMetodosPagoUsuarios = async () => {
       try {
-        const metodos = await queryDocuments<{ id: string; nombre: string; asociadoA: string; moneda: string }>(
+        const metodos = await queryDocuments<MetodoPagoOption>(
           COLLECTIONS.METODOS_PAGO,
           [{ field: 'asociadoA', operator: '==', value: 'usuario' }]
         );

@@ -17,7 +17,8 @@
 import { create } from 'zustand';
 import {
   COLLECTIONS,
-  getAll,
+  queryDocuments,
+  getCount,
   update,
   remove,
 } from '@/lib/firebase/firestore';
@@ -85,7 +86,7 @@ export const useNotificacionesStore = create<NotificacionesState>((set, get) => 
     set({ isLoading: true, error: null });
 
     try {
-      const notificaciones = (await getAll(COLLECTIONS.NOTIFICACIONES)) as (
+      const notificaciones = (await queryDocuments(COLLECTIONS.NOTIFICACIONES, [])) as (
         Notificacion & { id: string }
       )[];
 
@@ -116,33 +117,24 @@ export const useNotificacionesStore = create<NotificacionesState>((set, get) => 
   },
 
   /**
-   * Fetch count metrics (free queries on Spark plan)
+   * Fetch count metrics using getCount() — free on Spark plan, 0 document reads
    */
   fetchCounts: async () => {
     try {
-      const state = get();
-
-      // Use current notificaciones from state (no need for extra getAll)
-      const notificaciones = state.notificaciones;
-
-      // Total notificaciones
-      const totalNotificaciones = notificaciones.length;
-
-      // Ventas próximas (entidad='venta')
-      const ventasProximas = notificaciones.filter(esNotificacionVenta).length;
-
-      // Servicios próximos (entidad='servicio')
-      const serviciosProximos = notificaciones.filter(esNotificacionServicio).length;
+      const [totalNotificaciones, ventasProximas, serviciosProximas] = await Promise.all([
+        getCount(COLLECTIONS.NOTIFICACIONES),
+        getCount(COLLECTIONS.NOTIFICACIONES, [{ field: 'entidad', operator: '==', value: 'venta' }]),
+        getCount(COLLECTIONS.NOTIFICACIONES, [{ field: 'entidad', operator: '==', value: 'servicio' }]),
+      ]);
 
       set({
         totalNotificaciones,
         ventasProximas,
-        serviciosProximos,
+        serviciosProximos: serviciosProximas,
       });
 
     } catch (error) {
       console.error('[NotificacionesStore] Error fetching counts:', error);
-      // Set to 0 on error
       set({
         totalNotificaciones: 0,
         ventasProximas: 0,

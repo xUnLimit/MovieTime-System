@@ -1,310 +1,210 @@
-# MovieTime PTY - Sistema de Gestión
+# MovieTime PTY — Sistema de Gestión de Suscripciones
 
-Sistema de gestión para negocio de venta de servicios de streaming con control financiero y gestión de clientes/revendedores.
-
-## 🚀 Estado Actual: IMPLEMENTACIÓN COMPLETA
-
-### ✅ Lo que está implementado
-
-#### 1. Configuración del Proyecto
-- ✅ Next.js 15 con App Router
-- ✅ TypeScript configurado
-- ✅ Tailwind CSS
-- ✅ shadcn/ui components instalados
-- ✅ Zustand para manejo de estado
-- ✅ date-fns para manejo de fechas
-- ✅ Recharts para gráficos
-- ✅ Sonner para toast notifications
-- ✅ React Hook Form + Zod para validación
-
-#### 2. Types TypeScript (`src/types/index.ts`)
-- ✅ User, Cliente, Revendedor
-- ✅ Servicio, Categoria
-- ✅ Venta, MetodoPago
-- ✅ Gasto, TemplateMensaje, ActivityLog
-- ✅ Configuracion
-- ✅ Dashboard Metrics types
-- ✅ Form types completos
-
-#### 3. Zustand Stores (8 stores)
-- ✅ `categoriasStore.ts` - Gestión de categorías
-- ✅ `metodosPagoStore.ts` - Métodos de pago
-- ✅ `serviciosStore.ts` - Servicios de streaming
-- ✅ `clientesStore.ts` - Gestión de clientes
-- ✅ `revendedoresStore.ts` - Gestión de revendedores
-- ✅ `ventasStore.ts` - Ventas con lógica de ciclos
-- ✅ `templatesMensajesStore.ts` - Templates WhatsApp
-- ✅ `activityLogStore.ts` - Log de actividades
-
-#### 4. Módulos Completos (5 módulos principales)
-- ✅ **Servicios** - CRUD completo con métricas y filtros
-- ✅ **Usuarios** - Clientes y Revendedores con tabs
-- ✅ **Ventas** - Módulo más complejo con múltiples acciones
-- ✅ **Editor de Mensajes** - Templates con preview
-- ✅ **Log de Actividad** - Timeline de actividades
-
-#### 5. Componentes (34 componentes totales)
-**Servicios (4):**
-- ✅ ServiciosMetrics.tsx
-- ✅ ServiciosFilters.tsx
-- ✅ ServiciosTable.tsx
-- ✅ ServicioDialog.tsx
-
-**Usuarios (4):**
-- ✅ ClientesTable.tsx (con WhatsApp)
-- ✅ RevendedoresTable.tsx
-- ✅ ClienteDialog.tsx
-- ✅ RevendedorDialog.tsx
-
-**Ventas (4):**
-- ✅ VentasMetrics.tsx
-- ✅ VentasFilters.tsx
-- ✅ VentasTable.tsx (con progress bars)
-- ✅ VentaDialog.tsx (form complejo)
-
-**Editor de Mensajes (3):**
-- ✅ TemplatesList.tsx
-- ✅ MessagePreview.tsx
-- ✅ TemplateDialog.tsx
-
-**Log de Actividad (2):**
-- ✅ LogTimeline.tsx
-- ✅ LogFilters.tsx
-
-**Shared Components:**
-- ✅ DataTable (reusable)
-- ✅ ConfirmDialog
-- ✅ MetricCard
-- ✅ LoadingSpinner
-- ✅ EmptyState
-
-#### 6. Páginas Implementadas
-- ✅ `/servicios`
-- ✅ `/usuarios` (con tabs)
-- ✅ `/ventas`
-- ✅ `/editor-mensajes`
-- ✅ `/log-actividad`
-- ✅ `/categorias`
-- ✅ `/metodos-pago`
-
-## 📁 Estructura del Proyecto
-
-```
-movietime-pty/
-├── src/
-│   ├── app/
-│   │   ├── (auth)/
-│   │   │   ├── layout.tsx
-│   │   │   └── login/page.tsx
-│   │   ├── (dashboard)/
-│   │   │   ├── layout.tsx
-│   │   │   └── dashboard/page.tsx
-│   │   ├── layout.tsx (root con Toaster)
-│   │   ├── page.tsx (redirección)
-│   │   └── globals.css
-│   │
-│   ├── components/
-│   │   └── ui/ (shadcn components)
-│   │
-│   ├── lib/
-│   │   ├── mock-data/index.ts
-│   │   ├── utils/
-│   │   │   ├── whatsapp.ts
-│   │   │   ├── calculations.ts
-│   │   │   └── utils.ts (shadcn)
-│   │   └── constants/index.ts
-│   │
-│   ├── store/
-│   │   ├── authStore.ts
-│   │   ├── categoriasStore.ts
-│   │   ├── metodosPagoStore.ts
-│   │   ├── serviciosStore.ts
-│   │   ├── usuariosStore.ts
-│   │   ├── ventasStore.ts
-│   │   ├── templatesStore.ts
-│   │   ├── activityLogStore.ts
-│   │   └── configStore.ts
-│   │
-│   ├── types/index.ts
-│   └── middleware.ts
-│
-├── package.json
-├── tsconfig.json
-├── tailwind.config.ts
-└── README.md
-```
-
-## 🔧 Instalación y Ejecución
-
-### Instalar dependencias
-
-```bash
-cd movietime-pty
-npm install
-```
-
-### Ejecutar en desarrollo
-
-```bash
-npm run dev
-```
-
-Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
-
-### Credenciales de prueba
-
-- **Email:** `admin@movietime.com`
-- **Contraseña:** `123456` (mínimo 6 caracteres)
-
-## 📋 Próximos Pasos
-
-### FASE 2: Backend e Integración API ⏳
-- [ ] Implementar API endpoints (9 endpoints principales)
-- [ ] Integrar stores con API real
-- [ ] Implementar autenticación real
-- [ ] Agregar validación del lado del servidor
-- [ ] Configurar base de datos
-
-### FASE 3: WhatsApp Integration ⏳
-- [ ] Integrar WhatsApp Business API
-- [ ] Implementar envío de mensajes
-- [ ] Sistema de email como fallback
-
-### FASE 4: Características Avanzadas ⏳
-- [ ] Reportes y exportación de datos
-- [ ] Dashboard con gráficos interactivos
-- [ ] Sistema de permisos granular
-- [ ] Auditoría y logs persistentes
-- [ ] Búsqueda avanzada y analytics
-
-### FASE 5: Testing y Deploy 🎯
-- [ ] Tests unitarios (stores, utils)
-- [ ] Tests de integración
-- [ ] Tests E2E
-- [ ] CI/CD pipeline
-- [ ] Deploy a producción
-- [ ] Monitoring y logging
-
-## 🎨 Stack Tecnológico
-
-- **Framework:** Next.js 15 (App Router)
-- **Language:** TypeScript
-- **Styling:** Tailwind CSS
-- **UI Components:** shadcn/ui
-- **Estado Global:** Zustand
-- **Formularios:** React Hook Form + Zod
-- **Fechas:** date-fns
-- **Gráficos:** Recharts
-- **Notificaciones:** Sonner
-
-## 📝 Notas Importantes
-
-### Enfoque UI-First
-El proyecto está diseñado con el enfoque "UI primero":
-1. Toda la interfaz funciona con datos mockeados
-2. Zustand maneja el estado global
-3. Los stores simulan delay de red para UX realista
-4. La estructura está preparada para migración fácil a Firebase
-
-### Datos Mock
-- Todos los datos están en `src/lib/mock-data/index.ts`
-- Los stores cargan estos datos al iniciar
-- Las operaciones CRUD funcionan solo en memoria
-- Los cambios se pierden al recargar (excepto auth y templates por persist)
-
-### Autenticación Mock
-- Login acepta cualquier email con contraseña de 6+ caracteres
-- El email determina el rol: `admin@...` = admin, otros = operador
-- El estado se persiste en localStorage
-
-## 🔑 Características Clave
-
-### Gestión de Ventas
-- Ciclos de pago: mensual, trimestral, anual
-- Cálculo automático de fechas de vencimiento
-- Barra de progreso de consumo
-- Estados: activa, suspendida, inactiva, vencida
-- Renovación automática
-
-### WhatsApp Integration
-- Templates personalizables
-- Placeholders dinámicos
-- Generación automática de links wa.me
-- Saludo según hora del día
-
-### Activity Log
-- Registro de todas las acciones CRUD
-- Filtrable por entidad y acción
-- Timestamp automático
-- Solo lectura (inmutable)
-
-## 🐛 Troubleshooting
-
-### Error: Module not found
-```bash
-npm install
-```
-
-### Error de tipos TypeScript
-```bash
-npm run build
-```
-
-### Puerto 3000 ocupado
-```bash
-# Cambiar puerto en package.json o
-PORT=3001 npm run dev
-```
-
-## 📞 Soporte
-
-Para preguntas o problemas, contactar al equipo de desarrollo.
+Sistema de gestión de suscripciones de servicios de streaming para Panamá. Administra clientes, revendedores, servicios (Netflix, Disney+, etc.), ventas, categorías, métodos de pago y notificaciones automáticas de vencimiento.
 
 ---
 
-**Versión:** 2.0.0 - Implementación Frontend Completa
-**Última actualización:** 28 de enero de 2026
+## Stack Tecnológico
+
+| Categoría | Tecnología | Versión |
+|-----------|-----------|---------|
+| Framework | Next.js | 16.1.6 |
+| Lenguaje | TypeScript | 5.x |
+| UI | React | 19.2.3 |
+| Estilos | Tailwind CSS | 4.x |
+| Componentes | shadcn/ui + Radix UI | Latest |
+| Estado | Zustand | 5.0.10 |
+| Formularios | React Hook Form + Zod | 7.71.1 / 4.3.6 |
+| Backend | Firebase (Auth + Firestore + Analytics) | 12.8.0 |
+| Gráficas | Recharts | 3.7.0 |
+| Fechas | date-fns | 4.1.0 |
+| Testing | Vitest | 4.0.18 |
 
 ---
 
-## 📚 Documentación Adicional
+## Requisitos Previos
 
-### Documentación General
-- **IMPLEMENTATION_SUMMARY.md** - Resumen detallado de la implementación
-- **DEVELOPER_GUIDE.md** - Guía de referencia rápida para desarrolladores
-- **README.md** - Este archivo (guía general del proyecto)
+- Node.js 20+
+- Proyecto Firebase con Firestore habilitado (plan Spark es suficiente)
 
-### Optimización y Monitoreo
-- **FIREBASE_READS_MONITORING.md** - 🔥 **Guía completa de monitoreo de lecturas Firebase**
-- **PAGINATION_AND_CACHE_PATTERN.md** - Patrón de paginación y cache (reduce 90-96% lecturas)
-- **firebase-monitor.js** - Script para consola del navegador (contador global de lecturas)
+---
 
-### 🔍 Cómo Verificar las Optimizaciones
+## Instalación
 
-El proyecto incluye un sistema completo de logging para monitorear las lecturas de Firebase en tiempo real:
+```bash
+# Instalar dependencias
+npm install
 
-**Opción 1: Logs Automáticos en Consola**
-1. Abre la consola del navegador (F12)
-2. Filtra por "Firestore" para ver solo operaciones relevantes
-3. Cada operación se registra con colores:
-   - 🟢 Verde: `getAll`, `getById`, `query`
-   - 🔵 Azul: `paginated` (paginación optimizada)
-   - 🟣 Morado: `count` (0 lecturas, gratis en Spark)
-   - 🟠 Naranja: Cache hits (0 lecturas)
-
-**Opción 2: Monitor Avanzado**
-1. Copia el contenido de `docs/firebase-monitor.js`
-2. Pégalo en la consola del navegador
-3. Navega por la app
-4. Ejecuta `firestoreMonitor.report()` para ver el resumen completo
-
-**Ejemplo de output esperado (módulo Usuarios optimizado):**
+# Configurar variables de entorno
+cp .env.example .env.local
+# Editar .env.local con tus credenciales de Firebase
 ```
-[Firestore] paginated (usuarios) → 10 docs · 85ms
-[Firestore] count (usuarios) → 50 · 25ms
-[Firestore] count (usuarios where tipo == cliente) → 35 · 20ms
-[Firestore] count (usuarios where tipo == revendedor) → 15 · 18ms
-```
-**Total: 11 lecturas** (vs ~100+ sin optimización)
 
-Ver `docs/FIREBASE_READS_MONITORING.md` para guía completa con escenarios de prueba.
+### Variables de entorno (`.env.local`)
+
+```bash
+NEXT_PUBLIC_FIREBASE_API_KEY=...
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=...
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
+NEXT_PUBLIC_FIREBASE_APP_ID=...
+```
+
+---
+
+## Comandos
+
+```bash
+npm run dev      # Servidor de desarrollo → http://localhost:3000
+npm run build    # Build de producción
+npm run lint     # ESLint
+npm test         # Vitest
+
+# Firebase
+firebase deploy --only firestore:rules    # Reglas de Firestore
+firebase deploy --only firestore:indexes  # Índices de Firestore
+firebase deploy                           # Deploy completo
+```
+
+---
+
+## Módulos
+
+| Módulo | Ruta | Descripción |
+|--------|------|-------------|
+| Dashboard | `/dashboard` | Métricas generales, gráficas, pronóstico financiero |
+| Usuarios | `/usuarios` | Clientes y revendedores (colección unificada) |
+| Servicios | `/servicios` | Catálogo de servicios de streaming |
+| Ventas | `/ventas` | Suscripciones vendidas con historial de pagos |
+| Categorías | `/categorias` | Agrupación de servicios con contadores |
+| Métodos de Pago | `/metodos-pago` | Métodos segregados por usuario/servicio |
+| Notificaciones | `/notificaciones` | Alertas de vencimiento (ventas y servicios) |
+| Editor de Mensajes | `/editor-mensajes` | Plantillas de WhatsApp personalizables |
+| Log de Actividad | `/log-actividad` | Historial de operaciones del sistema |
+
+---
+
+## Autenticación
+
+Firebase Authentication. El rol de administrador se determina por el prefijo `admin@` en el email. La sesión persiste en localStorage.
+
+---
+
+## Estructura del Proyecto
+
+```
+src/
+├── app/(dashboard)/          # Rutas Next.js App Router
+│   ├── layout.tsx
+│   ├── dashboard/
+│   ├── servicios/            # + crear/, [id]/, [id]/editar/, detalle/[id]/
+│   ├── usuarios/             # + crear/, [id]/, editar/[id]/
+│   ├── ventas/               # + crear/, [id]/, [id]/editar/
+│   ├── categorias/           # + crear/, [id]/, [id]/editar/
+│   ├── metodos-pago/         # + crear/, [id]/, [id]/editar/
+│   ├── notificaciones/
+│   ├── editor-mensajes/
+│   └── log-actividad/
+├── components/
+│   ├── layout/               # Header, Sidebar, ThemeProvider, UserMenu
+│   ├── dashboard/            # Gráficas y métricas del dashboard
+│   ├── servicios/            # Formularios, tablas y métricas de servicios
+│   ├── ventas/               # Formularios, tablas y métricas de ventas
+│   ├── usuarios/             # Tablas y formularios de usuarios
+│   ├── categorias/           # Tablas y formularios de categorías
+│   ├── metodos-pago/         # Tablas y formularios de métodos de pago
+│   ├── notificaciones/       # Bell, tablas de ventas/servicios próximos
+│   ├── editor-mensajes/      # Editor y lista de plantillas WhatsApp
+│   ├── log-actividad/        # Timeline y filtros del log
+│   ├── shared/               # PagoDialog, ConfirmDialog, MetricCard, DataTable, etc.
+│   └── ui/                   # shadcn/ui primitives
+├── hooks/
+│   ├── useServerPagination.ts
+│   ├── useVentasMetrics.ts
+│   ├── use-pagos-venta.ts
+│   ├── use-pagos-servicio.ts
+│   ├── use-ventas-usuario.ts
+│   ├── use-ventas-por-usuarios.ts
+│   ├── use-ventas-por-categorias.ts
+│   ├── use-ingreso-mensual-esperado.ts
+│   ├── use-monto-sin-consumir-total.ts
+│   ├── use-pronostico-financiero.ts
+│   └── use-sidebar.ts
+├── lib/
+│   ├── firebase/             # auth.ts, config.ts, firestore.ts, pagination.ts
+│   ├── services/             # currencyService, notificationSyncService, pagosVentaService,
+│   │                         # pagosServicioService, metricsService, dashboardStatsService, ventaSyncService
+│   └── utils/                # calculations.ts, whatsapp.ts, analytics.ts, devLogger.ts, activityLogHelpers.ts
+├── store/                    # 11 Zustand stores con caché de 5 min TTL
+└── types/                    # Tipos TypeScript por módulo
+```
+
+---
+
+## Firebase — Colecciones
+
+| Colección | Descripción |
+|-----------|-------------|
+| `usuarios` | Clientes y revendedores (`tipo: 'cliente' \| 'revendedor'`) |
+| `servicios` | Catálogo de servicios de streaming |
+| `ventas` | Suscripciones vendidas |
+| `pagosVenta` | Historial de pagos de ventas (colección separada) |
+| `pagosServicio` | Historial de pagos de servicios |
+| `categorias` | Categorías con contadores atómicos |
+| `metodosPago` | Métodos de pago (`asociadoA: 'usuario' \| 'servicio'`) |
+| `notificaciones` | Alertas de vencimiento generadas por sync diario |
+| `templates` | Plantillas de mensajes WhatsApp |
+| `activityLog` | Log de actividad del sistema |
+| `config` | Configuración global (ej. tasas de cambio) |
+| `gastos` | Gastos asociados a servicios |
+
+---
+
+## Características Principales
+
+### Multi-Moneda
+Filas individuales en moneda original. Totales agregados en USD.
+- Tasas de cambio: `open.er-api.com` (gratuito)
+- Caché de tasas: 24h en Firestore `config/exchange_rates`
+
+### Notificaciones Automáticas
+- Sincronización una vez por día (caché localStorage)
+- Ventana de alerta: 7 días antes del vencimiento
+- Prioridades: `baja` → `media` (≤7d) → `alta` (≤3d) → `critica` (vencido/hoy)
+- Bell en el header con punto pulsante para alertas no leídas
+
+### WhatsApp
+- Plantillas personalizables con placeholders dinámicos
+- Mensaje editable antes de enviar (los cambios no se guardan en plantillas)
+- Links `wa.me` generados automáticamente
+
+### Paginación y Caché
+- Tablas con >10 items usan `useServerPagination` (cursor-based, sin `getAll()`)
+- Métricas/conteos usan `getCount()` — 0 lecturas de documentos (gratuito en Spark)
+- Stores con TTL de 5 minutos y eliminaciones optimistas con rollback
+
+---
+
+## Issues Conocidos
+
+1. **Dashboard** — métricas de ejemplo estáticas, pendiente de conectar a Firebase
+2. **`VentaDoc.pagos`** — campo `@deprecated`; usar la colección `pagosVenta`
+
+---
+
+## Documentación Adicional
+
+| Tema | Archivo |
+|------|---------|
+| Paginación y caché | `docs/PAGINATION_AND_CACHE_PATTERN.md` |
+| Conversión de monedas | `docs/plans/2026-02-12-currency-conversion-design.md` |
+| Configuración Firebase | `docs/FIREBASE_SETUP.md` |
+| Monitoreo de lecturas | `docs/FIREBASE_READS_MONITORING.md` |
+| Optimizaciones React | `docs/PERFORMANCE_OPTIMIZATIONS.md` |
+| Arquitectura | `docs/ARCHITECTURE.md` |
+| Desnormalización | `docs/DENORMALIZATION_ANALYSIS_PROCESS.md` |
+
+---
+
+**Versión:** 2.4.0 | **Actualizado:** Febrero 2026

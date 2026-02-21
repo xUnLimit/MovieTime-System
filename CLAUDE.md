@@ -48,15 +48,76 @@ MovieTime PTY is a subscription management system for streaming services in Pana
 
 ```
 src/
-├── app/(dashboard)/     # Routes: dashboard, servicios, usuarios, ventas, categorias, metodos-pago
-├── components/          # By feature: layout, dashboard, servicios, ventas, usuarios, categorias, metodos-pago, shared, ui
-├── hooks/               # useServerPagination, use-ventas-por-usuarios, use-ventas-usuario, use-pagos-venta, useVentasMetrics
+├── app/(dashboard)/
+│   ├── layout.tsx
+│   ├── error.tsx
+│   ├── dashboard/
+│   ├── servicios/
+│   │   ├── crear/
+│   │   ├── [id]/
+│   │   ├── [id]/editar/
+│   │   └── detalle/[id]/
+│   ├── usuarios/
+│   │   ├── crear/
+│   │   ├── [id]/
+│   │   └── editar/[id]/
+│   ├── ventas/
+│   │   ├── crear/
+│   │   ├── [id]/
+│   │   └── [id]/editar/
+│   ├── categorias/
+│   │   ├── crear/
+│   │   ├── [id]/
+│   │   └── [id]/editar/
+│   ├── metodos-pago/
+│   │   ├── crear/
+│   │   ├── [id]/
+│   │   └── [id]/editar/
+│   ├── notificaciones/
+│   ├── editor-mensajes/
+│   └── log-actividad/
+├── components/
+│   ├── layout/          # Header, Sidebar, ThemeProvider, ThemeToggle, UserMenu
+│   ├── dashboard/       # DashboardMetrics, IngresosVsGastosChart, PronosticoFinanciero, CrecimientoUsuarios, RecentActivity, RevenueByCategory, UrgentNotifications
+│   ├── servicios/       # ServicioForm, ServicioDialog, ServiciosTable, ServiciosMetrics, ServiciosCategoriaTable, etc.
+│   ├── ventas/          # VentasForm, VentasEditForm, VentasTable, VentasMetrics, VentaPagosTable
+│   ├── usuarios/        # UsuarioForm, ClientesTable, RevendedoresTable, TodosUsuariosTable, UsuariosMetrics
+│   ├── categorias/      # CategoriaForm, CategoriaDialog, CategoriasMetrics, TodasCategoriasTable, etc.
+│   ├── metodos-pago/    # MetodoPagoForm, MetodoPagoDialog, MetodosPagoMetrics, UsuariosMetodosPagoTable, ServiciosMetodosPagoTable
+│   ├── notificaciones/  # NotificationBell, VentasProximasTable, ServiciosProximosTable, AccionesVentaDialog
+│   ├── editor-mensajes/ # TemplatesList, TemplateEditor, TemplateDialog, MessagePreview
+│   ├── log-actividad/   # LogTimeline, LogFilters, CambiosModal
+│   ├── shared/          # PagoDialog, ConfirmDialog, ConfirmDeleteVentaDialog, MetricCard, DataTable, EmptyState, PaginationFooter, ModuleErrorBoundary, ErrorBoundary, LoadingSpinner, DashboardErrorFallback
+│   └── ui/              # shadcn/ui primitives
+├── hooks/
+│   ├── useServerPagination.ts
+│   ├── useVentasMetrics.ts
+│   ├── use-ventas-por-usuarios.ts
+│   ├── use-ventas-usuario.ts
+│   ├── use-pagos-venta.ts
+│   ├── use-pagos-servicio.ts
+│   ├── use-ventas-por-categorias.ts
+│   ├── use-ingreso-mensual-esperado.ts
+│   ├── use-monto-sin-consumir-total.ts
+│   ├── use-pronostico-financiero.ts
+│   └── use-sidebar.ts
 ├── lib/
 │   ├── firebase/        # auth.ts, config.ts, firestore.ts (CRUD), pagination.ts
-│   ├── services/        # metricsService.ts, pagosVentaService.ts, currencyService.ts
-│   └── utils/           # calculations.ts, whatsapp.ts, analytics.ts, devLogger.ts
-├── store/               # 9 Zustand stores (authStore, usuariosStore, serviciosStore, ventasStore, categoriasStore, metodosPagoStore, activityLogStore, configStore, templatesStore)
-└── types/               # auth, categorias, clientes, common, dashboard, metodos-pago, servicios, ventas, whatsapp
+│   ├── services/        # metricsService.ts, pagosVentaService.ts, pagosServicioService.ts, currencyService.ts, notificationSyncService.ts, dashboardStatsService.ts, ventaSyncService.ts
+│   └── utils/           # calculations.ts, whatsapp.ts, analytics.ts, devLogger.ts, activityLogHelpers.ts, cn.ts
+├── store/               # 11 Zustand stores
+│   ├── authStore.ts
+│   ├── usuariosStore.ts
+│   ├── serviciosStore.ts
+│   ├── ventasStore.ts
+│   ├── categoriasStore.ts
+│   ├── metodosPagoStore.ts
+│   ├── notificacionesStore.ts
+│   ├── dashboardStore.ts
+│   ├── activityLogStore.ts
+│   ├── configStore.ts
+│   └── templatesStore.ts
+└── types/               # auth, categorias, clientes, common, dashboard, metodos-pago, notificaciones, servicios, ventas, whatsapp
 ```
 
 ---
@@ -68,7 +129,7 @@ src/
 COLLECTIONS = {
   USUARIOS, SERVICIOS, CATEGORIAS, METODOS_PAGO,
   ACTIVITY_LOG, CONFIG, GASTOS, TEMPLATES,
-  PAGOS_SERVICIO, VENTAS, PAGOS_VENTA
+  PAGOS_SERVICIO, VENTAS, PAGOS_VENTA, NOTIFICACIONES
 }
 ```
 
@@ -120,7 +181,9 @@ fetchItems: async (force = false) => {
 - `ventasStore` — Creates `PagoVenta` on create. Has `fetchCounts()`.
 - `categoriasStore` — Denormalized counters (totalServicios, serviciosActivos, perfilesDisponiblesTotal).
 - `metodosPagoStore` — `fetchMetodosPagoUsuarios()`, `fetchMetodosPagoServicios()`, `toggleActivo()`.
-- `activityLogStore`, `configStore`, `templatesStore` (localStorage)
+- `notificacionesStore` — Notifications with 5-min TTL. Has `fetchCounts()`, `toggleLeida()`, `toggleResaltada()`, `deleteNotificacionesPorVenta()`, `deleteNotificacionesPorServicio()`.
+- `dashboardStore` — Dashboard aggregated metrics.
+- `activityLogStore`, `configStore`, `templatesStore` — localStorage-backed.
 
 ---
 
@@ -132,6 +195,7 @@ fetchItems: async (force = false) => {
 - **`PagoVenta`** (`ventas.ts`) — Separate `pagosVenta` collection. Has `ventaId`, `clienteId`, `clienteNombre`, `metodoPago`, `moneda`.
 - **`Categoria`** (`categorias.ts`) — `totalServicios`, `serviciosActivos`, `perfilesDisponiblesTotal` counters. Has `planes: Plan[]`.
 - **`MetodoPago`** (`metodos-pago.ts`) — `asociadoA: 'usuario' | 'servicio'`.
+- **`Notificacion`** (`notificaciones.ts`) — Union type: `NotificacionVenta | NotificacionServicio`. Guards: `esNotificacionVenta()`, `esNotificacionServicio()`.
 
 **Payment Cycles**: `mensual` (1m), `trimestral` (3m), `semestral` (6m), `anual` (12m)
 
@@ -178,12 +242,27 @@ Exchange rates from `open.er-api.com` (free, no API key). Cached in Firestore `c
 - Counters managed atomically by `serviciosStore` (not manually)
 - `gastosTotal` NOT denormalized — calculated from `pagosServicio`
 
+### Notificaciones
+- Synced via `notificationSyncService.ts` — runs once per day (localStorage cache) and on manual refresh
+- `entidad`: `'venta' | 'servicio'`. Priorities: `baja | media | alta | critica`
+- `critica` = expired or due today, `alta` = ≤3 days, `media` = ≤7 days
+- Bell icon in header (`NotificationBell`) shows pulsing dot for unread; red for `critica`, yellow otherwise
+- WhatsApp message editable before sending (edits are not saved to templates)
+
+### Editor de Mensajes
+- Template management for WhatsApp notifications
+- Templates stored in Firestore `templates` collection, backed by `templatesStore`
+
+### Log de Actividad
+- Activity log stored in Firestore `activityLog` collection
+- Backed by `activityLogStore`
+
 ### Metodos de Pago
 - `asociadoA: 'usuario' | 'servicio'` — always use filtered fetch methods
 
 ### Authentication
 - Firebase Auth. Email with `admin@` = admin role.
-- Route protection: client-side in `(dashboard)/layout.tsx`, server-side placeholder in `proxy.ts`
+- Route protection: client-side in `(dashboard)/layout.tsx`
 
 ---
 
@@ -228,9 +307,8 @@ firebase deploy
 
 ## Known Issues
 
-1. `/configuracion` — sidebar link exists but route is 404
-2. Dashboard — placeholder/static data, not connected to Firebase
-3. `VentaDoc.pagos` — @deprecated embedded array; use `pagosVenta` collection
+1. Dashboard — placeholder/static data, not connected to Firebase
+2. `VentaDoc.pagos` — @deprecated embedded array; use `pagosVenta` collection
 
 ---
 
@@ -248,4 +326,4 @@ firebase deploy
 
 ---
 
-**Last Updated:** February 2026 | **Version:** 2.3.0
+**Last Updated:** February 2026 | **Version:** 2.4.0
