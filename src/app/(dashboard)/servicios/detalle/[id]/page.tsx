@@ -632,6 +632,32 @@ function ServicioDetallePageContent() {
                       {servicio.fechaVencimiento ? formatearFecha(new Date(servicio.fechaVencimiento)) : '—'}
                     </Badge>
                   </div>
+                  {servicio.fechaVencimiento && (() => {
+                    const dias = Math.ceil((new Date(servicio.fechaVencimiento).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                    let badgeClass: string;
+                    let texto: string;
+                    if (dias < 0) {
+                      badgeClass = 'border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300';
+                      texto = `${Math.abs(dias)} día${Math.abs(dias) !== 1 ? 's' : ''} de retraso`;
+                    } else if (dias === 0) {
+                      badgeClass = 'border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300';
+                      texto = 'Vence hoy';
+                    } else if (dias <= 7) {
+                      badgeClass = 'border-yellow-500/50 bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-300';
+                      texto = `${dias} día${dias !== 1 ? 's' : ''} restante${dias !== 1 ? 's' : ''}`;
+                    } else {
+                      badgeClass = 'border-green-500/50 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300';
+                      texto = `${dias} día${dias !== 1 ? 's' : ''} restante${dias !== 1 ? 's' : ''}`;
+                    }
+                    return (
+                      <div className="flex items-start gap-2">
+                        <span className="text-sm text-muted-foreground mt-0.5">Días Restantes</span>
+                        <Badge variant="outline" className={`ml-auto font-normal text-sm ${badgeClass}`}>
+                          {texto}
+                        </Badge>
+                      </div>
+                    );
+                  })()}
                   <div className="flex items-start gap-2">
                     <span className="text-sm text-muted-foreground mt-0.5">Método de Pago</span>
                     <span className="text-sm font-medium ml-auto text-right text-purple-600">{metodoPago?.nombre || 'Sin método'}</span>
