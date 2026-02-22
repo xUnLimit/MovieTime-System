@@ -178,7 +178,7 @@ export default function DashboardPage() {
               'absolute right-2 top-2 rounded-md p-1 opacity-0 transition-opacity',
               'hover:text-foreground focus:opacity-100 focus:outline-none focus:ring-2 group-hover:opacity-100',
               isRed
-                ? 'text-red-300 hover:text-red-50 focus:ring-red-400 focus:ring-offset-red-600'
+                ? 'text-red-500 hover:text-red-700 dark:text-red-300 dark:hover:text-red-50 focus:ring-red-400'
                 : 'text-yellow-600 hover:text-yellow-800',
             ].join(' ')}
           >

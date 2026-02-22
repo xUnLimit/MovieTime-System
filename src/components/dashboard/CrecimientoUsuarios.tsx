@@ -21,6 +21,7 @@ import {
 } from 'recharts';
 import { subMonths, format, eachDayOfInterval, eachMonthOfInterval, startOfMonth, endOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useTheme } from 'next-themes';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { UsuariosMes, UsuariosDia } from '@/types/dashboard';
@@ -28,6 +29,14 @@ import type { UsuariosMes, UsuariosDia } from '@/types/dashboard';
 export function CrecimientoUsuarios() {
   const [selectedPeriod, setSelectedPeriod] = useState('actual');
   const { stats, isLoading } = useDashboardStore();
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
+
+  const axisColor = isDark ? '#a1a1aa' : '#71717a';
+  const gridColor = isDark ? '#27272a' : '#e4e4e7';
+  const tooltipBg = isDark ? '#09090b' : '#ffffff';
+  const tooltipBorder = isDark ? '#3f3f46' : '#e4e4e7';
+  const tooltipText = isDark ? '#ffffff' : '#18181b';
 
   const data = useMemo(() => {
     const usuariosPorMes: UsuariosMes[] = stats?.usuariosPorMes ?? [];
@@ -126,32 +135,32 @@ export function CrecimientoUsuarios() {
                 <stop offset="100%" stopColor="#4a0d25" stopOpacity={0.3}/>
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#27272a" opacity={0.2} />
+            <CartesianGrid strokeDasharray="3 3" stroke={gridColor} opacity={0.2} />
             <XAxis
               dataKey="dia"
-              stroke="#71717a"
+              stroke={axisColor}
               fontSize={10}
               tickLine={false}
               axisLine={false}
               dy={8}
-              tick={{ fill: '#a1a1aa' }}
+              tick={{ fill: axisColor }}
               interval={selectedPeriod === 'actual' ? 1 : 0}
             />
             <YAxis
-              stroke="#71717a"
+              stroke={axisColor}
               fontSize={10}
               tickLine={false}
               axisLine={false}
               allowDecimals={false}
               domain={[0, 'auto']}
               width={35}
-              tick={{ fill: '#a1a1aa' }}
+              tick={{ fill: axisColor }}
             />
             {/* width={35} = ancho del eje Y para que quepan los números */}
             <Tooltip
               contentStyle={{
-                backgroundColor: '#09090b',
-                border: '1px solid #3f3f46',
+                backgroundColor: tooltipBg,
+                border: `1px solid ${tooltipBorder}`,
                 borderRadius: '8px',
               }}
               formatter={(value: number | undefined, name: string | undefined) => {
@@ -160,7 +169,7 @@ export function CrecimientoUsuarios() {
                 if (name === 'revendedores') return [displayValue, 'Revendedores'];
                 return [displayValue, name ?? ''];
               }}
-              labelStyle={{ color: '#ffffff' }}
+              labelStyle={{ color: tooltipText }}
               animationDuration={0}
             />
             {/* Leyenda (Clientes / Revendedores) */}

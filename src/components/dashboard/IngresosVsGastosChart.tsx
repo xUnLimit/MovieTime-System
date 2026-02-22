@@ -21,6 +21,7 @@ import {
 } from 'recharts';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, eachMonthOfInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useTheme } from 'next-themes';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { IngresosMes, IngresosDia } from '@/types/dashboard';
@@ -34,6 +35,14 @@ interface DiaData {
 export function IngresosVsGastosChart() {
   const [selectedMonth, setSelectedMonth] = useState('actual');
   const { stats, isLoading } = useDashboardStore();
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
+
+  const axisColor = isDark ? '#a1a1aa' : '#71717a';
+  const gridColor = isDark ? '#27272a' : '#e4e4e7';
+  const tooltipBg = isDark ? '#09090b' : '#ffffff';
+  const tooltipBorder = isDark ? '#3f3f46' : '#e4e4e7';
+  const tooltipText = isDark ? '#ffffff' : '#18181b';
 
   const data = useMemo((): DiaData[] => {
     const ingresosPorMes: IngresosMes[] = stats?.ingresosPorMes ?? [];
@@ -113,35 +122,35 @@ export function IngresosVsGastosChart() {
                 <stop offset="95%" stopColor="#dc2626" stopOpacity={0}/>
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#27272a" opacity={0.2} />
+            <CartesianGrid strokeDasharray="3 3" stroke={gridColor} opacity={0.2} />
             <XAxis
               dataKey="dia"
-              stroke="#71717a"
+              stroke={axisColor}
               fontSize={12}
               tickLine={false}
               axisLine={false}
               interval={selectedMonth === 'actual' ? 1 : 0}
-              tick={{ fill: '#a1a1aa' }}
+              tick={{ fill: axisColor }}
             />
             <YAxis
-              stroke="#71717a"
+              stroke={axisColor}
               fontSize={12}
               tickLine={false}
               axisLine={false}
               tickFormatter={(value) => `$${Number(value).toLocaleString()}`}
-              tick={{ fill: '#a1a1aa' }}
+              tick={{ fill: axisColor }}
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: '#09090b',
-                border: '1px solid #3f3f46',
+                backgroundColor: tooltipBg,
+                border: `1px solid ${tooltipBorder}`,
                 borderRadius: '8px',
               }}
               formatter={(value: number | undefined) => {
                 if (value === undefined) return '';
                 return `$${value.toFixed(2)}`;
               }}
-              labelStyle={{ color: '#ffffff' }}
+              labelStyle={{ color: tooltipText }}
               animationDuration={0}
             />
             <Legend

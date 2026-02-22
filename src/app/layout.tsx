@@ -18,9 +18,9 @@ export const metadata: Metadata = {
   title: "MovieTime PTY - Sistema de Gestión",
   description: "Sistema de gestión de servicios de streaming",
   icons: {
-    icon: '/logo.svg',
-    shortcut: '/logo.svg',
-    apple: '/logo.svg',
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/favicon.svg',
   },
 };
 

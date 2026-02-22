@@ -143,8 +143,8 @@ function VentaDetallePageContent() {
   const estadoLabel = venta?.estado === 'inactivo' ? 'Inactiva' : 'Activa';
   const estadoBadgeClass =
     venta?.estado === 'inactivo'
-      ? 'bg-red-600/20 text-red-400'
-      : 'bg-green-600/20 text-green-400';
+      ? 'bg-red-100 text-red-700 dark:bg-red-600/20 dark:text-red-400'
+      : 'bg-green-100 text-green-700 dark:bg-green-600/20 dark:text-green-400';
 
   const diasRestantes = useMemo(() => {
     if (!venta?.fechaFin) return 0;
@@ -726,7 +726,7 @@ function VentaDetallePageContent() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Perfil</p>
-              <p className="text-sm font-medium text-green-400">{perfilDisplay}</p>
+              <p className="text-sm font-medium text-green-600 dark:text-green-400">{perfilDisplay}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Código</p>
@@ -759,12 +759,12 @@ function VentaDetallePageContent() {
                 variant="outline"
                 className={`mt-1 font-normal ${
                   diasRestantes < 0
-                    ? 'border-red-500/50 bg-red-500/20 text-red-300'
+                    ? 'border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300'
                     : diasRestantes === 0
-                      ? 'border-red-500/50 bg-red-500/20 text-red-300'
+                      ? 'border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300'
                       : diasRestantes <= 7
-                        ? 'border-yellow-500/50 bg-yellow-500/20 text-yellow-300'
-                        : 'border-green-500/50 bg-green-500/20 text-green-300'
+                        ? 'border-yellow-500/50 bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-300'
+                        : 'border-green-500/50 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300'
                 }`}
               >
                 {diasRestantes < 0
@@ -785,7 +785,7 @@ function VentaDetallePageContent() {
                 venta.estado === 'inactivo' ? 'bg-red-500/20' : 'bg-green-500/20'
               }`}
             >
-              <User className={`h-7 w-7 ${venta.estado === 'inactivo' ? 'text-red-400' : 'text-green-400'}`} />
+              <User className={`h-7 w-7 ${venta.estado === 'inactivo' ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`} />
             </div>
             <div>
               <h3 className="text-lg font-semibold">
@@ -793,7 +793,7 @@ function VentaDetallePageContent() {
               </h3>
               <p className="text-sm text-muted-foreground">Información del servicio en uso</p>
             </div>
-            <p className={`text-sm font-medium ${venta.estado === 'inactivo' ? 'text-red-400' : 'text-green-400'}`}>
+            <p className={`text-sm font-medium ${venta.estado === 'inactivo' ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
               {venta.estado === 'inactivo' ? 'No asignado' : (venta.servicioCorreo || venta.servicioNombre)}
             </p>
             <p className="text-xs text-muted-foreground">

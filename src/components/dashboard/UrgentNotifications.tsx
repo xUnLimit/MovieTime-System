@@ -12,14 +12,14 @@ interface UrgentNotificationsProps {
 }
 
 const priorityColors: Record<string, string> = {
-  '100_dias': 'bg-red-600',
-  '11_dias': 'bg-red-500',
-  '8_dias': 'bg-orange-500',
-  '7_dias': 'bg-orange-400',
-  '3_dias': 'bg-yellow-500',
-  '2_dias': 'bg-yellow-400',
-  '1_dia': 'bg-yellow-300',
-  vencido: 'bg-red-700',
+  '100_dias': 'bg-red-600 text-white',
+  '11_dias': 'bg-red-500 text-white',
+  '8_dias': 'bg-orange-500 text-white',
+  '7_dias': 'bg-orange-400 text-orange-900',
+  '3_dias': 'bg-yellow-500 text-yellow-900',
+  '2_dias': 'bg-yellow-400 text-yellow-900',
+  '1_dia': 'bg-yellow-300 text-yellow-900',
+  vencido: 'bg-red-700 text-white',
 };
 
 const priorityLabels: Record<string, string> = {
@@ -73,7 +73,7 @@ export function UrgentNotifications({ notificaciones }: UrgentNotificationsProps
                     <p className="text-sm font-medium">{notif.titulo}</p>
                     <Badge
                       variant="outline"
-                      className={`${priorityColors[notif.prioridad]} text-white border-none`}
+                      className={`${priorityColors[notif.prioridad]} border-none`}
                     >
                       {priorityLabels[notif.prioridad]}
                     </Badge>

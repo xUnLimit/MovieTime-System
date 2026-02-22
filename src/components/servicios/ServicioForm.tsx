@@ -825,11 +825,11 @@ export function ServicioForm({ servicio, returnTo = '/servicios' }: ServicioForm
               {Array.from({ length: Number(perfilesDisponiblesValue) || 0 }).map((_, index) => (
                 <div
                   key={index}
-                  className="flex flex-col items-center justify-center p-6 rounded-lg bg-green-900/40 border border-green-700"
+                  className="flex flex-col items-center justify-center p-6 rounded-lg bg-green-100 border border-green-300 dark:bg-green-900/40 dark:border-green-700"
                 >
-                  <Users className="h-8 w-8 text-white mb-2" />
-                  <span className="text-sm font-medium text-white">Perfil {index + 1}</span>
-                  <span className="text-xs text-green-400 mt-1">Disponible</span>
+                  <Users className="h-8 w-8 text-green-700 dark:text-white mb-2" />
+                  <span className="text-sm font-medium text-green-700 dark:text-white">Perfil {index + 1}</span>
+                  <span className="text-xs text-green-600 dark:text-green-400 mt-1">Disponible</span>
                 </div>
               ))}
             </div>

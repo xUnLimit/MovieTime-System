@@ -1195,7 +1195,7 @@ export function VentasForm() {
                             {item.servicioCorreo || 'Sin correo'}
                           </p>
                           {item.perfilNumero && (
-                            <span className="mt-1 inline-flex items-center rounded-full bg-purple-600/10 text-white px-2 py-0.5 text-xs">
+                            <span className="mt-1 inline-flex items-center rounded-full bg-purple-100 text-purple-700 dark:bg-purple-600/10 dark:text-purple-300 px-2 py-0.5 text-xs">
                               {item.perfilNombre ? item.perfilNombre : `Perfil ${item.perfilNumero}`}
                             </span>
                           )}

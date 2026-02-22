@@ -285,12 +285,12 @@ function VerCategoriaPageContent() {
               return (
                 <div
                   key={plan.id}
-                  className="rounded-lg border border-blue-900/40 bg-blue-950/30 overflow-hidden cursor-pointer"
+                  className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-900/40 dark:bg-blue-950/30 overflow-hidden cursor-pointer"
                   onClick={() => setExpandedPlan(isOpen ? null : plan.id)}
                 >
                   <div className="flex items-center gap-3 px-4 py-3">
-                    <div className="w-8 h-8 rounded-full bg-blue-900/40 flex items-center justify-center shrink-0">
-                      <DollarSign className="h-3.5 w-3.5 text-blue-400" />
+                    <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center shrink-0">
+                      <DollarSign className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium">{plan.nombre || `Plan ${index + 1}`}</p>
@@ -299,11 +299,11 @@ function VerCategoriaPageContent() {
                   </div>
 
                   {isOpen && (
-                    <div className="px-4 pb-3 pt-0 border-t border-blue-900/30 mt-0">
+                    <div className="px-4 pb-3 pt-0 border-t border-blue-200 dark:border-blue-900/30 mt-0">
                       <div className="pt-3 space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-muted-foreground">Tipo de plan</span>
-                          <span className="text-xs font-medium text-blue-400">Perfiles</span>
+                          <span className="text-xs font-medium text-blue-600 dark:text-blue-400">Perfiles</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-muted-foreground">Ciclo de pago</span>

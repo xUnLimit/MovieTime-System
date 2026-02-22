@@ -622,13 +622,13 @@ function ServicioDetallePageContent() {
                   </div>
                   <div className="flex items-start gap-2">
                     <span className="text-sm text-muted-foreground mt-0.5">Fecha de Inicio</span>
-                    <Badge variant="outline" className="ml-auto font-normal text-sm bg-green-500/20 text-white border-green-500/30 [a&]:hover:bg-green-500/30 [a&]:hover:text-white">
+                    <Badge variant="outline" className="ml-auto font-normal text-sm bg-green-100 text-green-700 border-green-300 dark:bg-green-500/20 dark:text-green-300 dark:border-green-500/30 [a&]:hover:bg-green-200 dark:[a&]:hover:bg-green-500/30">
                       {servicio.fechaInicio ? formatearFecha(new Date(servicio.fechaInicio)) : '—'}
                     </Badge>
                   </div>
                   <div className="flex items-start gap-2">
                     <span className="text-sm text-muted-foreground mt-0.5">Fecha de Vencimiento</span>
-                    <Badge variant="outline" className="ml-auto font-normal text-sm bg-green-500/20 text-white border-green-500/30 [a&]:hover:bg-green-500/30 [a&]:hover:text-white">
+                    <Badge variant="outline" className="ml-auto font-normal text-sm bg-green-100 text-green-700 border-green-300 dark:bg-green-500/20 dark:text-green-300 dark:border-green-500/30 [a&]:hover:bg-green-200 dark:[a&]:hover:bg-green-500/30">
                       {servicio.fechaVencimiento ? formatearFecha(new Date(servicio.fechaVencimiento)) : '—'}
                     </Badge>
                   </div>
@@ -776,11 +776,11 @@ function ServicioDetallePageContent() {
                       </div>
                       <div className="flex items-center gap-2">
                         {perfil.estado === 'inactivo' ? (
-                          <Badge variant="secondary" className="bg-gray-700 text-gray-400 hover:bg-gray-700">
+                          <Badge variant="secondary" className="bg-gray-200 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-700">
                             Inactivo
                           </Badge>
                         ) : perfil.estado === 'disponible' ? (
-                          <Badge variant="secondary" className="bg-green-600 text-white hover:bg-green-700">
+                          <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-600 dark:text-white dark:hover:bg-green-700">
                             Disponible
                           </Badge>
                         ) : (
@@ -796,7 +796,7 @@ function ServicioDetallePageContent() {
                             <p className="text-sm text-muted-foreground">Detalles de la venta:</p>
                             {venta.ventaId && (
                               <Link href={`/ventas/${venta.ventaId}`}>
-                                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1 bg-black text-white hover:bg-black/80 hover:text-white">
+                                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1 bg-primary text-primary-foreground hover:bg-primary/90">
                                   <ExternalLink className="h-3.5 w-3.5" />
                                   Ver venta
                                 </Button>
@@ -858,16 +858,16 @@ function ServicioDetallePageContent() {
                                 let badgeText: string;
                                 if (diasRestantes < 0) {
                                   const d = Math.abs(diasRestantes);
-                                  badgeClass = 'border-red-500/50 bg-red-500/20 text-red-300';
+                                  badgeClass = 'border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300';
                                   badgeText = `${d} día${d > 1 ? 's' : ''} de retraso`;
                                 } else if (diasRestantes === 0) {
-                                  badgeClass = 'border-red-500/50 bg-red-500/20 text-red-300';
+                                  badgeClass = 'border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300';
                                   badgeText = 'Vence hoy';
                                 } else if (diasRestantes <= 7) {
-                                  badgeClass = 'border-yellow-500/50 bg-yellow-500/20 text-yellow-300';
+                                  badgeClass = 'border-yellow-500/50 bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-300';
                                   badgeText = `${diasRestantes} día${diasRestantes > 1 ? 's' : ''} restante${diasRestantes > 1 ? 's' : ''}`;
                                 } else {
-                                  badgeClass = 'border-green-500/50 bg-green-500/20 text-green-300';
+                                  badgeClass = 'border-green-500/50 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300';
                                   badgeText = `${diasRestantes} día${diasRestantes > 1 ? 's' : ''} restante${diasRestantes > 1 ? 's' : ''}`;
                                 }
                                 return (

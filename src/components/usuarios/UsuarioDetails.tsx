@@ -376,7 +376,7 @@ export function UsuarioDetails({ usuario, onVentaDeleted }: UsuarioDetailsProps)
                       )}
                     </TableCell>
                     <TableCell className="text-center">
-                      <Badge className={row.estado === 'Activa' ? 'bg-green-600/20 text-green-400' : 'bg-red-600/20 text-red-400'}>
+                      <Badge className={row.estado === 'Activa' ? 'bg-green-100 text-green-700 dark:bg-green-600/20 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-600/20 dark:text-red-400'}>
                         {row.estado}
                       </Badge>
                     </TableCell>

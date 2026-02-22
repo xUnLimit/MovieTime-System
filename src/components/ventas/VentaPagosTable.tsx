@@ -148,7 +148,7 @@ export const VentaPagosTable = memo(function VentaPagosTable({
 
       <div className="pt-3 border-t flex items-center justify-between">
         <span className="text-sm text-muted-foreground">Ingreso Total:</span>
-        <span className="text-lg font-semibold text-purple-400">
+        <span className="text-lg font-semibold text-purple-600 dark:text-purple-400">
           {isCalculatingTotal ? (
             <span className="text-xs">Calculando...</span>
           ) : (

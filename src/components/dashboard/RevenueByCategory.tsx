@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { useTheme } from 'next-themes';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   BarChart,
@@ -29,6 +30,14 @@ const COLORS = [
 export function RevenueByCategory() {
   const { stats, isLoading } = useDashboardStore();
   const { selectedYear } = useDashboardFilterStore();
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
+
+  const axisColor = isDark ? '#a1a1aa' : '#71717a';
+  const labelColor = isDark ? '#ffffff' : '#18181b';
+  const tooltipBg = isDark ? '#09090b' : '#ffffff';
+  const tooltipBorder = isDark ? '#3f3f46' : '#e4e4e7';
+  const tooltipText = isDark ? '#ffffff' : '#18181b';
 
   const { data, hasData } = useMemo(() => {
     const cutoff = `${selectedYear}-01`;
@@ -95,32 +104,32 @@ export function RevenueByCategory() {
             <BarChart data={data} layout="vertical" margin={{ left: 0, right: 50, top: 5, bottom: 5 }}>
               <XAxis
                 type="number"
-                stroke="#a1a1aa"
+                stroke={axisColor}
                 fontSize={10}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(value) => `$${value}`}
-                tick={{ fill: '#a1a1aa' }}
+                tick={{ fill: axisColor }}
               />
               <YAxis
                 type="category"
                 dataKey="categoria"
-                stroke="#ffffff"
+                stroke={labelColor}
                 fontSize={11}
                 tickLine={false}
                 axisLine={false}
                 width={90}
-                tick={{ fill: '#ffffff' }}
+                tick={{ fill: labelColor }}
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: '#09090b',
-                  border: '1px solid #3f3f46',
+                  backgroundColor: tooltipBg,
+                  border: `1px solid ${tooltipBorder}`,
                   borderRadius: '6px',
-                  color: '#ffffff',
+                  color: tooltipText,
                 }}
-                labelStyle={{ color: '#ffffff' }}
-                itemStyle={{ color: '#ffffff' }}
+                labelStyle={{ color: tooltipText }}
+                itemStyle={{ color: tooltipText }}
                 formatter={(value: number | undefined) => [`$${(value ?? 0).toFixed(2)} USD`, 'Ganancia neta']}
                 cursor={{ fill: 'hsl(var(--muted))', opacity: 0.2 }}
               />
@@ -138,7 +147,7 @@ export function RevenueByCategory() {
                   dataKey="rentabilidad"
                   position="right"
                   formatter={(value) => `$${value ?? 0}`}
-                  fill="#ffffff"
+                  fill={labelColor}
                   fontSize={11}
                 />
               </Bar>

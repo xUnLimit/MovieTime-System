@@ -66,10 +66,10 @@ export function LogTimeline({
 
   const getActionBadgeStyle = (accion: ActivityLog['accion']) => {
     const styles = {
-      creacion: 'bg-green-500/20 text-green-400 border-green-500/30',
-      actualizacion: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-      eliminacion: 'bg-red-500/20 text-red-400 border-red-500/30',
-      renovacion: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+      creacion: 'bg-green-100 text-green-700 border-green-300 dark:bg-green-500/20 dark:text-green-400 dark:border-green-500/30',
+      actualizacion: 'bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/30',
+      eliminacion: 'bg-red-100 text-red-700 border-red-300 dark:bg-red-500/20 dark:text-red-400 dark:border-red-500/30',
+      renovacion: 'bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-500/20 dark:text-purple-400 dark:border-purple-500/30',
     };
     return styles[accion];
   };

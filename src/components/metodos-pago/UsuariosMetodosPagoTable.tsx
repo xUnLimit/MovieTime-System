@@ -144,8 +144,8 @@ export function UsuariosMetodosPagoTable({ metodosPago, onEdit, title = 'Método
           variant="outline"
           className={
             item.activo
-              ? 'text-xs bg-green-500/20 text-green-400 border-green-500/30'
-              : 'text-xs bg-gray-500/20 text-gray-400 border-gray-500/30'
+              ? 'text-xs bg-green-100 text-green-700 border-green-300 dark:bg-green-500/20 dark:text-green-400 dark:border-green-500/30'
+              : 'text-xs bg-gray-100 text-gray-600 border-gray-300 dark:bg-gray-500/20 dark:text-gray-400 dark:border-gray-500/30'
           }
         >
           {item.activo ? 'Activo' : 'Inactivo'}

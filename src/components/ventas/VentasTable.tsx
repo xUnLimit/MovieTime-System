@@ -267,7 +267,7 @@ export function VentasTable({
       render: (item) => (
         <div className="flex items-center justify-center gap-1.5 font-medium">
           <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-white">{item.renovaciones}</span>
+          <span className="text-foreground">{item.renovaciones}</span>
         </div>
       ),
     },
