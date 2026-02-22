@@ -9,18 +9,20 @@ import type { Servicio } from '@/types/servicios';
 const STATS_DOC_ID = 'dashboard_stats';
 const CONFIG_COLLECTION = 'config';
 
-const EMPTY_STATS: DashboardStats = {
-  gastosTotal: 0,
-  ingresosTotal: 0,
-  usuariosPorMes: [],
-  usuariosPorDia: [],
-  ingresosPorMes: [],
-  ingresosPorDia: [],
-  ingresosPorCategoria: [],
-  ingresosCategoriasPorMes: [],
-  ventasPronostico: [],
-  serviciosPronostico: [],
-};
+function createEmptyStats(): DashboardStats {
+  return {
+    gastosTotal: 0,
+    ingresosTotal: 0,
+    usuariosPorMes: [],
+    usuariosPorDia: [],
+    ingresosPorMes: [],
+    ingresosPorDia: [],
+    ingresosPorCategoria: [],
+    ingresosCategoriasPorMes: [],
+    ventasPronostico: [],
+    serviciosPronostico: [],
+  };
+}
 
 // ===========================
 // READ (with one-time seed for pronostico arrays)
@@ -29,7 +31,7 @@ const EMPTY_STATS: DashboardStats = {
 export async function getDashboardStats(): Promise<DashboardStats> {
   const docRef = doc(db, CONFIG_COLLECTION, STATS_DOC_ID);
   const snap = await getDoc(docRef);
-  if (!snap.exists()) return { ...EMPTY_STATS };
+  if (!snap.exists()) return createEmptyStats();
 
   let data = snap.data();
 
@@ -163,7 +165,7 @@ export async function adjustIngresosStats(params: {
       const snap = await transaction.get(docRef);
       const stats = snap.exists()
         ? parseStatsFromData(snap.data())
-        : { ...EMPTY_STATS };
+        : createEmptyStats();
 
       // Update ingresosTotal
       stats.ingresosTotal = Math.max(0, stats.ingresosTotal + signedDelta);
@@ -247,7 +249,7 @@ export async function adjustGastosStats(params: {
       const snap = await transaction.get(docRef);
       const stats = snap.exists()
         ? parseStatsFromData(snap.data())
-        : { ...EMPTY_STATS };
+        : createEmptyStats();
 
       // Update gastosTotal
       stats.gastosTotal = Math.max(0, stats.gastosTotal + signedDelta);
@@ -330,7 +332,7 @@ export async function adjustUsuariosPorMes(params: {
       const snap = await transaction.get(docRef);
       const stats = snap.exists()
         ? parseStatsFromData(snap.data())
-        : { ...EMPTY_STATS };
+        : createEmptyStats();
 
       // Update usuariosPorMes
       const mesEntry = stats.usuariosPorMes.find((m) => m.mes === mes);
@@ -472,7 +474,7 @@ export async function rebuildDashboardStats(): Promise<void> {
   // Ensure exchange rates are loaded
   await currencyService.ensureRatesLoaded();
 
-  const stats: DashboardStats = { ...EMPTY_STATS };
+  const stats: DashboardStats = createEmptyStats();
 
   // Pre-build lookup maps for O(1) access inside loops
   const ventasPorId = new Map(ventas.map((v) => [v.id, v]));
