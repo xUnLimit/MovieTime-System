@@ -35,10 +35,11 @@ import type { NotificacionVenta } from '@/types/notificaciones';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import type { MetodoPago } from '@/types/metodos-pago';
+import type { Plan } from '@/types/categorias';
 import { useVentasStore } from '@/store/ventasStore';
 import { useServiciosStore } from '@/store/serviciosStore';
 import type { VentaDoc } from '@/types/ventas';
-import { update, adjustServiciosActivos } from '@/lib/firebase/firestore';
+import { update, adjustServiciosActivos, getById, COLLECTIONS } from '@/lib/firebase/firestore';
 import { crearPagoRenovacion } from '@/lib/services/pagosVentaService';
 import { generarMensajeVenta, openWhatsApp } from '@/lib/utils/whatsapp';
 import { PagoDialog } from '@/components/shared/PagoDialog';
@@ -170,6 +171,7 @@ export function VentasProximasTable() {
   const [accionesDialogOpen, setAccionesDialogOpen] = useState(false);
   const [notifSeleccionada, setNotifSeleccionada] = useState<(NotificacionVenta & { id: string }) | null>(null);
   const [metodosPagoUsuarios, setMetodosPagoUsuarios] = useState<MetodoPago[]>([]);
+  const [categoriaPlanes, setCategoriaPlanes] = useState<Plan[]>([]);
 
   // Get venta notifications (type-safe filtering)
   const ventasNotificaciones = useMemo(() => {
@@ -322,8 +324,19 @@ export function VentasProximasTable() {
    */
   const handleRenovar = async (notif: NotificacionVenta & { id: string }) => {
     setNotifSeleccionada(notif);
-    // Fetch payment methods for usuarios
-    const metodos = await fetchMetodosPagoUsuarios();
+    setCategoriaPlanes([]);
+    // Fetch payment methods and categoria planes in parallel
+    const [metodos] = await Promise.all([
+      fetchMetodosPagoUsuarios(),
+      (async () => {
+        if (notif.categoriaId) {
+          const categoriaDoc = await getById<Record<string, unknown>>(COLLECTIONS.CATEGORIAS, notif.categoriaId);
+          if (categoriaDoc && Array.isArray(categoriaDoc.planes)) {
+            setCategoriaPlanes(categoriaDoc.planes as Plan[]);
+          }
+        }
+      })(),
+    ]);
     setMetodosPagoUsuarios(metodos);
     setRenovarDialogOpen(true);
   };
@@ -792,6 +805,8 @@ export function VentasProximasTable() {
             fechaFin: new Date(notifSeleccionada.fechaFin),
           }}
           metodosPago={metodosPagoUsuarios}
+          categoriaPlanes={categoriaPlanes}
+          tipoPlan={undefined}
           onConfirm={handleConfirmRenovacion}
           clienteNombre={notifSeleccionada.clienteNombre}
           clienteSoloNombre={notifSeleccionada.clienteNombre.split(' ')[0]}
