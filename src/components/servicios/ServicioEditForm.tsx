@@ -138,29 +138,33 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
   // NO auto-actualizar precio cuando cambia el ciclo en modo edición
   // El usuario puede tener un costo personalizado que no debe ser sobreescrito
 
-  // Auto-calcular fechaVencimiento cuando cambia el ciclo (DESPUÉS de inicialización)
+  // Auto-calcular fechaVencimiento cuando cambia el ciclo o la fecha de inicio (DESPUÉS de inicialización)
+  const [lastFechaInicioTime, setLastFechaInicioTime] = useState<number | null>(null);
+
   useEffect(() => {
     if (!cicloInicializado || !fechaInicioValue) return;
 
     const cicloChanged = lastCicloId !== null && lastCicloId !== cicloPagoValue;
-    if (cicloChanged) {
+    const fechaInicioChanged = lastFechaInicioTime !== null && lastFechaInicioTime !== fechaInicioValue.getTime();
+
+    if (cicloChanged || fechaInicioChanged) {
       const meses = CYCLE_MONTHS[cicloPagoValue as keyof typeof CYCLE_MONTHS] ?? 1;
       const fechaCalculada = addMonths(new Date(fechaInicioValue), meses);
-
-      // Solo actualizar si es diferente (tolerancia de 1 día)
-      if (!fechaVencimientoValue || Math.abs(fechaCalculada.getTime() - fechaVencimientoValue.getTime()) > 86400000) {
-        setValue('fechaVencimiento', fechaCalculada);
-      }
+      setValue('fechaVencimiento', fechaCalculada);
     }
-  }, [cicloPagoValue, fechaInicioValue, setValue, fechaVencimientoValue, cicloInicializado, lastCicloId]);
 
-  // Inicializar el ciclo solo una vez
+    if (cicloChanged) setLastCicloId(cicloPagoValue);
+    if (fechaInicioChanged) setLastFechaInicioTime(fechaInicioValue.getTime());
+  }, [cicloPagoValue, fechaInicioValue, setValue, cicloInicializado, lastCicloId, lastFechaInicioTime]);
+
+  // Inicializar el ciclo y fecha solo una vez
   useEffect(() => {
     if (!cicloInicializado && cicloPagoValue) {
       setLastCicloId(cicloPagoValue);
+      setLastFechaInicioTime(fechaInicioValue?.getTime() ?? null);
       setCicloInicializado(true);
     }
-  }, [cicloPagoValue, cicloInicializado]);
+  }, [cicloPagoValue, fechaInicioValue, cicloInicializado]);
 
   // Detectar si hay cambios en el formulario
   const hasChanges = useMemo(() => {

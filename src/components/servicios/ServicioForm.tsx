@@ -72,6 +72,7 @@ export function ServicioForm({ servicio, returnTo = '/servicios' }: ServicioForm
   const [openFechaInicio, setOpenFechaInicio] = useState(false);
   const [openFechaVencimiento, setOpenFechaVencimiento] = useState(false);
   const prevCicloPagoRef = useRef(servicio?.cicloPago ?? 'mensual');
+  const prevFechaInicioRef = useRef<Date | null>(servicio?.fechaInicio ? new Date(servicio.fechaInicio) : null);
 
   // Cargar solo métodos de pago para servicios al montar
   useEffect(() => {
@@ -236,21 +237,25 @@ export function ServicioForm({ servicio, returnTo = '/servicios' }: ServicioForm
     }
   }, [perfilesDisponiblesValue, errors.perfilesDisponibles, clearErrors]);
 
-  // Al editar: nunca recalcular por efecto (respeta la fecha de vencimiento guardada o manual)
-  // Al crear: auto-calcular fecha de vencimiento cuando cambia el ciclo o la fecha de inicio
+  // Auto-calcular fecha de vencimiento cuando cambia el ciclo o la fecha de inicio
+  // En edición: también recalcular si el usuario cambia fechaInicio manualmente
   useEffect(() => {
-    if (servicio?.id) return;
     if (!fechaInicioValue) return;
     const cicloChanged = prevCicloPagoRef.current !== cicloPagoValue;
+    const fechaInicioChanged = prevFechaInicioRef.current?.getTime() !== fechaInicioValue.getTime();
     if (cicloChanged) {
       prevCicloPagoRef.current = cicloPagoValue;
       setManualFechaVencimiento(false);
     }
-    if (cicloChanged || !manualFechaVencimiento) {
+    if (fechaInicioChanged) {
+      prevFechaInicioRef.current = fechaInicioValue;
+      setManualFechaVencimiento(false);
+    }
+    if (cicloChanged || fechaInicioChanged || !manualFechaVencimiento) {
       const meses = cicloPagoValue === 'mensual' ? 1 : cicloPagoValue === 'trimestral' ? 3 : cicloPagoValue === 'semestral' ? 6 : 12;
       setValue('fechaVencimiento', addMonths(fechaInicioValue, meses));
     }
-  }, [cicloPagoValue, fechaInicioValue, manualFechaVencimiento, setValue, servicio?.id]);
+  }, [cicloPagoValue, fechaInicioValue, manualFechaVencimiento, setValue]);
 
   const handleCicloPagoChange = (ciclo: 'mensual' | 'trimestral' | 'semestral' | 'anual') => {
     setValue('cicloPago', ciclo);

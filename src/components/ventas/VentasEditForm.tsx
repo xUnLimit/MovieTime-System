@@ -276,34 +276,37 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
     }
   }, [planSeleccionado, setValue, precioInicializado, planIdValue, lastPlanId]);
 
+  // Track last fechaInicio to detect manual changes
+  const [lastFechaInicioTime, setLastFechaInicioTime] = useState<number | null>(null);
+
   // Marcar las fechas como inicializadas una vez que se cargan desde la venta
   useEffect(() => {
     if (fechaInicioValue && fechaFinValue && !fechasInicializadas) {
+      setLastFechaInicioTime(fechaInicioValue.getTime());
       setFechasInicializadas(true);
     }
   }, [fechaInicioValue, fechaFinValue, fechasInicializadas]);
 
   useEffect(() => {
-    // Solo calcular si hay un plan seleccionado y una fecha de inicio
-    if (!planSeleccionado || !fechaInicioValue) return;
+    // Solo calcular si hay un plan seleccionado, una fecha de inicio, y ya se inicializó
+    if (!planSeleccionado || !fechaInicioValue || !fechasInicializadas) return;
 
     // Detectar si el plan cambió manualmente
     const planCambio = lastPlanId !== null && lastPlanId !== planIdValue;
+    // Detectar si la fecha de inicio cambió manualmente
+    const fechaInicioCambio = lastFechaInicioTime !== null && lastFechaInicioTime !== fechaInicioValue.getTime();
 
-    // Si el plan cambió manualmente O no ha sido inicializado aún, recalcular
-    if (!planInicializado || planCambio) {
+    // Si el plan o la fecha de inicio cambiaron, recalcular
+    if (planCambio || fechaInicioCambio) {
       const meses = MESES_POR_CICLO[planSeleccionado.cicloPago] ?? 1;
       const fechaCalculada = addMonths(new Date(fechaInicioValue), meses);
-
-      // Solo actualizar si es diferente (evitar loops)
-      if (!fechaFinValue || Math.abs(fechaCalculada.getTime() - fechaFinValue.getTime()) > 86400000) {
-        setValue('fechaFin', fechaCalculada);
-      }
+      setValue('fechaFin', fechaCalculada);
     }
 
-    // Actualizar el último plan ID
-    setLastPlanId(planIdValue);
-  }, [planSeleccionado, fechaInicioValue, setValue, fechaFinValue, planInicializado, planIdValue, lastPlanId]);
+    // Actualizar tracking
+    if (planCambio) setLastPlanId(planIdValue);
+    if (fechaInicioCambio) setLastFechaInicioTime(fechaInicioValue.getTime());
+  }, [planSeleccionado, fechaInicioValue, setValue, planIdValue, lastPlanId, fechasInicializadas, lastFechaInicioTime]);
 
   // Efecto para pre-seleccionar el plan cuando los planes están disponibles (solo una vez)
   useEffect(() => {
