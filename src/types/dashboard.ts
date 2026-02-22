@@ -22,6 +22,9 @@ export interface DashboardStats {
   // Chart: Revenue by category (cumulative)
   ingresosPorCategoria: IngresoCategoria[];
 
+  // Chart: Revenue by category with month breakdown (for year filter)
+  ingresosCategoriasPorMes?: IngresoCategoriaMes[];
+
   // Financial forecast (next 4 months, pre-computed — no extra reads on load)
   pronostico?: PronosticoMensual[];
 
@@ -81,6 +84,14 @@ export interface IngresoCategoria {
   nombre: string;
   total: number; // USD — ingresos (pagosVenta)
   gastos?: number; // USD — gastos (pagosServicio)
+}
+
+export interface IngresoCategoriaMes {
+  mes: string;       // "YYYY-MM"
+  categoriaId: string;
+  nombre: string;
+  total: number;     // USD — ingresos
+  gastos: number;    // USD — gastos
 }
 
 export interface DashboardCounts {

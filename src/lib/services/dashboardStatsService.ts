@@ -2,7 +2,7 @@ import { doc, getDoc, setDoc, runTransaction, Timestamp } from 'firebase/firesto
 import { db } from '@/lib/firebase/config';
 import { currencyService } from '@/lib/services/currencyService';
 import { format } from 'date-fns';
-import type { DashboardStats, UsuariosMes, IngresosMes, IngresoCategoria, IngresosDia, UsuariosDia, VentaPronostico, ServicioPronostico } from '@/types/dashboard';
+import type { DashboardStats, UsuariosMes, IngresosMes, IngresoCategoria, IngresoCategoriaMes, IngresosDia, UsuariosDia, VentaPronostico, ServicioPronostico } from '@/types/dashboard';
 import type { VentaDoc } from '@/types/ventas';
 import type { Servicio } from '@/types/servicios';
 
@@ -17,6 +17,7 @@ const EMPTY_STATS: DashboardStats = {
   ingresosPorMes: [],
   ingresosPorDia: [],
   ingresosPorCategoria: [],
+  ingresosCategoriasPorMes: [],
   ventasPronostico: [],
   serviciosPronostico: [],
 };
@@ -90,6 +91,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     ingresosPorMes: data.ingresosPorMes ?? [],
     ingresosPorDia: data.ingresosPorDia ?? [],
     ingresosPorCategoria: data.ingresosPorCategoria ?? [],
+    ingresosCategoriasPorMes: data.ingresosCategoriasPorMes ?? [],
     pronostico: data.pronostico ?? undefined,
     ventasPronostico: data.ventasPronostico ?? [],
     serviciosPronostico: data.serviciosPronostico ?? [],
@@ -132,6 +134,7 @@ function parseStatsFromData(data: Record<string, unknown>): DashboardStats {
     ingresosPorMes: (data.ingresosPorMes as IngresosMes[]) ?? [],
     ingresosPorDia: (data.ingresosPorDia as IngresosDia[]) ?? [],
     ingresosPorCategoria: (data.ingresosPorCategoria as IngresoCategoria[]) ?? [],
+    ingresosCategoriasPorMes: (data.ingresosCategoriasPorMes as IngresoCategoriaMes[]) ?? [],
     ventasPronostico: (data.ventasPronostico as VentaPronostico[]) ?? [],
     serviciosPronostico: (data.serviciosPronostico as ServicioPronostico[]) ?? [],
   };
@@ -197,6 +200,23 @@ export async function adjustIngresosStats(params: {
         });
       }
 
+      // Update ingresosCategoriasPorMes (for year filter)
+      if (!stats.ingresosCategoriasPorMes) stats.ingresosCategoriasPorMes = [];
+      const catMesEntry = stats.ingresosCategoriasPorMes.find(
+        (c) => c.categoriaId === categoriaId && c.mes === mes
+      );
+      if (catMesEntry) {
+        catMesEntry.total = Math.max(0, catMesEntry.total + signedDelta);
+      } else {
+        stats.ingresosCategoriasPorMes.push({
+          mes,
+          categoriaId,
+          nombre: categoriaNombre,
+          total: Math.max(0, signedDelta),
+          gastos: 0,
+        });
+      }
+
       transaction.set(docRef, { ...stats, updatedAt: Timestamp.now() }, { merge: true });
     });
   } catch (error) {
@@ -259,6 +279,23 @@ export async function adjustGastosStats(params: {
           catEntry.gastos = Math.max(0, (catEntry.gastos ?? 0) + signedDelta);
         } else {
           stats.ingresosPorCategoria.push({
+            categoriaId,
+            nombre: categoriaNombre ?? categoriaId,
+            total: 0,
+            gastos: Math.max(0, signedDelta),
+          });
+        }
+
+        // Update ingresosCategoriasPorMes gastos (for year filter)
+        if (!stats.ingresosCategoriasPorMes) stats.ingresosCategoriasPorMes = [];
+        const catMesEntry = stats.ingresosCategoriasPorMes.find(
+          (c) => c.categoriaId === categoriaId && c.mes === mes
+        );
+        if (catMesEntry) {
+          catMesEntry.gastos = Math.max(0, catMesEntry.gastos + signedDelta);
+        } else {
+          stats.ingresosCategoriasPorMes.push({
+            mes,
             categoriaId,
             nombre: categoriaNombre ?? categoriaId,
             total: 0,
@@ -482,6 +519,16 @@ export async function rebuildDashboardStats(): Promise<void> {
       } else {
         stats.ingresosPorCategoria.push({ categoriaId, nombre: categoriaNombre, total: usd });
       }
+
+      // ingresosCategoriasPorMes
+      const catMesEntry = stats.ingresosCategoriasPorMes!.find(
+        (c) => c.categoriaId === categoriaId && c.mes === mes
+      );
+      if (catMesEntry) {
+        catMesEntry.total += usd;
+      } else {
+        stats.ingresosCategoriasPorMes!.push({ mes, categoriaId, nombre: categoriaNombre, total: usd, gastos: 0 });
+      }
     }
   }
 
@@ -523,12 +570,22 @@ export async function rebuildDashboardStats(): Promise<void> {
     // gastos por categoría — categoriaId está denormalizado en PagoServicio
     const categoriaId = pago.categoriaId || serviciosCategoriaMap.get(pago.servicioId)?.categoriaId;
     if (categoriaId) {
+      const categoriaNombre = serviciosCategoriaMap.get(pago.servicioId)?.categoriaNombre ?? categoriaId;
       const catEntry = stats.ingresosPorCategoria.find((c) => c.categoriaId === categoriaId);
       if (catEntry) {
         catEntry.gastos = (catEntry.gastos ?? 0) + usd;
       } else {
-        const categoriaNombre = serviciosCategoriaMap.get(pago.servicioId)?.categoriaNombre ?? categoriaId;
         stats.ingresosPorCategoria.push({ categoriaId, nombre: categoriaNombre, total: 0, gastos: usd });
+      }
+
+      // ingresosCategoriasPorMes gastos
+      const catMesEntry = stats.ingresosCategoriasPorMes!.find(
+        (c) => c.categoriaId === categoriaId && c.mes === mes
+      );
+      if (catMesEntry) {
+        catMesEntry.gastos += usd;
+      } else {
+        stats.ingresosCategoriasPorMes!.push({ mes, categoriaId, nombre: categoriaNombre, total: 0, gastos: usd });
       }
     }
   }

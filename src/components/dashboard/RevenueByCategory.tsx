@@ -13,8 +13,8 @@ import {
   LabelList,
 } from 'recharts';
 import { useDashboardStore } from '@/store/dashboardStore';
+import { useDashboardFilterStore } from '@/store/dashboardFilterStore';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { IngresoCategoria } from '@/types/dashboard';
 
 const COLORS = [
   '#3b82f6', // blue
@@ -28,18 +28,50 @@ const COLORS = [
 
 export function RevenueByCategory() {
   const { stats, isLoading } = useDashboardStore();
+  const { selectedYear } = useDashboardFilterStore();
 
   const { data, hasData } = useMemo(() => {
-    const ingresosPorCategoria: IngresoCategoria[] = stats?.ingresosPorCategoria ?? [];
-    const mapped = ingresosPorCategoria.map((c) => ({
+    const cutoff = `${selectedYear}-01`;
+    const porMes = stats?.ingresosCategoriasPorMes ?? [];
+
+    // Aggregate from per-month breakdown filtered by year
+    const totalesPorCategoria = new Map<string, { nombre: string; total: number; gastos: number }>();
+    const filteredMeses = porMes.filter((e) => e.mes >= cutoff);
+
+    if (filteredMeses.length > 0) {
+      for (const entry of filteredMeses) {
+        const existing = totalesPorCategoria.get(entry.categoriaId);
+        if (existing) {
+          existing.total += entry.total;
+          existing.gastos += entry.gastos;
+        } else {
+          totalesPorCategoria.set(entry.categoriaId, {
+            nombre: entry.nombre,
+            total: entry.total,
+            gastos: entry.gastos,
+          });
+        }
+      }
+    } else {
+      // Fallback: use cumulative ingresosPorCategoria if no per-month data yet
+      for (const c of (stats?.ingresosPorCategoria ?? [])) {
+        totalesPorCategoria.set(c.categoriaId, {
+          nombre: c.nombre,
+          total: c.total,
+          gastos: c.gastos ?? 0,
+        });
+      }
+    }
+
+    const mapped = Array.from(totalesPorCategoria.values()).map((c) => ({
       categoria: c.nombre,
-      rentabilidad: Math.round(c.total - (c.gastos ?? 0)),
+      rentabilidad: Math.round(c.total - c.gastos),
     }));
     const filtered = mapped.filter((c) => c.rentabilidad !== 0);
     const hasData = filtered.length > 0;
     const data = filtered.sort((a, b) => b.rentabilidad - a.rentabilidad);
     return { data, hasData };
-  }, [stats]);
+  }, [stats, selectedYear]);
 
   return (
     <Card>
