@@ -352,9 +352,13 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
 
   const slotsDisponibles = useMemo(() => {
     if (!servicioSeleccionado) return 0;
-    const ocupadosActual = servicioSeleccionado.perfilesOcupados || 0;
-    const ocupadosEnVentas = perfilesOcupadosVenta[servicioIdValue]?.size || 0;
-    return Math.max((servicioSeleccionado.perfilesDisponibles || 0) - ocupadosActual - ocupadosEnVentas, 0);
+    // perfilesOcupadosVenta ya excluye la venta actual (doc.id === venta.id)
+    // Es la fuente de verdad real; no combinar con perfilesOcupados para evitar doble conteo
+    if (perfilesOcupadosVenta[servicioIdValue] !== undefined) {
+      return Math.max((servicioSeleccionado.perfilesDisponibles || 0) - perfilesOcupadosVenta[servicioIdValue].size, 0);
+    }
+    // Mientras carga, usar el campo denormalizado como fallback
+    return Math.max((servicioSeleccionado.perfilesDisponibles || 0) - (servicioSeleccionado.perfilesOcupados || 0), 0);
   }, [servicioSeleccionado, perfilesOcupadosVenta, servicioIdValue]);
 
   const simboloMoneda = getCurrencySymbol(metodoPagoSeleccionado?.moneda || venta.moneda);
