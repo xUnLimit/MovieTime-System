@@ -34,7 +34,7 @@ export function DashboardMetrics() {
       <MetricCard
         title="Gastos Totales"
         value={isLoading ? '...' : formatUSD(gastosTotal)}
-        description={`Gastos acumulados desde ${selectedYear}`}
+        description="Suma del costo de todos los servicios"
         icon={TrendingDown}
         iconColor="text-red-500"
         borderColor="border-l-red-500"
@@ -43,7 +43,7 @@ export function DashboardMetrics() {
       <MetricCard
         title="Ingresos Totales"
         value={isLoading ? '...' : formatUSD(ingresosTotal)}
-        description={`Ingresos acumulados desde ${selectedYear}`}
+        description="Suma de todas las ventas"
         icon={TrendingUp}
         iconColor="text-blue-500"
         borderColor="border-l-blue-500"
@@ -53,7 +53,7 @@ export function DashboardMetrics() {
         title="Ganancias Totales"
         value={isLoading ? '...' : formatUSD(gananciasTotal)}
         valueColor={isLoading ? undefined : gananciasTotal >= 0 ? 'text-green-500' : 'text-red-500'}
-        description={`Ingresos menos gastos desde ${selectedYear}`}
+        description="Ingresos totales menos gastos totales"
         icon={Wallet}
         iconColor="text-green-500"
         borderColor="border-l-green-500"
