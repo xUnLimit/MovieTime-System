@@ -207,12 +207,21 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
   );
 
   const serviciosOrdenados = useMemo(() => {
-    return [...serviciosCategoria].sort((a, b) => {
-      const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return bDate - aDate;
-    });
-  }, [serviciosCategoria]);
+    return [...serviciosCategoria]
+      .filter((servicio) => {
+        // Siempre mostrar el servicio actual de la venta (aunque esté lleno o inactivo)
+        if (servicio.id === venta.servicioId) return true;
+        // Solo mostrar servicios activos con perfiles disponibles
+        if (!servicio.activo) return false;
+        const disponibles = (servicio.perfilesDisponibles || 0) - (servicio.perfilesOcupados || 0);
+        return disponibles > 0;
+      })
+      .sort((a, b) => {
+        const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return bDate - aDate;
+      });
+  }, [serviciosCategoria, venta.servicioId]);
 
   const servicioSeleccionado = serviciosCategoria.find((s) => s.id === servicioIdValue);
 
