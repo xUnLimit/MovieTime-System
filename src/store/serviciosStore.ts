@@ -261,6 +261,32 @@ export const useServiciosStore = create<ServiciosState>()(
             });
           }
 
+          // Sync dashboard forecast when activo changes
+          if (updates.activo !== undefined && updates.activo !== servicio.activo) {
+            const updatedServicio = { ...servicio, ...finalUpdates };
+            const servicioPronostico = toServicioPronostico(updatedServicio as Servicio);
+
+            // Update local dashboard state immediately + invalidate cache
+            import('./dashboardStore').then(({ useDashboardStore }) => {
+              const store = useDashboardStore.getState();
+              const currentStats = store.stats;
+              if (currentStats) {
+                const existing = currentStats.serviciosPronostico ?? [];
+                const updated = servicioPronostico
+                  ? existing.some(s => s.id === id)
+                    ? existing.map(s => s.id === id ? servicioPronostico : s)
+                    : [...existing, servicioPronostico]
+                  : existing.filter(s => s.id !== id);
+                useDashboardStore.setState({
+                  stats: { ...currentStats, serviciosPronostico: updated },
+                });
+              }
+              store.invalidateCache();
+            }).catch(() => {});
+
+            upsertServicioPronostico(servicioPronostico, id).catch(() => {});
+          }
+
           // Si se cambia perfilesDisponibles y el servicio está activo, actualizar el contador de la categoría
           if (
             updates.perfilesDisponibles !== undefined &&

@@ -33,6 +33,7 @@ import { usePagosServicio } from '@/hooks/use-pagos-servicio';
 import { crearPagoRenovacion } from '@/lib/services/pagosServicioService';
 import { useActivityLogStore } from '@/store/activityLogStore';
 import { useAuthStore } from '@/store/authStore';
+import { adjustGastosStats, getMesKeyFromDate, getDiaKeyFromDate, upsertServicioPronostico } from '@/lib/services/dashboardStatsService';
 
 interface PerfilVenta {
   ventaId?: string;
@@ -368,6 +369,29 @@ function ServicioDetallePageContent() {
       if (servicio?.categoriaId) {
         await adjustCategoriaGastos(servicio.categoriaId, costoRenovacionUSD);
       }
+
+      // Sync dashboard gastos for the new payment
+      adjustGastosStats({
+        delta: data.costo,
+        moneda: data.moneda || metodoPagoSeleccionado?.moneda || 'USD',
+        mes: getMesKeyFromDate(data.fechaInicio),
+        dia: getDiaKeyFromDate(data.fechaInicio),
+        categoriaId: servicio?.categoriaId,
+        categoriaNombre: servicio?.categoriaNombre,
+      }).catch(() => {});
+
+      // Update forecast with new dates
+      upsertServicioPronostico({
+        id,
+        fechaVencimiento: data.fechaVencimiento.toISOString(),
+        cicloPago: data.periodoRenovacion,
+        costoServicio: data.costo,
+        moneda: data.moneda || metodoPagoSeleccionado?.moneda || 'USD',
+      }, id).catch(() => {});
+      // Invalidate dashboard cache so it re-fetches on next visit
+      import('@/store/dashboardStore').then(({ useDashboardStore }) => {
+        useDashboardStore.getState().invalidateCache();
+      }).catch(() => {});
 
       await updateServicio(id, {
         fechaInicio: data.fechaInicio,

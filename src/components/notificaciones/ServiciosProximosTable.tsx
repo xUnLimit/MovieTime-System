@@ -66,6 +66,7 @@ import { currencyService } from '@/lib/services/currencyService';
 import { useActivityLogStore } from '@/store/activityLogStore';
 import { useAuthStore } from '@/store/authStore';
 import { format } from 'date-fns';
+import { adjustGastosStats, getMesKeyFromDate, getDiaKeyFromDate, upsertServicioPronostico } from '@/lib/services/dashboardStatsService';
 
 /**
  * Get bell icon color based on days remaining
@@ -337,6 +338,29 @@ export function ServiciosProximosTable() {
       if (servicioParaRenovar.categoriaId) {
         await adjustCategoriaGastos(servicioParaRenovar.categoriaId, costoUSD);
       }
+
+      // Sync dashboard gastos for the new payment
+      adjustGastosStats({
+        delta: data.costo,
+        moneda: data.moneda || metodoPagoSeleccionado?.moneda || 'USD',
+        mes: getMesKeyFromDate(data.fechaInicio),
+        dia: getDiaKeyFromDate(data.fechaInicio),
+        categoriaId: servicioParaRenovar.categoriaId,
+        categoriaNombre: servicioParaRenovar.categoriaNombre,
+      }).catch(() => {});
+
+      // Update forecast with new dates
+      upsertServicioPronostico({
+        id: servicioId,
+        fechaVencimiento: data.fechaVencimiento.toISOString(),
+        cicloPago: data.periodoRenovacion,
+        costoServicio: data.costo,
+        moneda: data.moneda || metodoPagoSeleccionado?.moneda || 'USD',
+      }, servicioId).catch(() => {});
+      // Invalidate dashboard cache so it re-fetches on next visit
+      import('@/store/dashboardStore').then(({ useDashboardStore }) => {
+        useDashboardStore.getState().invalidateCache();
+      }).catch(() => {});
 
       // Update servicio with new dates and cost
       await update(COLLECTIONS.SERVICIOS, servicioId, {

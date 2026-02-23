@@ -41,6 +41,7 @@ import { useServiciosStore } from '@/store/serviciosStore';
 import type { VentaDoc } from '@/types/ventas';
 import { update, adjustServiciosActivos, getById, COLLECTIONS } from '@/lib/firebase/firestore';
 import { crearPagoRenovacion } from '@/lib/services/pagosVentaService';
+import { upsertVentaPronostico, adjustIngresosStats, getMesKeyFromDate, getDiaKeyFromDate } from '@/lib/services/dashboardStatsService';
 import { generarMensajeVenta, openWhatsApp } from '@/lib/utils/whatsapp';
 import { PagoDialog } from '@/components/shared/PagoDialog';
 import type { EnrichedPagoDialogFormData } from '@/components/shared/PagoDialog';
@@ -388,6 +389,20 @@ export function VentasProximasTable() {
         detalles: `Venta renovada: ${notifSeleccionada.clienteNombre} / ${notifSeleccionada.servicioNombre} — $${monto.toFixed(2)} ${data.moneda ?? 'USD'} — hasta ${format(data.fechaVencimiento, 'dd/MM/yyyy')} (${data.periodoRenovacion})`,
       }).catch(() => {});
 
+      // Sync dashboard ingresos for the new payment
+      adjustIngresosStats({
+        delta: monto,
+        moneda: data.moneda || metodoPagoSeleccionado?.moneda || notifSeleccionada.moneda || 'USD',
+        mes: getMesKeyFromDate(data.fechaInicio),
+        dia: getDiaKeyFromDate(data.fechaInicio),
+        categoriaId: notifSeleccionada.categoriaId || '',
+        categoriaNombre: notifSeleccionada.categoriaNombre || '',
+      }).catch(() => {});
+      // Invalidate dashboard cache so it re-fetches on next visit
+      import('@/store/dashboardStore').then(({ useDashboardStore }) => {
+        useDashboardStore.getState().invalidateCache();
+      }).catch(() => {});
+
       // ✅ Eliminar notificaciones de esta venta (auto-cleanup al renovar)
       await deleteNotificacionesPorVenta(notifSeleccionada.ventaId);
       fetchNotificaciones(true);
@@ -498,6 +513,13 @@ export function VentasProximasTable() {
         entidadId: notifSeleccionada.ventaId,
         entidadNombre: `${notifSeleccionada.clienteNombre} — ${notifSeleccionada.servicioNombre}`,
         detalles: `Venta cortada: ${notifSeleccionada.clienteNombre} / ${notifSeleccionada.servicioNombre} — estado cambiado a inactivo, perfil liberado`,
+      }).catch(() => {});
+
+      // Remove from dashboard forecast
+      upsertVentaPronostico(null, notifSeleccionada.ventaId).catch(() => {});
+      // Invalidate dashboard cache so it re-fetches on next visit
+      import('@/store/dashboardStore').then(({ useDashboardStore }) => {
+        useDashboardStore.getState().invalidateCache();
       }).catch(() => {});
 
       toast.success('Venta cortada exitosamente');

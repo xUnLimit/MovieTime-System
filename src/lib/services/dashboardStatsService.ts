@@ -685,44 +685,6 @@ export async function rebuildDashboardStats(): Promise<void> {
   stats.ingresosPorMes = stats.ingresosPorMes.sort((a, b) => a.mes.localeCompare(b.mes));
   stats.usuariosPorMes = stats.usuariosPorMes.sort((a, b) => a.mes.localeCompare(b.mes));
 
-  // ---------- RECALCULAR gastosTotal POR SERVICIO ----------
-  // Agrupar pagosServicio por servicioId y sumar en USD
-  const gastosPorServicio = new Map<string, number>();
-  for (const pago of pagosServicio) {
-    const usd = currencyService.convertToUSDSync(pago.monto || 0, pago.moneda || 'USD');
-    gastosPorServicio.set(pago.servicioId, (gastosPorServicio.get(pago.servicioId) ?? 0) + usd);
-  }
-
-  // Actualizar cada servicio con el gastosTotal recalculado
-  const { writeBatch } = await import('firebase/firestore');
-  const batch1 = writeBatch(db);
-  for (const servicio of servicios) {
-    if (!servicio.id) continue;
-    const gastosServicio = gastosPorServicio.get(servicio.id) ?? 0;
-    const servicioRef = doc(db, COLLECTIONS.SERVICIOS, servicio.id);
-    batch1.update(servicioRef, { gastosTotal: gastosServicio });
-  }
-  await batch1.commit();
-
-  // ---------- RECALCULAR gastosTotal POR CATEGORÍA ----------
-  // Agrupar pagosServicio por categoriaId (desde pagosServicio.categoriaId) y sumar en USD
-  const gastosPorCategoria = new Map<string, number>();
-  for (const pago of pagosServicio) {
-    if (!pago.categoriaId) continue;
-    const usd = currencyService.convertToUSDSync(pago.monto || 0, pago.moneda || 'USD');
-    gastosPorCategoria.set(pago.categoriaId, (gastosPorCategoria.get(pago.categoriaId) ?? 0) + usd);
-  }
-
-  const categorias = await (await import('@/lib/firebase/firestore')).getAll<import('@/types/categorias').Categoria>(COLLECTIONS.CATEGORIAS);
-  const batch2 = writeBatch(db);
-  for (const cat of categorias) {
-    if (!cat.id) continue;
-    const gastosCat = gastosPorCategoria.get(cat.id) ?? 0;
-    const catRef = doc(db, COLLECTIONS.CATEGORIAS, cat.id);
-    batch2.update(catRef, { gastosTotal: gastosCat });
-  }
-  await batch2.commit();
-
   // ---------- PERSIST dashboard_stats ----------
   const docRef = doc(db, CONFIG_COLLECTION, STATS_DOC_ID);
   await setDoc(docRef, { ...stats, updatedAt: Timestamp.now() });

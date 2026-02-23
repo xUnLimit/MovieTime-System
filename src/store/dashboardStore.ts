@@ -21,6 +21,8 @@ interface DashboardState {
   /** Solo carga el doc config/dashboard_stats (sin counts de usuarios ni actividad) */
   fetchDashboardStats: (force?: boolean) => Promise<void>;
   recalculateDashboard: () => Promise<void>;
+  /** Invalidate cache so the dashboard re-fetches on next visit */
+  invalidateCache: () => void;
 }
 
 const CACHE_TIMEOUT = 5 * 60 * 1000; // 5 minutes
@@ -108,6 +110,10 @@ export const useDashboardStore = create<DashboardState>()(
         } catch (error) {
           console.error('Error fetching dashboard stats:', error);
         }
+      },
+
+      invalidateCache: () => {
+        set({ lastFetch: null, lastStatsFetch: null });
       },
 
       recalculateDashboard: async () => {

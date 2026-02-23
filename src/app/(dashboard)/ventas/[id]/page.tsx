@@ -33,7 +33,7 @@ import { crearPagoRenovacion } from '@/lib/services/pagosVentaService';
 import { getVentaConUltimoPago } from '@/lib/services/ventaSyncService';
 import { CYCLE_MONTHS } from '@/lib/constants';
 import { useNotificacionesStore } from '@/store/notificacionesStore';
-import { upsertVentaPronostico } from '@/lib/services/dashboardStatsService';
+import { upsertVentaPronostico, adjustIngresosStats, getMesKeyFromDate, getDiaKeyFromDate } from '@/lib/services/dashboardStatsService';
 
 const getCicloPagoLabel = (ciclo?: string) => {
   const labels: Record<string, string> = {
@@ -354,6 +354,20 @@ function VentaDetallePageContent() {
         precioFinal: monto,
         moneda: data.moneda || metodoPagoSeleccionado?.moneda || venta.moneda || 'USD',
       }, venta.id).catch(() => {});
+
+      // Sync dashboard ingresos for the new payment
+      adjustIngresosStats({
+        delta: monto,
+        moneda: data.moneda || metodoPagoSeleccionado?.moneda || venta.moneda || 'USD',
+        mes: getMesKeyFromDate(data.fechaInicio),
+        dia: getDiaKeyFromDate(data.fechaInicio),
+        categoriaId: venta.categoriaId ?? '',
+        categoriaNombre: venta.categoriaNombre ?? '',
+      }).catch(() => {});
+      // Invalidate dashboard cache so it re-fetches on next visit
+      import('@/store/dashboardStore').then(({ useDashboardStore }) => {
+        useDashboardStore.getState().invalidateCache();
+      }).catch(() => {});
 
       // Recargar la venta actualizada (sin loading screen)
       if (id && venta) {

@@ -23,6 +23,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { CalendarIcon, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { COLLECTIONS, queryDocuments, update, adjustServiciosActivos } from '@/lib/firebase/firestore';
+import { upsertVentaPronostico } from '@/lib/services/dashboardStatsService';
 import { useCategoriasStore } from '@/store/categoriasStore';
 import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { useServiciosStore } from '@/store/serviciosStore';
@@ -543,6 +544,26 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
         adjustServiciosActivos(venta.clienteId, -1);
       } else if (!prevEstadoActivo && nextEstadoActivo) {
         adjustServiciosActivos(venta.clienteId, +1);
+      }
+
+      // Sync dashboard forecast when estado changes
+      if (prevEstadoActivo !== nextEstadoActivo) {
+        const ventaPronostico = nextEstadoActivo
+          ? {
+              id: venta.id,
+              categoriaId: data.categoriaId,
+              fechaInicio: data.fechaInicio instanceof Date ? data.fechaInicio.toISOString() : String(data.fechaInicio),
+              fechaFin: data.fechaFin instanceof Date ? data.fechaFin.toISOString() : String(data.fechaFin),
+              cicloPago: plan?.cicloPago || venta.cicloPago || 'mensual',
+              precioFinal: precioFinalValue,
+              moneda: metodoPagoSeleccionado?.moneda || venta.moneda || 'USD',
+            }
+          : null;
+        upsertVentaPronostico(ventaPronostico, venta.id).catch(() => {});
+        // Invalidate dashboard cache so it re-fetches on next visit
+        import('@/store/dashboardStore').then(({ useDashboardStore }) => {
+          useDashboardStore.getState().invalidateCache();
+        }).catch(() => {});
       }
 
       toast.success('Venta actualizada', { description: 'Los datos de la venta han sido guardados correctamente.' });
