@@ -34,6 +34,7 @@ import { crearPagoRenovacion } from '@/lib/services/pagosServicioService';
 import { useActivityLogStore } from '@/store/activityLogStore';
 import { useAuthStore } from '@/store/authStore';
 import { adjustGastosStats, getMesKeyFromDate, getDiaKeyFromDate, upsertServicioPronostico } from '@/lib/services/dashboardStatsService';
+import { useNotificacionesStore } from '@/store/notificacionesStore';
 
 interface PerfilVenta {
   ventaId?: string;
@@ -71,6 +72,7 @@ function ServicioDetallePageContent() {
 
   const { deleteServicio, updateServicio, fetchCounts } = useServiciosStore();
   const { fetchCategorias } = useCategoriasStore();
+  const { deleteNotificacionesPorServicio, fetchNotificaciones } = useNotificacionesStore();
 
   // Estados locales para los datos específicos de esta página
   const [servicio, setServicio] = useState<Servicio | null>(null);
@@ -422,6 +424,10 @@ function ServicioDetallePageContent() {
         entidadNombre: servicio?.nombre ?? id,
         detalles: `Servicio renovado: "${servicio?.nombre}" — $${data.costo} ${data.moneda ?? 'USD'} — hasta ${format(data.fechaVencimiento, 'dd/MM/yyyy')} (${data.periodoRenovacion})`,
       }).catch(() => {});
+
+      // Remove notification and refresh store
+      await deleteNotificacionesPorServicio(id);
+      fetchNotificaciones(true);
 
       toast.success('Renovación registrada', { description: 'El nuevo período de pago se ha registrado correctamente.' });
       setRenovarDialogOpen(false);

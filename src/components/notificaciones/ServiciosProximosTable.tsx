@@ -166,7 +166,7 @@ function formatearFecha(fecha: Date): string {
 
 export function ServiciosProximosTable() {
   const router = useRouter();
-  const { notificaciones, toggleLeida, toggleResaltada } = useNotificacionesStore();
+  const { notificaciones, toggleLeida, toggleResaltada, deleteNotificacionesPorServicio, fetchNotificaciones } = useNotificacionesStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [estadoFilter, setEstadoFilter] = useState<string>('todos');
@@ -384,6 +384,10 @@ export function ServiciosProximosTable() {
         entidadNombre: servicioParaRenovar.nombre ?? servicioId,
         detalles: `Servicio renovado desde notificaciones: "${servicioParaRenovar.nombre}" — $${data.costo} ${data.moneda ?? 'USD'} — hasta ${format(data.fechaVencimiento, 'dd/MM/yyyy')} (${data.periodoRenovacion})`,
       }).catch(() => {});
+
+      // Remove notification and refresh store
+      await deleteNotificacionesPorServicio(servicioId);
+      fetchNotificaciones(true);
 
       toast.success('Renovación registrada', { description: 'El nuevo período de pago se ha registrado correctamente.' });
       setRenovarDialogOpen(false);
