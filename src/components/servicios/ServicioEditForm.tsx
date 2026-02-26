@@ -27,9 +27,9 @@ import { Servicio, MetodoPago } from '@/types';
 import { addMonths } from 'date-fns';
 import { CURRENCY_SYMBOLS, CYCLE_MONTHS } from '@/lib/constants';
 import { usePagosServicio } from '@/hooks/use-pagos-servicio';
-import { update, COLLECTIONS } from '@/lib/firebase/firestore';
+import { update, getCount, COLLECTIONS } from '@/lib/firebase/firestore';
 
-const createServicioEditSchema = (perfilesOcupados: number) => z.object({
+const servicioEditSchema = z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   categoriaId: z.string().min(1, 'Debe seleccionar una categoría'),
   tipoPlan: z.enum(['cuenta_completa', 'perfiles'], {
@@ -46,11 +46,7 @@ const createServicioEditSchema = (perfilesOcupados: number) => z.object({
     .refine((val) => val !== '', 'Por favor ingrese el número de perfiles')
     .refine((val) => !isNaN(Number(val)), 'Debe ingresar un valor numérico')
     .refine((val) => Number(val) >= 1, 'Debe tener al menos 1 perfil disponible')
-    .refine((val) => Number.isInteger(Number(val)), 'El número de perfiles debe ser un valor entero')
-    .refine(
-      (val) => Number(val) >= perfilesOcupados,
-      `No se puede reducir por debajo de los ${perfilesOcupados} perfil${perfilesOcupados !== 1 ? 'es' : ''} actualmente ocupado${perfilesOcupados !== 1 ? 's' : ''}`
-    ),
+    .refine((val) => Number.isInteger(Number(val)), 'El número de perfiles debe ser un valor entero'),
   cicloPago: z.enum(['mensual', 'trimestral', 'semestral', 'anual']),
   fechaInicio: z.date(),
   fechaVencimiento: z.date(),
@@ -58,7 +54,7 @@ const createServicioEditSchema = (perfilesOcupados: number) => z.object({
   notas: z.string().optional(),
 });
 
-type FormData = z.infer<ReturnType<typeof createServicioEditSchema>>;
+type FormData = z.infer<typeof servicioEditSchema>;
 
 interface ServicioEditFormProps {
   servicio: Servicio;
@@ -82,6 +78,16 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
   const [cicloInicializado, setCicloInicializado] = useState(false);
   const [lastCicloId, setLastCicloId] = useState<string | null>(null);
 
+  // Conteo real de ventas activas (fuente de verdad, no el campo denormalizado)
+  const [perfilesOcupadosReal, setPerfilesOcupadosReal] = useState<number>(servicio.perfilesOcupados || 0);
+
+  useEffect(() => {
+    getCount(COLLECTIONS.VENTAS, [
+      { field: 'servicioId', operator: '==', value: servicio.id },
+      { field: 'estado', operator: '!=', value: 'inactivo' },
+    ]).then((count) => setPerfilesOcupadosReal(count));
+  }, [servicio.id]);
+
   // Cargar métodos de pago al montar
   useEffect(() => {
     const loadMetodosPago = async () => {
@@ -102,8 +108,9 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
     setValue,
     watch,
     clearErrors,
+    setError,
   } = useForm<FormData>({
-    resolver: zodResolver(createServicioEditSchema(servicio.perfilesOcupados || 0)),
+    resolver: zodResolver(servicioEditSchema),
     defaultValues: {
       nombre: servicio.nombre || '',
       categoriaId: servicio.categoriaId || '',
@@ -244,7 +251,12 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
   }, [costoServicioValue, errors.costoServicio, clearErrors]);
 
   useEffect(() => {
-    if (perfilesDisponiblesValue && !isNaN(Number(perfilesDisponiblesValue)) && Number(perfilesDisponiblesValue) >= 1 && Number.isInteger(Number(perfilesDisponiblesValue)) && errors.perfilesDisponibles) {
+    const perfiles = Number(perfilesDisponiblesValue);
+    const esValido = perfilesDisponiblesValue &&
+      !isNaN(perfiles) &&
+      perfiles >= 1 &&
+      Number.isInteger(perfiles);
+    if (esValido && errors.perfilesDisponibles) {
       clearErrors('perfilesDisponibles');
     }
   }, [perfilesDisponiblesValue, errors.perfilesDisponibles, clearErrors]);
@@ -253,6 +265,16 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
     try {
       const categoria = categorias.find(c => c.id === data.categoriaId);
       const metodoPagoSeleccionado = metodosPago.find(m => m.id === data.metodoPagoId);
+
+      // Validar perfiles con conteo real (no el campo denormalizado que puede estar desfasado)
+      const perfilesNuevos = Number(data.perfilesDisponibles);
+      if (data.estado === 'activo' && perfilesNuevos < perfilesOcupadosReal) {
+        const n = perfilesOcupadosReal;
+        setError('perfilesDisponibles', {
+          message: `No se puede reducir por debajo de los ${n} perfil${n !== 1 ? 'es' : ''} actualmente ocupado${n !== 1 ? 's' : ''}`,
+        });
+        return;
+      }
 
       // Actualizar el servicio
       await updateServicio(servicio.id, {
@@ -273,6 +295,11 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
         notas: data.notas,
         activo: data.estado === 'activo',
       });
+
+      // Resincronizar perfilesOcupados si el contador estaba desfasado
+      if (servicio.perfilesOcupados !== perfilesOcupadosReal) {
+        await update(COLLECTIONS.SERVICIOS, servicio.id, { perfilesOcupados: perfilesOcupadosReal });
+      }
 
       // Actualizar el último pago si existe (Single Source of Truth)
       if (ultimoPago && ultimoPago.id) {

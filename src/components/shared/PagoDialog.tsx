@@ -73,6 +73,7 @@ interface VentaDialogProps extends BaseProps {
     metodoPagoId?: string;
     precioFinal: number;
     fechaFin: Date;
+    notas?: string;
   };
   pago?: {
     id?: string; // ID del pago (para editar)
@@ -191,7 +192,7 @@ export function PagoDialog(props: PagoDialogProps) {
         descuento: 0,
         fechaInicio: fechaVencimientoActual,
         fechaVencimiento: fechaVencimientoActual,
-        notas: '',
+        notas: venta?.notas || '',
       });
       return;
     }
@@ -204,7 +205,7 @@ export function PagoDialog(props: PagoDialogProps) {
         costo: props.pago.monto,
         fechaInicio: new Date(props.pago.fechaInicio),
         fechaVencimiento: new Date(props.pago.fechaVencimiento),
-        notas: '',
+        notas: props.pago.notas ?? servicio?.notas ?? '',
       });
       return;
     }
@@ -218,7 +219,7 @@ export function PagoDialog(props: PagoDialogProps) {
       costo: servicio?.costoServicio || 0,
       fechaInicio: fechaVencimientoActual,
       fechaVencimiento: fechaVencimientoActual,
-      notas: '',
+      notas: servicio?.notas || '',
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, props.pago, servicio?.fechaVencimiento, servicio?.metodoPagoId, servicio?.costoServicio]);

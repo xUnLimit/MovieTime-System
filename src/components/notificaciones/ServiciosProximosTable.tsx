@@ -371,6 +371,7 @@ export function ServiciosProximosTable() {
         metodoPagoNombre: data.metodoPagoNombre || metodoPagoSeleccionado?.nombre,
         moneda: data.moneda || metodoPagoSeleccionado?.moneda,
         cicloPago: data.periodoRenovacion as 'mensual' | 'trimestral' | 'semestral' | 'anual',
+        notas: data.notas?.trim() || '',
       });
 
       // Log activity

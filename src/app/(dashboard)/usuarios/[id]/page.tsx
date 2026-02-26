@@ -22,13 +22,6 @@ function UsuarioDetallesPageContent() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  // Función para refrescar el usuario (llamada después de eliminar ventas)
-  const refreshUsuario = () => {
-    setRefreshKey(prev => prev + 1);
-  };
-
   // Fetch solo este usuario por ID (1 lectura en lugar de N)
   useEffect(() => {
     const load = async () => {
@@ -44,7 +37,7 @@ function UsuarioDetallesPageContent() {
       }
     };
     load();
-  }, [id, refreshKey]);
+  }, [id]);
 
   if (isLoading) {
     return (
@@ -137,7 +130,7 @@ function UsuarioDetallesPageContent() {
           </div>
         </div>
 
-        <UsuarioDetails usuario={usuario} onVentaDeleted={refreshUsuario} />
+        <UsuarioDetails usuario={usuario} />
       </div>
 
       <ConfirmDialog

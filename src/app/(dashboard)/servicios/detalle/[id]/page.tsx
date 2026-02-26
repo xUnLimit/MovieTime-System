@@ -140,23 +140,21 @@ function ServicioDetallePageContent() {
     const loadVentas = async () => {
       if (!id) return;
       try {
-        // Paso 1: Cargar ventas base (solo metadatos)
+        // Fase 1: Cargar ventas base inmediatamente (clienteNombre ya está denormalizado en VentaDoc)
         const ventasBase = await queryDocuments<VentaDoc>(COLLECTIONS.VENTAS, [
           { field: 'servicioId', operator: '==', value: id },
         ]);
 
-        // Paso 2: Cargar datos actuales desde PagoVenta (fuente de verdad)
-        const ventasConDatos = await getVentasConUltimoPago(ventasBase);
+        const ventasActivas = ventasBase.filter((v) => (v.estado ?? 'activo') !== 'inactivo');
 
-        const ventas = ventasConDatos
-          .filter((venta) => (venta.estado ?? 'activo') !== 'inactivo')
-          .map((venta) => ({
+        // Mostrar perfiles de inmediato con los datos básicos de VentaDoc
+        setVentasServicio(ventasActivas.map((venta) => ({
           ventaId: venta.id || undefined,
           perfilNumero: venta.perfilNumero ?? null,
           clienteNombre: venta.clienteNombre || undefined,
           createdAt: venta.createdAt,
-          precioFinal: venta.precioFinal ?? venta.precio ?? 0,
-          descuento: venta.descuento ?? 0,
+          precioFinal: 0,
+          descuento: 0,
           fechaInicio: venta.fechaInicio ?? undefined,
           fechaFin: venta.fechaFin ?? undefined,
           notas: venta.notas || '',
@@ -166,8 +164,29 @@ function ServicioDetallePageContent() {
           perfilNombre: venta.perfilNombre || undefined,
           codigo: venta.codigo || undefined,
           cicloPago: venta.cicloPago || undefined,
-        }));
-        setVentasServicio(ventas);
+        })));
+
+        // Fase 2: Enriquecer con datos de pagos en background (precio, fechas actualizadas)
+        getVentasConUltimoPago(ventasActivas).then((ventasConDatos) => {
+          setVentasServicio(ventasConDatos.map((venta) => ({
+            ventaId: venta.id || undefined,
+            perfilNumero: venta.perfilNumero ?? null,
+            clienteNombre: venta.clienteNombre || undefined,
+            createdAt: venta.createdAt,
+            precioFinal: venta.precioFinal ?? venta.precio ?? 0,
+            descuento: venta.descuento ?? 0,
+            fechaInicio: venta.fechaInicio ?? undefined,
+            fechaFin: venta.fechaFin ?? undefined,
+            notas: venta.notas || '',
+            servicioNombre: venta.servicioNombre,
+            servicioCorreo: venta.servicioCorreo || '',
+            moneda: venta.moneda || undefined,
+            perfilNombre: venta.perfilNombre || undefined,
+            codigo: venta.codigo || undefined,
+            cicloPago: venta.cicloPago || undefined,
+          })));
+        }).catch(() => {/* datos básicos ya están visibles, ignorar error de enriquecimiento */});
+
       } catch (error) {
         console.error('Error cargando ventas del servicio:', error);
         toast.error('Error cargando ventas del servicio', { description: error instanceof Error ? error.message : undefined });
@@ -403,6 +422,7 @@ function ServicioDetallePageContent() {
         metodoPagoNombre: data.metodoPagoNombre || metodoPagoSeleccionado?.nombre,  // Denormalizado
         moneda: data.moneda || metodoPagoSeleccionado?.moneda,                      // Denormalizado
         cicloPago: data.periodoRenovacion as 'mensual' | 'trimestral' | 'semestral' | 'anual',
+        notas: data.notas?.trim() || '',
       });
 
       // Recargar el servicio actualizado para reflejar los cambios en la UI

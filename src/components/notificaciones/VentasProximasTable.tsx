@@ -373,10 +373,11 @@ export function VentasProximasTable() {
         descuentoNumero
       );
 
-      // Actualizar fechaFin en VentaDoc
+      // Actualizar fechaFin y notas en VentaDoc
       await updateVenta(notifSeleccionada.ventaId, {
         fechaFin: data.fechaVencimiento,
         fechaInicio: data.fechaInicio,
+        notas: data.notas?.trim() || '',
       });
 
       // Registrar en log de actividad

@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, MessageCircle, Monitor, Calendar, Clock, MoreHorizontal, RefreshCw, Copy, Eye, Pencil, AlertTriangle } from 'lucide-react';
+import { User, MessageCircle, Monitor, Calendar, Clock, MoreHorizontal, RefreshCw, Copy, Eye, AlertTriangle } from 'lucide-react';
 import { differenceInCalendarDays } from 'date-fns';
 import {
   Table,
@@ -22,7 +22,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useVentasUsuario } from '@/hooks/use-ventas-usuario';
 import { getCurrencySymbol } from '@/lib/constants';
 import { queryDocuments, COLLECTIONS } from '@/lib/firebase/firestore';
@@ -31,18 +30,14 @@ import { toast } from 'sonner';
 
 interface UsuarioDetailsProps {
   usuario: Usuario;
-  onVentaDeleted?: () => void;
 }
 
-export function UsuarioDetails({ usuario, onVentaDeleted }: UsuarioDetailsProps) {
+export function UsuarioDetails({ usuario }: UsuarioDetailsProps) {
   const router = useRouter();
   const isRevendedor = usuario.tipo === 'revendedor';
-  const { ventas: ventasUsuario, renovacionesByServicio, deleteVenta } = useVentasUsuario(usuario.id);
+  const { ventas: ventasUsuario, renovacionesByServicio } = useVentasUsuario(usuario.id);
   const [servicios, setServicios] = useState<Record<string, { correo: string; contrasena: string; nombre: string }>>({});
 
-  // Confirmación de eliminación
-  const [deleteTarget, setDeleteTarget] = useState<{ ventaId: string; servicioId?: string; perfilNumero?: number | null } | null>(null);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const handleWhatsApp = () => {
     const phone = usuario.telefono.replace(/\D/g, '');
@@ -60,23 +55,6 @@ export function UsuarioDetails({ usuario, onVentaDeleted }: UsuarioDetailsProps)
     }
   };
 
-  const handleDeleteVenta = (ventaId: string, servicioId?: string, perfilNumero?: number | null) => {
-    setDeleteTarget({ ventaId, servicioId, perfilNumero });
-    setDeleteDialogOpen(true);
-  };
-
-  const handleConfirmDeleteVenta = async () => {
-    if (!deleteTarget) return;
-    try {
-      await deleteVenta(deleteTarget.ventaId, deleteTarget.servicioId, deleteTarget.perfilNumero);
-      setDeleteTarget(null);
-      setDeleteDialogOpen(false);
-      // Notificar al componente padre para que refresque el usuario
-      onVentaDeleted?.();
-    } catch (error) {
-      console.error('Error eliminando venta:', error);
-    }
-  };
 
   // Query solo los servicios que el usuario tiene (en lugar de getAll)
   useEffect(() => {
@@ -392,19 +370,13 @@ export function UsuarioDetails({ usuario, onVentaDeleted }: UsuarioDetailsProps)
                             onClick={() => router.push(`/ventas/${row.id}`)}
                           >
                             <Eye className="h-4 w-4 mr-2" />
-                            Ver detalle
+                            Ver Venta
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() => router.push(`/ventas/${row.id}/editar`)}
+                            onClick={() => router.push(`/servicios/detalle/${row.servicioId}`)}
                           >
-                            <Pencil className="h-4 w-4 mr-2" />
-                            Editar venta
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={() => handleDeleteVenta(row.id, row.servicioId, row.perfilNumero)}
-                          >
-                            Eliminar venta
+                            <Monitor className="h-4 w-4 mr-2" />
+                            Ver Servicio
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -416,18 +388,6 @@ export function UsuarioDetails({ usuario, onVentaDeleted }: UsuarioDetailsProps)
           </div>
         )}
       </Card>
-      <ConfirmDialog
-        open={deleteDialogOpen}
-        onOpenChange={(open) => {
-          setDeleteDialogOpen(open);
-          if (!open) setDeleteTarget(null);
-        }}
-        onConfirm={handleConfirmDeleteVenta}
-        title="Eliminar Venta"
-        description="¿Estás seguro de que quieres eliminar esta venta? Esta acción no se puede deshacer."
-        confirmText="Eliminar"
-        variant="danger"
-      />
     </div>
   );
 }

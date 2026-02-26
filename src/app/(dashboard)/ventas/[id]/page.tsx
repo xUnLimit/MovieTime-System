@@ -342,6 +342,7 @@ function VentaDetallePageContent() {
         fechaFin: data.fechaVencimiento,
         fechaInicio: data.fechaInicio,
         cicloPago: data.periodoRenovacion,
+        notas: data.notas?.trim() || '',
       });
 
       // Actualizar ventasPronostico en el dashboard con el nuevo fechaFin y precioFinal
@@ -875,6 +876,7 @@ function VentaDetallePageContent() {
           metodoPagoId: venta.metodoPagoId,
           precioFinal: venta.precioFinal ?? 0,
           fechaFin: venta.fechaFin ?? new Date(),
+          notas: venta.notas,
         }}
         metodosPago={metodosPago}
         categoriaPlanes={categoriaPlanes}
