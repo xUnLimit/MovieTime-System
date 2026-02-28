@@ -345,8 +345,8 @@ function VentaDetallePageContent() {
         notas: data.notas?.trim() || '',
       });
 
-      // Actualizar ventasPronostico en el dashboard con el nuevo fechaFin y precioFinal
-      upsertVentaPronostico({
+      // Actualizar ventasPronostico en el dashboard: local INMEDIATAMENTE + Firestore en background
+      const ventaPronosticoData = {
         id: venta.id,
         categoriaId: venta.categoriaId ?? '',
         fechaInicio: data.fechaInicio.toISOString(),
@@ -354,7 +354,26 @@ function VentaDetallePageContent() {
         cicloPago: data.periodoRenovacion,
         precioFinal: monto,
         moneda: data.moneda || metodoPagoSeleccionado?.moneda || venta.moneda || 'USD',
-      }, venta.id).catch(() => {});
+      };
+
+      // 1. Actualizar estado local del dashboard de inmediato (para que el pronóstico se refleje sin recalcular)
+      import('@/store/dashboardStore').then(({ useDashboardStore }) => {
+        const store = useDashboardStore.getState();
+        const currentStats = store.stats;
+        if (currentStats) {
+          const existing = currentStats.ventasPronostico ?? [];
+          const updated = existing.some(v => v.id === venta.id)
+            ? existing.map(v => v.id === venta.id ? ventaPronosticoData : v)
+            : [...existing, ventaPronosticoData];
+          useDashboardStore.setState({
+            stats: { ...currentStats, ventasPronostico: updated },
+          });
+        }
+        store.invalidateCache();
+      }).catch(() => {});
+
+      // 2. Persistir a Firestore en background (non-blocking)
+      upsertVentaPronostico(ventaPronosticoData, venta.id).catch(() => {});
 
       // Sync dashboard ingresos for the new payment
       adjustIngresosStats({
@@ -364,10 +383,6 @@ function VentaDetallePageContent() {
         dia: getDiaKeyFromDate(data.fechaInicio),
         categoriaId: venta.categoriaId ?? '',
         categoriaNombre: venta.categoriaNombre ?? '',
-      }).catch(() => {});
-      // Invalidate dashboard cache so it re-fetches on next visit
-      import('@/store/dashboardStore').then(({ useDashboardStore }) => {
-        useDashboardStore.getState().invalidateCache();
       }).catch(() => {});
 
       // Recargar la venta actualizada (sin loading screen)

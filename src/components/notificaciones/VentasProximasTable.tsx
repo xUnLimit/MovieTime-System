@@ -390,6 +390,32 @@ export function VentasProximasTable() {
         detalles: `Venta renovada: ${notifSeleccionada.clienteNombre} / ${notifSeleccionada.servicioNombre} — $${monto.toFixed(2)} ${data.moneda ?? 'USD'} — hasta ${format(data.fechaVencimiento, 'dd/MM/yyyy')} (${data.periodoRenovacion})`,
       }).catch(() => {});
 
+      // Actualizar dashboard: local INMEDIATAMENTE + Firestore en background
+      const ventaPronosticoData = {
+        id: notifSeleccionada.ventaId,
+        categoriaId: notifSeleccionada.categoriaId || '',
+        fechaInicio: data.fechaInicio.toISOString(),
+        fechaFin: data.fechaVencimiento.toISOString(),
+        cicloPago: data.periodoRenovacion,
+        precioFinal: monto,
+        moneda: data.moneda || metodoPagoSeleccionado?.moneda || notifSeleccionada.moneda || 'USD',
+      };
+      import('@/store/dashboardStore').then(({ useDashboardStore }) => {
+        const store = useDashboardStore.getState();
+        const currentStats = store.stats;
+        if (currentStats) {
+          const existing = currentStats.ventasPronostico ?? [];
+          const updated = existing.some(v => v.id === notifSeleccionada.ventaId)
+            ? existing.map(v => v.id === notifSeleccionada.ventaId ? ventaPronosticoData : v)
+            : [...existing, ventaPronosticoData];
+          useDashboardStore.setState({
+            stats: { ...currentStats, ventasPronostico: updated },
+          });
+        }
+        store.invalidateCache();
+      }).catch(() => {});
+      upsertVentaPronostico(ventaPronosticoData, notifSeleccionada.ventaId).catch(() => {});
+
       // Sync dashboard ingresos for the new payment
       adjustIngresosStats({
         delta: monto,
@@ -398,10 +424,6 @@ export function VentasProximasTable() {
         dia: getDiaKeyFromDate(data.fechaInicio),
         categoriaId: notifSeleccionada.categoriaId || '',
         categoriaNombre: notifSeleccionada.categoriaNombre || '',
-      }).catch(() => {});
-      // Invalidate dashboard cache so it re-fetches on next visit
-      import('@/store/dashboardStore').then(({ useDashboardStore }) => {
-        useDashboardStore.getState().invalidateCache();
       }).catch(() => {});
 
       // ✅ Eliminar notificaciones de esta venta (auto-cleanup al renovar)
