@@ -86,7 +86,7 @@ export function ClientesCategoriasTable({ categorias, title = 'Categorías de Cl
       align: 'center',
       width: '20%',
       render: (item) => (
-        <Badge variant="outline" className={item.activo ? 'bg-green-100 text-green-700 border-green-300 dark:bg-green-500/20 dark:text-green-400 dark:border-green-500/30' : 'bg-gray-100 text-gray-600 border-gray-300 dark:bg-gray-500/20 dark:text-gray-400 dark:border-gray-500/30'}>
+        <Badge variant="outline" className={item.activo ? 'border-green-500/50 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300'}>
           {item.activo ? 'Activo' : 'Inactivo'}
         </Badge>
       ),

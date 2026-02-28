@@ -20,7 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Monitor, Users, ShoppingCart, Eye, Search, ArrowUpDown, TrendingUp, ChevronDown } from 'lucide-react';
+import { Monitor, Users, ShoppingCart, Eye, Search, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, ChevronDown } from 'lucide-react';
 import { Categoria } from '@/types';
 
 interface CategoriasTableProps {
@@ -144,9 +144,9 @@ export const CategoriasTable = memo(function CategoriasTable({
       return <ArrowUpDown className="h-3 w-3 text-muted-foreground" />;
     }
     if (sortDirection === 'asc') {
-      return <ArrowUpDown className="h-3 w-3" />;
+      return <ArrowUp className="h-3 w-3" />;
     }
-    return <ArrowUpDown className="h-3 w-3" />;
+    return <ArrowDown className="h-3 w-3" />;
   };
 
   // Paginación

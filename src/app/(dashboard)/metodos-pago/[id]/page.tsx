@@ -128,7 +128,7 @@ function VerMetodoPagoPageContent() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold tracking-tight">{metodo.nombre}</h1>
-              <Badge variant={metodo.activo ? 'default' : 'secondary'}>
+              <Badge variant="outline" className={metodo.activo ? 'border-green-500/50 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300'}>
                 {metodo.activo ? 'Activo' : 'Inactivo'}
               </Badge>
             </div>

@@ -100,7 +100,7 @@ export function UsuariosMetodosPagoTable({ metodosPago, onEdit, title = 'Método
       key: 'nombre',
       header: 'Método',
       sortable: true,
-      width: '18%',
+      width: '15%',
       render: (item) => <span className="font-medium">{item.banco || item.nombre}</span>,
     },
     {
@@ -108,21 +108,21 @@ export function UsuariosMetodosPagoTable({ metodosPago, onEdit, title = 'Método
       header: 'País',
       sortable: true,
       align: 'center',
-      width: '10%',
+      width: '12%',
     },
     {
       key: 'titular',
       header: 'Titular',
       sortable: true,
       align: 'center',
-      width: '20%',
+      width: '18%',
     },
     {
       key: 'tipoCuenta',
       header: 'Tipo Cuenta',
       sortable: false,
       align: 'center',
-      width: '12%',
+      width: '15%',
       render: (item) => <span>{item.tipoCuenta ? tipoCuentaLabels[item.tipoCuenta] : '-'}</span>,
     },
     {
@@ -130,7 +130,7 @@ export function UsuariosMetodosPagoTable({ metodosPago, onEdit, title = 'Método
       header: 'Identificador',
       sortable: false,
       align: 'center',
-      width: '15%',
+      width: '18%',
       render: (item) => <span className="text-sm">{item.identificador}</span>,
     },
     {
@@ -138,14 +138,14 @@ export function UsuariosMetodosPagoTable({ metodosPago, onEdit, title = 'Método
       header: 'Estado',
       sortable: true,
       align: 'center',
-      width: '10%',
+      width: '15%',
       render: (item) => (
         <Badge
           variant="outline"
           className={
             item.activo
-              ? 'text-xs bg-green-100 text-green-700 border-green-300 dark:bg-green-500/20 dark:text-green-400 dark:border-green-500/30'
-              : 'text-xs bg-gray-100 text-gray-600 border-gray-300 dark:bg-gray-500/20 dark:text-gray-400 dark:border-gray-500/30'
+              ? 'text-xs border-green-500/50 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300'
+              : 'text-xs border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300'
           }
         >
           {item.activo ? 'Activo' : 'Inactivo'}

@@ -149,7 +149,7 @@ export function ServiciosCategoriaTable({ servicios }: ServiciosCategoriaTablePr
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={servicio.activo ? 'default' : 'secondary'}>
+                      <Badge variant="outline" className={servicio.activo ? 'border-green-500/50 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300'}>
                         {servicio.activo ? 'Activo' : 'Inactivo'}
                       </Badge>
                     </TableCell>

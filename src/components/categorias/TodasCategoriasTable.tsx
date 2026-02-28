@@ -70,7 +70,7 @@ export function TodasCategoriasTable({ categorias, title = 'Todas las categoría
       key: 'nombre',
       header: 'Nombre',
       sortable: true,
-      width: '35%',
+      width: '15%',
       render: (item) => (
         <span className="font-medium">{item.nombre}</span>
       ),
@@ -94,7 +94,7 @@ export function TodasCategoriasTable({ categorias, title = 'Todas las categoría
       header: 'Tipo de Categoría',
       sortable: false,
       align: 'center',
-      width: '20%',
+      width: '25%',
       render: () => <span>Plataforma de Streaming</span>,
     },
     {
@@ -102,9 +102,9 @@ export function TodasCategoriasTable({ categorias, title = 'Todas las categoría
       header: 'Estado',
       sortable: true,
       align: 'center',
-      width: '15%',
+      width: '30%',
       render: (item) => (
-        <Badge variant="outline" className={item.activo ? 'bg-green-100 text-green-700 border-green-300 dark:bg-green-500/20 dark:text-green-400 dark:border-green-500/30' : 'bg-gray-100 text-gray-600 border-gray-300 dark:bg-gray-500/20 dark:text-gray-400 dark:border-gray-500/30'}>
+        <Badge variant="outline" className={item.activo ? 'border-green-500/50 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300'}>
           {item.activo ? 'Activo' : 'Inactivo'}
         </Badge>
       ),

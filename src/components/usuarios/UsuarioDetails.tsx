@@ -138,7 +138,7 @@ export function UsuarioDetails({ usuario }: UsuarioDetailsProps) {
         montoSinConsumir,
         renovaciones:    renovacionesByServicio[venta.id] ?? 0,
         diasRestantes,
-        estado:          venta.estado === 'inactivo' ? 'Inactiva' : 'Activa',
+        estado:          venta.estado === 'inactivo' ? 'Inactivo' : 'Activo',
         moneda:          venta.moneda,
         perfilNumero:    venta.perfilNumero,
       };
@@ -266,7 +266,7 @@ export function UsuarioDetails({ usuario }: UsuarioDetailsProps) {
                   <TableRow key={row.id}>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Monitor className="h-4 w-4 text-green-500" />
+                        <Monitor className={`h-4 w-4 ${row.estado === 'Inactivo' ? 'text-red-500' : 'text-green-500'}`} />
                         <div>
                           <p className="font-medium">{row.categoriaNombre}</p>
                           <p className="text-xs text-muted-foreground">{row.servicioNombre}</p>
@@ -324,8 +324,8 @@ export function UsuarioDetails({ usuario }: UsuarioDetailsProps) {
                       </div>
                     </TableCell>
                     <TableCell className="text-center font-medium">
-                      <span className="text-green-500">{getCurrencySymbol(row.moneda)}</span>
-                      <span className="text-foreground"> {row.montoSinConsumir.toFixed(2)}</span>
+                      <span className={row.estado === 'Inactivo' ? 'text-muted-foreground' : 'text-green-500'}>{getCurrencySymbol(row.moneda)}</span>
+                      <span className={row.estado === 'Inactivo' ? 'text-muted-foreground' : 'text-foreground'}> {row.montoSinConsumir.toFixed(2)}</span>
                     </TableCell>
                     <TableCell className="text-center">
                       <span className="inline-flex items-center justify-center gap-1 font-medium">
@@ -334,7 +334,9 @@ export function UsuarioDetails({ usuario }: UsuarioDetailsProps) {
                       </span>
                     </TableCell>
                     <TableCell className="text-center">
-                      {row.diasRestantes < 0 ? (
+                      {row.estado === 'Inactivo' ? (
+                        <span className="text-sm text-muted-foreground">—</span>
+                      ) : row.diasRestantes < 0 ? (
                         <Badge variant="outline" className="border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300 gap-1">
                           <AlertTriangle className="h-3 w-3 shrink-0" />
                           {Math.abs(row.diasRestantes)} día{Math.abs(row.diasRestantes) !== 1 ? 's' : ''} de retraso
@@ -354,7 +356,7 @@ export function UsuarioDetails({ usuario }: UsuarioDetailsProps) {
                       )}
                     </TableCell>
                     <TableCell className="text-center">
-                      <Badge className={row.estado === 'Activa' ? 'bg-green-100 text-green-700 dark:bg-green-600/20 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-600/20 dark:text-red-400'}>
+                      <Badge variant="outline" className={row.estado === 'Activo' ? 'border-green-500/50 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300'}>
                         {row.estado}
                       </Badge>
                     </TableCell>

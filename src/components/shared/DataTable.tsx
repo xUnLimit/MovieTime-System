@@ -93,7 +93,7 @@ function DataTableComponent<T extends Record<string, unknown>>({
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(itemsPerPageOptions[0]);
 
-  const handleSort = useCallback((key: string) => {
+  const handleSort = (key: string) => {
     if (sortKey === key) {
       // Misma columna: ciclar asc -> desc -> null
       if (sortDirection === 'asc') {
@@ -109,7 +109,7 @@ function DataTableComponent<T extends Record<string, unknown>>({
       setSortKey(key);
       setSortDirection('asc');
     }
-  }, [sortKey, sortDirection]);
+  };
 
   const sortedData = useMemo(() => {
     if (!sortKey || !sortDirection) return data;
@@ -151,7 +151,7 @@ function DataTableComponent<T extends Record<string, unknown>>({
     setCurrentPage(1);
   }, []);
 
-  const getSortIcon = useCallback((columnKey: string) => {
+  const getSortIcon = (columnKey: string) => {
     if (sortKey !== columnKey) {
       return <ArrowUpDown className="ml-2 h-4 w-4" />;
     }
@@ -159,7 +159,7 @@ function DataTableComponent<T extends Record<string, unknown>>({
       return <ArrowUp className="ml-2 h-4 w-4" />;
     }
     return <ArrowDown className="ml-2 h-4 w-4" />;
-  }, [sortKey, sortDirection]);
+  };
 
   if (loading) {
     return (
