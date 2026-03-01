@@ -529,12 +529,12 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
       const nextActivo = (data.estado ?? 'activo') !== 'inactivo' && !!nextPerfil;
 
       if (prevActivo && !nextActivo) {
-        updatePerfilOcupado(prevServicioId, false);
+        await updatePerfilOcupado(prevServicioId, false);
       } else if (!prevActivo && nextActivo) {
-        updatePerfilOcupado(nextServicioId, true);
+        await updatePerfilOcupado(nextServicioId, true);
       } else if (prevActivo && nextActivo && prevServicioId !== nextServicioId) {
-        updatePerfilOcupado(prevServicioId, false);
-        updatePerfilOcupado(nextServicioId, true);
+        await updatePerfilOcupado(prevServicioId, false);
+        await updatePerfilOcupado(nextServicioId, true);
       }
 
       // Ajustar ventasActivas si el estado cambió entre activo e inactivo

@@ -635,14 +635,14 @@ export function VentasForm() {
       );
       await Promise.all(writes);
       if (estadoVenta !== 'inactivo') {
-        items.forEach((item) => {
+        for (const item of items) {
           if (item.perfilNumero) {
-            updatePerfilOcupado(item.servicioId, true);
+            await updatePerfilOcupado(item.servicioId, true);
           }
-        });
+        }
         // Incrementar ventasActivas en el usuario (una vez por item creado)
         if (clienteIdValue) {
-          adjustServiciosActivos(clienteIdValue, items.length);
+          await adjustServiciosActivos(clienteIdValue, items.length);
         }
       }
       if (notifyCliente && estadoVenta !== 'inactivo' && editedMessage) {

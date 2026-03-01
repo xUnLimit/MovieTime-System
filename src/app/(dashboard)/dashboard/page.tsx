@@ -232,8 +232,8 @@ export default function DashboardPage() {
             disabled={isRecalculating}
           >
             <RefreshCw className={`mr-2 h-4 w-4 ${isRecalculating ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">{isRecalculating ? 'Recalculando...' : 'Recalcular métricas'}</span>
-            <span className="sm:hidden">{isRecalculating ? '...' : 'Recalcular'}</span>
+            <span className="hidden sm:inline">{isRecalculating ? 'Sincronizando...' : 'Sincronizar sistema'}</span>
+            <span className="sm:hidden">{isRecalculating ? '...' : 'Sincronizar'}</span>
           </Button>
           <NotificationBell />
           <UserMenu />

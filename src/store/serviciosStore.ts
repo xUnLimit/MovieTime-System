@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import { Servicio, MetodoPago } from '@/types';
-import { getAll, getById, getCount, create as createDoc, update, remove, COLLECTIONS, logCacheHit, adjustCategoriaGastos } from '@/lib/firebase/firestore';
+import { Servicio, MetodoPago, VentaDoc } from '@/types';
+import { getAll, getById, getCount, create as createDoc, update, remove, COLLECTIONS, logCacheHit, adjustCategoriaGastos, queryDocuments } from '@/lib/firebase/firestore';
 import { adjustGastosStats, getMesKeyFromDate, getDiaKeyFromDate, upsertServicioPronostico } from '@/lib/services/dashboardStatsService';
 import { currencyService } from '@/lib/services/currencyService';
 import type { ServicioPronostico } from '@/types/dashboard';
@@ -503,25 +503,62 @@ export const useServiciosStore = create<ServiciosState>()(
       },
 
       resyncPerfilesDisponiblesTotal: async () => {
-        // Lee todos los servicios y recalcula perfilesDisponiblesTotal por categoría desde cero
-        const servicios = await getAll<Servicio>(COLLECTIONS.SERVICIOS);
+        // 1. Contar ventas activas (no inactivas) por servicioId desde la fuente de verdad
+        const ventasActivas = await queryDocuments<VentaDoc>(COLLECTIONS.VENTAS, [
+          { field: 'estado', operator: '!=', value: 'inactivo' },
+        ]);
 
-        // Agrupar por categoría y sumar perfiles libres de servicios activos
+        // Contar perfiles ocupados reales por servicioId (solo ventas con perfilNumero asignado)
+        const ocupadosPorServicio = new Map<string, number>();
+        for (const v of ventasActivas) {
+          if (v.servicioId && v.perfilNumero) {
+            ocupadosPorServicio.set(v.servicioId, (ocupadosPorServicio.get(v.servicioId) ?? 0) + 1);
+          }
+        }
+
+        // 2. Leer todos los servicios y corregir perfilesOcupados donde no coincida
+        const servicios = await getAll<Servicio>(COLLECTIONS.SERVICIOS);
+        const servicioUpdates: Promise<void>[] = [];
+
+        for (const s of servicios) {
+          const ocupadosReal = ocupadosPorServicio.get(s.id) ?? 0;
+          if (s.perfilesOcupados !== ocupadosReal) {
+            // Corregir en Firebase con set absoluto (no increment)
+            const ref = firestoreDoc(db, COLLECTIONS.SERVICIOS, s.id);
+            servicioUpdates.push(updateDoc(ref, { perfilesOcupados: ocupadosReal }));
+          }
+        }
+        await Promise.all(servicioUpdates);
+
+        // 3. Recalcular perfilesDisponiblesTotal por categoría usando los valores corregidos
         const totalPorCategoria = new Map<string, number>();
         for (const s of servicios) {
           if (!s.activo) continue;
-          const libres = Math.max((s.perfilesDisponibles || 0) - (s.perfilesOcupados || 0), 0);
+          const ocupadosReal = ocupadosPorServicio.get(s.id) ?? 0;
+          const libres = Math.max((s.perfilesDisponibles || 0) - ocupadosReal, 0);
           totalPorCategoria.set(s.categoriaId, (totalPorCategoria.get(s.categoriaId) ?? 0) + libres);
         }
 
         // Sobrescribir el campo en cada categoría afectada
-        const updates = Array.from(totalPorCategoria.entries()).map(([categoriaId, total]) => {
+        const categoriaUpdates = Array.from(totalPorCategoria.entries()).map(([categoriaId, total]) => {
           const ref = firestoreDoc(db, COLLECTIONS.CATEGORIAS, categoriaId);
           return updateDoc(ref, { perfilesDisponiblesTotal: total });
         });
-        await Promise.all(updates);
+        await Promise.all(categoriaUpdates);
 
-        return { categoriasActualizadas: updates.length };
+        // 4. Actualizar store local con valores corregidos
+        if (servicioUpdates.length > 0) {
+          set((state) => ({
+            servicios: state.servicios.map((s) => {
+              const ocupadosReal = ocupadosPorServicio.get(s.id) ?? 0;
+              return s.perfilesOcupados !== ocupadosReal
+                ? { ...s, perfilesOcupados: ocupadosReal }
+                : s;
+            }),
+          }));
+        }
+
+        return { categoriasActualizadas: categoriaUpdates.length, serviciosCorregidos: servicioUpdates.length };
       },
     }),
     { name: 'servicios-store' }

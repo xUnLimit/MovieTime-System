@@ -18,14 +18,14 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
-import { useServiciosStore } from '@/store/serviciosStore';
-import { COLLECTIONS, getById, remove, timestampToDate, update, adjustServiciosActivos, queryDocuments, adjustCategoriaSuscripciones } from '@/lib/firebase/firestore';
+
+import { COLLECTIONS, getById, remove, timestampToDate, update, queryDocuments } from '@/lib/firebase/firestore';
 import { toast } from 'sonner';
 import { PagoDialog } from '@/components/shared/PagoDialog';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { generarMensajeVenta } from '@/lib/utils/whatsapp';
 import { formatearFecha } from '@/lib/utils/calculations';
-import { VentaDoc, VentaPago, PagoVenta, MetodoPago } from '@/types';
+import { VentaDoc, VentaPago, MetodoPago } from '@/types';
 import { Plan } from '@/types/categorias';
 import { VentaPagosTable } from '@/components/ventas/VentaPagosTable';
 import { usePagosVenta } from '@/hooks/use-pagos-venta';
@@ -51,7 +51,6 @@ function VentaDetallePageContent() {
   const router = useRouter();
   const id = params.id as string;
 
-  const { updatePerfilOcupado } = useServiciosStore();
   const { deleteNotificacionesPorVenta, fetchNotificaciones } = useNotificacionesStore();
   const { getTemplateByTipo } = useTemplatesStore();
 
@@ -262,36 +261,13 @@ function VentaDetallePageContent() {
   const handleDelete = async () => {
     if (!venta) return;
     try {
-      // Eliminar todos los pagos asociados primero
-      const pagosToDelete = await queryDocuments<PagoVenta>(COLLECTIONS.PAGOS_VENTA, [
-        { field: 'ventaId', operator: '==', value: venta.id }
-      ]);
-
-      await Promise.all(
-        pagosToDelete.map(pago => remove(COLLECTIONS.PAGOS_VENTA, pago.id))
+      const { useVentasStore } = await import('@/store/ventasStore');
+      await useVentasStore.getState().deleteVenta(
+        venta.id,
+        venta.servicioId,
+        venta.perfilNumero ?? undefined,
+        true // deletePagos
       );
-
-      // Eliminar la venta
-      await remove(COLLECTIONS.VENTAS, venta.id);
-
-      // Actualizar perfil ocupado del servicio
-      if (venta.servicioId && venta.perfilNumero) {
-        updatePerfilOcupado(venta.servicioId, false);
-      }
-
-      // Decrementar contador de servicios activos del cliente
-      if (venta.clienteId && (venta.estado ?? 'activo') !== 'inactivo') {
-        adjustServiciosActivos(venta.clienteId, -1);
-      }
-
-      // Decrementar contadores de la categoría
-      if (venta.categoriaId && venta.precioFinal) {
-        await adjustCategoriaSuscripciones(
-          venta.categoriaId,
-          -1,
-          -venta.precioFinal
-        );
-      }
 
       toast.success('Venta eliminada correctamente');
       router.push('/ventas');

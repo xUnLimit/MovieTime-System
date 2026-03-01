@@ -516,9 +516,9 @@ export function VentasProximasTable() {
       });
 
       // 2. Free the profile if it exists
-      if (notifSeleccionada.perfilNombre) {
+      if (notifSeleccionada.servicioId) {
         const updatePerfil = useServiciosStore.getState().updatePerfilOcupado;
-        updatePerfil(notifSeleccionada.servicioId, false);
+        await updatePerfil(notifSeleccionada.servicioId, false);
       }
 
       // 3. Decrement serviciosActivos counter
