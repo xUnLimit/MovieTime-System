@@ -26,6 +26,7 @@ function VentasPageContent() {
   const [pageSize, setPageSize] = useState(10);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoriaId, setSelectedCategoriaId] = useState<string>('todas');
+  const [orderBy, setOrderBy] = useState<'createdAt' | 'updatedAt'>('createdAt');
   const isCategoriaFiltered = selectedCategoriaId !== 'todas';
   const isSearchMode = searchQuery.trim().length > 0 || isCategoriaFiltered;
   const [deleteVentaId, setDeleteVentaId] = useState<string | null>(null);
@@ -48,7 +49,7 @@ function VentasPageContent() {
     collectionName: COLLECTIONS.VENTAS,
     filters,
     pageSize,
-    orderByField: 'createdAt',
+    orderByField: orderBy,
     orderDirection: 'desc',
   });
 
@@ -87,8 +88,13 @@ function VentasPageContent() {
         (v.servicioCorreo ?? '').toLowerCase().includes(q)
       );
     }
-    return base;
-  }, [isSearchMode, searchQuery, ventas, activeTab, isCategoriaFiltered, selectedCategoriaId]);
+    return base.sort((a, b) => {
+      const field = orderBy === 'updatedAt' ? 'updatedAt' : 'createdAt';
+      const dateA = a[field] ? new Date(a[field] as Date).getTime() : 0;
+      const dateB = b[field] ? new Date(b[field] as Date).getTime() : 0;
+      return dateB - dateA;
+    });
+  }, [isSearchMode, searchQuery, ventas, activeTab, isCategoriaFiltered, selectedCategoriaId, orderBy]);
 
   const ventasParaMostrar = isSearchMode ? searchResults : ventasPaginadas;
   const isLoadingVentas = isSearchMode ? isLoadingSearch : isLoadingPage;
@@ -226,6 +232,8 @@ function VentasPageContent() {
             categorias={categorias}
             selectedCategoriaId={selectedCategoriaId}
             onCategoriaChange={(id) => { setSelectedCategoriaId(id); }}
+            orderBy={orderBy}
+            onOrderByChange={setOrderBy}
             // Paginación (oculta en modo búsqueda/filtro)
             hasMore={isSearchMode ? false : hasMore}
             hasPrevious={isSearchMode ? false : hasPrevious}

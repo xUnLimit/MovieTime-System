@@ -36,17 +36,22 @@ export function useServerPagination<T>({
   const filtersKey = JSON.stringify(filters);
   const prevPageSizeRef = useRef(pageSize);
 
+  const prevOrderRef = useRef(`${orderByField}:${orderDirection}`);
+  const orderKey = `${orderByField}:${orderDirection}`;
+
   useEffect(() => {
     let cancelled = false;
     let currentPageIndex = pageIndex;
 
-    // Reset paginación si cambian los filtros o el pageSize
+    // Reset paginación si cambian los filtros, el pageSize o el orden
     const filtersChanged = prevFiltersRef.current !== filtersKey;
     const pageSizeChanged = prevPageSizeRef.current !== pageSize;
+    const orderChanged = prevOrderRef.current !== orderKey;
 
-    if (filtersChanged || pageSizeChanged) {
+    if (filtersChanged || pageSizeChanged || orderChanged) {
       prevFiltersRef.current = filtersKey;
       prevPageSizeRef.current = pageSize;
+      prevOrderRef.current = orderKey;
       cursorsRef.current = [undefined];
       currentPageIndex = 0;
       if (pageIndex !== 0) {
@@ -85,7 +90,7 @@ export function useServerPagination<T>({
     fetchPage();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageIndex, filtersKey, pageSize, refreshKey]);
+  }, [pageIndex, filtersKey, pageSize, refreshKey, orderKey]);
 
   const next = useCallback(() => setPageIndex(p => p + 1), []);
   const previous = useCallback(() => setPageIndex(p => Math.max(0, p - 1)), []);

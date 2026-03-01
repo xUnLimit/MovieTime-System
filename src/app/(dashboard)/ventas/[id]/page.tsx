@@ -403,6 +403,11 @@ function VentaDetallePageContent() {
       // Cerrar el diálogo
       setRenovarDialogOpen(false);
 
+      // Notificar a la lista de ventas para que refresque el orden
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('venta-updated'));
+      }
+
       // Si el usuario eligió notificar por WhatsApp, agregar acción al toast
       if (data.notificarWhatsApp && venta) {
         const templateRenovacion = getTemplateByTipo('renovacion');

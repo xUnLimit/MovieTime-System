@@ -5,10 +5,9 @@ import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { PaginationFooter } from '@/components/shared/PaginationFooter';
-import { Search, MoreHorizontal, Monitor, User, Clock, Edit, Trash2, Eye, RefreshCw } from 'lucide-react';
+import { Search, MoreHorizontal, Monitor, User, Clock, Edit, Trash2, Eye, RefreshCw, ArrowUpDown, ChevronDown, Check, ListFilter } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,6 +29,8 @@ interface VentasTableProps {
   categorias?: Categoria[];
   selectedCategoriaId?: string;
   onCategoriaChange?: (id: string) => void;
+  orderBy?: 'createdAt' | 'updatedAt';
+  onOrderByChange?: (value: 'createdAt' | 'updatedAt') => void;
   // Paginación
   hasMore: boolean;
   hasPrevious: boolean;
@@ -80,6 +81,8 @@ export function VentasTable({
   categorias = [],
   selectedCategoriaId = 'todas',
   onCategoriaChange,
+  orderBy = 'createdAt',
+  onOrderByChange,
   hasMore,
   hasPrevious,
   page,
@@ -286,21 +289,46 @@ export function VentasTable({
             className="pl-9"
           />
         </div>
-        {categorias.length > 0 && (
-          <Select value={selectedCategoriaId} onValueChange={onCategoriaChange}>
-            <SelectTrigger className="w-full sm:w-[200px]">
-              <SelectValue placeholder="Todas las categorías" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todas">Todas las categorías</SelectItem>
-              {categorias.map((cat) => (
-                <SelectItem key={cat.id} value={cat.id}>
-                  {cat.nombre}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="w-full sm:w-[200px] justify-between gap-2">
+              <ListFilter className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="truncate">{selectedCategoriaId === 'todas' ? 'Todas las categorías' : categorias.find(c => c.id === selectedCategoriaId)?.nombre ?? 'Categoría'}</span>
+              <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-[200px]">
+            <DropdownMenuItem onClick={() => onCategoriaChange?.('todas')}>
+              {selectedCategoriaId === 'todas' && <Check className="h-4 w-4 mr-2" />}
+              <span className={selectedCategoriaId !== 'todas' ? 'pl-6' : ''}>Todas las categorías</span>
+            </DropdownMenuItem>
+            {categorias.map((cat) => (
+              <DropdownMenuItem key={cat.id} onClick={() => onCategoriaChange?.(cat.id)}>
+                {selectedCategoriaId === cat.id && <Check className="h-4 w-4 mr-2" />}
+                <span className={selectedCategoriaId !== cat.id ? 'pl-6' : ''}>{cat.nombre}</span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="w-full sm:w-[200px] justify-between gap-2">
+              <ArrowUpDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="truncate">{orderBy === 'createdAt' ? 'Más recientes' : 'Última actividad'}</span>
+              <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-[200px]">
+            <DropdownMenuItem onClick={() => onOrderByChange?.('createdAt')}>
+              {orderBy === 'createdAt' && <Check className="h-4 w-4 mr-2" />}
+              <span className={orderBy !== 'createdAt' ? 'pl-6' : ''}>Más recientes</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onOrderByChange?.('updatedAt')}>
+              {orderBy === 'updatedAt' && <Check className="h-4 w-4 mr-2" />}
+              <span className={orderBy !== 'updatedAt' ? 'pl-6' : ''}>Última actividad</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {isLoading ? (
