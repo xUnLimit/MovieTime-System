@@ -34,7 +34,7 @@ interface UsuariosState {
   fetchCounts: () => Promise<void>;
   createUsuario: (usuario: Omit<Usuario, 'id' | 'createdAt' | 'updatedAt' | 'serviciosActivos' | 'suscripcionesTotales'>) => Promise<void>;
   updateUsuario: (id: string, updates: Partial<Usuario>) => Promise<void>;
-  deleteUsuario: (id: string, usuarioData?: { tipo: 'cliente' | 'revendedor'; createdAt?: Date; serviciosActivos?: number }) => Promise<void>;
+  deleteUsuario: (id: string, usuarioData?: { tipo: 'cliente' | 'revendedor'; nombre?: string; createdAt?: Date; serviciosActivos?: number }) => Promise<void>;
   setSelectedUsuario: (usuario: Usuario | null) => void;
   getUsuario: (id: string) => Usuario | undefined;
   getClientes: () => Usuario[];
@@ -245,7 +245,7 @@ export const useUsuariosStore = create<UsuariosState>()(
         }
       },
 
-      deleteUsuario: async (id, usuarioData?: { tipo: 'cliente' | 'revendedor'; createdAt?: Date; serviciosActivos?: number }) => {
+      deleteUsuario: async (id, usuarioData?: { tipo: 'cliente' | 'revendedor'; nombre?: string; createdAt?: Date; serviciosActivos?: number }) => {
         // Si se proporciona usuarioData, usarlo; de lo contrario, buscar en usuarios locales o en Firebase
         let deletedUser: Usuario | undefined;
 

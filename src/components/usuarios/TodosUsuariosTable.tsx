@@ -104,6 +104,7 @@ export function TodosUsuariosTable({
       try {
         await deleteUsuario(usuarioToDelete.original.id, {
           tipo: usuarioToDelete.original.tipo,
+          nombre: usuarioToDelete.original.nombre,
           createdAt: usuarioToDelete.original.createdAt,
           serviciosActivos: usuarioToDelete.original.serviciosActivos,
         });

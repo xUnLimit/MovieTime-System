@@ -283,8 +283,10 @@ export const useVentasStore = create<VentasState>()(
             accion: 'actualizacion',
             entidad: 'venta',
             entidadId: id,
-            entidadNombre: `${ventaActual?.clienteNombre ?? ''} — ${ventaActual?.servicioNombre ?? ''}`,
-            detalles: `Venta actualizada: ${ventaActual?.clienteNombre} / ${ventaActual?.servicioNombre}`,
+            entidadNombre: (ventaAnterior?.clienteNombre && ventaAnterior?.servicioNombre)
+              ? `${ventaAnterior.clienteNombre} — ${ventaAnterior.servicioNombre}`
+              : '',
+            detalles: `Venta actualizada: ${ventaAnterior?.clienteNombre ?? '—'} / ${ventaAnterior?.servicioNombre ?? '—'}`,
             cambios: cambios.length > 0 ? cambios : undefined,
           }).catch(() => {});
 

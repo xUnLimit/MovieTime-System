@@ -67,6 +67,7 @@ export function ClientesTable({ clientes, onEdit, onView, title = 'Clientes', is
       try {
         await deleteUsuario(clienteToDelete.id, {
           tipo: clienteToDelete.tipo,
+          nombre: clienteToDelete.nombre,
           createdAt: clienteToDelete.createdAt,
           serviciosActivos: clienteToDelete.serviciosActivos,
         });

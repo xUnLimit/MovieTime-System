@@ -4,28 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Edit, Trash2, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { useDashboardStore } from '@/store/dashboardStore';
-
-const actionIcons = {
-  creacion: Plus,
-  actualizacion: Edit,
-  eliminacion: Trash2,
-};
-
-const actionLabels = {
-  creacion: 'Creó',
-  actualizacion: 'Actualizó',
-  eliminacion: 'Eliminó',
-};
-
-// Mapeo de acciones a colores específicos
-const actionColors = {
-  creacion: 'bg-green-500/10 text-green-500',
-  actualizacion: 'bg-blue-500/10 text-blue-500',
-  eliminacion: 'bg-red-500/10 text-red-500',
-};
+import { getActivityDisplayConfig } from '@/lib/utils/activityDisplayHelpers';
 
 export function RecentActivity() {
   const { recentActivity, isLoading } = useDashboardStore();
@@ -77,23 +58,18 @@ export function RecentActivity() {
           ) : (
             <div className="w-full space-y-1.5">
             {recentLogs.map((log) => {
-              const Icon = actionIcons[log.accion as keyof typeof actionIcons] || Plus;
-              const colorClass = actionColors[log.accion as keyof typeof actionColors] || 'bg-purple-500/10 text-purple-500';
+              const { icon: Icon, color, message } = getActivityDisplayConfig(log);
+              const [bgColor, textColor] = color.split(' ');
 
               return (
                 <div key={log.id} className="flex items-start gap-1.5">
-                  {/* gap-1.5 = espacio entre icono y texto (6px) */}
                   <div className="flex-shrink-0">
-                    <div className={`flex h-7 w-7 items-center justify-center rounded-full ${colorClass.split(' ')[0]}`}>
-                      <Icon className={`h-3.5 w-3.5 ${colorClass.split(' ')[1]}`} />
+                    <div className={`flex h-7 w-7 items-center justify-center rounded-full ${bgColor}`}>
+                      <Icon className={`h-3.5 w-3.5 ${textColor}`} />
                     </div>
                   </div>
                   <div className="flex-1 space-y-0 min-w-0">
-                    <p className="text-sm leading-tight">
-                      {actionLabels[log.accion as keyof typeof actionLabels]}{' '}
-                      {log.entidad.toLowerCase()} para{' '}
-                      <span className="text-primary font-medium">{log.entidadNombre}</span>
-                    </p>
+                    <p className="text-sm leading-tight">{message}</p>
                     <p className="text-xs text-muted-foreground">
                       {log.timestamp
                         ? `hace ${formatDistanceToNow(new Date(log.timestamp), { locale: es }).replace('alrededor de ', '')}`

@@ -40,6 +40,7 @@ import { useVentasStore } from '@/store/ventasStore';
 import { useServiciosStore } from '@/store/serviciosStore';
 import type { VentaDoc } from '@/types/ventas';
 import { update, adjustServiciosActivos, getById, COLLECTIONS } from '@/lib/firebase/firestore';
+import { getCurrencySymbol } from '@/lib/constants';
 import { crearPagoRenovacion } from '@/lib/services/pagosVentaService';
 import { upsertVentaPronostico, adjustIngresosStats, getMesKeyFromDate, getDiaKeyFromDate } from '@/lib/services/dashboardStatsService';
 import { generarMensajeVenta, openWhatsApp } from '@/lib/utils/whatsapp';
@@ -387,7 +388,7 @@ export function VentasProximasTable() {
         entidad: 'venta',
         entidadId: notifSeleccionada.ventaId,
         entidadNombre: `${notifSeleccionada.clienteNombre} — ${notifSeleccionada.servicioNombre}`,
-        detalles: `Venta renovada: ${notifSeleccionada.clienteNombre} / ${notifSeleccionada.servicioNombre} — $${monto.toFixed(2)} ${data.moneda ?? 'USD'} — hasta ${format(data.fechaVencimiento, 'dd/MM/yyyy')} (${data.periodoRenovacion})`,
+        detalles: `Venta renovada: ${notifSeleccionada.clienteNombre} / ${notifSeleccionada.servicioNombre} — ${getCurrencySymbol(data.moneda)}${monto.toFixed(2)} — hasta ${format(data.fechaVencimiento, 'dd/MM/yyyy')} (${data.periodoRenovacion})`,
       }).catch(() => {});
 
       // Actualizar dashboard: local INMEDIATAMENTE + Firestore en background

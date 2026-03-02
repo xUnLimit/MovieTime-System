@@ -214,8 +214,8 @@ export const useServiciosStore = create<ServiciosState>()(
             accion: 'creacion',
             entidad: 'servicio',
             entidadId: id,
-            entidadNombre: servicioData.nombre,
-            detalles: `Servicio creado: "${servicioData.nombre}" (${servicioData.tipo}) — $${servicioData.costoServicio ?? 0} ${moneda ?? 'USD'} (${servicioData.cicloPago ?? 'mensual'})`,
+            entidadNombre: `${servicioData.nombre} [${servicioData.correo}]`,
+            detalles: `Servicio creado: "${servicioData.nombre}" [${servicioData.correo}] (${servicioData.tipo}) — $${servicioData.costoServicio ?? 0} ${moneda ?? 'USD'} (${servicioData.cicloPago ?? 'mensual'})`,
           }).catch(() => {});
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Error al crear servicio';
@@ -321,8 +321,8 @@ export const useServiciosStore = create<ServiciosState>()(
             accion: 'actualizacion',
             entidad: 'servicio',
             entidadId: id,
-            entidadNombre: servicio.nombre,
-            detalles: `Servicio actualizado: "${servicio.nombre}"`,
+            entidadNombre: `${servicio.nombre} [${servicio.correo}]`,
+            detalles: `Servicio actualizado: "${servicio.nombre}" [${servicio.correo}]`,
             cambios: cambios.length > 0 ? cambios : undefined,
           }).catch(() => {});
         } catch (error) {
@@ -417,8 +417,8 @@ export const useServiciosStore = create<ServiciosState>()(
             accion: 'eliminacion',
             entidad: 'servicio',
             entidadId: id,
-            entidadNombre: servicio.nombre,
-            detalles: `Servicio eliminado: "${servicio.nombre}"`,
+            entidadNombre: `${servicio.nombre} [${servicio.correo}]`,
+            detalles: `Servicio eliminado: "${servicio.nombre}" (${servicio.correo})`,
           }).catch(() => {});
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Error al eliminar servicio';

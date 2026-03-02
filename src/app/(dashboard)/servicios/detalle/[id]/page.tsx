@@ -441,8 +441,8 @@ function ServicioDetallePageContent() {
         accion: 'renovacion',
         entidad: 'servicio',
         entidadId: id,
-        entidadNombre: servicio?.nombre ?? id,
-        detalles: `Servicio renovado: "${servicio?.nombre}" — $${data.costo} ${data.moneda ?? 'USD'} — hasta ${format(data.fechaVencimiento, 'dd/MM/yyyy')} (${data.periodoRenovacion})`,
+        entidadNombre: `${servicio?.nombre ?? id} [${servicio?.correo}]`,
+        detalles: `Servicio renovado: "${servicio?.nombre}" [${servicio?.correo}] — ${getCurrencySymbol(data.moneda)}${data.costo} — hasta ${format(data.fechaVencimiento, 'dd/MM/yyyy')} (${data.periodoRenovacion})`,
       }).catch(() => {});
 
       // Remove notification and refresh store

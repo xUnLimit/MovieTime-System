@@ -6,8 +6,8 @@ import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
   Users,
-  Server,
-  CreditCard,
+  Tv2,
+  ShoppingCart,
   Bell,
   Folder,
   Wallet,
@@ -46,12 +46,12 @@ const navigationSections: NavSection[] = [
       {
         name: 'Servicios',
         href: '/servicios',
-        icon: Server
+        icon: Tv2
       },
       {
         name: 'Ventas',
         href: '/ventas',
-        icon: CreditCard
+        icon: ShoppingCart
       },
     ]
   },

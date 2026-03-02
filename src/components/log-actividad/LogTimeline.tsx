@@ -13,6 +13,7 @@ import { es } from 'date-fns/locale';
 import { useState } from 'react';
 import { Eye } from 'lucide-react';
 import { PaginationFooter } from '@/components/shared/PaginationFooter';
+import { getActivityDisplayConfig, activityActionColors } from '@/lib/utils/activityDisplayHelpers';
 
 interface LogTimelineProps {
   logs: ActivityLog[];
@@ -65,13 +66,13 @@ export function LogTimeline({
   const [cambiosModalOpen, setCambiosModalOpen] = useState(false);
 
   const getActionBadgeStyle = (accion: ActivityLog['accion']) => {
-    const styles = {
-      creacion: 'bg-green-100 text-green-700 border-green-300 dark:bg-green-500/20 dark:text-green-400 dark:border-green-500/30',
-      actualizacion: 'bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/30',
-      eliminacion: 'bg-red-100 text-red-700 border-red-300 dark:bg-red-500/20 dark:text-red-400 dark:border-red-500/30',
-      renovacion: 'bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-500/20 dark:text-purple-400 dark:border-purple-500/30',
+    const styles: Record<string, string> = {
+      creacion:     'bg-green-100 text-green-700 border-green-300 dark:bg-green-500/20 dark:text-green-400 dark:border-green-500/30',
+      actualizacion:'bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/30',
+      eliminacion:  'bg-red-100 text-red-700 border-red-300 dark:bg-red-500/20 dark:text-red-400 dark:border-red-500/30',
+      renovacion:   'bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-500/20 dark:text-purple-400 dark:border-purple-500/30',
     };
-    return styles[accion];
+    return styles[accion] ?? activityActionColors[accion] ?? '';
   };
 
   const getActionLabel = (accion: ActivityLog['accion']) => {
@@ -198,13 +199,20 @@ export function LogTimeline({
     {
       key: 'detalles',
       header: 'Detalles',
-      align: 'center',
+      align: 'left',
       width: '28%',
-      render: (item) => (
-        <div className="text-sm text-foreground px-2">
-          {item.detalles}
-        </div>
-      ),
+      render: (item) => {
+        const { icon: Icon, color, message } = getActivityDisplayConfig(item);
+        const [bgColor, textColor] = color.split(' ');
+        return (
+          <div className="flex items-center gap-2 px-2">
+            <div className={`flex-shrink-0 flex h-6 w-6 items-center justify-center rounded-full ${bgColor}`}>
+              <Icon className={`h-3 w-3 ${textColor}`} />
+            </div>
+            <span className="text-sm">{message}</span>
+          </div>
+        );
+      },
     },
     {
       key: 'cambios',

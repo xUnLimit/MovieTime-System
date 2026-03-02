@@ -67,6 +67,7 @@ export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Reven
       try {
         await deleteUsuario(revendedorToDelete.id, {
           tipo: revendedorToDelete.tipo,
+          nombre: revendedorToDelete.nombre,
           createdAt: revendedorToDelete.createdAt,
           serviciosActivos: revendedorToDelete.serviciosActivos,
         });

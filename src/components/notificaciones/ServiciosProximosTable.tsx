@@ -382,8 +382,8 @@ export function ServiciosProximosTable() {
         accion: 'renovacion',
         entidad: 'servicio',
         entidadId: servicioId,
-        entidadNombre: servicioParaRenovar.nombre ?? servicioId,
-        detalles: `Servicio renovado desde notificaciones: "${servicioParaRenovar.nombre}" — $${data.costo} ${data.moneda ?? 'USD'} — hasta ${format(data.fechaVencimiento, 'dd/MM/yyyy')} (${data.periodoRenovacion})`,
+        entidadNombre: `${servicioParaRenovar.nombre ?? servicioId} [${servicioParaRenovar.correo}]`,
+        detalles: `Servicio renovado desde notificaciones: "${servicioParaRenovar.nombre}" [${servicioParaRenovar.correo}] — ${getCurrencySymbol(data.moneda)}${data.costo} — hasta ${format(data.fechaVencimiento, 'dd/MM/yyyy')} (${data.periodoRenovacion})`,
       }).catch(() => {});
 
       // Remove notification and refresh store

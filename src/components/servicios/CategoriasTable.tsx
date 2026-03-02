@@ -320,7 +320,7 @@ export const CategoriasTable = memo(function CategoriasTable({
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center gap-2">
-                        <ShoppingCart className={`h-4 w-4 ${row.suscripcionesTotales > 0 ? 'text-green-500' : 'text-muted-foreground'}`} />
+                        <ShoppingCart className={`h-4 w-4 ${row.suscripcionesTotales > 0 ? 'text-purple-500' : 'text-muted-foreground'}`} />
                         <span className={`font-medium ${row.suscripcionesTotales > 0 ? '' : 'text-muted-foreground'}`}>{row.suscripcionesTotales}</span>
                       </div>
                     </TableCell>
