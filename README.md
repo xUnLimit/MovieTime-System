@@ -35,9 +35,8 @@ Sistema de gestión de suscripciones de servicios de streaming para Panamá. Adm
 # Instalar dependencias
 npm install
 
-# Configurar variables de entorno
-cp .env.example .env.local
-# Editar .env.local con tus credenciales de Firebase
+# Crear archivo .env.local con las credenciales de Firebase
+# (ver sección de variables de entorno abajo)
 ```
 
 ### Variables de entorno (`.env.local`)
@@ -49,7 +48,10 @@ NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=...
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
 NEXT_PUBLIC_FIREBASE_APP_ID=...
+NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=...
 ```
+
+Las credenciales se obtienen desde la [consola de Firebase](https://console.firebase.google.com/) → Tu proyecto → Configuración del proyecto → "Tu aplicación web".
 
 ---
 
@@ -188,8 +190,7 @@ Filas individuales en moneda original. Totales agregados en USD.
 
 ## Issues Conocidos
 
-1. **Dashboard** — métricas de ejemplo estáticas, pendiente de conectar a Firebase
-2. **`VentaDoc.pagos`** — campo `@deprecated`; usar la colección `pagosVenta`
+1. **`VentaDoc.pagos`** — campo `@deprecated`; usar la colección `pagosVenta`
 
 ---
 
@@ -207,4 +208,4 @@ Filas individuales en moneda original. Totales agregados en USD.
 
 ---
 
-**Versión:** 2.4.0 | **Actualizado:** Febrero 2026
+**Versión:** 2.5.0 | **Actualizado:** Marzo 2026

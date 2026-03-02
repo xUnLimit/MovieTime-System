@@ -52,10 +52,10 @@ export async function getDashboardStats(): Promise<DashboardStats> {
           .map((v) => ({
             id: v.id,
             categoriaId: v.categoriaId ?? '',
-            fechaInicio: v.fechaInicio instanceof Date ? v.fechaInicio.toISOString() : String(v.fechaInicio ?? new Date()),
-            fechaFin: v.fechaFin instanceof Date ? v.fechaFin.toISOString() : String(v.fechaFin),
+            fechaInicio: v.fechaInicio instanceof Date ? format(v.fechaInicio, "yyyy-MM-dd'T'HH:mm:ss") : String(v.fechaInicio ?? new Date()),
+            fechaFin: v.fechaFin instanceof Date ? format(v.fechaFin, "yyyy-MM-dd'T'HH:mm:ss") : String(v.fechaFin),
             cicloPago: v.cicloPago as string,
-            precioFinal: v.precioFinal || 0,
+            precioFinal: v.precio || v.precioFinal || 0,
             moneda: v.moneda || 'USD',
           }));
       }
@@ -67,7 +67,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
           .map((s) => ({
             id: s.id,
             fechaVencimiento: s.fechaVencimiento instanceof Date
-              ? s.fechaVencimiento.toISOString()
+              ? format(s.fechaVencimiento, "yyyy-MM-dd'T'HH:mm:ss")
               : String(s.fechaVencimiento),
             cicloPago: s.cicloPago as string,
             costoServicio: s.costoServicio,
@@ -656,15 +656,15 @@ export async function rebuildDashboardStats(): Promise<void> {
         id: v.id!,
         categoriaId: v.categoriaId ?? '',
         fechaInicio: ultimoPago?.fechaInicio instanceof Date
-          ? ultimoPago.fechaInicio.toISOString()
+          ? format(ultimoPago.fechaInicio, "yyyy-MM-dd'T'HH:mm:ss")
           : v.fechaInicio instanceof Date
-            ? v.fechaInicio.toISOString()
+            ? format(v.fechaInicio, "yyyy-MM-dd'T'HH:mm:ss")
             : String(v.fechaInicio ?? new Date()),
         fechaFin: ultimoPago?.fechaVencimiento instanceof Date
-          ? ultimoPago.fechaVencimiento.toISOString()
-          : v.fechaFin instanceof Date ? v.fechaFin.toISOString() : String(v.fechaFin),
-        cicloPago: v.cicloPago as string,
-        precioFinal: ultimoPago ? (ultimoPago.monto || 0) : (v.precioFinal || 0),
+          ? format(ultimoPago.fechaVencimiento, "yyyy-MM-dd'T'HH:mm:ss")
+          : v.fechaFin instanceof Date ? format(v.fechaFin, "yyyy-MM-dd'T'HH:mm:ss") : String(v.fechaFin),
+        cicloPago: (ultimoPago?.cicloPago || v.cicloPago) as string,
+        precioFinal: ultimoPago ? (ultimoPago.precio || ultimoPago.monto || 0) : (v.precio || v.precioFinal || 0),
         moneda: ultimoPago ? (ultimoPago.moneda || 'USD') : (v.moneda || 'USD'),
       };
     });
@@ -674,7 +674,7 @@ export async function rebuildDashboardStats(): Promise<void> {
     .map((s) => ({
       id: s.id!,
       fechaVencimiento: s.fechaVencimiento instanceof Date
-        ? s.fechaVencimiento.toISOString()
+        ? format(s.fechaVencimiento, "yyyy-MM-dd'T'HH:mm:ss")
         : String(s.fechaVencimiento),
       cicloPago: s.cicloPago as string,
       costoServicio: s.costoServicio,

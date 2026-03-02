@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { startOfDay, format } from 'date-fns';
 import { Usuario } from '@/types';
-import { getAll, getCount, getById, create as createDoc, update, remove, COLLECTIONS, logCacheHit } from '@/lib/firebase/firestore';
+import { getAll, getCount, getById, create as createDoc, update, remove, queryDocuments, COLLECTIONS, logCacheHit } from '@/lib/firebase/firestore';
 import { adjustUsuariosPorMes, getDiaKeyFromDate } from '@/lib/services/dashboardStatsService';
 import { useActivityLogStore } from '@/store/activityLogStore';
 import { useAuthStore } from '@/store/authStore';
@@ -158,6 +158,24 @@ export const useUsuariosStore = create<UsuariosState>()(
           const cambioServiciosActivos = oldUsuario && updates.serviciosActivos !== undefined && oldUsuario.serviciosActivos !== updates.serviciosActivos;
 
           await update(COLLECTIONS.USUARIOS, id, updates);
+
+          // Si cambió nombre o apellido, sincronizar clienteNombre en ventas y pagosVenta
+          const nombreChanged = updates.nombre !== undefined || updates.apellido !== undefined;
+          if (nombreChanged && oldUsuario) {
+            const nuevoNombre = `${updates.nombre ?? oldUsuario.nombre} ${updates.apellido ?? oldUsuario.apellido}`;
+            const [ventasDelCliente, pagosDelCliente] = await Promise.all([
+              queryDocuments<{ id: string }>(COLLECTIONS.VENTAS, [{ field: 'clienteId', operator: '==', value: id }]),
+              queryDocuments<{ id: string }>(COLLECTIONS.PAGOS_VENTA, [{ field: 'clienteId', operator: '==', value: id }]),
+            ]);
+            await Promise.all([
+              ...ventasDelCliente.map(v => update(COLLECTIONS.VENTAS, v.id, { clienteNombre: nuevoNombre })),
+              ...pagosDelCliente.map(p => update(COLLECTIONS.PAGOS_VENTA, p.id, { clienteNombre: nuevoNombre })),
+            ]);
+            // Invalidar caché de ventas para que el módulo recargue con el nombre actualizado
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new Event('usuario-nombre-updated'));
+            }
+          }
 
           set((state) => {
             const updatedUsuarios = state.usuarios.map((usuario) =>

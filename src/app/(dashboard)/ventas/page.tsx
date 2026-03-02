@@ -28,21 +28,25 @@ function VentasPageContent() {
   const [selectedCategoriaId, setSelectedCategoriaId] = useState<string>('todas');
   const [orderBy, setOrderBy] = useState<'createdAt' | 'updatedAt'>('createdAt');
   const isCategoriaFiltered = selectedCategoriaId !== 'todas';
-  const isSearchMode = searchQuery.trim().length > 0 || isCategoriaFiltered;
+  const isSearchMode = searchQuery.trim().length > 0;
   const [deleteVentaId, setDeleteVentaId] = useState<string | null>(null);
   const [deleteVentaServicioId, setDeleteVentaServicioId] = useState<string | undefined>(undefined);
   const [deleteVentaPerfilNumero, setDeleteVentaPerfilNumero] = useState<number | null | undefined>(undefined);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-  // Construir filtros basados en el tab activo
+  // Construir filtros basados en el tab activo y categoría seleccionada
   const filters = useMemo((): FilterOption[] => {
+    const f: FilterOption[] = [];
     if (activeTab === 'activas') {
-      return [{ field: 'estado', operator: '==', value: 'activo' }];
+      f.push({ field: 'estado', operator: '==', value: 'activo' });
     } else if (activeTab === 'inactivas') {
-      return [{ field: 'estado', operator: '==', value: 'inactivo' }];
+      f.push({ field: 'estado', operator: '==', value: 'inactivo' });
     }
-    return [];
-  }, [activeTab]);
+    if (isCategoriaFiltered) {
+      f.push({ field: 'categoriaId', operator: '==', value: selectedCategoriaId });
+    }
+    return f;
+  }, [activeTab, isCategoriaFiltered, selectedCategoriaId]);
 
   // Paginación server-side (solo cuando NO hay búsqueda activa)
   const { data: ventasPaginadas, isLoading: isLoadingPage, hasMore, page, hasPrevious, next, previous, refresh } = useServerPagination<VentaDoc>({
@@ -55,6 +59,16 @@ function VentasPageContent() {
 
   // Cargar categorías al montar
   useEffect(() => { fetchCategorias(); }, [fetchCategorias]);
+
+  // Recargar ventas si se actualizó el nombre de un cliente desde el módulo de usuarios
+  useEffect(() => {
+    const handler = () => {
+      fetchVentas(true);
+      refresh();
+    };
+    window.addEventListener('usuario-nombre-updated', handler);
+    return () => window.removeEventListener('usuario-nombre-updated', handler);
+  }, [fetchVentas, refresh]);
 
   // Modo búsqueda/filtro: fetchAll con cache y filtrar en memoria
   const [isLoadingSearch, setIsLoadingSearch] = useState(false);

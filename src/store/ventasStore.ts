@@ -15,10 +15,10 @@ function toVentaPronostico(v: VentaDoc): VentaPronostico | null {
   return {
     id: v.id,
     categoriaId: v.categoriaId ?? '',
-    fechaInicio: v.fechaInicio instanceof Date ? v.fechaInicio.toISOString() : String(v.fechaInicio ?? new Date()),
-    fechaFin: v.fechaFin instanceof Date ? v.fechaFin.toISOString() : String(v.fechaFin),
+    fechaInicio: v.fechaInicio instanceof Date ? format(v.fechaInicio, "yyyy-MM-dd'T'HH:mm:ss") : String(v.fechaInicio ?? new Date()),
+    fechaFin: v.fechaFin instanceof Date ? format(v.fechaFin, "yyyy-MM-dd'T'HH:mm:ss") : String(v.fechaFin),
     cicloPago: v.cicloPago,
-    precioFinal: v.precioFinal || 0,
+    precioFinal: v.precio || v.precioFinal || 0,
     moneda: v.moneda || 'USD',
   };
 }

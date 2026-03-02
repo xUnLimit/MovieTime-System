@@ -32,6 +32,9 @@ function caeEnMes(
   return isWithinInterval(fecha, { start, end });
 }
 
+// Deduplicación de logs por Strict Mode (doble ejecución de useEffect)
+let lastPronosticoLogTime = 0;
+
 export function usePronosticoFinanciero(): UsePronosticoFinancieroResult {
   const { stats, isLoading: statsLoading } = useDashboardStore();
   const [meses, setMeses] = useState<MesPronostico[]>([]);
@@ -86,8 +89,40 @@ export function usePronosticoFinanciero(): UsePronosticoFinancieroResult {
           const mes = format(targetMonth, 'MMMM yyyy', { locale: es }).replace(/^\w/, (c) => c.toUpperCase());
           const mesKey = format(targetMonth, 'yyyy-MM');
 
+          // Log de desglose por mes (solo en desarrollo, deduplicado por Strict Mode)
+          const now = Date.now();
+          if (process.env.NODE_ENV === 'development' && now - lastPronosticoLogTime > 500) {
+            console.groupCollapsed(
+              `%c[Pronóstico]%c ${mes} → Ingresos: $${ingresos.toFixed(2)} | Gastos: $${gastos.toFixed(2)} | Ganancia: $${(ingresos - gastos).toFixed(2)}`,
+              'background:#7C3AED;color:#fff;padding:2px 6px;border-radius:3px;font-weight:600',
+              'color:#7C3AED;font-weight:600'
+            );
+            if (ventasDelMes.length > 0) {
+              console.table(ventasDelMes.map(v => ({
+                id: v.id,
+                precio: v.precioFinal,
+                ciclo: v.cicloPago,
+                fechaFin: v.fechaFin.slice(0, 10),
+              })));
+            }
+            if (serviciosDelMes.length > 0) {
+              console.log('%cGastos (servicios):', 'color:#EF4444;font-weight:600');
+              console.table(serviciosDelMes.map(s => ({
+                id: s.id,
+                costo: s.costoServicio,
+                ciclo: s.cicloPago,
+                vencimiento: s.fechaVencimiento.slice(0, 10),
+              })));
+            }
+            console.groupEnd();
+          }
+
           return { mes, mesKey, ingresos, gastos, ganancias: ingresos - gastos };
         });
+
+        if (process.env.NODE_ENV === 'development') {
+          lastPronosticoLogTime = Date.now();
+        }
 
         setMeses(mesesCalculados);
       } catch (error) {

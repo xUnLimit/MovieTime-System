@@ -55,7 +55,7 @@ interface VentaRow {
   consumoPorcentaje: number;
   montoSinConsumir: number;
   moneda: string;
-  estado: 'activa' | 'suspendida' | 'inactiva';
+  estado: 'activa' | 'inactiva';
   renovaciones: number;
   categoriaId?: string;
   original: VentaDoc;
@@ -148,7 +148,7 @@ export function VentasTable({
       width: '16%',
       render: (item) => (
         <div className="flex items-center gap-2">
-          <User className="h-4 w-4 text-green-500" />
+          <User className={cn("h-4 w-4", item.estado === 'inactiva' ? "text-red-500" : "text-green-500")} />
           <div>
             <p className="font-medium">{item.cliente}</p>
             {item.clienteDetalle ? (
@@ -165,7 +165,7 @@ export function VentasTable({
       width: '18%',
       render: (item) => (
         <div className="flex items-center gap-2">
-          <Monitor className="h-4 w-4 text-green-500" />
+          <Monitor className={cn("h-4 w-4", item.estado === 'inactiva' ? "text-red-500" : "text-green-500")} />
           <div>
             <p className="font-medium">{item.servicio}</p>
             <p className="text-xs text-muted-foreground">{item.servicioDetalle}</p>
@@ -302,7 +302,7 @@ export function VentasTable({
               {selectedCategoriaId === 'todas' && <Check className="h-4 w-4 mr-2" />}
               <span className={selectedCategoriaId !== 'todas' ? 'pl-6' : ''}>Todas las categorías</span>
             </DropdownMenuItem>
-            {categorias.map((cat) => (
+            {[...categorias].sort((a, b) => a.nombre.localeCompare(b.nombre)).map((cat) => (
               <DropdownMenuItem key={cat.id} onClick={() => onCategoriaChange?.(cat.id)}>
                 {selectedCategoriaId === cat.id && <Check className="h-4 w-4 mr-2" />}
                 <span className={selectedCategoriaId !== cat.id ? 'pl-6' : ''}>{cat.nombre}</span>
