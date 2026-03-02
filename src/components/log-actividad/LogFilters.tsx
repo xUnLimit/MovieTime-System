@@ -32,7 +32,7 @@ interface LogFiltersProps {
   setUsuarioFilter: (value: string) => void;
   selectedCount: number;
   onDeleteSelected: () => void;
-  onDeleteByDays: (days: number) => void;
+  onRequestDeleteByDays: (days: number) => void;
 }
 
 export function LogFilters({
@@ -44,7 +44,7 @@ export function LogFilters({
   setEntidadFilter,
   selectedCount,
   onDeleteSelected,
-  onDeleteByDays,
+  onRequestDeleteByDays,
 }: LogFiltersProps) {
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
 
@@ -186,13 +186,13 @@ export function LogFilters({
           >
             Limpiar logs seleccionados ({selectedCount} en total)
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onDeleteByDays(7)}>
+          <DropdownMenuItem onClick={() => onRequestDeleteByDays(7)}>
             Eliminar Logs de +7 días
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onDeleteByDays(14)}>
+          <DropdownMenuItem onClick={() => onRequestDeleteByDays(14)}>
             Eliminar Logs de +14 días
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onDeleteByDays(30)}>
+          <DropdownMenuItem onClick={() => onRequestDeleteByDays(30)}>
             Eliminar Logs de +30 días
           </DropdownMenuItem>
         </DropdownMenuContent>

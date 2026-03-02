@@ -11,9 +11,18 @@ import { CambiosModal } from './CambiosModal';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useState } from 'react';
-import { Eye } from 'lucide-react';
+import { Eye, AlertTriangle, Loader2 } from 'lucide-react';
 import { PaginationFooter } from '@/components/shared/PaginationFooter';
 import { getActivityDisplayConfig, activityActionColors } from '@/lib/utils/activityDisplayHelpers';
+import { getCount, COLLECTIONS } from '@/lib/firebase/firestore';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 interface LogTimelineProps {
   logs: ActivityLog[];
@@ -64,6 +73,12 @@ export function LogTimeline({
   const [selectedLogs, setSelectedLogs] = useState<Set<string>>(new Set());
   const [selectedLog, setSelectedLog] = useState<ActivityLog | null>(null);
   const [cambiosModalOpen, setCambiosModalOpen] = useState(false);
+
+  // Modal de confirmación para limpiar por días
+  const [confirmDays, setConfirmDays] = useState<number | null>(null);
+  const [confirmCount, setConfirmCount] = useState<number | null>(null);
+  const [isLoadingCount, setIsLoadingCount] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const getActionBadgeStyle = (accion: ActivityLog['accion']) => {
     const styles: Record<string, string> = {
@@ -125,9 +140,27 @@ export function LogTimeline({
     setSelectedLogs(new Set());
   };
 
-  const handleDeleteByDays = async (days: number) => {
-    await onDeleteByDays(days);
+  const handleRequestDeleteByDays = async (days: number) => {
+    setConfirmDays(days);
+    setConfirmCount(null);
+    setIsLoadingCount(true);
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    const count = await getCount(COLLECTIONS.ACTIVITY_LOG, [
+      { field: 'timestamp', operator: '<', value: cutoff },
+    ]);
+    setConfirmCount(count);
+    setIsLoadingCount(false);
+  };
+
+  const handleConfirmDeleteByDays = async () => {
+    if (confirmDays === null) return;
+    setIsDeleting(true);
+    await onDeleteByDays(confirmDays);
     setSelectedLogs(new Set());
+    setIsDeleting(false);
+    setConfirmDays(null);
+    setConfirmCount(null);
   };
 
   const handleOpenCambios = (log: ActivityLog) => {
@@ -253,7 +286,7 @@ export function LogTimeline({
           setUsuarioFilter={setUsuarioFilter}
           selectedCount={selectedLogs.size}
           onDeleteSelected={handleDeleteSelected}
-          onDeleteByDays={handleDeleteByDays}
+          onRequestDeleteByDays={handleRequestDeleteByDays}
         />
       </div>
 
@@ -297,6 +330,54 @@ export function LogTimeline({
           cambios={selectedLog.cambios}
         />
       )}
+
+      {/* Modal de confirmación para limpiar por días */}
+      <Dialog open={confirmDays !== null} onOpenChange={(open) => { if (!open && !isDeleting) { setConfirmDays(null); setConfirmCount(null); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              ¿Estás seguro de limpiar los logs?
+            </DialogTitle>
+            <DialogDescription className="pt-1">
+              Esta acción eliminará permanentemente todos los registros con más de{' '}
+              <span className="font-semibold text-foreground">{confirmDays} días</span> de antigüedad.
+              {isLoadingCount ? (
+                <span className="flex items-center gap-1.5 mt-2 text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Calculando registros...
+                </span>
+              ) : confirmCount !== null ? (
+                <span className="block mt-2">
+                  Se eliminarán{' '}
+                  <span className="font-semibold text-red-500">{confirmCount} {confirmCount === 1 ? 'registro' : 'registros'}</span>.{' '}
+                  Esta acción no se puede deshacer.
+                </span>
+              ) : null}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => { setConfirmDays(null); setConfirmCount(null); }}
+              disabled={isDeleting}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDeleteByDays}
+              disabled={isLoadingCount || isDeleting || confirmCount === 0}
+            >
+              {isDeleting ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Eliminando...</>
+              ) : (
+                'Sí, limpiar logs'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
