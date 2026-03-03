@@ -44,8 +44,6 @@ import {
   Eye,
   EyeOff,
   AlertTriangle,
-  Star,
-  StarOff,
   ExternalLink,
   RefreshCw,
   ChevronDown,
@@ -65,8 +63,11 @@ import { crearPagoRenovacion, obtenerPagosDeServicio } from '@/lib/services/pago
 import { currencyService } from '@/lib/services/currencyService';
 import { useActivityLogStore } from '@/store/activityLogStore';
 import { useAuthStore } from '@/store/authStore';
+import { useServiciosStore } from '@/store/serviciosStore';
 import { format } from 'date-fns';
 import { adjustGastosStats, getMesKeyFromDate, getDiaKeyFromDate, upsertServicioPronostico } from '@/lib/services/dashboardStatsService';
+import { AccionesServicioDialog } from './AccionesServicioDialog';
+import { Scissors } from 'lucide-react';
 
 /**
  * Get bell icon color based on days remaining
@@ -181,6 +182,10 @@ export function ServiciosProximosTable() {
   const [metodosPagoServicio, setMetodosPagoServicio] = useState<MetodoPago[]>([]);
   const [, setIsLoadingRenovar] = useState(false);
 
+  // Acciones dialog state
+  const [accionesDialogOpen, setAccionesDialogOpen] = useState(false);
+  const [notifParaAcciones, setNotifParaAcciones] = useState<NotificacionServicio & { id: string } | null>(null);
+
   // Get servicio notifications (type-safe filtering)
   const serviciosNotificaciones = useMemo(() => {
     let filtered = notificaciones.filter(esNotificacionServicio);
@@ -257,15 +262,54 @@ export function ServiciosProximosTable() {
   };
 
   /**
+   * Open Acciones dialog
+   */
+  const handleAcciones = (notif: NotificacionServicio & { id: string }) => {
+    setNotifParaAcciones(notif);
+    setAccionesDialogOpen(true);
+  };
+
+  /**
+   * Handle Cortar servicio - Set activo to false + delete notification
+   * Uses serviciosStore.updateServicio which handles:
+   * - Category counters (serviciosActivos, perfilesDisponiblesTotal)
+   * - Dashboard forecast update + cache invalidation
+   * - Activity log with change detection
+   */
+  const handleCortarServicio = async () => {
+    if (!notifParaAcciones) return;
+    try {
+      await useServiciosStore.getState().updateServicio(notifParaAcciones.servicioId, { activo: false });
+      await deleteNotificacionesPorServicio(notifParaAcciones.servicioId);
+
+      toast.success('Servicio cortado', { description: `${notifParaAcciones.servicioNombre} ha sido marcado como inactivo.` });
+      fetchNotificaciones(true);
+    } catch {
+      toast.error('Error al cortar servicio', { description: 'No se pudo cortar el servicio. Intenta nuevamente.' });
+    }
+  };
+
+  /**
    * Handle Resaltar action - Toggle resaltada state
    */
-  const handleResaltar = async (notif: NotificacionServicio & { id: string }) => {
+  const handleResaltar = async () => {
+    if (!notifParaAcciones) return;
     try {
-      await toggleResaltada(notif.id, !notif.resaltada);
-      toast.success(
-        notif.resaltada ? 'Notificación desmarcada' : 'Notificación resaltada',
-        { description: notif.resaltada ? 'La notificación ya no está marcada para seguimiento.' : 'La notificación ha sido marcada para seguimiento.' }
-      );
+      await toggleResaltada(notifParaAcciones.id, true);
+      toast.success('Notificación resaltada', { description: 'La notificación ha sido marcada para seguimiento.' });
+    } catch {
+      toast.error('Error al actualizar notificación', { description: 'No se pudo cambiar el estado de la notificación. Intenta nuevamente.' });
+    }
+  };
+
+  /**
+   * Handle Descartar resaltado
+   */
+  const handleDescartar = async () => {
+    if (!notifParaAcciones) return;
+    try {
+      await toggleResaltada(notifParaAcciones.id, false);
+      toast.success('Notificación desmarcada', { description: 'La notificación ya no está marcada para seguimiento.' });
     } catch {
       toast.error('Error al actualizar notificación', { description: 'No se pudo cambiar el estado de la notificación. Intenta nuevamente.' });
     }
@@ -606,18 +650,9 @@ export function ServiciosProximosTable() {
                                 <RefreshCw className="h-4 w-4 mr-2 text-purple-600" />
                                 <span className="text-purple-600">Renovar</span>
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleResaltar(notif)}>
-                                {notif.resaltada ? (
-                                  <>
-                                    <StarOff className="h-4 w-4 mr-2 text-orange-600" />
-                                    <span className="text-orange-600">Desmarcar</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Star className="h-4 w-4 mr-2 text-orange-600" />
-                                    <span className="text-orange-600">Resaltar</span>
-                                  </>
-                                )}
+                              <DropdownMenuItem onClick={() => handleAcciones(notif)}>
+                                <Scissors className="h-4 w-4 mr-2 text-orange-600" />
+                                <span className="text-orange-600">Cortar</span>
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleVerServicio(notif)}>
                                 <ExternalLink className="h-4 w-4 mr-2" />
@@ -704,6 +739,19 @@ export function ServiciosProximosTable() {
           onConfirm={handleConfirmRenovacion}
         />
       )}
+
+      {/* Acciones Dialog (Inactivar / Resaltar) */}
+      <AccionesServicioDialog
+        notificacion={notifParaAcciones}
+        isOpen={accionesDialogOpen}
+        onOpenChange={(open) => {
+          setAccionesDialogOpen(open);
+          if (!open) setNotifParaAcciones(null);
+        }}
+        onCortar={handleCortarServicio}
+        onResaltar={handleResaltar}
+        onDescartar={handleDescartar}
+      />
     </Card>
   );
 }

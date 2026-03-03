@@ -1,7 +1,7 @@
 import React from 'react';
 import { ActivityLog } from '@/types';
 import {
-  Edit, Trash2, Plus, RefreshCw,
+  Edit, Trash2, Plus, RefreshCw, Scissors,
   UserPlus, UserMinus, UserCog,
   Tv2, ShoppingCart, Tag, CreditCard, FileText, RotateCcw,
 } from 'lucide-react';
@@ -131,6 +131,24 @@ export function getActivityDisplayConfig(log: ActivityLog): ActivityDisplayConfi
     }
 
     case 'actualizacion': {
+      // Detectar si es un "corte" (activo: true → false) o (estado → inactivo)
+      const esCorte = log.cambios?.some(c =>
+        (c.campoKey === 'activo' && c.nuevo === false) ||
+        (c.campoKey === 'estado' && c.nuevo === 'inactivo')
+      ) ?? detalles.toLowerCase().includes('cortad');
+
+      if (esCorte) {
+        const cortarIcon = Scissors;
+        const cortarColor = 'bg-orange-500/10 text-orange-500';
+        if (log.entidad === 'servicio') {
+          return { icon: cortarIcon, color: cortarColor, message: <><span>Servicio cortado —</span> {nameEl}{correoEl}</> };
+        }
+        if (log.entidad === 'venta') {
+          return { icon: cortarIcon, color: cortarColor, message: <><span>Venta cortada —</span> {nameEl}</> };
+        }
+        return { icon: cortarIcon, color: cortarColor, message: <><span>{label} {gen('cortado', 'cortada')} —</span> {nameEl}</> };
+      }
+
       const icon = iconMap[log.entidad] ?? Edit;
       const camposLabel = getCamposLabel(log);
       const camposEl = camposLabel

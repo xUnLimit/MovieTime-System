@@ -537,6 +537,7 @@ export function VentasProximasTable() {
         entidadId: notifSeleccionada.ventaId,
         entidadNombre: `${notifSeleccionada.clienteNombre} — ${notifSeleccionada.servicioNombre}`,
         detalles: `Venta cortada: ${notifSeleccionada.clienteNombre} / ${notifSeleccionada.servicioNombre} — estado cambiado a inactivo, perfil liberado`,
+        cambios: [{ campo: 'Estado', campoKey: 'estado', anterior: 'activo', nuevo: 'inactivo', tipo: 'string' as const }],
       }).catch(() => {});
 
       // Remove from dashboard forecast
