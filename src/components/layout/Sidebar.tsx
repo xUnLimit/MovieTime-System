@@ -14,6 +14,7 @@ import {
   MessageSquare,
   FileText,
   Moon,
+  Pause,
   Sun,
   ChevronLeft,
   X
@@ -78,6 +79,11 @@ const navigationSections: NavSection[] = [
   {
     label: 'OTROS',
     items: [
+      {
+        name: 'Netflix Reposo',
+        href: '/netflix-reposo',
+        icon: Pause
+      },
       {
         name: 'Editor de Mensajes',
         href: '/editor-mensajes',

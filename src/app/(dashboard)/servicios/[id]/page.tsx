@@ -90,6 +90,7 @@ function ServiciosCategoriaPageContent() {
     const q = searchTerm.trim().toLowerCase();
     return todosLosServicios.filter(s => {
       if (s.categoriaId !== categoriaId) return false;
+      if (s.enReposo) return false; // Hide reposo services from Servicios module
       if (estadoFilter === 'activo' && !s.activo) return false;
       if (estadoFilter === 'inactivo' && s.activo) return false;
       const matchSearch = !isSearchMode ||
@@ -132,7 +133,7 @@ function ServiciosCategoriaPageContent() {
 
   // En modo fetchAll, los filtros ya están aplicados en fetchAllResults.
   // En modo paginación pura (sin filtros), no se necesita filtrado adicional.
-  const serviciosFiltrados = servicios;
+  const serviciosFiltrados = servicios.filter(s => !s.enReposo);
 
   const handleEdit = (id: string) => {
     router.push(`/servicios/${id}/editar?from=/servicios/${categoriaId}`);

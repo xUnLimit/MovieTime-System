@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { ConfirmDeleteVentaDialog } from '@/components/shared/ConfirmDeleteVentaDialog';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 
 import { COLLECTIONS, getById, remove, timestampToDate, update, queryDocuments } from '@/lib/firebase/firestore';
@@ -258,7 +259,7 @@ function VentaDetallePageContent() {
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (deletePagos: boolean) => {
     if (!venta) return;
     try {
       const { useVentasStore } = await import('@/store/ventasStore');
@@ -266,10 +267,14 @@ function VentaDetallePageContent() {
         venta.id,
         venta.servicioId,
         venta.perfilNumero ?? undefined,
-        true // deletePagos
+        deletePagos
       );
 
-      toast.success('Venta eliminada correctamente');
+      if (deletePagos) {
+        toast.success('Venta eliminada', { description: 'La venta y todos sus registros de pago han sido eliminados.' });
+      } else {
+        toast.success('Venta eliminada', { description: 'La venta fue eliminada. Los registros de pago se conservaron.' });
+      }
       router.push('/ventas');
     } catch (error) {
       console.error('Error eliminando venta:', error);
@@ -916,14 +921,11 @@ function VentaDetallePageContent() {
         variant="danger"
       />
 
-      <ConfirmDialog
+      <ConfirmDeleteVentaDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
         onConfirm={handleDelete}
-        title="Eliminar Venta"
-        description={`¿Estás seguro de que quieres eliminar la venta de "${venta.clienteNombre}"? Esta acción no se puede deshacer.`}
-        confirmText="Eliminar"
-        variant="danger"
+        ventaNombre={`la venta de "${venta.clienteNombre}"`}
       />
     </div>
   );

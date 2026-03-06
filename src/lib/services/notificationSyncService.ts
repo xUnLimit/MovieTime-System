@@ -25,6 +25,7 @@ import type {
   Notificacion,
   NotificacionVenta,
   NotificacionServicio,
+  NotificacionReposo,
 } from '@/types/notificaciones';
 import type { VentaDoc } from '@/types/ventas';
 import type { Servicio } from '@/types/servicios';
@@ -285,30 +286,101 @@ async function procesarNotificacionServicio(servicio: Servicio, forzarActualizac
 }
 
 /**
+ * Process a Netflix reposo service and create/update completion notification
+ * Only creates notification when fechaFinReposo <= today (reposo completed)
+ */
+async function procesarNotificacionReposo(servicio: Servicio, forzarActualizacion = false): Promise<void> {
+  if (!servicio.fechaFinReposo) return;
+
+  const diasRestantes = differenceInDays(startOfDay(new Date(servicio.fechaFinReposo)), startOfDay(new Date()));
+
+  // Only notify when reposo is completed or about to complete (within 7 days)
+  if (diasRestantes > 7) return;
+
+  // Find existing reposo notification
+  let notifExistente: (Notificacion & { id: string })[] = [];
+  try {
+    notifExistente = (await queryDocuments(COLLECTIONS.NOTIFICACIONES, [
+      { field: 'entidad', operator: '==', value: 'reposo' },
+      { field: 'servicioId', operator: '==', value: servicio.id },
+    ])) as (Notificacion & { id: string })[];
+  } catch {
+    notifExistente = [];
+  }
+
+  const nuevaPrioridad = diasRestantes <= 0 ? 'critica' : diasRestantes <= 3 ? 'alta' : 'media';
+  const titulo = diasRestantes <= 0
+    ? `Reposo Netflix completado — ${servicio.nombre}`
+    : `Reposo Netflix finaliza en ${diasRestantes} día${diasRestantes > 1 ? 's' : ''} — ${servicio.nombre}`;
+
+  const datosNotificacion: Omit<NotificacionReposo, 'id' | 'createdAt'> = {
+    entidad: 'reposo',
+    tipo: 'sistema',
+    prioridad: nuevaPrioridad,
+    titulo,
+    diasRestantes,
+    leida: false,
+    resaltada: false,
+    servicioId: servicio.id,
+    categoriaId: servicio.categoriaId,
+    servicioNombre: servicio.nombre,
+    categoriaNombre: servicio.categoriaNombre || '',
+    correo: servicio.correo,
+    diasReposo: servicio.diasReposo || 28,
+    fechaInicioReposo: servicio.fechaInicioReposo!,
+    fechaFinReposo: servicio.fechaFinReposo,
+    updatedAt: new Date(),
+  };
+
+  if (notifExistente.length > 0) {
+    eliminarDuplicados(notifExistente).catch(e =>
+      console.warn(`[NotificationSync] Failed to remove duplicate notifs for reposo ${servicio.id}:`, e)
+    );
+    const notif = notifExistente[0];
+    if (forzarActualizacion || notif.diasRestantes !== diasRestantes) {
+      const aumentoPrioridad = prioridadSubio(notif.prioridad, nuevaPrioridad);
+      await update(COLLECTIONS.NOTIFICACIONES, notif.id, {
+        ...datosNotificacion,
+        leida: aumentoPrioridad ? false : notif.leida,
+        resaltada: notif.resaltada,
+      });
+    }
+  } else {
+    await create(COLLECTIONS.NOTIFICACIONES, datosNotificacion as Record<string, unknown>);
+  }
+}
+
+/**
  * Remove notifications whose venta/servicio no longer exists or is no longer active
  * This handles the case where a venta/servicio was deleted outside of the notification flow
  */
 async function limpiarNotificacionesHuerfanas(
   ventasActivas: VentaDoc[],
-  serviciosActivos: Servicio[]
+  serviciosActivos: Servicio[],
+  serviciosReposo: Servicio[]
 ): Promise<void> {
   try {
     const ventaIdsActivos = new Set(ventasActivas.map(v => v.id));
     const servicioIdsActivos = new Set(serviciosActivos.map(s => s.id));
+    const reposoIdsActivos = new Set(serviciosReposo.map(s => s.id));
 
     // Query each entity type separately — avoids getAll() on the full collection
-    const [notifVentas, notifServicios] = await Promise.all([
+    const [notifVentas, notifServicios, notifReposo] = await Promise.all([
       queryDocuments(COLLECTIONS.NOTIFICACIONES, [
         { field: 'entidad', operator: '==', value: 'venta' },
       ]) as Promise<(NotificacionVenta & { id: string })[]>,
       queryDocuments(COLLECTIONS.NOTIFICACIONES, [
         { field: 'entidad', operator: '==', value: 'servicio' },
       ]) as Promise<(NotificacionServicio & { id: string })[]>,
+      queryDocuments(COLLECTIONS.NOTIFICACIONES, [
+        { field: 'entidad', operator: '==', value: 'reposo' },
+      ]) as Promise<(NotificacionReposo & { id: string })[]>,
     ]);
 
     const huerfanas: (Notificacion & { id: string })[] = [
       ...notifVentas.filter(n => !ventaIdsActivos.has(n.ventaId)),
       ...notifServicios.filter(n => !servicioIdsActivos.has(n.servicioId)),
+      ...notifReposo.filter(n => !reposoIdsActivos.has(n.servicioId)),
     ];
 
     if (huerfanas.length > 0) {
@@ -393,14 +465,29 @@ export async function sincronizarNotificaciones(forzarActualizacion = false): Pr
       }
     }
 
+    // 3️⃣ Query Netflix reposo services
+    const serviciosReposo = (await queryDocuments(COLLECTIONS.SERVICIOS, [
+      { field: 'enReposo', operator: '==', value: true },
+    ])) as Servicio[];
+
+    // Process each reposo service
+    for (const servicio of serviciosReposo) {
+      try {
+        await procesarNotificacionReposo(servicio, forzarActualizacion);
+      } catch (error) {
+        huboFallosParciales = true;
+        console.error(`[NotificationSync] Error processing reposo ${servicio.id}:`, error);
+      }
+    }
+
     // If any individual item failed, revert the sync marker so it retries today
     if (huboFallosParciales && !forzarActualizacion && typeof window !== 'undefined') {
       localStorage.removeItem('lastNotificationSync');
       console.warn('[NotificationSync] Partial failures detected — sync will retry on next load.');
     }
 
-    // 3️⃣ Cleanup orphan notifications (venta/servicio deleted but notification remains)
-    await limpiarNotificacionesHuerfanas(ventasProximas, serviciosProximos);
+    // 4️⃣ Cleanup orphan notifications (venta/servicio deleted but notification remains)
+    await limpiarNotificacionesHuerfanas(ventasProximas, serviciosProximos, serviciosReposo);
   } catch (error) {
     // Revert the early marcarSincronizado() so the sync can retry later today
     if (!forzarActualizacion && typeof window !== 'undefined') {

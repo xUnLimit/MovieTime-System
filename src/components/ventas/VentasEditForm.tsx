@@ -212,8 +212,8 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
       .filter((servicio) => {
         // Siempre mostrar el servicio actual de la venta (aunque esté lleno o inactivo)
         if (servicio.id === venta.servicioId) return true;
-        // Solo mostrar servicios activos con perfiles disponibles
-        if (!servicio.activo) return false;
+        // Solo mostrar servicios activos con perfiles disponibles (excluir en reposo)
+        if (!servicio.activo || servicio.enReposo) return false;
         const disponibles = (servicio.perfilesDisponibles || 0) - (servicio.perfilesOcupados || 0);
         return disponibles > 0;
       })
@@ -789,7 +789,7 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
             <div className="space-y-2">
               <Label>Precio</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground pointer-events-none select-none">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs pointer-events-none select-none">
                   {simboloMoneda}
                 </span>
                 <Input
@@ -900,7 +900,7 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
             <div className="space-y-2">
               <Label>Precio final</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground pointer-events-none select-none">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs pointer-events-none select-none">
                   {simboloMoneda}
                 </span>
                 <Input

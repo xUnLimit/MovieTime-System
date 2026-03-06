@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { ArrowLeft, Pencil, Trash2, RefreshCw, User, ChevronDown, DollarSign, Monitor, Calendar, Tag, ExternalLink } from 'lucide-react';
 import { useServiciosStore } from '@/store/serviciosStore';
 import { useCategoriasStore } from '@/store/categoriasStore';
@@ -82,6 +84,7 @@ function ServicioDetallePageContent() {
   const [isLoadingData, setIsLoadingData] = useState(true);
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletePayments, setDeletePayments] = useState(false);
   const [deleteRenovacionDialogOpen, setDeleteRenovacionDialogOpen] = useState(false);
   const [pagoToDelete, setPagoToDelete] = useState<PagoServicio | null>(null);
   const [editarPagoDialogOpen, setEditarPagoDialogOpen] = useState(false);
@@ -198,13 +201,18 @@ function ServicioDetallePageContent() {
   }, [id]);
 
   const handleDelete = () => {
+    setDeletePayments(false);
     setDeleteDialogOpen(true);
   };
 
   const handleConfirmDelete = async () => {
     try {
-      await deleteServicio(id);
-      toast.success('Servicio eliminado', { description: 'El servicio ha sido eliminado correctamente.' });
+      await deleteServicio(id, deletePayments);
+      if (deletePayments) {
+        toast.success('Servicio eliminado', { description: 'El servicio y todos sus registros de pago han sido eliminados.' });
+      } else {
+        toast.success('Servicio eliminado', { description: 'El servicio fue eliminado. Los registros de pago se conservaron.' });
+      }
 
       // Refrescar categorías y contadores de servicios para actualizar widgets
       await Promise.all([
@@ -448,6 +456,10 @@ function ServicioDetallePageContent() {
       // Remove notification and refresh store
       await deleteNotificacionesPorServicio(id);
       fetchNotificaciones(true);
+      // Refresh categorias so Servicios module reflects updated gastosTotal
+      import('@/store/categoriasStore').then(({ useCategoriasStore }) => {
+        useCategoriasStore.getState().fetchCategorias(true);
+      }).catch(() => {});
 
       toast.success('Renovación registrada', { description: 'El nuevo período de pago se ha registrado correctamente.' });
       setRenovarDialogOpen(false);
@@ -1083,13 +1095,35 @@ function ServicioDetallePageContent() {
 
       <ConfirmDialog
         open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
+        onOpenChange={(open) => {
+          setDeleteDialogOpen(open);
+          if (!open) setDeletePayments(false);
+        }}
         onConfirm={handleConfirmDelete}
         title="Eliminar Servicio"
         description={`¿Estás seguro de que quieres eliminar el servicio "${servicio.nombre}"? Esta acción no se puede deshacer.`}
         confirmText="Eliminar"
         variant="danger"
-      />
+      >
+        <div className="flex items-start space-x-2 py-2">
+          <Checkbox
+            id="delete-payments-detalle"
+            checked={deletePayments}
+            onCheckedChange={(checked) => setDeletePayments(checked as boolean)}
+          />
+          <div className="grid gap-1.5 leading-none">
+            <Label
+              htmlFor="delete-payments-detalle"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+            >
+              Eliminar también los registros de pago
+            </Label>
+            <p className="text-sm text-muted-foreground">
+              Al marcar esta opción, se eliminarán todos los registros de pago de la base de datos. Si no se marca, se conservarán para historial.
+            </p>
+          </div>
+        </div>
+      </ConfirmDialog>
 
       <ConfirmDialog
         open={deleteRenovacionDialogOpen}

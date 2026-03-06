@@ -515,7 +515,7 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
         <div className="space-y-2">
           <Label htmlFor="costoServicio">Costo del servicio</Label>
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground pointer-events-none select-none">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs pointer-events-none select-none">
               {simboloMoneda}
             </span>
             <Input
@@ -524,7 +524,7 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
               inputMode="decimal"
               {...register('costoServicio')}
               placeholder="0.00"
-              className="pl-8"
+              className={simboloMoneda.length > 1 ? 'pl-10' : 'pl-7'}
               onKeyDown={(e) => {
                 const char = e.key;
                 const currentValue = (e.target as HTMLInputElement).value;

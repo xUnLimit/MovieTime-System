@@ -22,6 +22,11 @@ export interface Servicio {
   fechaVencimiento?: Date;
   notas?: string;
   activo: boolean;
+  // Reposo (Netflix rest period)
+  enReposo?: boolean;
+  diasReposo?: number;          // 28-31 days
+  fechaInicioReposo?: Date;
+  fechaFinReposo?: Date;
   renovacionAutomatica: boolean;
   fechaRenovacion?: Date;
   renovaciones?: number;

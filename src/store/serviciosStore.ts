@@ -344,15 +344,25 @@ export const useServiciosStore = create<ServiciosState>()(
             servicios: state.servicios.filter((s) => s.id !== id)
           }));
 
-          // Si se solicita, eliminar todos los pagos del servicio
-          if (deletePayments) {
-            const { queryDocuments, remove: removeDoc } = await import('@/lib/firebase/firestore');
-            const pagos = await queryDocuments<{ id: string }>(COLLECTIONS.PAGOS_SERVICIO, [
-              { field: 'servicioId', operator: '==', value: id }
-            ]);
+          // Calcular gastosTotal real desde pagos antes de eliminarlos
+          // (el valor denormalizado puede estar desincronizado si el usuario borró pagos individualmente)
+          let gastosRealUSD = 0;
+          {
+            const pagosActuales = await queryDocuments<{ id: string; monto: number; moneda?: string }>(
+              COLLECTIONS.PAGOS_SERVICIO,
+              [{ field: 'servicioId', operator: '==', value: id }]
+            );
+            const conversiones = pagosActuales.map(async (p) => {
+              const usd = await currencyService.convertToUSD(p.monto, p.moneda ?? 'USD');
+              gastosRealUSD += usd;
+            });
+            await Promise.all(conversiones);
 
-            // Eliminar todos los pagos en paralelo
-            await Promise.all(pagos.map(pago => removeDoc(COLLECTIONS.PAGOS_SERVICIO, pago.id)));
+            // Si se solicita, eliminar todos los pagos del servicio
+            if (deletePayments) {
+              const { remove: removeDoc } = await import('@/lib/firebase/firestore');
+              await Promise.all(pagosActuales.map(pago => removeDoc(COLLECTIONS.PAGOS_SERVICIO, pago.id)));
+            }
           }
 
           // Eliminar el servicio de Firestore
@@ -366,9 +376,9 @@ export const useServiciosStore = create<ServiciosState>()(
             serviciosActivos: increment(servicio.activo ? -1 : 0),
             perfilesDisponiblesTotal: increment(-perfilesDisponibles),
           });
-          // Restar el gastosTotal acumulado del servicio de la categoría
-          if (servicio.gastosTotal) {
-            await adjustCategoriaGastos(servicio.categoriaId, -servicio.gastosTotal);
+          // Restar el gastosTotal REAL (recalculado desde pagos) de la categoría
+          if (gastosRealUSD > 0) {
+            await adjustCategoriaGastos(servicio.categoriaId, -gastosRealUSD);
           }
 
           // Restar de estadísticas del dashboard (non-blocking)

@@ -1,7 +1,11 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { Categoria } from '@/types';
-import { getAll, getCount, create as createDoc, update, remove, COLLECTIONS, logCacheHit } from '@/lib/firebase/firestore';
+import { getAll, getCount, create as createDoc, update, remove, COLLECTIONS, logCacheHit, queryDocuments } from '@/lib/firebase/firestore';
+import { doc as firestoreDoc, updateDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
+import type { Servicio, VentaDoc, PagoVenta, PagoServicio } from '@/types';
+import { currencyService } from '@/lib/services/currencyService';
 import { useActivityLogStore } from '@/store/activityLogStore';
 import { useAuthStore } from '@/store/authStore';
 import { detectarCambios } from '@/lib/utils/activityLogHelpers';
@@ -36,6 +40,7 @@ interface CategoriasState {
   setSelectedCategoria: (categoria: Categoria | null) => void;
   getCategoria: (id: string) => Categoria | undefined;
   getCategoriasByTipo: (tipo: 'cliente' | 'revendedor' | 'ambos') => Categoria[];
+  resyncContadoresCategorias: () => Promise<void>;
 }
 
 const CACHE_TIMEOUT = 5 * 60 * 1000;
@@ -246,7 +251,90 @@ export const useCategoriasStore = create<CategoriasState>()(
         return get().categorias.filter(
           (cat) => cat.tipo === tipo || cat.tipo === 'ambos'
         );
-      }
+      },
+
+      resyncContadoresCategorias: async () => {
+        // 1. Cargar toda la data necesaria en paralelo
+        const [servicios, ventas, pagosVenta, pagosServicio] = await Promise.all([
+          getAll<Servicio>(COLLECTIONS.SERVICIOS),
+          getAll<VentaDoc>(COLLECTIONS.VENTAS),
+          getAll<PagoVenta>(COLLECTIONS.PAGOS_VENTA),
+          queryDocuments<PagoServicio>(COLLECTIONS.PAGOS_SERVICIO, []),
+        ]);
+
+        // 2. Agrupar por categoría
+        const contadores = new Map<string, {
+          totalServicios: number;
+          serviciosActivos: number;
+          ventasTotales: number;
+          ingresosTotales: number;
+          gastosTotal: number;
+        }>();
+
+        const getOrInit = (id: string) => {
+          if (!contadores.has(id)) {
+            contadores.set(id, { totalServicios: 0, serviciosActivos: 0, ventasTotales: 0, ingresosTotales: 0, gastosTotal: 0 });
+          }
+          return contadores.get(id)!;
+        };
+
+        // Servicios → totalServicios + serviciosActivos
+        for (const s of servicios) {
+          if (!s.categoriaId) continue;
+          const c = getOrInit(s.categoriaId);
+          c.totalServicios++;
+          if (s.activo) c.serviciosActivos++;
+        }
+
+        // Ventas → ventasTotales (todas las que no sean inactivas)
+        const ventasActivas = ventas.filter(v => v.estado !== 'inactivo');
+        for (const v of ventasActivas) {
+          if (!v.categoriaId) continue;
+          getOrInit(v.categoriaId).ventasTotales++;
+        }
+
+        // PagosVenta → ingresosTotales (convertidos a USD)
+        const pagosPorVenta = new Map<string, VentaDoc>();
+        for (const v of ventas) pagosPorVenta.set(v.id, v);
+
+        const ingresosConversiones = pagosVenta.map(async (p) => {
+          const venta = pagosPorVenta.get(p.ventaId);
+          if (!venta?.categoriaId) return;
+          const moneda = p.moneda ?? 'USD';
+          const usd = await currencyService.convertToUSD(p.monto, moneda);
+          getOrInit(venta.categoriaId).ingresosTotales += usd;
+        });
+        await Promise.all(ingresosConversiones);
+
+        // PagosServicio → gastosTotal (convertidos a USD)
+        const serviciosPorId = new Map<string, Servicio>();
+        for (const s of servicios) serviciosPorId.set(s.id, s);
+
+        const gastosConversiones = pagosServicio.map(async (p) => {
+          const servicio = serviciosPorId.get(p.servicioId);
+          if (!servicio?.categoriaId) return;
+          const moneda = p.moneda ?? 'USD';
+          const usd = await currencyService.convertToUSD(p.monto, moneda);
+          getOrInit(servicio.categoriaId).gastosTotal += usd;
+        });
+        await Promise.all(gastosConversiones);
+
+        // 3. Escribir en Firestore
+        const updates = Array.from(contadores.entries()).map(([categoriaId, datos]) => {
+          const ref = firestoreDoc(db, COLLECTIONS.CATEGORIAS, categoriaId);
+          return updateDoc(ref, {
+            totalServicios: datos.totalServicios,
+            serviciosActivos: datos.serviciosActivos,
+            ventasTotales: datos.ventasTotales,
+            ingresosTotales: Math.round(datos.ingresosTotales * 100) / 100,
+            gastosTotal: Math.round(datos.gastosTotal * 100) / 100,
+          });
+        });
+        await Promise.all(updates);
+
+        // 4. Refrescar store local
+        await get().fetchCategorias(true);
+      },
     }),
     { name: 'categorias-store' }
   )

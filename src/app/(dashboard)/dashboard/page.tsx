@@ -99,7 +99,7 @@ export default function DashboardPage() {
   const { fetchDashboard, recalculateDashboard, isRecalculating } = useDashboardStore();
   const { fetchNotificaciones } = useNotificacionesStore();
   const { resyncPerfilesDisponiblesTotal } = useServiciosStore();
-  const { fetchCategorias } = useCategoriasStore();
+  const { fetchCategorias, resyncContadoresCategorias } = useCategoriasStore();
   const toastShown = useRef(false);
 
   useEffect(() => {
@@ -205,9 +205,11 @@ export default function DashboardPage() {
     try {
       // 1. Resync contadores de perfiles disponibles en categorías
       await resyncPerfilesDisponiblesTotal();
-      // 2. Recalcular métricas del dashboard (rebuild desde Firestore)
+      // 2. Resync contadores de ventas, ingresos y gastos por categoría
+      await resyncContadoresCategorias();
+      // 3. Recalcular métricas del dashboard (rebuild desde Firestore)
       await recalculateDashboard();
-      // 3. Refrescar categorías para reflejar los contadores actualizados
+      // 4. Refrescar categorías para reflejar los contadores actualizados
       await fetchCategorias(true);
       toast.success('Sistema sincronizado correctamente', { id: toastId });
     } catch {

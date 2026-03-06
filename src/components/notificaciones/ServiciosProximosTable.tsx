@@ -433,6 +433,10 @@ export function ServiciosProximosTable() {
       // Remove notification and refresh store
       await deleteNotificacionesPorServicio(servicioId);
       fetchNotificaciones(true);
+      // Refresh categorias so Servicios module reflects updated gastosTotal
+      import('@/store/categoriasStore').then(({ useCategoriasStore }) => {
+        useCategoriasStore.getState().fetchCategorias(true);
+      }).catch(() => {});
 
       toast.success('Renovación registrada', { description: 'El nuevo período de pago se ha registrado correctamente.' });
       setRenovarDialogOpen(false);

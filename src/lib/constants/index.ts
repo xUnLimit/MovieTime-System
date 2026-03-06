@@ -223,6 +223,7 @@ export const CURRENCY_SYMBOLS: Record<string, string> = {
   CRC: '₡',
   VES: 'Bs.',
   TRY: '₺',
+  EGP: 'E£',
   BTC: '₿',
   ETH: 'Ξ',
   USDT: '$',

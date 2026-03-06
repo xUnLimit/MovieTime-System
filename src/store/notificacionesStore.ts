@@ -22,8 +22,8 @@ import {
   update,
   remove,
 } from '@/lib/firebase/firestore';
-import type { Notificacion, NotificacionVenta, NotificacionServicio } from '@/types/notificaciones';
-import { esNotificacionVenta, esNotificacionServicio } from '@/types/notificaciones';
+import type { Notificacion, NotificacionVenta, NotificacionServicio, NotificacionReposo } from '@/types/notificaciones';
+import { esNotificacionVenta, esNotificacionServicio, esNotificacionReposo } from '@/types/notificaciones';
 
 interface NotificacionesState {
   // State
@@ -36,6 +36,7 @@ interface NotificacionesState {
   totalNotificaciones: number;
   ventasProximas: number;
   serviciosProximos: number;
+  reposoCompletados: number;
 
   // Actions - Data fetching
   fetchNotificaciones: (force?: boolean) => Promise<void>;
@@ -51,6 +52,7 @@ interface NotificacionesState {
   // Helpers
   getVentasNotificaciones: () => (NotificacionVenta & { id: string })[];
   getServiciosNotificaciones: () => (NotificacionServicio & { id: string })[];
+  getReposoNotificaciones: () => (NotificacionReposo & { id: string })[];
   getNotificacionesResaltadas: () => (Notificacion & { id: string })[];
 }
 
@@ -66,6 +68,7 @@ export const useNotificacionesStore = create<NotificacionesState>((set, get) => 
   totalNotificaciones: 0,
   ventasProximas: 0,
   serviciosProximos: 0,
+  reposoCompletados: 0,
 
   /**
    * Fetch all notifications from Firestore
@@ -94,12 +97,14 @@ export const useNotificacionesStore = create<NotificacionesState>((set, get) => 
       const totalNotificaciones = notificaciones.length;
       const ventasProximas = notificaciones.filter(esNotificacionVenta).length;
       const serviciosProximos = notificaciones.filter(esNotificacionServicio).length;
+      const reposoCompletados = notificaciones.filter(esNotificacionReposo).length;
 
       set({
         notificaciones,
         totalNotificaciones,
         ventasProximas,
         serviciosProximos,
+        reposoCompletados,
         isLoading: false,
         error: null,
         lastFetch: Date.now(),
@@ -121,16 +126,18 @@ export const useNotificacionesStore = create<NotificacionesState>((set, get) => 
    */
   fetchCounts: async () => {
     try {
-      const [totalNotificaciones, ventasProximas, serviciosProximas] = await Promise.all([
+      const [totalNotificaciones, ventasProximas, serviciosProximas, reposoCompletados] = await Promise.all([
         getCount(COLLECTIONS.NOTIFICACIONES),
         getCount(COLLECTIONS.NOTIFICACIONES, [{ field: 'entidad', operator: '==', value: 'venta' }]),
         getCount(COLLECTIONS.NOTIFICACIONES, [{ field: 'entidad', operator: '==', value: 'servicio' }]),
+        getCount(COLLECTIONS.NOTIFICACIONES, [{ field: 'entidad', operator: '==', value: 'reposo' }]),
       ]);
 
       set({
         totalNotificaciones,
         ventasProximas,
         serviciosProximos: serviciosProximas,
+        reposoCompletados,
       });
 
     } catch (error) {
@@ -139,6 +146,7 @@ export const useNotificacionesStore = create<NotificacionesState>((set, get) => 
         totalNotificaciones: 0,
         ventasProximas: 0,
         serviciosProximos: 0,
+        reposoCompletados: 0,
       });
     }
   },
@@ -206,12 +214,14 @@ export const useNotificacionesStore = create<NotificacionesState>((set, get) => 
     const totalNotificaciones = updatedNotifs.length;
     const ventasProximas = updatedNotifs.filter(esNotificacionVenta).length;
     const serviciosProximos = updatedNotifs.filter(esNotificacionServicio).length;
+    const reposoCompletados = updatedNotifs.filter(esNotificacionReposo).length;
 
     set({
       notificaciones: updatedNotifs,
       totalNotificaciones,
       ventasProximas,
       serviciosProximos,
+      reposoCompletados,
     });
 
     try {
@@ -223,6 +233,7 @@ export const useNotificacionesStore = create<NotificacionesState>((set, get) => 
         totalNotificaciones: state.totalNotificaciones,
         ventasProximas: state.ventasProximas,
         serviciosProximos: state.serviciosProximos,
+        reposoCompletados: state.reposoCompletados,
       });
       console.error('[NotificacionesStore] Error deleting notification:', error);
       throw error;
@@ -250,12 +261,14 @@ export const useNotificacionesStore = create<NotificacionesState>((set, get) => 
     const totalNotificaciones = updatedNotifs.length;
     const ventasProximas = updatedNotifs.filter(esNotificacionVenta).length;
     const serviciosProximos = updatedNotifs.filter(esNotificacionServicio).length;
+    const reposoCompletados = updatedNotifs.filter(esNotificacionReposo).length;
 
     set({
       notificaciones: updatedNotifs,
       totalNotificaciones,
       ventasProximas,
       serviciosProximos,
+      reposoCompletados,
     });
 
     try {
@@ -274,6 +287,7 @@ export const useNotificacionesStore = create<NotificacionesState>((set, get) => 
         totalNotificaciones: state.totalNotificaciones,
         ventasProximas: state.ventasProximas,
         serviciosProximos: state.serviciosProximos,
+        reposoCompletados: state.reposoCompletados,
       });
       console.error('[NotificacionesStore] Error deleting venta notifications:', error);
       throw error;
@@ -301,12 +315,14 @@ export const useNotificacionesStore = create<NotificacionesState>((set, get) => 
     const totalNotificaciones = updatedNotifs.length;
     const ventasProximas = updatedNotifs.filter(esNotificacionVenta).length;
     const serviciosProximos = updatedNotifs.filter(esNotificacionServicio).length;
+    const reposoCompletados = updatedNotifs.filter(esNotificacionReposo).length;
 
     set({
       notificaciones: updatedNotifs,
       totalNotificaciones,
       ventasProximas,
       serviciosProximos,
+      reposoCompletados,
     });
 
     try {
@@ -325,6 +341,7 @@ export const useNotificacionesStore = create<NotificacionesState>((set, get) => 
         totalNotificaciones: state.totalNotificaciones,
         ventasProximas: state.ventasProximas,
         serviciosProximos: state.serviciosProximos,
+        reposoCompletados: state.reposoCompletados,
       });
       console.error('[NotificacionesStore] Error deleting servicio notifications:', error);
       throw error;
@@ -347,6 +364,12 @@ export const useNotificacionesStore = create<NotificacionesState>((set, get) => 
    */
   getServiciosNotificaciones: () => {
     return get().notificaciones.filter(esNotificacionServicio) as (NotificacionServicio & {
+      id: string;
+    })[];
+  },
+
+  getReposoNotificaciones: () => {
+    return get().notificaciones.filter(esNotificacionReposo) as (NotificacionReposo & {
       id: string;
     })[];
   },

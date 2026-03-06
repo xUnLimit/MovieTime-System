@@ -97,6 +97,7 @@ const PAISES_MONEDAS = [
   { pais: 'Colombia', moneda: 'COP' },
   { pais: 'Costa Rica', moneda: 'CRC' },
   { pais: 'Ecuador', moneda: 'USD' },
+  { pais: 'Egipto', moneda: 'EGP' },
   { pais: 'España', moneda: 'EUR' },
   { pais: 'Estados Unidos', moneda: 'USD' },
   { pais: 'México', moneda: 'MXN' },
@@ -106,7 +107,7 @@ const PAISES_MONEDAS = [
   { pais: 'Venezuela', moneda: 'VES' },
 ];
 
-const MONEDAS = ['USD', 'EUR', 'COP', 'MXN', 'CRC', 'VES', 'ARS', 'CLP', 'PEN', 'NGN', 'TRY'];
+const MONEDAS = ['USD', 'EUR', 'COP', 'MXN', 'CRC', 'VES', 'ARS', 'CLP', 'PEN', 'NGN', 'TRY', 'EGP'];
 
 interface MetodoPagoFormProps {
   mode: 'create' | 'edit';

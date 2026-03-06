@@ -5,7 +5,7 @@ import { useEffect, useMemo, Suspense } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ServicioEditForm } from '@/components/servicios/ServicioEditForm';
+import { ServicioForm } from '@/components/servicios/ServicioForm';
 import { useServiciosStore } from '@/store/serviciosStore';
 
 function EditarServicioPageContent() {
@@ -50,7 +50,7 @@ function EditarServicioPageContent() {
 
       {servicio && (
         <div className="bg-card border rounded-lg p-6">
-          <ServicioEditForm servicio={servicio} returnTo={from} />
+          <ServicioForm servicio={servicio} returnTo={from} />
         </div>
       )}
     </div>

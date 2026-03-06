@@ -7,12 +7,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { RefreshCw, Bell, ShoppingCart, Server } from 'lucide-react';
+import { RefreshCw, Bell, ShoppingCart, Server, Pause } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Link from 'next/link';
 import { VentasProximasTable } from '@/components/notificaciones/VentasProximasTable';
 import { ServiciosProximosTable } from '@/components/notificaciones/ServiciosProximosTable';
+import { ReposoNotificacionesTable } from '@/components/notificaciones/ReposoNotificacionesTable';
 import { MetricCard } from '@/components/shared/MetricCard';
 import { useNotificacionesStore } from '@/store/notificacionesStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
@@ -24,11 +25,11 @@ import { toast } from 'sonner';
 
 // Metrics component matching CategoriasMetrics style
 function NotificacionesMetrics() {
-  const { totalNotificaciones, ventasProximas, serviciosProximos } =
+  const { totalNotificaciones, ventasProximas, serviciosProximos, reposoCompletados } =
     useNotificacionesStore();
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
       <MetricCard
         title="Total Notificaciones"
         value={totalNotificaciones}
@@ -50,12 +51,19 @@ function NotificacionesMetrics() {
         iconColor="text-orange-500"
         underlineColor="bg-orange-500"
       />
+      <MetricCard
+        title="Netflix en Reposo"
+        value={reposoCompletados}
+        icon={Pause}
+        iconColor="text-purple-500"
+        underlineColor="bg-purple-500"
+      />
     </div>
   );
 }
 
 function NotificacionesPageContent() {
-  const { fetchNotificaciones, fetchCounts, ventasProximas, serviciosProximos } =
+  const { fetchNotificaciones, fetchCounts, ventasProximas, serviciosProximos, reposoCompletados } =
     useNotificacionesStore();
 
   const [activeTab, setActiveTab] = useState('ventas');
@@ -142,6 +150,17 @@ function NotificacionesPageContent() {
               </span>
             )}
           </TabsTrigger>
+          <TabsTrigger
+            value="reposo"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2 text-sm"
+          >
+            Netflix en Reposo
+            {reposoCompletados > 0 && (
+              <span className="ml-2 text-xs bg-red-500 text-white rounded-full px-2 py-0.5">
+                {reposoCompletados}
+              </span>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         {/* Ventas Tab */}
@@ -152,6 +171,11 @@ function NotificacionesPageContent() {
         {/* Servicios Tab */}
         <TabsContent value="servicios" className="space-y-4">
           <ServiciosProximosTable />
+        </TabsContent>
+
+        {/* Netflix Reposo Tab */}
+        <TabsContent value="reposo" className="space-y-4">
+          <ReposoNotificacionesTable />
         </TabsContent>
       </Tabs>
 

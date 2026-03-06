@@ -25,8 +25,10 @@ import { useCategoriasStore } from '@/store/categoriasStore';
 import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { useRouter } from 'next/navigation';
 import { Servicio, MetodoPago } from '@/types';
-import { addMonths } from 'date-fns';
-import { CURRENCY_SYMBOLS } from '@/lib/constants';
+import { addMonths, addDays } from 'date-fns';
+import { CURRENCY_SYMBOLS, CYCLE_MONTHS } from '@/lib/constants';
+import { usePagosServicio } from '@/hooks/use-pagos-servicio';
+import { update, getCount, COLLECTIONS } from '@/lib/firebase/firestore';
 
 const servicioSchema = z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
@@ -49,7 +51,8 @@ const servicioSchema = z.object({
   cicloPago: z.enum(['mensual', 'trimestral', 'semestral', 'anual']),
   fechaInicio: z.date(),
   fechaVencimiento: z.date(),
-  estado: z.enum(['activo', 'inactivo']),
+  estado: z.enum(['activo', 'inactivo', 'reposo']),
+  diasReposo: z.string().optional(),
   notas: z.string().optional(),
 });
 
@@ -74,6 +77,29 @@ export function ServicioForm({ servicio, returnTo = '/servicios' }: ServicioForm
   const prevCicloPagoRef = useRef(servicio?.cicloPago ?? 'mensual');
   const prevFechaInicioRef = useRef<Date | null>(servicio?.fechaInicio ? new Date(servicio.fechaInicio) : null);
 
+  // === Edit-specific state ===
+  const isEditMode = !!servicio?.id;
+
+  // Pagos del servicio (solo en modo edición)
+  const { pagos: pagosServicio, refresh: refreshPagos } = usePagosServicio(servicio?.id ?? null);
+  const ultimoPago = pagosServicio[0];
+
+  // Conteo real de perfiles ocupados (fuente de verdad, no el campo denormalizado)
+  const [perfilesOcupadosReal, setPerfilesOcupadosReal] = useState<number>(servicio?.perfilesOcupados || 0);
+
+  // Cycle change detection for edit mode (don't auto-recalculate on initial load)
+  const [cicloInicializado, setCicloInicializado] = useState(false);
+  const [lastCicloId, setLastCicloId] = useState<string | null>(null);
+  const [lastFechaInicioTime, setLastFechaInicioTime] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!servicio?.id) return;
+    getCount(COLLECTIONS.VENTAS, [
+      { field: 'servicioId', operator: '==', value: servicio.id },
+      { field: 'estado', operator: '!=', value: 'inactivo' },
+    ]).then((count) => setPerfilesOcupadosReal(count));
+  }, [servicio?.id]);
+
   // Cargar solo métodos de pago para servicios al montar
   useEffect(() => {
     const loadMetodosPago = async () => {
@@ -92,6 +118,7 @@ export function ServicioForm({ servicio, returnTo = '/servicios' }: ServicioForm
     getValues,
     clearErrors,
     trigger,
+    setError,
   } = useForm<FormData>({
     resolver: zodResolver(servicioSchema),
     defaultValues: {
@@ -106,7 +133,8 @@ export function ServicioForm({ servicio, returnTo = '/servicios' }: ServicioForm
       cicloPago: 'mensual' as 'mensual' | 'trimestral' | 'semestral' | 'anual',
       fechaInicio: new Date(),
       fechaVencimiento: addMonths(new Date(), 1),
-      estado: 'activo' as 'activo' | 'inactivo',
+      estado: (servicio?.enReposo ? 'reposo' : servicio?.activo === false ? 'inactivo' : 'activo') as 'activo' | 'inactivo' | 'reposo',
+      diasReposo: servicio?.diasReposo?.toString() || '28',
       notas: '',
     },
   });
@@ -140,7 +168,7 @@ export function ServicioForm({ servicio, returnTo = '/servicios' }: ServicioForm
       String(costoServicioValue) !== String(servicio.costoServicio || 0) ||
       String(perfilesDisponiblesValue) !== String(servicio.perfilesDisponibles || 1) ||
       cicloPagoValue !== (servicio.cicloPago || 'mensual') ||
-      estadoValue !== (servicio.activo ? 'activo' : 'inactivo') ||
+      estadoValue !== (servicio.enReposo ? 'reposo' : servicio.activo ? 'activo' : 'inactivo') ||
       notasValue !== (servicio.notas || '') ||
       fechaInicioValue?.getTime() !== servicio.fechaInicio?.getTime() ||
       fechaVencimientoValue?.getTime() !== servicio.fechaVencimiento?.getTime()
@@ -181,7 +209,7 @@ export function ServicioForm({ servicio, returnTo = '/servicios' }: ServicioForm
       if (servicio.fechaVencimiento) {
         setValue('fechaVencimiento', new Date(servicio.fechaVencimiento));
       }
-      setValue('estado', servicio.activo ? 'activo' : 'inactivo');
+      setValue('estado', servicio.enReposo ? 'reposo' : servicio.activo ? 'activo' : 'inactivo');
       setValue('notas', servicio.notas || '');
       setManualFechaVencimiento(true);
     }
@@ -238,24 +266,50 @@ export function ServicioForm({ servicio, returnTo = '/servicios' }: ServicioForm
   }, [perfilesDisponiblesValue, errors.perfilesDisponibles, clearErrors]);
 
   // Auto-calcular fecha de vencimiento cuando cambia el ciclo o la fecha de inicio
-  // En edición: también recalcular si el usuario cambia fechaInicio manualmente
+  // Create mode: recalcular siempre excepto si se editó manualmente
+  // Edit mode: usar patrón cicloInicializado para no recalcular en la carga inicial
   useEffect(() => {
     if (!fechaInicioValue) return;
-    const cicloChanged = prevCicloPagoRef.current !== cicloPagoValue;
-    const fechaInicioChanged = prevFechaInicioRef.current?.getTime() !== fechaInicioValue.getTime();
-    if (cicloChanged) {
-      prevCicloPagoRef.current = cicloPagoValue;
-      setManualFechaVencimiento(false);
+
+    if (isEditMode) {
+      // Edit mode: solo recalcular después de la inicialización
+      if (!cicloInicializado) return;
+      const cicloChanged = lastCicloId !== null && lastCicloId !== cicloPagoValue;
+      const fechaInicioChanged = lastFechaInicioTime !== null && lastFechaInicioTime !== fechaInicioValue.getTime();
+      if (cicloChanged || fechaInicioChanged) {
+        const meses = CYCLE_MONTHS[cicloPagoValue as keyof typeof CYCLE_MONTHS] ?? 1;
+        setValue('fechaVencimiento', addMonths(new Date(fechaInicioValue), meses));
+      }
+      if (cicloChanged) setLastCicloId(cicloPagoValue);
+      if (fechaInicioChanged) setLastFechaInicioTime(fechaInicioValue.getTime());
+    } else {
+      // Create mode: comportamiento original
+      const cicloChanged = prevCicloPagoRef.current !== cicloPagoValue;
+      const fechaInicioChanged = prevFechaInicioRef.current?.getTime() !== fechaInicioValue.getTime();
+      if (cicloChanged) {
+        prevCicloPagoRef.current = cicloPagoValue;
+        setManualFechaVencimiento(false);
+      }
+      if (fechaInicioChanged) {
+        prevFechaInicioRef.current = fechaInicioValue;
+        setManualFechaVencimiento(false);
+      }
+      if (cicloChanged || fechaInicioChanged || !manualFechaVencimiento) {
+        const meses = cicloPagoValue === 'mensual' ? 1 : cicloPagoValue === 'trimestral' ? 3 : cicloPagoValue === 'semestral' ? 6 : 12;
+        setValue('fechaVencimiento', addMonths(fechaInicioValue, meses));
+      }
     }
-    if (fechaInicioChanged) {
-      prevFechaInicioRef.current = fechaInicioValue;
-      setManualFechaVencimiento(false);
+  }, [cicloPagoValue, fechaInicioValue, manualFechaVencimiento, setValue, isEditMode, cicloInicializado, lastCicloId, lastFechaInicioTime]);
+
+  // Inicializar el ciclo y fecha solo una vez (edit mode)
+  useEffect(() => {
+    if (!isEditMode || cicloInicializado) return;
+    if (cicloPagoValue) {
+      setLastCicloId(cicloPagoValue);
+      setLastFechaInicioTime(fechaInicioValue?.getTime() ?? null);
+      setCicloInicializado(true);
     }
-    if (cicloChanged || fechaInicioChanged || !manualFechaVencimiento) {
-      const meses = cicloPagoValue === 'mensual' ? 1 : cicloPagoValue === 'trimestral' ? 3 : cicloPagoValue === 'semestral' ? 6 : 12;
-      setValue('fechaVencimiento', addMonths(fechaInicioValue, meses));
-    }
-  }, [cicloPagoValue, fechaInicioValue, manualFechaVencimiento, setValue]);
+  }, [cicloPagoValue, fechaInicioValue, cicloInicializado, isEditMode]);
 
   const handleCicloPagoChange = (ciclo: 'mensual' | 'trimestral' | 'semestral' | 'anual') => {
     setValue('cicloPago', ciclo);
@@ -314,17 +368,51 @@ export function ServicioForm({ servicio, returnTo = '/servicios' }: ServicioForm
         fechaVencimiento: data.fechaVencimiento,
         notas: data.notas,
         activo: data.estado === 'activo',
+        enReposo: data.estado === 'reposo',
+        diasReposo: data.estado === 'reposo' ? Number(data.diasReposo || 28) : undefined,
+        fechaInicioReposo: data.estado === 'reposo' ? data.fechaInicio : undefined,
+        fechaFinReposo: data.estado === 'reposo' ? addDays(data.fechaInicio, Number(data.diasReposo || 28)) : undefined,
         renovacionAutomatica: false,
         createdBy: 'admin',
         gastosTotal: servicio?.gastosTotal ?? 0, // Preservar o inicializar campo denormalizado
       };
 
       if (servicio?.id) {
+        // Validar perfiles con conteo real (no el campo denormalizado que puede estar desfasado)
+        const perfilesNuevos = Number(data.perfilesDisponibles);
+        if (data.estado === 'activo' && perfilesNuevos < perfilesOcupadosReal) {
+          const n = perfilesOcupadosReal;
+          setError('perfilesDisponibles', {
+            message: `No se puede reducir por debajo de los ${n} perfil${n !== 1 ? 'es' : ''} actualmente ocupado${n !== 1 ? 's' : ''}`,
+          });
+          return;
+        }
+
         await updateServicio(servicio.id, {
           ...servicio,
           ...servicioData,
         });
+
+        // Resincronizar perfilesOcupados si el contador estaba desfasado
+        if (servicio.perfilesOcupados !== perfilesOcupadosReal) {
+          await update(COLLECTIONS.SERVICIOS, servicio.id, { perfilesOcupados: perfilesOcupadosReal });
+        }
+
+        // Actualizar el último pago si existe (Single Source of Truth)
+        if (ultimoPago && ultimoPago.id) {
+          await update(COLLECTIONS.PAGOS_SERVICIO, ultimoPago.id, {
+            fechaInicio: data.fechaInicio,
+            fechaVencimiento: data.fechaVencimiento,
+            monto: Number(data.costoServicio),
+            metodoPagoId: data.metodoPagoId,
+            metodoPagoNombre: metodoPagoSeleccionado?.nombre,
+            moneda: metodoPagoSeleccionado?.moneda,
+            cicloPago: data.cicloPago,
+          });
+        }
+
         toast.success('Servicio actualizado', { description: 'Los datos del servicio han sido guardados correctamente.' });
+        refreshPagos();
       } else {
         await createServicio(servicioData);
         toast.success('Servicio creado', { description: 'El nuevo servicio ha sido registrado correctamente en el sistema.' });
@@ -377,12 +465,16 @@ export function ServicioForm({ servicio, returnTo = '/servicios' }: ServicioForm
     }
   };
 
+  const esNetflix = categoriaNombre?.toLowerCase().includes('netflix') ?? false;
+
   const getEstadoLabel = (estado: string) => {
     switch (estado) {
       case 'activo':
         return 'Activo';
       case 'inactivo':
         return 'Inactivo';
+      case 'reposo':
+        return 'Reposo';
       default:
         return 'Seleccionar estado';
     }
@@ -547,7 +639,7 @@ export function ServicioForm({ servicio, returnTo = '/servicios' }: ServicioForm
             <div className="space-y-2">
               <Label htmlFor="costoServicio">Costo del servicio</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground pointer-events-none select-none">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs pointer-events-none select-none">
                   {simboloMoneda}
                 </span>
                 <Input
@@ -556,7 +648,7 @@ export function ServicioForm({ servicio, returnTo = '/servicios' }: ServicioForm
                   inputMode="decimal"
                   {...register('costoServicio')}
                   placeholder="0.00"
-                  className="pl-8"
+                  className={simboloMoneda.length > 1 ? 'pl-10' : 'pl-7'}
                   onKeyDown={(e) => {
                     const char = e.key;
                     const currentValue = (e.target as HTMLInputElement).value;
@@ -786,6 +878,11 @@ export function ServicioForm({ servicio, returnTo = '/servicios' }: ServicioForm
                   <DropdownMenuItem onClick={() => setValue('estado', 'inactivo')}>
                     Inactivo
                   </DropdownMenuItem>
+                  {esNetflix && (
+                    <DropdownMenuItem onClick={() => setValue('estado', 'reposo')}>
+                      Reposo
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
               {errors.estado && (
@@ -794,7 +891,33 @@ export function ServicioForm({ servicio, returnTo = '/servicios' }: ServicioForm
             </div>
           </div>
 
-          {/* Notas adicionales */}
+          {/* Duración del reposo (solo Netflix en reposo) */}
+          {estadoValue === 'reposo' && (
+            <div className="space-y-2">
+              <Label htmlFor="diasReposo">Duración del reposo</Label>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between"
+                    type="button"
+                  >
+                    {watch('diasReposo') || '28'} días
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                  {[28, 29, 30, 31].map((d) => (
+                    <DropdownMenuItem key={d} onClick={() => setValue('diasReposo', d.toString())}>
+                      {d} días
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
+
+                    {/* Notas adicionales */}
           <div className="space-y-2">
             <Label htmlFor="notas">Notas adicionales</Label>
             <Textarea

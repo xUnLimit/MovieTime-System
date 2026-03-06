@@ -93,30 +93,42 @@ export interface NotificacionServicio extends NotificacionBase {
 }
 
 /**
- * Union type: Notifications can be either venta or servicio
- * Use type guards (esNotificacionVenta, esNotificacionServicio) to narrow
+ * Notification for Netflix reposo completion
+ *
+ * Generated when fechaFinReposo <= today
+ * Stays as "Completado" until manual activation from /netflix-reposo
  */
-export type Notificacion = NotificacionVenta | NotificacionServicio;
+export interface NotificacionReposo extends NotificacionBase {
+  entidad: 'reposo';
+
+  // References
+  servicioId: string;
+  categoriaId: string;
+
+  // Denormalized from Servicio
+  servicioNombre: string;
+  categoriaNombre: string;
+  correo: string;
+  diasReposo: number;
+  fechaInicioReposo: Date;
+  fechaFinReposo: Date;
+}
 
 /**
- * Type guard: Check if notification is for a venta
- * @example
- * if (esNotificacionVenta(notif)) {
- *   console.log(notif.clienteNombre); // TypeScript knows this property exists
- * }
+ * Union type: Notifications can be venta, servicio, or reposo
+ * Use type guards to narrow
  */
+export type Notificacion = NotificacionVenta | NotificacionServicio | NotificacionReposo;
+
 export function esNotificacionVenta(n: Notificacion): n is NotificacionVenta {
   return n.entidad === 'venta';
 }
 
-/**
- * Type guard: Check if notification is for a servicio
- * @example
- * if (esNotificacionServicio(notif)) {
- *   console.log(notif.metodoPagoNombre); // TypeScript knows this property exists
- * }
- */
 export function esNotificacionServicio(n: Notificacion): n is NotificacionServicio {
   return n.entidad === 'servicio';
+}
+
+export function esNotificacionReposo(n: Notificacion): n is NotificacionReposo {
+  return n.entidad === 'reposo';
 }
 

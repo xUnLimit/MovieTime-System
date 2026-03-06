@@ -17,7 +17,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Bell, ShoppingCart, Banknote, ArrowRight } from 'lucide-react';
+import { Bell, ShoppingCart, Banknote, Moon, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -25,7 +25,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useNotificacionesStore } from '@/store/notificacionesStore';
-import { esNotificacionVenta, esNotificacionServicio } from '@/types/notificaciones';
+import { esNotificacionVenta, esNotificacionServicio, esNotificacionReposo } from '@/types/notificaciones';
 
 export function NotificationBell() {
   const { notificaciones, fetchNotificaciones } = useNotificacionesStore();
@@ -42,6 +42,7 @@ export function NotificationBell() {
   // Count by type
   const ventasPorVencer = unreadNotifications.filter(esNotificacionVenta).length;
   const serviciosPorPagar = unreadNotifications.filter(esNotificacionServicio).length;
+  const reposoCompletados = unreadNotifications.filter(esNotificacionReposo).length;
 
   // Color logic: red if any critica/vencida, yellow if any unread, off if none
   const hasRed = unreadNotifications.some((n) => n.prioridad === 'critica');
@@ -102,6 +103,17 @@ export function NotificationBell() {
                     <span className="text-sm font-medium">Servicios por pagar</span>
                   </span>
                   <span className="text-right text-sm">{serviciosPorPagar}</span>
+                </div>
+              )}
+
+              {/* Netflix reposo */}
+              {reposoCompletados > 0 && (
+                <div className="grid grid-cols-3 items-center gap-4">
+                  <span className="col-span-2 flex items-center gap-2">
+                    <Moon className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Netflix en reposo</span>
+                  </span>
+                  <span className="text-right text-sm">{reposoCompletados}</span>
                 </div>
               )}
             </div>

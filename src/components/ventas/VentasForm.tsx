@@ -333,8 +333,8 @@ export function VentasForm() {
   // Filtrar servicios: solo activos con perfiles disponibles
   const serviciosFiltrados = useMemo(() => {
     return serviciosOrdenados.filter((servicio) => {
-      // Debe estar activo
-      if (!servicio.activo) return false;
+      // Debe estar activo y no en reposo
+      if (!servicio.activo || servicio.enReposo) return false;
 
       // Debe tener perfiles disponibles (considerando los ya ocupados en la venta actual)
       const ocupadosActual = servicio.perfilesOcupados || 0;
@@ -964,7 +964,7 @@ export function VentasForm() {
                 <div className="space-y-2">
                   <Label>Precio</Label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground pointer-events-none select-none">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs pointer-events-none select-none">
                       {simboloMoneda}
                     </span>
                     <Input
@@ -1125,7 +1125,7 @@ export function VentasForm() {
               <div className="space-y-2">
                 <Label>Precio Final</Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground pointer-events-none select-none">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs pointer-events-none select-none">
                     {simboloMoneda}
                   </span>
                   <Input
