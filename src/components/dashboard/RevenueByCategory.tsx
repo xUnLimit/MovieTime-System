@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
@@ -32,6 +32,18 @@ export function RevenueByCategory() {
   const { selectedYear } = useDashboardFilterStore();
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
+  const prevThemeRef = useRef(resolvedTheme);
+  const [animationActive, setAnimationActive] = useState(true);
+
+  useEffect(() => {
+    if (prevThemeRef.current !== resolvedTheme) {
+      prevThemeRef.current = resolvedTheme;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setAnimationActive(false);
+      const t = setTimeout(() => setAnimationActive(true), 50);
+      return () => clearTimeout(t);
+    }
+  }, [resolvedTheme]);
 
   const axisColor = isDark ? '#a1a1aa' : '#71717a';
   const labelColor = isDark ? '#ffffff' : '#18181b';
@@ -136,6 +148,7 @@ export function RevenueByCategory() {
               <Bar
                 dataKey="rentabilidad"
                 radius={[0, 12, 12, 0]}
+                isAnimationActive={animationActive}
                 animationDuration={1000}
                 animationEasing="ease-out"
                 barSize={20}

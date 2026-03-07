@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useSidebarState } from '@/hooks/use-sidebar';
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 type NavItem = { name: string; href: string; icon: React.ComponentType<{ className?: string }>; badge?: string };
 type NavSection = { label?: string; items: NavItem[] };
@@ -109,6 +109,7 @@ export function Sidebar({ collapsed: controlledCollapsed, onCollapse, mobileOpen
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const { isOpen, toggle } = useSidebarState();
+  const themeButtonRef = useRef<HTMLButtonElement>(null);
 
   const collapsed = controlledCollapsed !== undefined ? controlledCollapsed : !isOpen;
   const setCollapsed = onCollapse || (() => toggle());
@@ -136,7 +137,41 @@ export function Sidebar({ collapsed: controlledCollapsed, onCollapse, mobileOpen
   }, [pathname]);
 
   const toggleTheme = () => {
-    setTheme(theme === 'dark' ? 'light' : 'dark');
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+
+    if (!document.startViewTransition || themeButtonRef.current === null) {
+      setTheme(nextTheme);
+      return;
+    }
+
+    const rect = themeButtonRef.current.getBoundingClientRect();
+    const x = Math.round(rect.left + rect.width / 2);
+    const y = Math.round(rect.top + rect.height / 2);
+
+    // Calcular distancia exacta hasta la esquina más lejana de la pantalla
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const endRadius = Math.ceil(Math.hypot(Math.max(x, w - x), Math.max(y, h - y)));
+
+    document.documentElement.style.setProperty('--theme-transition-x', `${x}px`);
+    document.documentElement.style.setProperty('--theme-transition-y', `${y}px`);
+    document.documentElement.style.setProperty('--theme-transition-radius', `${endRadius}px`);
+
+    const transition = document.startViewTransition(() => {
+      const root = document.documentElement;
+      if (nextTheme === 'dark') {
+        root.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+      }
+    });
+
+    // Sincronizar next-themes solo después de que la animación termine
+    // para evitar el re-render de React durante la transición
+    transition.finished.then(() => {
+      try { localStorage.setItem('theme', nextTheme); } catch {}
+      setTheme(nextTheme);
+    });
   };
 
   const sidebarContent = (isMobile: boolean) => (
@@ -269,6 +304,7 @@ export function Sidebar({ collapsed: controlledCollapsed, onCollapse, mobileOpen
         <div className="p-2 space-y-1">
           {/* Botón Tema */}
           <button
+            ref={themeButtonRef}
             onClick={toggleTheme}
             className={cn(
               "relative flex items-center h-9 w-full rounded-lg overflow-hidden",

@@ -154,3 +154,25 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* View Transition: ripple desde el botón de tema */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root) {
+    animation: none;
+    z-index: 1;
+  }
+
+  ::view-transition-new(root) {
+    animation: theme-ripple 400ms ease-in-out forwards;
+    z-index: 2;
+  }
+
+  @keyframes theme-ripple {
+    from {
+      clip-path: circle(0 at var(--theme-transition-x, 50%) var(--theme-transition-y, 50%));
+    }
+    to {
+      clip-path: circle(var(--theme-transition-radius, 100vmax) at var(--theme-transition-x, 50%) var(--theme-transition-y, 50%));
+    }
+  }
+}
