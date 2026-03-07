@@ -7,6 +7,7 @@ const TRACKEABLE_FIELDS: Record<string, Record<string, { label: string; tipo: Ca
   servicio: {
     nombre: { label: 'Nombre', tipo: 'string' },
     activo: { label: 'Estado', tipo: 'boolean' },
+    enReposo: { label: 'Reposo', tipo: 'boolean' },
     perfilesDisponibles: { label: 'Perfiles Disponibles', tipo: 'number' },
     perfilesOcupados: { label: 'Perfiles Ocupados', tipo: 'number' },
     fechaVencimiento: { label: 'Fecha Vencimiento', tipo: 'date' },

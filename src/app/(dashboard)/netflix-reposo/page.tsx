@@ -299,25 +299,26 @@ function NetflixReposoPageContent() {
       sortable: true,
       align: 'center',
       render: (item) => {
-        if (item.diasRestantes <= 0) {
-          return (
-            <Badge variant="outline" className="border-green-500/50 bg-green-500/10 text-green-500 dark:text-green-400 font-semibold">
-              Listo
-            </Badge>
-          );
+        switch (item.estadoReposo) {
+          case 'completado':
+            return (
+              <Badge variant="outline" className="border-green-500/40 bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400 font-semibold">
+                {item.diasRestantes <= 0 ? 'Listo' : `${item.diasRestantes} día${item.diasRestantes !== 1 ? 's' : ''}`}
+              </Badge>
+            );
+          case 'proximo_finalizar':
+            return (
+              <Badge variant="outline" className="border-yellow-500/50 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 font-semibold">
+                {item.diasRestantes} día{item.diasRestantes !== 1 ? 's' : ''}
+              </Badge>
+            );
+          default:
+            return (
+              <Badge variant="outline" className="border-blue-500/50 bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold">
+                {item.diasRestantes} días
+              </Badge>
+            );
         }
-        if (item.diasRestantes <= 7) {
-          return (
-            <Badge variant="outline" className="border-orange-500/50 bg-orange-500/10 text-orange-600 dark:text-orange-400 font-semibold">
-              {item.diasRestantes} día{item.diasRestantes !== 1 ? 's' : ''}
-            </Badge>
-          );
-        }
-        return (
-          <Badge variant="outline" className="border-slate-400/50 bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 font-semibold">
-            {item.diasRestantes} días
-          </Badge>
-        );
       },
     },
     {

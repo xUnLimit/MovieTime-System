@@ -138,7 +138,6 @@ export const useServiciosStore = create<ServiciosState>()(
             moneda,            // Denormalizado
             perfilesOcupados: 0,
             gastosTotal: servicioData.costoServicio ?? 0,
-            activo: true,
           });
 
           // Create initial PagoServicio record usando el servicio dedicado
@@ -157,10 +156,11 @@ export const useServiciosStore = create<ServiciosState>()(
 
           // Actualizar contadores de la categoría
           const categoriaRef = firestoreDoc(db, COLLECTIONS.CATEGORIAS, servicioData.categoriaId);
+          const isActivo = servicioData.activo !== false;
           await updateDoc(categoriaRef, {
             totalServicios: increment(1),
-            serviciosActivos: increment(1),
-            perfilesDisponiblesTotal: increment(servicioData.perfilesDisponibles ?? 0),
+            serviciosActivos: increment(isActivo ? 1 : 0),
+            perfilesDisponiblesTotal: increment(isActivo ? (servicioData.perfilesDisponibles ?? 0) : 0),
           });
           // Denormalizar gasto inicial en la categoría (convertido a USD)
           if (servicioData.costoServicio) {
@@ -182,7 +182,6 @@ export const useServiciosStore = create<ServiciosState>()(
             ...servicioData,
             id,
             perfilesOcupados: 0,
-            activo: true,
             createdAt: new Date(),
             updatedAt: new Date()
           } as Servicio;

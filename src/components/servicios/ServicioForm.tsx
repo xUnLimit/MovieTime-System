@@ -367,7 +367,7 @@ export function ServicioForm({ servicio, returnTo = '/servicios' }: ServicioForm
         fechaInicio: data.fechaInicio,
         fechaVencimiento: data.fechaVencimiento,
         notas: data.notas,
-        activo: data.estado === 'activo',
+        activo: data.estado !== 'inactivo',
         enReposo: data.estado === 'reposo',
         diasReposo: data.estado === 'reposo' ? Number(data.diasReposo || 28) : undefined,
         fechaInicioReposo: data.estado === 'reposo' ? data.fechaInicio : undefined,

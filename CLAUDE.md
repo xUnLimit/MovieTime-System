@@ -314,6 +314,7 @@ firebase deploy
 
 ## Documentation Index
 
+### Active Reference Docs (`docs/`)
 | Topic | File |
 |-------|------|
 | Pagination & cache | `docs/PAGINATION_AND_CACHE_PATTERN.md` |
@@ -323,6 +324,28 @@ firebase deploy
 | React optimizations | `docs/PERFORMANCE_OPTIMIZATIONS.md` |
 | Architecture | `docs/ARCHITECTURE.md` |
 | Denormalization | `docs/DENORMALIZATION_ANALYSIS_PROCESS.md` |
+| Developer guide | `docs/DEVELOPER_GUIDE.md` |
+| Quick start | `docs/QUICK_START.md` |
+| C4 diagrams | `docs/C4_DIAGRAMS.md` |
+| Currency setup | `docs/CURRENCY_CONVERSION_SETUP.md` |
+
+### Design Plans (`docs/plans/`)
+| Plan | File |
+|------|------|
+| Netflix Reposo | `docs/plans/2026-03-05-netflix-reposo-design.md` |
+| Dashboard metrics | `docs/plans/2026-02-22-dashboard-metrics-optimization-design.md` |
+| Dashboard implementation | `docs/plans/2026-02-13-dashboard-implementation-design.md` |
+| Activity log changes | `docs/plans/2026-02-13-activity-log-detailed-changes.md` |
+| Notifications v2.1 | `docs/plans/2026-02-12-notificaciones-persistentes-design-v2.1.md` |
+
+### Scripts (`scripts/`)
+| Script | Purpose |
+|--------|---------|
+| `scripts/README.md` | Migration status tracking |
+| `scripts/firebase-monitor.js` | Firestore reads monitor (dev) |
+
+### Historical/Archive (`docs/archive/`)
+Implementation history, optimization logs, and process docs — kept for reference only.
 
 ---
 
