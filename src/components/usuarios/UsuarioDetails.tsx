@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, MessageCircle, Monitor, Calendar, Clock, MoreHorizontal, RefreshCw, Copy, Eye, AlertTriangle } from 'lucide-react';
+import { User, MessageCircle, Monitor, Calendar, Clock, MoreHorizontal, RefreshCw, Copy, AlertTriangle, ShoppingCart, CheckCircle, XCircle } from 'lucide-react';
 import { differenceInCalendarDays } from 'date-fns';
 import {
   Table,
@@ -20,6 +20,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useVentasUsuario } from '@/hooks/use-ventas-usuario';
@@ -27,6 +28,9 @@ import { getCurrencySymbol } from '@/lib/constants';
 import { queryDocuments, COLLECTIONS } from '@/lib/firebase/firestore';
 import { formatearFecha, formatearFechaHora } from '@/lib/utils/calculations';
 import { toast } from 'sonner';
+import { useVentasStore } from '@/store/ventasStore';
+import { useServiciosStore } from '@/store/serviciosStore';
+import { CambiarEstadoVentaDialog } from './CambiarEstadoVentaDialog';
 
 interface UsuarioDetailsProps {
   usuario: Usuario;
@@ -37,6 +41,13 @@ export function UsuarioDetails({ usuario }: UsuarioDetailsProps) {
   const isRevendedor = usuario.tipo === 'revendedor';
   const { ventas: ventasUsuario, renovacionesByServicio } = useVentasUsuario(usuario.id);
   const [servicios, setServicios] = useState<Record<string, { correo: string; contrasena: string; nombre: string }>>({});
+  const updateVenta = useVentasStore(s => s.updateVenta);
+  const updateServicio = useServiciosStore(s => s.updateServicio);
+  const [estadoDialog, setEstadoDialog] = useState<{
+    open: boolean;
+    modo: 'activar' | 'inactivar';
+    venta: { id: string; servicioId: string; categoriaNombre: string; servicioNombre: string } | null;
+  }>({ open: false, modo: 'activar', venta: null });
 
 
   const handleWhatsApp = () => {
@@ -144,6 +155,31 @@ export function UsuarioDetails({ usuario }: UsuarioDetailsProps) {
       };
     });
   }, [ventasUsuario, servicios, renovacionesByServicio]);
+
+  const handleCambiarEstado = async (alcance: 'venta' | 'venta_y_servicio') => {
+    const { modo, venta } = estadoDialog;
+    if (!venta) return;
+    const nuevoEstadoVenta = modo === 'activar' ? 'activo' : 'inactivo';
+    const nuevoActivoServicio = modo === 'activar';
+    try {
+      await updateVenta(venta.id, { estado: nuevoEstadoVenta });
+      if (alcance === 'venta_y_servicio') {
+        await updateServicio(venta.servicioId, { activo: nuevoActivoServicio });
+      }
+      toast.success(modo === 'activar' ? 'Venta activada correctamente' : 'Venta inactivada correctamente');
+    } catch {
+      toast.error('Ocurrió un error al cambiar el estado');
+      throw new Error('cambio estado fallido');
+    }
+  };
+
+  const abrirDialogEstado = (modo: 'activar' | 'inactivar', row: typeof rows[number]) => {
+    setEstadoDialog({
+      open: true,
+      modo,
+      venta: { id: row.id, servicioId: row.servicioId, categoriaNombre: row.categoriaNombre, servicioNombre: row.servicioNombre },
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -371,7 +407,7 @@ export function UsuarioDetails({ usuario }: UsuarioDetailsProps) {
                           <DropdownMenuItem
                             onClick={() => router.push(`/ventas/${row.id}`)}
                           >
-                            <Eye className="h-4 w-4 mr-2" />
+                            <ShoppingCart className="h-4 w-4 mr-2" />
                             Ver Venta
                           </DropdownMenuItem>
                           <DropdownMenuItem
@@ -379,6 +415,15 @@ export function UsuarioDetails({ usuario }: UsuarioDetailsProps) {
                           >
                             <Monitor className="h-4 w-4 mr-2" />
                             Ver Servicio
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => abrirDialogEstado('activar', row)}>
+                            <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
+                            <span className="text-green-600">Activar</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => abrirDialogEstado('inactivar', row)}>
+                            <XCircle className="h-4 w-4 mr-2 text-red-600" />
+                            <span className="text-red-600">Inactivar</span>
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -390,6 +435,14 @@ export function UsuarioDetails({ usuario }: UsuarioDetailsProps) {
           </div>
         )}
       </Card>
+
+      <CambiarEstadoVentaDialog
+        open={estadoDialog.open}
+        onOpenChange={(open) => setEstadoDialog(prev => ({ ...prev, open }))}
+        modo={estadoDialog.modo}
+        venta={estadoDialog.venta}
+        onConfirm={handleCambiarEstado}
+      />
     </div>
   );
 }

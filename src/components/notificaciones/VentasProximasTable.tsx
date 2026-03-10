@@ -28,7 +28,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { BellRing, BellOff, Search, MoreHorizontal, MessageSquare, XCircle, RefreshCw, User, FileText, Scissors, AlertTriangle, ChevronDown } from 'lucide-react';
+import { BellRing, BellOff, Search, MoreHorizontal, MessageSquare, XCircle, RefreshCw, User, Scissors, AlertTriangle, ChevronDown, ShoppingCart, Tv2 } from 'lucide-react';
 import { useNotificacionesStore } from '@/store/notificacionesStore';
 import { esNotificacionVenta } from '@/types/notificaciones';
 import type { NotificacionVenta } from '@/types/notificaciones';
@@ -572,6 +572,13 @@ export function VentasProximasTable() {
     router.push(`/ventas/${notif.ventaId}`);
   };
 
+  /**
+   * Handle Ver Servicio action
+   */
+  const handleVerServicio = (notif: NotificacionVenta & { id: string }) => {
+    router.push(`/servicios/detalle/${notif.servicioId}`);
+  };
+
   return (
     <Card className="p-4 pb-2">
       <h3 className="text-xl font-semibold">Ventas próximas a vencer</h3>
@@ -772,8 +779,12 @@ export function VentasProximasTable() {
                                 Ver Cliente
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleVerVenta(notif)}>
-                                <FileText className="h-4 w-4 mr-2" />
+                                <ShoppingCart className="h-4 w-4 mr-2" />
                                 Ver Venta
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleVerServicio(notif)}>
+                                <Tv2 className="h-4 w-4 mr-2" />
+                                Ver Servicio
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
