@@ -140,7 +140,7 @@ function ServiciosCategoriaPageContent() {
   };
 
   const handleView = (id: string) => {
-    router.push(`/servicios/detalle/${id}`);
+    router.push(`/servicios/detalle/${id}?from=${encodeURIComponent(`/servicios/${categoriaId}`)}`);
   };
 
   if (!categoria) {

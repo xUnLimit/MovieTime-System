@@ -7,7 +7,7 @@ import { currencyService } from '@/lib/services/currencyService';
 import type { ServicioPronostico } from '@/types/dashboard';
 
 function toServicioPronostico(s: Servicio): ServicioPronostico | null {
-  if (!s.activo || !s.fechaVencimiento || !s.cicloPago || s.costoServicio <= 0) return null;
+  if (!s.activo || s.enReposo || !s.fechaVencimiento || !s.cicloPago || s.costoServicio <= 0) return null;
   return {
     id: s.id,
     fechaVencimiento: s.fechaVencimiento instanceof Date
@@ -104,11 +104,22 @@ export const useServiciosStore = create<ServiciosState>()(
         }
 
         try {
-          const [totalServicios, serviciosActivos, totalCategoriasActivas] = await Promise.all([
+          const [
+            totalServiciosRaw,
+            serviciosEnReposo,
+            serviciosActivosRaw,
+            serviciosEnReposoDocs,
+            totalCategoriasActivas
+          ] = await Promise.all([
             getCount(COLLECTIONS.SERVICIOS, []),
+            getCount(COLLECTIONS.SERVICIOS, [{ field: 'enReposo', operator: '==', value: true }]),
             getCount(COLLECTIONS.SERVICIOS, [{ field: 'activo', operator: '==', value: true }]),
+            queryDocuments<Servicio>(COLLECTIONS.SERVICIOS, [{ field: 'enReposo', operator: '==', value: true }]),
             getCount(COLLECTIONS.CATEGORIAS, [{ field: 'activo', operator: '==', value: true }]),
           ]);
+          const serviciosActivosEnReposo = serviciosEnReposoDocs.filter((s) => s.activo).length;
+          const totalServicios = Math.max(0, totalServiciosRaw - serviciosEnReposo);
+          const serviciosActivos = Math.max(0, serviciosActivosRaw - serviciosActivosEnReposo);
           set({
             totalServicios,
             serviciosActivos,
@@ -156,11 +167,12 @@ export const useServiciosStore = create<ServiciosState>()(
 
           // Actualizar contadores de la categoría
           const categoriaRef = firestoreDoc(db, COLLECTIONS.CATEGORIAS, servicioData.categoriaId);
-          const isActivo = servicioData.activo !== false;
+          const isContableEnServicios = !servicioData.enReposo;
+          const isActivoContable = isContableEnServicios && servicioData.activo !== false;
           await updateDoc(categoriaRef, {
-            totalServicios: increment(1),
-            serviciosActivos: increment(isActivo ? 1 : 0),
-            perfilesDisponiblesTotal: increment(isActivo ? (servicioData.perfilesDisponibles ?? 0) : 0),
+            totalServicios: increment(isContableEnServicios ? 1 : 0),
+            serviciosActivos: increment(isActivoContable ? 1 : 0),
+            perfilesDisponiblesTotal: increment(isActivoContable ? (servicioData.perfilesDisponibles ?? 0) : 0),
           });
           // Denormalizar gasto inicial en la categoría (convertido a USD)
           if (servicioData.costoServicio) {
@@ -247,21 +259,43 @@ export const useServiciosStore = create<ServiciosState>()(
 
           await update(COLLECTIONS.SERVICIOS, id, finalUpdates);
 
-          // Si se cambia el estado activo, actualizar contadores de categoría
-          if (updates.activo !== undefined && updates.activo !== servicio.activo) {
-            const categoriaRef = firestoreDoc(db, COLLECTIONS.CATEGORIAS, servicio.categoriaId);
-            const delta = updates.activo ? 1 : -1;
-            // Calcular perfiles disponibles (total - ocupados)
-            const perfilesLibres = Math.max((servicio.perfilesDisponibles || 0) - (servicio.perfilesOcupados || 0), 0);
-            await updateDoc(categoriaRef, {
-              serviciosActivos: increment(delta),
-              // Si se desactiva, restar perfiles disponibles. Si se activa, sumarlos.
-              perfilesDisponiblesTotal: increment(updates.activo ? perfilesLibres : -perfilesLibres),
-            });
+          // Recalcular contadores de categoria (total/activos/perfiles) excluyendo servicios en reposo
+          {
+            const prevEnReposo = !!servicio.enReposo;
+            const nextEnReposo = !!(finalUpdates.enReposo ?? servicio.enReposo);
+            const prevActivo = !!servicio.activo;
+            const nextActivo = !!(finalUpdates.activo ?? servicio.activo);
+            const prevContable = !prevEnReposo;
+            const nextContable = !nextEnReposo;
+            const prevActivoContable = prevContable && prevActivo;
+            const nextActivoContable = nextContable && nextActivo;
+            const nextPerfilesDisponibles = finalUpdates.perfilesDisponibles ?? servicio.perfilesDisponibles;
+            const nextPerfilesOcupados = finalUpdates.perfilesOcupados ?? servicio.perfilesOcupados;
+            const perfilesLibresPrev = prevActivoContable
+              ? Math.max((servicio.perfilesDisponibles || 0) - (servicio.perfilesOcupados || 0), 0)
+              : 0;
+            const perfilesLibresNext = nextActivoContable
+              ? Math.max((nextPerfilesDisponibles || 0) - (nextPerfilesOcupados || 0), 0)
+              : 0;
+            const deltaTotalServicios = (nextContable ? 1 : 0) - (prevContable ? 1 : 0);
+            const deltaServiciosActivos = (nextActivoContable ? 1 : 0) - (prevActivoContable ? 1 : 0);
+            const deltaPerfilesDisponibles = perfilesLibresNext - perfilesLibresPrev;
+
+            if (deltaTotalServicios !== 0 || deltaServiciosActivos !== 0 || deltaPerfilesDisponibles !== 0) {
+              const categoriaRef = firestoreDoc(db, COLLECTIONS.CATEGORIAS, servicio.categoriaId);
+              await updateDoc(categoriaRef, {
+                totalServicios: increment(deltaTotalServicios),
+                serviciosActivos: increment(deltaServiciosActivos),
+                perfilesDisponiblesTotal: increment(deltaPerfilesDisponibles),
+              });
+            }
           }
 
-          // Sync dashboard forecast when activo changes
-          if (updates.activo !== undefined && updates.activo !== servicio.activo) {
+          // Sync dashboard forecast when activo/enReposo changes
+          if (
+            (updates.activo !== undefined && updates.activo !== servicio.activo) ||
+            (updates.enReposo !== undefined && updates.enReposo !== servicio.enReposo)
+          ) {
             const updatedServicio = { ...servicio, ...finalUpdates };
             const servicioPronostico = toServicioPronostico(updatedServicio as Servicio);
 
@@ -284,19 +318,6 @@ export const useServiciosStore = create<ServiciosState>()(
             }).catch(() => {});
 
             upsertServicioPronostico(servicioPronostico, id).catch(() => {});
-          }
-
-          // Si se cambia perfilesDisponibles y el servicio está activo, actualizar el contador de la categoría
-          if (
-            updates.perfilesDisponibles !== undefined &&
-            updates.perfilesDisponibles !== servicio.perfilesDisponibles &&
-            (updates.activo ?? servicio.activo)
-          ) {
-            const categoriaRef = firestoreDoc(db, COLLECTIONS.CATEGORIAS, servicio.categoriaId);
-            const delta = updates.perfilesDisponibles - servicio.perfilesDisponibles;
-            await updateDoc(categoriaRef, {
-              perfilesDisponiblesTotal: increment(delta),
-            });
           }
 
           // Detectar cambios para el log
@@ -369,10 +390,14 @@ export const useServiciosStore = create<ServiciosState>()(
 
           // Decrementar contadores de la categoría
           const categoriaRef = firestoreDoc(db, COLLECTIONS.CATEGORIAS, servicio.categoriaId);
-          const perfilesDisponibles = Math.max((servicio.perfilesDisponibles || 0) - (servicio.perfilesOcupados || 0), 0);
+          const isContableEnServicios = !servicio.enReposo;
+          const isActivoContable = isContableEnServicios && servicio.activo;
+          const perfilesDisponibles = isActivoContable
+            ? Math.max((servicio.perfilesDisponibles || 0) - (servicio.perfilesOcupados || 0), 0)
+            : 0;
           await updateDoc(categoriaRef, {
-            totalServicios: increment(-1),
-            serviciosActivos: increment(servicio.activo ? -1 : 0),
+            totalServicios: increment(isContableEnServicios ? -1 : 0),
+            serviciosActivos: increment(isActivoContable ? -1 : 0),
             perfilesDisponiblesTotal: increment(-perfilesDisponibles),
           });
           // Restar el gastosTotal REAL (recalculado desde pagos) de la categoría
@@ -447,7 +472,7 @@ export const useServiciosStore = create<ServiciosState>()(
 
       getServiciosByCategoria: (categoriaId) => {
         return get().servicios.filter(
-          (servicio) => servicio.categoriaId === categoriaId && servicio.activo
+          (servicio) => servicio.categoriaId === categoriaId && servicio.activo && !servicio.enReposo
         );
       },
 
@@ -455,6 +480,7 @@ export const useServiciosStore = create<ServiciosState>()(
         return get().servicios.filter(
           (servicio) =>
             servicio.activo &&
+            !servicio.enReposo &&
             servicio.perfilesOcupados < servicio.perfilesDisponibles
         );
       },
@@ -494,10 +520,12 @@ export const useServiciosStore = create<ServiciosState>()(
           });
 
           // Actualizar perfilesDisponiblesTotal de la categoría (inverso del delta)
-          const categoriaRef = firestoreDoc(db, COLLECTIONS.CATEGORIAS, servicio.categoriaId);
-          await updateDoc(categoriaRef, {
-            perfilesDisponiblesTotal: increment(-delta), // Si ocupamos +1, disponibles -1
-          });
+          if (servicio.activo && !servicio.enReposo) {
+            const categoriaRef = firestoreDoc(db, COLLECTIONS.CATEGORIAS, servicio.categoriaId);
+            await updateDoc(categoriaRef, {
+              perfilesDisponiblesTotal: increment(-delta), // Si ocupamos +1, disponibles -1
+            });
+          }
         } catch (error) {
           console.error('Error updating perfil ocupado:', error);
           // Rollback local si existe en el store
@@ -542,15 +570,17 @@ export const useServiciosStore = create<ServiciosState>()(
         // 3. Recalcular perfilesDisponiblesTotal por categoría usando los valores corregidos
         const totalPorCategoria = new Map<string, number>();
         for (const s of servicios) {
-          if (!s.activo) continue;
+          if (!s.activo || s.enReposo) continue;
           const ocupadosReal = ocupadosPorServicio.get(s.id) ?? 0;
           const libres = Math.max((s.perfilesDisponibles || 0) - ocupadosReal, 0);
           totalPorCategoria.set(s.categoriaId, (totalPorCategoria.get(s.categoriaId) ?? 0) + libres);
         }
 
         // Sobrescribir el campo en cada categoría afectada
-        const categoriaUpdates = Array.from(totalPorCategoria.entries()).map(([categoriaId, total]) => {
-          const ref = firestoreDoc(db, COLLECTIONS.CATEGORIAS, categoriaId);
+        const categorias = await getAll<{ id: string }>(COLLECTIONS.CATEGORIAS);
+        const categoriaUpdates = categorias.map((categoria) => {
+          const total = totalPorCategoria.get(categoria.id) ?? 0;
+          const ref = firestoreDoc(db, COLLECTIONS.CATEGORIAS, categoria.id);
           return updateDoc(ref, { perfilesDisponiblesTotal: total });
         });
         await Promise.all(categoriaUpdates);
@@ -573,3 +603,4 @@ export const useServiciosStore = create<ServiciosState>()(
     { name: 'servicios-store' }
   )
 );
+

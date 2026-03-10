@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search, MoreVertical, Users, Eye, Pencil } from 'lucide-react';
+import { Search, MoreVertical, Users, Eye, Edit } from 'lucide-react';
 import { Servicio } from '@/types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -166,7 +166,7 @@ export function ServiciosCategoriaTable({ servicios }: ServiciosCategoriaTablePr
                             Ver detalles
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => router.push(`/servicios/${servicio.id}/editar?from=/servicios/${servicio.categoriaId}`)}>
-                            <Pencil className="h-4 w-4 mr-2" />
+                            <Edit className="h-4 w-4 mr-2" />
                             Editar
                           </DropdownMenuItem>
                         </DropdownMenuContent>

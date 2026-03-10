@@ -331,8 +331,8 @@ function NetflixReposoPageContent() {
           item.estadoReposo === 'completado'
             ? '[&>div]:bg-green-500'
             : item.estadoReposo === 'proximo_finalizar'
-              ? '[&>div]:bg-orange-500'
-              : '[&>div]:bg-slate-400 dark:[&>div]:bg-slate-500';
+              ? '[&>div]:bg-yellow-500'
+              : '[&>div]:bg-blue-500';
         return (
           <div className="flex items-center gap-2 min-w-[130px]">
             <Progress value={item.progreso} className={`h-2 flex-1 ${barColor}`} />

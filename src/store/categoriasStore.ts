@@ -281,6 +281,7 @@ export const useCategoriasStore = create<CategoriasState>()(
         // Servicios → totalServicios + serviciosActivos
         for (const s of servicios) {
           if (!s.categoriaId) continue;
+          if (s.enReposo) continue;
           const c = getOrInit(s.categoriaId);
           c.totalServicios++;
           if (s.activo) c.serviciosActivos++;
@@ -319,9 +320,18 @@ export const useCategoriasStore = create<CategoriasState>()(
         });
         await Promise.all(gastosConversiones);
 
-        // 3. Escribir en Firestore
-        const updates = Array.from(contadores.entries()).map(([categoriaId, datos]) => {
-          const ref = firestoreDoc(db, COLLECTIONS.CATEGORIAS, categoriaId);
+        // 3. Escribir en Firestore (incluye categorías sin datos -> 0)
+        const categoriasActuales = await getAll<Categoria>(COLLECTIONS.CATEGORIAS);
+        const updates = categoriasActuales.map((categoria) => {
+          const datos = contadores.get(categoria.id) ?? {
+            totalServicios: 0,
+            serviciosActivos: 0,
+            ventasTotales: 0,
+            ingresosTotales: 0,
+            gastosTotal: 0,
+          };
+
+          const ref = firestoreDoc(db, COLLECTIONS.CATEGORIAS, categoria.id);
           return updateDoc(ref, {
             totalServicios: datos.totalServicios,
             serviciosActivos: datos.serviciosActivos,

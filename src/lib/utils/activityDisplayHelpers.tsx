@@ -1,7 +1,7 @@
 import React from 'react';
 import { ActivityLog } from '@/types';
 import {
-  Edit, Trash2, Plus, RefreshCw, Scissors,
+  Edit, Trash2, Plus, RefreshCw, Scissors, Pause, Play,
   UserPlus, UserMinus, UserCog,
   Tv2, ShoppingCart, Tag, CreditCard, FileText, RotateCcw,
 } from 'lucide-react';
@@ -77,6 +77,19 @@ function getCamposLabel(log: ActivityLog): string | null {
   return `${campos.slice(0, 3).join(', ')}…`;
 }
 
+function getReposoTransition(log: ActivityLog): { anterior: boolean; nuevo: boolean } | null {
+  const cambioReposo = log.cambios?.find((c) =>
+    c.campoKey === 'enReposo' || c.campo.toLowerCase() === 'reposo'
+  );
+  if (!cambioReposo) return null;
+
+  const anterior = cambioReposo.anterior === true;
+  const nuevo = cambioReposo.nuevo === true;
+  if (anterior === nuevo) return null;
+
+  return { anterior, nuevo };
+}
+
 export function getActivityDisplayConfig(log: ActivityLog): ActivityDisplayConfig {
   const detalles = log.detalles ?? '';
   const colorClass = activityActionColors[log.accion] || 'bg-muted/50 text-muted-foreground';
@@ -131,6 +144,23 @@ export function getActivityDisplayConfig(log: ActivityLog): ActivityDisplayConfi
     }
 
     case 'actualizacion': {
+      const reposoTransition = getReposoTransition(log);
+      if (reposoTransition) {
+        if (reposoTransition.nuevo) {
+          const reposoColor = 'bg-yellow-500/10 text-yellow-500';
+          if (log.entidad === 'servicio') {
+            return { icon: Pause, color: reposoColor, message: <><span>Servicio en reposo —</span> {nameEl}{correoEl}</> };
+          }
+          return { icon: Pause, color: reposoColor, message: <><span>{label} en reposo —</span> {nameEl}</> };
+        }
+
+        const reactivadoColor = 'bg-emerald-500/10 text-emerald-500';
+        if (log.entidad === 'servicio') {
+          return { icon: Play, color: reactivadoColor, message: <><span>Servicio reactivado —</span> {nameEl}{correoEl}</> };
+        }
+        return { icon: Play, color: reactivadoColor, message: <><span>{label} reactivado —</span> {nameEl}</> };
+      }
+
       // Detectar si es un "corte" (activo: true → false) o (estado → inactivo)
       const esCorte = log.cambios?.some(c =>
         (c.campoKey === 'activo' && c.nuevo === false) ||

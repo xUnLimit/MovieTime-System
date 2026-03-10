@@ -7,24 +7,28 @@ import Link from 'next/link';
 import { CategoriasTable } from '@/components/servicios/CategoriasTable';
 import { ServiciosMetrics } from '@/components/servicios/ServiciosMetrics';
 import { useCategoriasStore } from '@/store/categoriasStore';
+import { useServiciosStore } from '@/store/serviciosStore';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 
 function ServiciosPageContent() {
   const { categorias, fetchCategorias } = useCategoriasStore();
+  const { fetchServicios } = useServiciosStore();
   const { fetchDashboardStats } = useDashboardStore();
 
   // Cargar datos iniciales (siempre refresca para mostrar datos actualizados)
   useEffect(() => {
     fetchCategorias(true);
+    fetchServicios(true);
     fetchDashboardStats();
-  }, [fetchCategorias, fetchDashboardStats]);
+  }, [fetchCategorias, fetchServicios, fetchDashboardStats]);
 
   // Refrescar cuando el usuario vuelve a la página
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden) {
         fetchCategorias(true);
+        fetchServicios(true);
         fetchDashboardStats(true);
       }
     };
@@ -33,12 +37,13 @@ function ServiciosPageContent() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [fetchCategorias, fetchDashboardStats]);
+  }, [fetchCategorias, fetchServicios, fetchDashboardStats]);
 
   // Refrescar cuando se navega de vuelta a esta página desde otra ruta
   useEffect(() => {
     const handleFocus = () => {
       fetchCategorias(true);
+      fetchServicios(true);
       fetchDashboardStats(true);
     };
 
@@ -46,18 +51,20 @@ function ServiciosPageContent() {
     return () => {
       window.removeEventListener('focus', handleFocus);
     };
-  }, [fetchCategorias, fetchDashboardStats]);
+  }, [fetchCategorias, fetchServicios, fetchDashboardStats]);
 
   // Escuchar cuando se elimina un servicio desde otra página
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'servicio-deleted') {
         fetchCategorias(true);
+        fetchServicios(true);
       }
     };
 
     const handleServicioDeleted = () => {
       fetchCategorias(true);
+      fetchServicios(true);
     };
 
     window.addEventListener('storage', handleStorageChange);
@@ -67,7 +74,7 @@ function ServiciosPageContent() {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('servicio-deleted', handleServicioDeleted);
     };
-  }, [fetchCategorias]);
+  }, [fetchCategorias, fetchServicios]);
 
   return (
     <div className="space-y-4">

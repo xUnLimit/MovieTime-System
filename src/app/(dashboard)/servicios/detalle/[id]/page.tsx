@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -70,7 +70,9 @@ interface PagoFormData {
 function ServicioDetallePageContent() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const id = params.id as string;
+  const from = searchParams.get('from');
 
   const { deleteServicio, updateServicio, fetchCounts } = useServiciosStore();
   const { fetchCategorias } = useCategoriasStore();
@@ -608,13 +610,19 @@ function ServicioDetallePageContent() {
     setExpandedProfileIndex((prev) => (prev === index ? null : index));
   };
 
+  const returnToServicios = (() => {
+    if (from && from.startsWith('/servicios/')) return from;
+    if (servicio?.categoriaId) return `/servicios/${servicio.categoriaId}`;
+    return '/servicios';
+  })();
+
   return (
     <>
       <div className="space-y-5">
         {/* Header */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/servicios">
+            <Link href={returnToServicios}>
               <Button variant="outline" size="icon" className="h-8 w-8 flex-shrink-0">
                 <ArrowLeft className="h-4 w-4" />
               </Button>

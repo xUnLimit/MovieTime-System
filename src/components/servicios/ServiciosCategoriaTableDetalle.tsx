@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { MoreHorizontal, Pencil, Trash2, User, Search, RefreshCw, Eye } from 'lucide-react';
+import { MoreHorizontal, Edit, Trash2, User, Search, RefreshCw, Eye } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -350,7 +350,7 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuItem onClick={() => onEdit(servicio.id)}>
-                      <Pencil className="h-4 w-4 mr-2" />
+                      <Edit className="h-4 w-4 mr-2" />
                       Editar
                     </DropdownMenuItem>
                     <DropdownMenuItem

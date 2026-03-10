@@ -45,8 +45,8 @@ export function CambiosModal({ open, onOpenChange, entidadNombre, cambios }: Cam
                     <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Anterior</span>
                   </div>
                   <div className="bg-red-500/5 border border-red-500/20 rounded-md px-3 py-2">
-                    <p className="text-sm text-red-700 dark:text-red-300 truncate" title={formatValue(cambio.anterior, cambio.tipo)}>
-                      {formatValue(cambio.anterior, cambio.tipo)}
+                    <p className="text-sm text-red-700 dark:text-red-300 truncate" title={formatValue(cambio.anterior, cambio.tipo, cambio.campoKey)}>
+                      {formatValue(cambio.anterior, cambio.tipo, cambio.campoKey)}
                     </p>
                   </div>
                 </div>
@@ -63,8 +63,8 @@ export function CambiosModal({ open, onOpenChange, entidadNombre, cambios }: Cam
                     <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Actual</span>
                   </div>
                   <div className="bg-green-500/5 border border-green-500/20 rounded-md px-3 py-2">
-                    <p className="text-sm text-green-700 dark:text-green-300 truncate" title={formatValue(cambio.nuevo, cambio.tipo)}>
-                      {formatValue(cambio.nuevo, cambio.tipo)}
+                    <p className="text-sm text-green-700 dark:text-green-300 truncate" title={formatValue(cambio.nuevo, cambio.tipo, cambio.campoKey)}>
+                      {formatValue(cambio.nuevo, cambio.tipo, cambio.campoKey)}
                     </p>
                   </div>
                 </div>
@@ -80,7 +80,7 @@ export function CambiosModal({ open, onOpenChange, entidadNombre, cambios }: Cam
 /**
  * Formatea valores según su tipo
  */
-function formatValue(value: unknown, tipo?: CambioLog['tipo']): string {
+function formatValue(value: unknown, tipo?: CambioLog['tipo'], campoKey?: string): string {
   if (value === null || value === undefined) return '(vacío)';
 
   switch (tipo) {
@@ -93,8 +93,13 @@ function formatValue(value: unknown, tipo?: CambioLog['tipo']): string {
     case 'money':
       return `$${Number(value).toFixed(2)}`;
 
-    case 'boolean':
-      return value ? 'Activo' : 'Inactivo';
+    case 'boolean': {
+      const boolValue = value === true || value === 'true' || value === 1;
+      if (campoKey === 'enReposo' || campoKey === 'reposo') {
+        return boolValue ? 'En reposo' : 'Fuera de reposo';
+      }
+      return boolValue ? 'Activo' : 'Inactivo';
+    }
 
     case 'number':
       return String(value);
