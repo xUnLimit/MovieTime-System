@@ -209,6 +209,10 @@ export function ServicioForm({ servicio, returnTo = '/servicios' }: ServicioForm
       if (servicio.fechaVencimiento) {
         setValue('fechaVencimiento', new Date(servicio.fechaVencimiento));
       }
+      // Baseline from persisted values to avoid false "date changed" on initial edit load.
+      setLastCicloId(servicio.cicloPago || 'mensual');
+      setLastFechaInicioTime(servicio.fechaInicio ? new Date(servicio.fechaInicio).getTime() : null);
+      setCicloInicializado(true);
       setValue('estado', servicio.enReposo ? 'reposo' : servicio.activo ? 'activo' : 'inactivo');
       setValue('notas', servicio.notas || '');
       setManualFechaVencimiento(true);
@@ -300,16 +304,6 @@ export function ServicioForm({ servicio, returnTo = '/servicios' }: ServicioForm
       }
     }
   }, [cicloPagoValue, fechaInicioValue, manualFechaVencimiento, setValue, isEditMode, cicloInicializado, lastCicloId, lastFechaInicioTime]);
-
-  // Inicializar el ciclo y fecha solo una vez (edit mode)
-  useEffect(() => {
-    if (!isEditMode || cicloInicializado) return;
-    if (cicloPagoValue) {
-      setLastCicloId(cicloPagoValue);
-      setLastFechaInicioTime(fechaInicioValue?.getTime() ?? null);
-      setCicloInicializado(true);
-    }
-  }, [cicloPagoValue, fechaInicioValue, cicloInicializado, isEditMode]);
 
   const handleCicloPagoChange = (ciclo: 'mensual' | 'trimestral' | 'semestral' | 'anual') => {
     setValue('cicloPago', ciclo);
