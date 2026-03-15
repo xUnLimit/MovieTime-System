@@ -25,6 +25,11 @@ const tipoLabels: Record<string, string> = {
   ambos: 'Cliente',
 };
 
+const tipoCategoriaLabels: Record<string, string> = {
+  plataforma_streaming: 'Plataforma de Streaming',
+  otros: 'Otros',
+};
+
 interface TodasCategoriasTableProps {
   categorias: Categoria[];
   title?: string;
@@ -95,7 +100,7 @@ export function TodasCategoriasTable({ categorias, title = 'Todas las categoría
       sortable: false,
       align: 'center',
       width: '25%',
-      render: () => <span>Plataforma de Streaming</span>,
+      render: (item) => <span>{tipoCategoriaLabels[item.tipoCategoria ?? ''] ?? 'No definido'}</span>,
     },
     {
       key: 'estado',

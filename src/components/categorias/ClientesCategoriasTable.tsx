@@ -19,6 +19,11 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 
+const tipoCategoriaLabels: Record<string, string> = {
+  plataforma_streaming: 'Plataforma de Streaming',
+  otros: 'Otros',
+};
+
 interface ClientesCategoriasTableProps {
   categorias: Categoria[];
   title?: string;
@@ -77,7 +82,7 @@ export function ClientesCategoriasTable({ categorias, title = 'Categorías de Cl
       sortable: false,
       align: 'center',
       width: '35%',
-      render: () => <span>Plataforma de Streaming</span>,
+      render: (item) => <span>{tipoCategoriaLabels[item.tipoCategoria ?? ''] ?? 'No definido'}</span>,
     },
     {
       key: 'estado',
