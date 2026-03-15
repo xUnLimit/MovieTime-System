@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Pencil, Trash2, RefreshCw, User, ChevronDown, DollarSign, Monitor, Calendar, Tag, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2, RefreshCw, User, ChevronDown, DollarSign, Monitor, Calendar, Tag, Lock, ExternalLink } from 'lucide-react';
 import { useServiciosStore } from '@/store/serviciosStore';
 import { useCategoriasStore } from '@/store/categoriasStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
@@ -918,7 +918,7 @@ function ServicioDetallePageContent() {
                               </div>
                               {venta.codigo && (
                                 <div className="flex items-center gap-2">
-                                  <Tag className="h-4 w-4 text-muted-foreground shrink-0" />
+                                  <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
                                   <span className="text-muted-foreground">Código:</span>
                                   <span className="font-medium select-all">{venta.codigo}</span>
                                 </div>

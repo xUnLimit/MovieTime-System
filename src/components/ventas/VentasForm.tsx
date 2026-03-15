@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { WheelEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -18,11 +19,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, ChevronDown, MessageCircle, Plus, Trash2, User, Search } from 'lucide-react';
+import { CalendarIcon, ChevronDown, ChevronUp, Eye, Loader2, MessageCircle, Plus, Search, Trash2, User } from 'lucide-react';
 import { useCategoriasStore } from '@/store/categoriasStore';
 import { useServiciosStore } from '@/store/serviciosStore';
 import { useUsuariosStore } from '@/store/usuariosStore';
@@ -30,6 +32,7 @@ import { useTemplatesStore } from '@/store/templatesStore';
 import { useVentasStore } from '@/store/ventasStore';
 import { toast } from 'sonner';
 import type { Servicio } from '@/types/servicios';
+import type { VentaDoc } from '@/types/ventas';
 import { COLLECTIONS, queryDocuments, adjustServiciosActivos } from '@/lib/firebase/firestore';
 import { Switch } from '@/components/ui/switch';
 import { formatearFechaWhatsApp, getSaludo } from '@/lib/utils/whatsapp';
@@ -86,12 +89,28 @@ interface MetodoPagoOption {
   moneda: string;
 }
 
+interface PerfilDetalleOcupado {
+  perfilNumero: number;
+  clienteNombre?: string;
+  perfilNombre?: string;
+  createdAt?: Date;
+}
+
+interface PerfilDetalleVisual {
+  numero: number;
+  estado: 'disponible' | 'ocupado' | 'pendiente';
+  perfilNombre: string;
+  clienteNombre?: string;
+}
+
 const MESES_POR_CICLO: Record<string, number> = {
   mensual: 1,
   trimestral: 3,
   semestral: 6,
   anual: 12,
 };
+
+const SERVICIOS_DROPDOWN_VISIBLE_ROWS = 10;
 
 
 export function VentasForm() {
@@ -129,6 +148,12 @@ export function VentasForm() {
   const [notifyCliente, setNotifyCliente] = useState(false);
   const [editedMessage, setEditedMessage] = useState('');
   const [searchCliente, setSearchCliente] = useState('');
+  const [perfilDetalleOpen, setPerfilDetalleOpen] = useState(false);
+  const [servicioDetalle, setServicioDetalle] = useState<Servicio | null>(null);
+  const [perfilesOcupadosDetalle, setPerfilesOcupadosDetalle] = useState<PerfilDetalleOcupado[]>([]);
+  const [loadingPerfilesDetalle, setLoadingPerfilesDetalle] = useState(false);
+  const [errorPerfilesDetalle, setErrorPerfilesDetalle] = useState<string | null>(null);
+  const [serviciosWindowStart, setServiciosWindowStart] = useState(0);
 
   const {
     register,
@@ -345,6 +370,28 @@ export function VentasForm() {
     });
   }, [serviciosOrdenados, perfilesUsados]);
 
+  const maxServiciosWindowStart = useMemo(
+    () => Math.max(serviciosFiltrados.length - SERVICIOS_DROPDOWN_VISIBLE_ROWS, 0),
+    [serviciosFiltrados.length]
+  );
+
+  const serviciosVentana = useMemo(
+    () =>
+      serviciosFiltrados.slice(
+        serviciosWindowStart,
+        serviciosWindowStart + SERVICIOS_DROPDOWN_VISIBLE_ROWS
+      ),
+    [serviciosFiltrados, serviciosWindowStart]
+  );
+
+  useEffect(() => {
+    setServiciosWindowStart((prev) => Math.min(prev, maxServiciosWindowStart));
+  }, [maxServiciosWindowStart]);
+
+  useEffect(() => {
+    setServiciosWindowStart(0);
+  }, [categoriaId]);
+
   const getSlotsDisponibles = (servicioIdValue: string) => {
     const servicio = serviciosCategoria.find((s) => s.id === servicioIdValue);
     if (!servicio) return 0;
@@ -352,6 +399,143 @@ export function VentasForm() {
     const ocupadosEnVenta = perfilesUsados[servicioIdValue]?.size || 0;
     return Math.max((servicio.perfilesDisponibles || 0) - ocupadosActual - ocupadosEnVenta, 0);
   };
+
+  const getDisponiblesColorClass = (disponibles: number, total: number) => {
+    if (total <= 0) return 'text-muted-foreground';
+    const ratio = disponibles / total;
+    if (ratio <= 0.25) return 'text-[#ff1744]';
+    if (ratio <= 0.5) return 'text-[#ffea00]';
+    return 'text-[#00ff85]';
+  };
+
+  const scrollServiciosDropdown = useCallback((direction: 'up' | 'down') => {
+    setServiciosWindowStart((prev) => {
+      if (direction === 'up') return Math.max(prev - 1, 0);
+      return Math.min(prev + 1, maxServiciosWindowStart);
+    });
+  }, [maxServiciosWindowStart]);
+
+  const handleServiciosDropdownWheel = useCallback((e: WheelEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.deltaY === 0) return;
+    scrollServiciosDropdown(e.deltaY > 0 ? 'down' : 'up');
+  }, [scrollServiciosDropdown]);
+
+  const handleOpenPerfilDetalle = useCallback(async (servicio: Servicio) => {
+    setServicioDetalle(servicio);
+    setPerfilDetalleOpen(true);
+    setLoadingPerfilesDetalle(true);
+    setErrorPerfilesDetalle(null);
+
+    try {
+      const ventas = await queryDocuments<VentaDoc>(COLLECTIONS.VENTAS, [
+        { field: 'servicioId', operator: '==', value: servicio.id },
+      ]);
+
+      const ocupadosPorPerfil = new Map<number, PerfilDetalleOcupado>();
+      ventas.forEach((venta) => {
+        const estado = venta.estado ?? 'activo';
+        if (estado === 'inactivo') return;
+        const perfilNumero = venta.perfilNumero ?? null;
+        if (!perfilNumero) return;
+
+        const existente = ocupadosPorPerfil.get(perfilNumero);
+        const actualMs = venta.createdAt ? new Date(venta.createdAt).getTime() : 0;
+        const existenteMs = existente?.createdAt ? new Date(existente.createdAt).getTime() : 0;
+        if (!existente || actualMs >= existenteMs) {
+          ocupadosPorPerfil.set(perfilNumero, {
+            perfilNumero,
+            clienteNombre: venta.clienteNombre || 'Cliente sin nombre',
+            perfilNombre: venta.perfilNombre || `Perfil ${perfilNumero}`,
+            createdAt: venta.createdAt,
+          });
+        }
+      });
+
+      setPerfilesOcupadosDetalle(Array.from(ocupadosPorPerfil.values()));
+    } catch (error) {
+      console.error('Error cargando detalle de perfiles:', error);
+      setPerfilesOcupadosDetalle([]);
+      setErrorPerfilesDetalle('No se pudo cargar el detalle de perfiles.');
+    } finally {
+      setLoadingPerfilesDetalle(false);
+    }
+  }, []);
+
+  const clientePendienteNombre = useMemo(() => {
+    if (!clienteSeleccionado) return 'Cliente pendiente';
+    return `${clienteSeleccionado.nombre} ${clienteSeleccionado.apellido || ''}`.trim();
+  }, [clienteSeleccionado]);
+
+  const perfilesPendientesDetalle = useMemo(() => {
+    const map = new Map<number, { clienteNombre: string; perfilNombre: string }>();
+    if (!servicioDetalle) return map;
+
+    items.forEach((item) => {
+      if (item.servicioId !== servicioDetalle.id || !item.perfilNumero) return;
+      map.set(item.perfilNumero, {
+        clienteNombre: clientePendienteNombre,
+        perfilNombre: item.perfilNombre?.trim() || `Perfil ${item.perfilNumero}`,
+      });
+    });
+
+    return map;
+  }, [items, servicioDetalle, clientePendienteNombre]);
+
+  const perfilesOcupadosDetalleMap = useMemo(() => {
+    const map = new Map<number, PerfilDetalleOcupado>();
+    perfilesOcupadosDetalle.forEach((perfil) => {
+      map.set(perfil.perfilNumero, perfil);
+    });
+    return map;
+  }, [perfilesOcupadosDetalle]);
+
+  const perfilesDetalleVisual = useMemo<PerfilDetalleVisual[]>(() => {
+    if (!servicioDetalle) return [];
+    const total = Math.max(servicioDetalle.perfilesDisponibles || 0, 0);
+
+    return Array.from({ length: total }, (_, i) => {
+      const numero = i + 1;
+      const pendiente = perfilesPendientesDetalle.get(numero);
+      const ocupado = perfilesOcupadosDetalleMap.get(numero);
+
+      if (pendiente) {
+        return {
+          numero,
+          estado: 'pendiente',
+          perfilNombre: pendiente.perfilNombre,
+          clienteNombre: pendiente.clienteNombre,
+        };
+      }
+      if (ocupado) {
+        return {
+          numero,
+          estado: 'ocupado',
+          perfilNombre: ocupado.perfilNombre || `Perfil ${numero}`,
+          clienteNombre: ocupado.clienteNombre,
+        };
+      }
+      return {
+        numero,
+        estado: 'disponible',
+        perfilNombre: `Perfil ${numero}`,
+      };
+    });
+  }, [servicioDetalle, perfilesPendientesDetalle, perfilesOcupadosDetalleMap]);
+
+  const resumenPerfilesDetalle = useMemo(() => {
+    return perfilesDetalleVisual.reduce(
+      (acc, perfil) => {
+        acc.total += 1;
+        if (perfil.estado === 'pendiente') acc.pendientes += 1;
+        if (perfil.estado === 'ocupado') acc.ocupados += 1;
+        if (perfil.estado === 'disponible') acc.disponibles += 1;
+        return acc;
+      },
+      { total: 0, disponibles: 0, ocupados: 0, pendientes: 0 }
+    );
+  }, [perfilesDetalleVisual]);
 
   const simboloMoneda = getCurrencySymbol(metodoPagoSeleccionado?.moneda);
   const precioBase = Number(precio) || 0;
@@ -854,20 +1038,101 @@ export function VentasForm() {
                         <ChevronDown className="h-4 w-4 opacity-50" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                    <DropdownMenuContent
+                      align="start"
+                      className="w-[var(--radix-dropdown-menu-trigger-width)] overflow-hidden"
+                      onCloseAutoFocus={(e) => e.preventDefault()}
+                    >
                       {serviciosFiltrados.length > 0 ? (
-                        serviciosFiltrados.map((servicio) => (
-                          <DropdownMenuItem
-                            key={servicio.id}
-                            onClick={() => {
-                              setServicioId(servicio.id);
-                              setPerfilNumero('');
-                              setItemErrors((prev) => ({ ...prev, servicio: undefined }));
-                            }}
+                        <>
+                          {serviciosFiltrados.length > SERVICIOS_DROPDOWN_VISIBLE_ROWS && (
+                            <button
+                              type="button"
+                              className="flex h-6 w-full items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                              onPointerDown={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                              }}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                scrollServiciosDropdown('up');
+                              }}
+                              aria-label="Subir en la lista de servicios"
+                            >
+                              <ChevronUp className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                          <div
+                            onWheel={handleServiciosDropdownWheel}
+                            className="overflow-hidden"
+                            style={{ overscrollBehavior: 'contain' }}
                           >
-                            {servicio.nombre} - {servicio.correo}
-                          </DropdownMenuItem>
-                        ))
+                            {serviciosVentana.map((servicio) => {
+                              const perfilesDisponibles = getSlotsDisponibles(servicio.id);
+                              const totalPerfiles = servicio.perfilesDisponibles || 0;
+
+                              return (
+                                <DropdownMenuItem
+                                  key={servicio.id}
+                                  onClick={() => {
+                                    setServicioId(servicio.id);
+                                    setPerfilNumero('');
+                                    setItemErrors((prev) => ({ ...prev, servicio: undefined }));
+                                  }}
+                                  className="group flex h-8 min-h-8 items-center gap-0 py-0 pr-1 leading-none"
+                                >
+                                  <span className="min-w-0 flex-1 truncate">{servicio.nombre} - {servicio.correo}</span>
+                                  <span
+                                    className="w-[68px] shrink-0 text-left text-xs tabular-nums text-foreground"
+                                  >
+                                    <span className={cn('font-extrabold', getDisponiblesColorClass(perfilesDisponibles, totalPerfiles))}>
+                                      {perfilesDisponibles}
+                                    </span>{' '}
+                                    Disponible{perfilesDisponibles === 1 ? '' : 's'}
+                                  </span>
+                                  <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-6 w-6 shrink-0 opacity-70 transition-opacity group-hover:opacity-100"
+                                    onPointerDown={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                    }}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      void handleOpenPerfilDetalle(servicio);
+                                    }}
+                                    aria-label={`Ver detalle de perfiles de ${servicio.nombre}`}
+                                  >
+                                    <Eye className="h-3.5 w-3.5" />
+                                  </Button>
+                                </DropdownMenuItem>
+                              );
+                            })}
+                          </div>
+
+                          {serviciosFiltrados.length > SERVICIOS_DROPDOWN_VISIBLE_ROWS && (
+                            <button
+                              type="button"
+                              className="flex h-6 w-full items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                              onPointerDown={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                              }}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                scrollServiciosDropdown('down');
+                              }}
+                              aria-label="Bajar en la lista de servicios"
+                            >
+                              <ChevronDown className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </>
                       ) : (
                         <DropdownMenuItem disabled className="text-muted-foreground">
                           No hay servicios disponibles
@@ -1361,6 +1626,106 @@ export function VentasForm() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <Dialog
+        open={perfilDetalleOpen}
+        onOpenChange={(open) => {
+          setPerfilDetalleOpen(open);
+          if (!open) {
+            setErrorPerfilesDetalle(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl p-0 overflow-hidden">
+          <DialogHeader className="px-6 pr-14 pt-6 pb-3 border-b">
+            <DialogTitle className="flex items-center justify-between gap-4">
+              <span className="truncate">Perfiles de {servicioDetalle?.nombre || 'Servicio'}</span>
+              <span className="text-xs sm:text-sm font-normal text-muted-foreground whitespace-nowrap">
+                {resumenPerfilesDetalle.total} perfiles registrados
+              </span>
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground">
+              {servicioDetalle?.correo || 'Sin correo'} - {resumenPerfilesDetalle.disponibles} de {resumenPerfilesDetalle.total} Disponibles
+            </p>
+          </DialogHeader>
+
+          <div className="px-6 py-4 space-y-4">
+            {loadingPerfilesDetalle ? (
+              <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Cargando perfiles...
+              </div>
+            ) : errorPerfilesDetalle ? (
+              <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+                {errorPerfilesDetalle}
+              </div>
+            ) : (
+              <>
+                <div className="max-h-[52vh] overflow-y-auto rounded-lg border p-2 space-y-2">
+                  {perfilesDetalleVisual.map((perfil) => (
+                    <div
+                      key={perfil.numero}
+                      className={cn(
+                        'rounded-md border px-3 py-2',
+                        perfil.estado === 'ocupado' && 'bg-green-950/30 border-green-900/50',
+                        perfil.estado === 'disponible' && 'bg-muted/50 border-border',
+                        perfil.estado === 'pendiente' && 'border-purple-500/30 bg-purple-500/10'
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{perfil.perfilNombre}</p>
+                          <p className="text-xs text-muted-foreground">Perfil {perfil.numero}</p>
+                          {perfil.clienteNombre && (
+                            <p className="text-xs text-foreground/90 truncate mt-1">{perfil.clienteNombre}</p>
+                          )}
+                          {perfil.estado === 'pendiente' && (
+                            <p className="text-xs text-purple-300 mt-1">Pendiente en esta venta</p>
+                          )}
+                        </div>
+                        <span
+                          className={cn(
+                            'rounded-full px-2 py-0.5 text-xs font-semibold whitespace-nowrap',
+                            perfil.estado === 'ocupado' && 'bg-green-600/20 text-green-300',
+                            perfil.estado === 'disponible' && 'bg-blue-600/20 text-blue-300',
+                            perfil.estado === 'pendiente' && 'bg-purple-500/20 text-purple-300'
+                          )}
+                        >
+                          {perfil.estado === 'ocupado'
+                            ? 'En uso'
+                            : perfil.estado === 'pendiente'
+                            ? 'Pendiente'
+                            : 'Disponible'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-4">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-green-600" />
+                      En uso
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-blue-600" />
+                      Disponible
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-purple-500" />
+                      Pendiente
+                    </span>
+                  </div>
+                  <span>
+                    {resumenPerfilesDetalle.disponibles} de {resumenPerfilesDetalle.total} Disponibles
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div className="flex justify-end gap-3">
         {activeTab === 'preview' ? (
