@@ -19,6 +19,12 @@ import { Usuario, MetodoPago } from '@/types';
 import { useUsuariosStore } from '@/store/usuariosStore';
 import { toast } from 'sonner';
 import { ChevronDown } from 'lucide-react';
+import {
+  getUsuarioMetodoPagoNombre,
+  isPendingUserPaymentMethodId,
+  PENDING_USER_PAYMENT_ID,
+  PENDING_USER_PAYMENT_NAME,
+} from '@/lib/utils/usuarioMetodoPago';
 
 const usuarioSchema = z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
@@ -81,6 +87,19 @@ export function UsuarioForm({
   isPage = false,
 }: UsuarioFormProps) {
   const { createUsuario, updateUsuario } = useUsuariosStore();
+  const pendienteOption = useMemo<MetodoPago>(() => ({
+    id: PENDING_USER_PAYMENT_ID,
+    nombre: PENDING_USER_PAYMENT_NAME,
+    tipo: 'efectivo',
+    pais: 'N/A',
+    moneda: '',
+    titular: '',
+    identificador: '',
+    activo: true,
+    asociadoA: 'usuario',
+    createdAt: new Date(0),
+    updatedAt: new Date(0),
+  }), []);
   const [activeTab, setActiveTab] = useState('personal');
   const [isPersonalTabComplete, setIsPersonalTabComplete] = useState(false);
   const {
@@ -99,7 +118,7 @@ export function UsuarioForm({
       apellido: '',
       tipoUsuario: '' as 'cliente' | 'revendedor',
       telefono: '',
-      metodoPagoId: '',
+      metodoPagoId: PENDING_USER_PAYMENT_ID,
       notas: '',
     },
   });
@@ -110,22 +129,29 @@ export function UsuarioForm({
   const apellidoValue = watch('apellido');
   const telefonoValue = watch('telefono');
   const metodosPagoOrdenados = useMemo(
-    () => metodosPago
-      .filter((metodo) => metodo.asociadoA === 'usuario' || !metodo.asociadoA)
-      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
-    [metodosPago]
+    () => [
+      pendienteOption,
+      ...metodosPago
+        .filter((metodo) => metodo.asociadoA === 'usuario' || !metodo.asociadoA)
+        .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
+    ],
+    [metodosPago, pendienteOption]
   );
 
   // Detectar si hay cambios en el formulario (solo en modo edición)
   const hasChanges = useMemo(() => {
     if (!usuario) return true; // En modo creación, siempre permitir guardar
     
+    const usuarioMetodoPagoId = isPendingUserPaymentMethodId(usuario.metodoPagoId)
+      ? PENDING_USER_PAYMENT_ID
+      : usuario.metodoPagoId;
+
     return (
       nombreValue !== (usuario.nombre || '') ||
       apellidoValue !== (usuario.apellido || '') ||
       tipoUsuarioValue !== usuario.tipo ||
       telefonoValue !== usuario.telefono ||
-      metodoPagoIdValue !== usuario.metodoPagoId
+      metodoPagoIdValue !== usuarioMetodoPagoId
     );
   }, [usuario, nombreValue, apellidoValue, tipoUsuarioValue, telefonoValue, metodoPagoIdValue]);
 
@@ -161,7 +187,9 @@ export function UsuarioForm({
         apellido: usuario.apellido || '',
         tipoUsuario: usuario.tipo,
         telefono: usuario.telefono,
-        metodoPagoId: usuario.metodoPagoId,
+        metodoPagoId: isPendingUserPaymentMethodId(usuario.metodoPagoId)
+          ? PENDING_USER_PAYMENT_ID
+          : usuario.metodoPagoId,
         notas: '',
       });
     } else {
@@ -170,7 +198,7 @@ export function UsuarioForm({
         apellido: '',
         tipoUsuario: tipoInicial as 'cliente' | 'revendedor',
         telefono: '',
-        metodoPagoId: '',
+        metodoPagoId: PENDING_USER_PAYMENT_ID,
         notas: '',
       });
     }
@@ -191,8 +219,10 @@ export function UsuarioForm({
 
   const onSubmit = async (data: UsuarioFormData) => {
     try {
-      const metodoPago = metodosPago.find((m) => m.id === data.metodoPagoId);
-      
+      const metodoPago = isPendingUserPaymentMethodId(data.metodoPagoId)
+        ? null
+        : metodosPago.find((m) => m.id === data.metodoPagoId);
+
       const telefonoFormateado = formatearTelefono(data.telefono);
 
       const usuarioData = {
@@ -201,7 +231,8 @@ export function UsuarioForm({
         tipo: data.tipoUsuario,
         telefono: telefonoFormateado,
         metodoPagoId: data.metodoPagoId,
-        metodoPagoNombre: metodoPago?.nombre || '',
+        metodoPagoNombre: metodoPago?.nombre || PENDING_USER_PAYMENT_NAME,
+        moneda: metodoPago?.moneda || '',
         active: true,
         createdBy: 'current-user',
       };
@@ -356,9 +387,10 @@ export function UsuarioForm({
                     className="w-full justify-between"
                     type="button"
                   >
-                    {metodoPagoIdValue
-                      ? metodosPago.find((m) => m.id === metodoPagoIdValue)?.nombre
-                      : 'Seleccionar método de pago...'}
+                    {getUsuarioMetodoPagoNombre(
+                      metodoPagoIdValue,
+                      metodosPagoOrdenados.find((m) => m.id === metodoPagoIdValue)?.nombre
+                    )}
                     <ChevronDown className="h-4 w-4 opacity-50" />
                   </Button>
                 </DropdownMenuTrigger>

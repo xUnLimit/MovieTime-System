@@ -35,6 +35,7 @@ import { getVentaConUltimoPago } from '@/lib/services/ventaSyncService';
 import { CYCLE_MONTHS } from '@/lib/constants';
 import { useNotificacionesStore } from '@/store/notificacionesStore';
 import { upsertVentaPronostico, adjustIngresosStats, getMesKeyFromDate, getDiaKeyFromDate } from '@/lib/services/dashboardStatsService';
+import { syncUsuarioMetodoPago } from '@/lib/services/usuarioMetodoPagoSyncService';
 
 const getCicloPagoLabel = (ciclo?: string) => {
   const labels: Record<string, string> = {
@@ -326,6 +327,20 @@ function VentaDetallePageContent() {
         notas: data.notas?.trim() || '',
       });
 
+      try {
+        await syncUsuarioMetodoPago({
+          usuarioId: venta.clienteId,
+          metodoPagoId: data.metodoPagoId,
+          metodoPagoNombre: metodoPagoSeleccionado?.nombre || venta.metodoPagoNombre,
+          moneda: data.moneda || metodoPagoSeleccionado?.moneda || venta.moneda,
+        });
+      } catch (syncError) {
+        console.error('Error sincronizando método de pago del usuario:', syncError);
+        toast.warning('Venta renovada con advertencia', {
+          description: 'La renovación se guardó, pero no se pudo actualizar el método de pago en usuarios.',
+        });
+      }
+
       // Actualizar ventasPronostico en el dashboard: local INMEDIATAMENTE + Firestore en background
       const ventaPronosticoData = {
         id: venta.id,
@@ -510,6 +525,20 @@ function VentaDetallePageContent() {
       });
 
       // ✅ NO sincronizar con VentaDoc - PagoVenta es la fuente de verdad
+
+      try {
+        await syncUsuarioMetodoPago({
+          usuarioId: venta.clienteId,
+          metodoPagoId: data.metodoPagoId,
+          metodoPagoNombre: data.metodoPagoNombre || metodoPagoSeleccionado?.nombre || venta.metodoPagoNombre,
+          moneda: data.moneda || metodoPagoSeleccionado?.moneda || venta.moneda,
+        });
+      } catch (syncError) {
+        console.error('Error sincronizando método de pago del usuario:', syncError);
+        toast.warning('Pago actualizado con advertencia', {
+          description: 'El pago se actualizó, pero no se pudo reflejar el método de pago en usuarios.',
+        });
+      }
 
       setEditarPagoDialogOpen(false);
       setPagoToEdit(null);

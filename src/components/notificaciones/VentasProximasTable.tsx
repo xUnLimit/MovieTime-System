@@ -52,6 +52,7 @@ import { toast } from 'sonner';
 import { useActivityLogStore } from '@/store/activityLogStore';
 import { useAuthStore } from '@/store/authStore';
 import { format } from 'date-fns';
+import { syncUsuarioMetodoPago } from '@/lib/services/usuarioMetodoPagoSyncService';
 
 // Helper para obtener contexto de usuario
 function getLogContext() {
@@ -380,6 +381,20 @@ export function VentasProximasTable() {
         fechaInicio: data.fechaInicio,
         notas: data.notas?.trim() || '',
       });
+
+      try {
+        await syncUsuarioMetodoPago({
+          usuarioId: notifSeleccionada.clienteId,
+          metodoPagoId: data.metodoPagoId,
+          metodoPagoNombre: metodoPagoSeleccionado?.nombre || data.metodoPagoNombre || '',
+          moneda: data.moneda || metodoPagoSeleccionado?.moneda || notifSeleccionada.moneda || 'USD',
+        });
+      } catch (syncError) {
+        console.error('Error sincronizando método de pago del usuario:', syncError);
+        toast.warning('Venta renovada con advertencia', {
+          description: 'La renovación se guardó, pero no se pudo actualizar el método de pago en usuarios.',
+        });
+      }
 
       // Registrar en log de actividad
       useActivityLogStore.getState().addLog({

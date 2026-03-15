@@ -18,6 +18,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { PaginationFooter, PaginationFooterProps } from '@/components/shared/PaginationFooter';
 import { toast } from 'sonner';
 import { useVentasPorUsuarios } from '@/hooks/use-ventas-por-usuarios';
+import { getUsuarioMetodoPagoNombre } from '@/lib/utils/usuarioMetodoPago';
 
 interface RevendedoresTableProps {
   revendedores: Usuario[];
@@ -46,14 +47,15 @@ export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Reven
 
   // Obtener métodos de pago únicos
   const metodosPagoUnicos = useMemo(() => {
-    const metodos = new Set(revendedores.map((r) => r.metodoPagoNombre));
+    const metodos = new Set(revendedores.map((r) => getUsuarioMetodoPagoNombre(r.metodoPagoId, r.metodoPagoNombre)));
     return Array.from(metodos).filter(Boolean);
   }, [revendedores]);
 
   // Filtrar revendedores por método de pago (la búsqueda por nombre/teléfono la maneja el page)
   const filteredRevendedores = useMemo(() => {
     return revendedores.filter((revendedor) =>
-      metodoPagoFilter === 'todos' || revendedor.metodoPagoNombre === metodoPagoFilter
+      metodoPagoFilter === 'todos' ||
+      getUsuarioMetodoPagoNombre(revendedor.metodoPagoId, revendedor.metodoPagoNombre) === metodoPagoFilter
     );
   }, [revendedores, metodoPagoFilter]);
 
@@ -110,6 +112,7 @@ export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Reven
       sortable: false,
       align: 'center',
       width: '16%',
+      render: (item) => getUsuarioMetodoPagoNombre(item.metodoPagoId, item.metodoPagoNombre),
     },
     {
       key: 'ventasActivas',

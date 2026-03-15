@@ -17,6 +17,7 @@ import { invalidateVentasPorUsuariosCache } from '@/hooks/use-ventas-por-usuario
 import { Usuario } from '@/types';
 import { COLLECTIONS } from '@/lib/firebase/firestore';
 import { FilterOption } from '@/lib/firebase/pagination';
+import { USUARIO_METODO_PAGO_UPDATED_EVENT } from '@/lib/utils/usuarioMetodoPago';
 
 function UsuariosPageContent() {
   const router = useRouter();
@@ -95,10 +96,16 @@ function UsuariosPageContent() {
       refresh();
     };
 
+    const handleUsuarioMetodoPagoUpdated = () => {
+      refresh();
+    };
+
     window.addEventListener('venta-deleted', handleVentaDeleted);
+    window.addEventListener(USUARIO_METODO_PAGO_UPDATED_EVENT, handleUsuarioMetodoPagoUpdated);
 
     return () => {
       window.removeEventListener('venta-deleted', handleVentaDeleted);
+      window.removeEventListener(USUARIO_METODO_PAGO_UPDATED_EVENT, handleUsuarioMetodoPagoUpdated);
     };
   }, [refresh]);
 

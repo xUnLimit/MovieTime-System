@@ -18,6 +18,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { PaginationFooter, PaginationFooterProps } from '@/components/shared/PaginationFooter';
 import { toast } from 'sonner';
 import { useVentasPorUsuarios } from '@/hooks/use-ventas-por-usuarios';
+import { getUsuarioMetodoPagoNombre } from '@/lib/utils/usuarioMetodoPago';
 
 interface ClientesTableProps {
   clientes: Usuario[];
@@ -46,14 +47,15 @@ export function ClientesTable({ clientes, onEdit, onView, title = 'Clientes', is
 
   // Obtener métodos de pago únicos
   const metodosPagoUnicos = useMemo(() => {
-    const metodos = new Set(clientes.map((c) => c.metodoPagoNombre));
+    const metodos = new Set(clientes.map((c) => getUsuarioMetodoPagoNombre(c.metodoPagoId, c.metodoPagoNombre)));
     return Array.from(metodos).filter(Boolean);
   }, [clientes]);
 
   // Filtrar clientes por método de pago (la búsqueda por nombre/teléfono la maneja el page)
   const filteredClientes = useMemo(() => {
     return clientes.filter((cliente) =>
-      metodoPagoFilter === 'todos' || cliente.metodoPagoNombre === metodoPagoFilter
+      metodoPagoFilter === 'todos' ||
+      getUsuarioMetodoPagoNombre(cliente.metodoPagoId, cliente.metodoPagoNombre) === metodoPagoFilter
     );
   }, [clientes, metodoPagoFilter]);
 
@@ -110,6 +112,7 @@ export function ClientesTable({ clientes, onEdit, onView, title = 'Clientes', is
       sortable: false,
       align: 'center',
       width: '16%',
+      render: (item) => getUsuarioMetodoPagoNombre(item.metodoPagoId, item.metodoPagoNombre),
     },
     {
       key: 'serviciosActivos',

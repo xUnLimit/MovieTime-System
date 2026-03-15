@@ -38,6 +38,8 @@ import { Switch } from '@/components/ui/switch';
 import { formatearFechaWhatsApp, getSaludo } from '@/lib/utils/whatsapp';
 import { getCurrencySymbol } from '@/lib/constants';
 import { formatearFecha } from '@/lib/utils/calculations';
+import { syncUsuarioMetodoPago } from '@/lib/services/usuarioMetodoPagoSyncService';
+import { isPendingUserPaymentMethodId } from '@/lib/utils/usuarioMetodoPago';
 
 const ventaSchema = z.object({
   clienteId: z.string().min(1, 'Seleccione un cliente'),
@@ -818,6 +820,21 @@ export function VentasForm() {
         })
       );
       await Promise.all(writes);
+
+      try {
+        await syncUsuarioMetodoPago({
+          usuarioId: clienteIdValue,
+          metodoPagoId: metodoPagoIdValue,
+          metodoPagoNombre,
+          moneda,
+        });
+      } catch (syncError) {
+        console.error('Error sincronizando método de pago del usuario:', syncError);
+        toast.warning('Venta guardada con advertencia', {
+          description: 'La venta se creó, pero no se pudo actualizar el método de pago en usuarios.',
+        });
+      }
+
       if (estadoVenta !== 'inactivo') {
         for (const item of items) {
           if (item.perfilNumero) {
@@ -936,9 +953,11 @@ export function VentasForm() {
                             onClick={() => {
                               setValue('clienteId', usuario.id);
                               clearErrors('clienteId');
-                              if (usuario.metodoPagoId) {
+                              if (!isPendingUserPaymentMethodId(usuario.metodoPagoId)) {
                                 setValue('metodoPagoId', usuario.metodoPagoId);
                                 clearErrors('metodoPagoId');
+                              } else {
+                                setValue('metodoPagoId', '');
                               }
                               setSearchCliente(''); // Limpiar búsqueda después de seleccionar
                             }}

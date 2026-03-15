@@ -12,6 +12,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { toast } from 'sonner';
 import { getById, COLLECTIONS } from '@/lib/firebase/firestore';
 import { Usuario } from '@/types';
+import { USUARIO_METODO_PAGO_UPDATED_EVENT } from '@/lib/utils/usuarioMetodoPago';
 
 function UsuarioDetallesPageContent() {
   const params = useParams();
@@ -37,6 +38,16 @@ function UsuarioDetallesPageContent() {
       }
     };
     load();
+
+    const handleMetodoPagoUpdated = () => {
+      load();
+    };
+
+    window.addEventListener(USUARIO_METODO_PAGO_UPDATED_EVENT, handleMetodoPagoUpdated);
+
+    return () => {
+      window.removeEventListener(USUARIO_METODO_PAGO_UPDATED_EVENT, handleMetodoPagoUpdated);
+    };
   }, [id]);
 
   if (isLoading) {
@@ -153,6 +164,5 @@ export default function UsuarioDetallesPage() {
     </ModuleErrorBoundary>
   );
 }
-
 
 

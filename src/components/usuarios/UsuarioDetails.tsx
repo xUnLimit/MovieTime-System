@@ -31,6 +31,7 @@ import { toast } from 'sonner';
 import { useVentasStore } from '@/store/ventasStore';
 import { useServiciosStore } from '@/store/serviciosStore';
 import { CambiarEstadoVentaDialog } from './CambiarEstadoVentaDialog';
+import { getUsuarioMetodoPagoNombre } from '@/lib/utils/usuarioMetodoPago';
 
 interface UsuarioDetailsProps {
   usuario: Usuario;
@@ -244,7 +245,9 @@ export function UsuarioDetails({ usuario }: UsuarioDetailsProps) {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Método de Pago</p>
-                  <p className="text-sm font-medium">{usuario.metodoPagoNombre}</p>
+                  <p className="text-sm font-medium">
+                    {getUsuarioMetodoPagoNombre(usuario.metodoPagoId, usuario.metodoPagoNombre)}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Cliente desde</p>

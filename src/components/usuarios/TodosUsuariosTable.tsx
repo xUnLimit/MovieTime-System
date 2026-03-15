@@ -18,6 +18,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { PaginationFooter, PaginationFooterProps } from '@/components/shared/PaginationFooter';
 import { toast } from 'sonner';
 import { useVentasPorUsuarios } from '@/hooks/use-ventas-por-usuarios';
+import { getUsuarioMetodoPagoNombre } from '@/lib/utils/usuarioMetodoPago';
 
 // Tipo para display en la tabla
 interface UsuarioDisplay {
@@ -73,7 +74,7 @@ export function TodosUsuariosTable({
       nombre: u.nombre,
       apellido: u.apellido,
       telefono: u.telefono,
-      metodoPagoNombre: u.metodoPagoNombre,
+      metodoPagoNombre: getUsuarioMetodoPagoNombre(u.metodoPagoId, u.metodoPagoNombre),
       tipo: u.tipo === 'cliente' ? 'Cliente' : 'Revendedor',
       serviciosActivos: u.serviciosActivos ?? 0,
       montoSinConsumir: ventasPorUsuario[u.id]?.montoSinConsumir ?? 0,
