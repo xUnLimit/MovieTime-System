@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { WheelEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -18,9 +19,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { CalendarIcon, ChevronDown } from 'lucide-react';
+import { CalendarIcon, ChevronDown, ChevronUp, Eye, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { COLLECTIONS, queryDocuments, update, adjustServiciosActivos } from '@/lib/firebase/firestore';
 import { upsertVentaPronostico } from '@/lib/services/dashboardStatsService';
@@ -29,9 +31,18 @@ import { useMetodosPagoStore } from '@/store/metodosPagoStore';
 import { useServiciosStore } from '@/store/serviciosStore';
 import { useUsuariosStore } from '@/store/usuariosStore';
 import { MetodoPago, PagoVenta, Servicio } from '@/types';
+import type { VentaDoc } from '@/types/ventas';
 import { toast } from 'sonner';
 import { getCurrencySymbol } from '@/lib/constants';
 import { formatearFecha } from '@/lib/utils/calculations';
+import { syncUsuarioMetodoPago } from '@/lib/services/usuarioMetodoPagoSyncService';
+import {
+  getUsuarioMetodoPagoMoneda,
+  getUsuarioMetodoPagoNombre,
+  isPendingUserPaymentMethodId,
+  PENDING_USER_PAYMENT_ID,
+  withPendingUserPaymentMethod,
+} from '@/lib/utils/usuarioMetodoPago';
 
 const ventaEditSchema = z.object({
   clienteId: z.string().min(1, 'Seleccione un cliente'),
@@ -52,12 +63,28 @@ const ventaEditSchema = z.object({
 
 type VentaEditFormData = z.infer<typeof ventaEditSchema>;
 
+interface PerfilDetalleOcupado {
+  perfilNumero: number;
+  clienteNombre?: string;
+  perfilNombre?: string;
+  createdAt?: Date;
+}
+
+interface PerfilDetalleVisual {
+  numero: number;
+  estado: 'disponible' | 'ocupado' | 'pendiente';
+  perfilNombre: string;
+  clienteNombre?: string;
+}
+
 const MESES_POR_CICLO: Record<string, number> = {
   mensual: 1,
   trimestral: 3,
   semestral: 6,
   anual: 12,
 };
+
+const SERVICIOS_DROPDOWN_VISIBLE_ROWS = 10;
 
 export interface VentaEditData {
   id: string;
@@ -116,6 +143,12 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
   const [fechaInicioOpen, setFechaInicioOpen] = useState(false);
   const [fechaFinOpen, setFechaFinOpen] = useState(false);
   const [perfilesOcupadosVenta, setPerfilesOcupadosVenta] = useState<Record<string, Set<number>>>({});
+  const [perfilDetalleOpen, setPerfilDetalleOpen] = useState(false);
+  const [servicioDetalle, setServicioDetalle] = useState<Servicio | null>(null);
+  const [perfilesOcupadosDetalle, setPerfilesOcupadosDetalle] = useState<PerfilDetalleOcupado[]>([]);
+  const [loadingPerfilesDetalle, setLoadingPerfilesDetalle] = useState(false);
+  const [errorPerfilesDetalle, setErrorPerfilesDetalle] = useState<string | null>(null);
+  const [serviciosWindowStart, setServiciosWindowStart] = useState(0);
   const [fechasInicializadas, setFechasInicializadas] = useState(false);
 
   // Efecto inicial: solo cargar datos que no dependen de selección
@@ -126,7 +159,7 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
 
       // Cargar solo métodos de pago de usuarios
       const metodos = await fetchMetodosPagoUsuarios();
-      setMetodosPago(metodos);
+      setMetodosPago(withPendingUserPaymentMethod(metodos));
     };
     loadData();
   }, [fetchCategorias, fetchMetodosPagoUsuarios, fetchUsuarios]);
@@ -143,7 +176,7 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
     resolver: zodResolver(ventaEditSchema),
     defaultValues: {
       clienteId: venta.clienteId,
-      metodoPagoId: venta.metodoPagoId,
+      metodoPagoId: venta.metodoPagoId || PENDING_USER_PAYMENT_ID,
       categoriaId: venta.categoriaId,
       servicioId: venta.servicioId,
       planId: '',
@@ -223,6 +256,20 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
         return bDate - aDate;
       });
   }, [serviciosCategoria, venta.servicioId]);
+
+  const maxServiciosWindowStart = useMemo(
+    () => Math.max(serviciosOrdenados.length - SERVICIOS_DROPDOWN_VISIBLE_ROWS, 0),
+    [serviciosOrdenados.length]
+  );
+
+  const serviciosVentana = useMemo(
+    () =>
+      serviciosOrdenados.slice(
+        serviciosWindowStart,
+        serviciosWindowStart + SERVICIOS_DROPDOWN_VISIBLE_ROWS
+      ),
+    [serviciosOrdenados, serviciosWindowStart]
+  );
 
   const servicioSeleccionado = serviciosCategoria.find((s) => s.id === servicioIdValue);
 
@@ -354,6 +401,14 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
     loadPerfilesOcupados();
   }, [servicioIdValue, venta.id]);
 
+  useEffect(() => {
+    setServiciosWindowStart((prev) => Math.min(prev, maxServiciosWindowStart));
+  }, [maxServiciosWindowStart]);
+
+  useEffect(() => {
+    setServiciosWindowStart(0);
+  }, [categoriaIdValue]);
+
   const slotsDisponibles = useMemo(() => {
     if (!servicioSeleccionado) return 0;
     // perfilesOcupadosVenta ya excluye la venta actual (doc.id === venta.id)
@@ -365,7 +420,168 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
     return Math.max((servicioSeleccionado.perfilesDisponibles || 0) - (servicioSeleccionado.perfilesOcupados || 0), 0);
   }, [servicioSeleccionado, perfilesOcupadosVenta, servicioIdValue]);
 
-  const simboloMoneda = getCurrencySymbol(metodoPagoSeleccionado?.moneda || venta.moneda);
+  const getSlotsDisponibles = useCallback((servicioId: string) => {
+    const servicio = serviciosCategoria.find((item) => item.id === servicioId);
+    if (!servicio) return 0;
+
+    const ocupadosBase = servicio.perfilesOcupados || 0;
+    const liberaVentaActual =
+      (venta.estado || 'activo') !== 'inactivo' && servicio.id === venta.servicioId ? 1 : 0;
+
+    return Math.max(
+      (servicio.perfilesDisponibles || 0) - Math.max(ocupadosBase - liberaVentaActual, 0),
+      0
+    );
+  }, [serviciosCategoria, venta.estado, venta.servicioId]);
+
+  const getDisponiblesColorClass = useCallback((disponibles: number, total: number) => {
+    if (total <= 0) return 'text-muted-foreground';
+    const ratio = disponibles / total;
+    if (ratio <= 0.25) return 'text-[#ff1744]';
+    if (ratio <= 0.5) return 'text-[#ffea00]';
+    return 'text-[#00ff85]';
+  }, []);
+
+  const scrollServiciosDropdown = useCallback((direction: 'up' | 'down') => {
+    setServiciosWindowStart((prev) => {
+      if (direction === 'up') return Math.max(prev - 1, 0);
+      return Math.min(prev + 1, maxServiciosWindowStart);
+    });
+  }, [maxServiciosWindowStart]);
+
+  const handleServiciosDropdownWheel = useCallback((event: WheelEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.deltaY === 0) return;
+    scrollServiciosDropdown(event.deltaY > 0 ? 'down' : 'up');
+  }, [scrollServiciosDropdown]);
+
+  const handleOpenPerfilDetalle = useCallback(async (servicio: Servicio) => {
+    setServicioDetalle(servicio);
+    setPerfilDetalleOpen(true);
+    setLoadingPerfilesDetalle(true);
+    setErrorPerfilesDetalle(null);
+
+    try {
+      const ventas = await queryDocuments<VentaDoc>(COLLECTIONS.VENTAS, [
+        { field: 'servicioId', operator: '==', value: servicio.id },
+      ]);
+
+      const ocupadosPorPerfil = new Map<number, PerfilDetalleOcupado>();
+      ventas.forEach((ventaItem) => {
+        const estado = ventaItem.estado ?? 'activo';
+        if (estado === 'inactivo') return;
+        if (ventaItem.id === venta.id) return;
+
+        const perfilNumero = ventaItem.perfilNumero ?? null;
+        if (!perfilNumero) return;
+
+        const existente = ocupadosPorPerfil.get(perfilNumero);
+        const actualMs = ventaItem.createdAt ? new Date(ventaItem.createdAt).getTime() : 0;
+        const existenteMs = existente?.createdAt ? new Date(existente.createdAt).getTime() : 0;
+
+        if (!existente || actualMs >= existenteMs) {
+          ocupadosPorPerfil.set(perfilNumero, {
+            perfilNumero,
+            clienteNombre: ventaItem.clienteNombre || 'Cliente sin nombre',
+            perfilNombre: ventaItem.perfilNombre || `Perfil ${perfilNumero}`,
+            createdAt: ventaItem.createdAt,
+          });
+        }
+      });
+
+      setPerfilesOcupadosDetalle(Array.from(ocupadosPorPerfil.values()));
+    } catch (error) {
+      console.error('Error cargando detalle de perfiles:', error);
+      setPerfilesOcupadosDetalle([]);
+      setErrorPerfilesDetalle('No se pudo cargar el detalle de perfiles.');
+    } finally {
+      setLoadingPerfilesDetalle(false);
+    }
+  }, [venta.id]);
+
+  const clienteDetalleNombre = useMemo(() => {
+    if (clienteSeleccionado) {
+      return `${clienteSeleccionado.nombre} ${clienteSeleccionado.apellido || ''}`.trim();
+    }
+    return venta.clienteNombre || 'Cliente pendiente';
+  }, [clienteSeleccionado, venta.clienteNombre]);
+
+  const perfilesPendientesDetalle = useMemo(() => {
+    const map = new Map<number, { clienteNombre: string; perfilNombre: string }>();
+    if (!servicioDetalle || servicioDetalle.id !== servicioIdValue) return map;
+
+    const numero = Number(perfilNumeroValue);
+    if (!numero) return map;
+
+    map.set(numero, {
+      clienteNombre: clienteDetalleNombre,
+      perfilNombre: perfilNombreValue?.trim() || `Perfil ${numero}`,
+    });
+
+    return map;
+  }, [clienteDetalleNombre, perfilNombreValue, perfilNumeroValue, servicioDetalle, servicioIdValue]);
+
+  const perfilesOcupadosDetalleMap = useMemo(() => {
+    const map = new Map<number, PerfilDetalleOcupado>();
+    perfilesOcupadosDetalle.forEach((perfil) => {
+      map.set(perfil.perfilNumero, perfil);
+    });
+    return map;
+  }, [perfilesOcupadosDetalle]);
+
+  const perfilesDetalleVisual = useMemo<PerfilDetalleVisual[]>(() => {
+    if (!servicioDetalle) return [];
+
+    const total = Math.max(servicioDetalle.perfilesDisponibles || 0, 0);
+
+    return Array.from({ length: total }, (_, index) => {
+      const numero = index + 1;
+      const pendiente = perfilesPendientesDetalle.get(numero);
+      const ocupado = perfilesOcupadosDetalleMap.get(numero);
+
+      if (pendiente) {
+        return {
+          numero,
+          estado: 'pendiente',
+          perfilNombre: pendiente.perfilNombre,
+          clienteNombre: pendiente.clienteNombre,
+        };
+      }
+
+      if (ocupado) {
+        return {
+          numero,
+          estado: 'ocupado',
+          perfilNombre: ocupado.perfilNombre || `Perfil ${numero}`,
+          clienteNombre: ocupado.clienteNombre,
+        };
+      }
+
+      return {
+        numero,
+        estado: 'disponible',
+        perfilNombre: `Perfil ${numero}`,
+      };
+    });
+  }, [perfilesOcupadosDetalleMap, perfilesPendientesDetalle, servicioDetalle]);
+
+  const resumenPerfilesDetalle = useMemo(() => {
+    return perfilesDetalleVisual.reduce(
+      (acc, perfil) => {
+        acc.total += 1;
+        if (perfil.estado === 'pendiente') acc.pendientes += 1;
+        if (perfil.estado === 'ocupado') acc.ocupados += 1;
+        if (perfil.estado === 'disponible') acc.disponibles += 1;
+        return acc;
+      },
+      { total: 0, disponibles: 0, ocupados: 0, pendientes: 0 }
+    );
+  }, [perfilesDetalleVisual]);
+
+  const simboloMoneda = getCurrencySymbol(
+    getUsuarioMetodoPagoMoneda(metodoPagoIdValue, metodoPagoSeleccionado?.moneda || venta.moneda)
+  );
   const precioBase = Number(precioValue) || 0;
   const descuentoNumero = Number(descuentoValue) || 0;
   const precioFinal = Math.max(precioBase * (1 - descuentoNumero / 100), 0);
@@ -465,6 +681,8 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
       const precio = Number(data.precio) || 0;
       const descuento = Number(data.descuento) || 0;
       const precioFinalValue = Math.max(precio * (1 - descuento / 100), 0);
+      const metodoPagoNombre = getUsuarioMetodoPagoNombre(data.metodoPagoId, metodoPagoSeleccionado?.nombre || venta.metodoPagoNombre);
+      const monedaMetodoPago = getUsuarioMetodoPagoMoneda(data.metodoPagoId, metodoPagoSeleccionado?.moneda || venta.moneda);
 
       // Actualizar SOLO metadatos en VentaDoc + campos denormalizados para notificaciones
       await update(COLLECTIONS.VENTAS, venta.id, {
@@ -485,8 +703,8 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
         fechaFin: data.fechaFin,
         cicloPago: plan?.cicloPago || venta.cicloPago,
         metodoPagoId: data.metodoPagoId,
-        metodoPagoNombre: metodoPagoSeleccionado?.nombre || venta.metodoPagoNombre || '',
-        moneda: metodoPagoSeleccionado?.moneda || venta.moneda || 'USD',
+        metodoPagoNombre,
+        moneda: monedaMetodoPago,
         precio,
         descuento,
         precioFinal: precioFinalValue,
@@ -513,11 +731,25 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
           descuento,
           monto: precioFinalValue,
           metodoPagoId: data.metodoPagoId,
-          metodoPago: metodoPagoSeleccionado?.nombre || venta.metodoPagoNombre || '',
-          moneda: metodoPagoSeleccionado?.moneda || venta.moneda || 'USD',
+          metodoPago: metodoPagoNombre,
+          moneda: monedaMetodoPago,
           cicloPago: plan?.cicloPago || venta.cicloPago,
           fechaInicio: data.fechaInicio,
           fechaVencimiento: data.fechaFin,
+        });
+      }
+
+      try {
+        await syncUsuarioMetodoPago({
+          usuarioId: data.clienteId,
+          metodoPagoId: data.metodoPagoId,
+          metodoPagoNombre,
+          moneda: monedaMetodoPago,
+        });
+      } catch (syncError) {
+        console.error('Error sincronizando método de pago del usuario:', syncError);
+        toast.warning('Venta actualizada con advertencia', {
+          description: 'La venta se guardó, pero no se pudo actualizar el método de pago en usuarios.',
         });
       }
 
@@ -556,7 +788,7 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
               fechaFin: data.fechaFin instanceof Date ? data.fechaFin.toISOString() : String(data.fechaFin),
               cicloPago: plan?.cicloPago || venta.cicloPago || 'mensual',
               precioFinal: precioFinalValue,
-              moneda: metodoPagoSeleccionado?.moneda || venta.moneda || 'USD',
+              moneda: monedaMetodoPago,
             }
           : null;
         upsertVentaPronostico(ventaPronostico, venta.id).catch(() => {});
@@ -611,7 +843,14 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
                       key={cliente.id}
                       onClick={() => {
                         setValue('clienteId', cliente.id);
+                        setValue(
+                          'metodoPagoId',
+                          isPendingUserPaymentMethodId(cliente.metodoPagoId)
+                            ? PENDING_USER_PAYMENT_ID
+                            : cliente.metodoPagoId
+                        );
                         clearErrors('clienteId');
+                        clearErrors('metodoPagoId');
                       }}
                     >
                       {cliente.nombre} {cliente.apellido}
@@ -626,8 +865,10 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
               <Label>Método de pago</Label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" type="button" className="w-full justify-between">
-                    {metodoPagoSeleccionado ? metodoPagoSeleccionado.nombre : 'Seleccionar método de pago'}
+                    <Button variant="outline" type="button" className="w-full justify-between">
+                    {metodoPagoIdValue
+                      ? getUsuarioMetodoPagoNombre(metodoPagoIdValue, metodoPagoSeleccionado?.nombre)
+                      : 'Seleccionar método de pago'}
                     <ChevronDown className="h-4 w-4 opacity-50" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -682,31 +923,144 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
             <div className="space-y-2">
               <Label>Servicio</Label>
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" type="button" className="w-full justify-between" disabled={!categoriaIdValue || loadingServicios}>
-                    {loadingServicios
-                      ? 'Cargando servicios...'
-                      : servicioIdValue
-                      ? `${serviciosCategoria.find((s) => s.id === servicioIdValue)?.nombre} - ${serviciosCategoria.find((s) => s.id === servicioIdValue)?.correo}`
-                      : categoriaIdValue
-                        ? 'Seleccionar servicio'
-                        : 'Primero selecciona categoría'}
-                    <ChevronDown className="h-4 w-4 opacity-50" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                  {serviciosOrdenados.map((servicio) => (
-                    <DropdownMenuItem
-                      key={servicio.id}
-                      onClick={() => {
-                        setValue('servicioId', servicio.id);
-                        setValue('perfilNumero', '');
-                        clearErrors('servicioId');
-                      }}
+                <div className="relative">
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      type="button"
+                      className="w-full justify-start pr-16 text-left"
+                      disabled={!categoriaIdValue || loadingServicios}
                     >
-                      {servicio.nombre} - {servicio.correo}
+                      <span className="truncate">
+                        {loadingServicios
+                          ? 'Cargando servicios...'
+                          : servicioIdValue
+                          ? `${servicioSeleccionado?.nombre} - ${servicioSeleccionado?.correo}`
+                          : categoriaIdValue
+                            ? 'Seleccionar servicio'
+                            : 'Primero selecciona categoria'}
+                      </span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  {servicioSeleccionado && (
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="absolute right-8 top-1/2 h-7 w-7 -translate-y-1/2"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        void handleOpenPerfilDetalle(servicioSeleccionado);
+                      }}
+                      aria-label={`Ver detalle de perfiles de ${servicioSeleccionado.nombre}`}
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 opacity-50" />
+                </div>
+                <DropdownMenuContent
+                  align="start"
+                  className="w-[var(--radix-dropdown-menu-trigger-width)] overflow-hidden"
+                  onCloseAutoFocus={(event) => event.preventDefault()}
+                >
+                  {serviciosOrdenados.length > 0 ? (
+                    <>
+                      {serviciosOrdenados.length > SERVICIOS_DROPDOWN_VISIBLE_ROWS && (
+                        <button
+                          type="button"
+                          className="flex h-6 w-full items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                          onPointerDown={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                          }}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            scrollServiciosDropdown('up');
+                          }}
+                          aria-label="Subir en la lista de servicios"
+                        >
+                          <ChevronUp className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+
+                      <div
+                        onWheel={handleServiciosDropdownWheel}
+                        className="overflow-hidden"
+                        style={{ overscrollBehavior: 'contain' }}
+                      >
+                        {serviciosVentana.map((servicio) => {
+                          const perfilesDisponibles = getSlotsDisponibles(servicio.id);
+                          const totalPerfiles = servicio.perfilesDisponibles || 0;
+
+                          return (
+                            <DropdownMenuItem
+                              key={servicio.id}
+                              onClick={() => {
+                                setValue('servicioId', servicio.id);
+                                setValue('perfilNumero', '');
+                                clearErrors('servicioId');
+                              }}
+                              className="group flex h-8 min-h-8 items-center gap-0 py-0 pr-1 leading-none"
+                            >
+                              <span className="min-w-0 flex-1 truncate">
+                                {servicio.nombre} - {servicio.correo}
+                              </span>
+                              <span className="w-[68px] shrink-0 text-left text-xs tabular-nums text-foreground">
+                                <span className={cn('font-extrabold', getDisponiblesColorClass(perfilesDisponibles, totalPerfiles))}>
+                                  {perfilesDisponibles}
+                                </span>{' '}
+                                Disponible{perfilesDisponibles === 1 ? '' : 's'}
+                              </span>
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6 shrink-0 opacity-70 transition-opacity group-hover:opacity-100"
+                                onPointerDown={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                }}
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  void handleOpenPerfilDetalle(servicio);
+                                }}
+                                aria-label={`Ver detalle de perfiles de ${servicio.nombre}`}
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                              </Button>
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </div>
+
+                      {serviciosOrdenados.length > SERVICIOS_DROPDOWN_VISIBLE_ROWS && (
+                        <button
+                          type="button"
+                          className="flex h-6 w-full items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                          onPointerDown={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                          }}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            scrollServiciosDropdown('down');
+                          }}
+                          aria-label="Bajar en la lista de servicios"
+                        >
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <DropdownMenuItem disabled className="text-muted-foreground">
+                      No hay servicios disponibles
                     </DropdownMenuItem>
-                  ))}
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
               {errors.servicioId && <p className="text-sm text-red-500">{errors.servicioId.message}</p>}
@@ -952,7 +1306,9 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
               </div>
               <div className="rounded-lg border bg-background/40 p-4">
                 <p className="text-xs text-muted-foreground">Método de pago</p>
-                <p className="text-sm font-medium">{metodoPagoSeleccionado?.nombre || venta.metodoPagoNombre}</p>
+                <p className="text-sm font-medium">
+                  {getUsuarioMetodoPagoNombre(metodoPagoIdValue, metodoPagoSeleccionado?.nombre || venta.metodoPagoNombre)}
+                </p>
               </div>
             </div>
 
@@ -1035,6 +1391,109 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
         </TabsContent>
       </Tabs>
 
+      <Dialog
+        open={perfilDetalleOpen}
+        onOpenChange={(open) => {
+          setPerfilDetalleOpen(open);
+          if (!open) {
+            setErrorPerfilesDetalle(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl overflow-hidden p-0">
+          <DialogHeader className="border-b px-6 pb-3 pt-6 pr-14">
+            <DialogTitle className="flex items-center justify-between gap-4">
+              <span className="truncate">Perfiles de {servicioDetalle?.nombre || 'Servicio'}</span>
+              <span className="whitespace-nowrap text-xs font-normal text-muted-foreground sm:text-sm">
+                {resumenPerfilesDetalle.total} perfiles registrados
+              </span>
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground">
+              {servicioDetalle?.correo || 'Sin correo'} - {resumenPerfilesDetalle.disponibles} de {resumenPerfilesDetalle.total} Disponibles
+            </p>
+          </DialogHeader>
+
+          <div className="space-y-4 px-6 py-4">
+            {loadingPerfilesDetalle ? (
+              <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Cargando perfiles...
+              </div>
+            ) : errorPerfilesDetalle ? (
+              <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+                {errorPerfilesDetalle}
+              </div>
+            ) : (
+              <>
+                <div className="max-h-[52vh] space-y-2 overflow-y-auto rounded-lg border p-2">
+                  {perfilesDetalleVisual.map((perfil) => (
+                    <div
+                      key={perfil.numero}
+                      className={cn(
+                        'rounded-md border px-3 py-2',
+                        'min-h-[64px]',
+                        perfil.estado === 'ocupado' && 'border-green-900/50 bg-green-950/30',
+                        perfil.estado === 'disponible' && 'border-border bg-muted/50',
+                        perfil.estado === 'pendiente' && 'border-purple-500/30 bg-purple-500/10'
+                      )}
+                    >
+                      <div className="flex min-h-[40px] items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">{perfil.perfilNombre}</p>
+                          <p className="text-xs text-muted-foreground">Perfil {perfil.numero}</p>
+                          {perfil.clienteNombre && (
+                            <p className="mt-1 truncate text-xs text-foreground/90">{perfil.clienteNombre}</p>
+                          )}
+                        </div>
+                        <div className="flex min-h-[40px] shrink-0 flex-col items-end justify-between gap-2 self-stretch">
+                          <span
+                            className={cn(
+                              'whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold',
+                              perfil.estado === 'ocupado' && 'bg-green-600/20 text-green-300',
+                              perfil.estado === 'disponible' && 'bg-blue-600/20 text-blue-300',
+                              perfil.estado === 'pendiente' && 'bg-purple-500/20 text-purple-300'
+                            )}
+                          >
+                            {perfil.estado === 'ocupado'
+                              ? 'En uso'
+                              : perfil.estado === 'pendiente'
+                              ? 'Pendiente'
+                              : 'Disponible'}
+                          </span>
+                          {perfil.estado === 'pendiente' && (
+                            <p className="text-right text-xs text-purple-300">Pendiente en esta edicion</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-4">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-green-600" />
+                      En uso
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-blue-600" />
+                      Disponible
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-purple-500" />
+                      Pendiente
+                    </span>
+                  </div>
+                  <span>
+                    {resumenPerfilesDetalle.disponibles} de {resumenPerfilesDetalle.total} Disponibles
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div className="flex justify-end gap-3">
         {activeTab === 'preview' ? (
           <>
@@ -1065,3 +1524,4 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
     </form>
   );
 }
+

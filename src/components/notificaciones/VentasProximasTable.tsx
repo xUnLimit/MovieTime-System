@@ -53,6 +53,7 @@ import { useActivityLogStore } from '@/store/activityLogStore';
 import { useAuthStore } from '@/store/authStore';
 import { format } from 'date-fns';
 import { syncUsuarioMetodoPago } from '@/lib/services/usuarioMetodoPagoSyncService';
+import { withPendingUserPaymentMethod } from '@/lib/utils/usuarioMetodoPago';
 
 // Helper para obtener contexto de usuario
 function getLogContext() {
@@ -340,7 +341,7 @@ export function VentasProximasTable() {
         }
       })(),
     ]);
-    setMetodosPagoUsuarios(metodos);
+    setMetodosPagoUsuarios(withPendingUserPaymentMethod(metodos));
     setRenovarDialogOpen(true);
   };
 

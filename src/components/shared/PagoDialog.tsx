@@ -22,6 +22,12 @@ import { getCurrencySymbol } from '@/lib/constants';
 import { formatearFecha } from '@/lib/utils/calculations';
 import { generarMensajeVenta } from '@/lib/utils/whatsapp';
 import { useTemplatesStore } from '@/store/templatesStore';
+import {
+  getUsuarioMetodoPagoMoneda,
+  getUsuarioMetodoPagoNombre,
+  PENDING_USER_PAYMENT_ID,
+  withPendingUserPaymentMethod,
+} from '@/lib/utils/usuarioMetodoPago';
 
 const pagoDialogSchema = z.object({
   periodoRenovacion: z
@@ -115,7 +121,9 @@ export function PagoDialog(props: PagoDialogProps) {
     return match?.precio ?? null;
   };
 
-  const defaultMetodoPagoId = venta?.metodoPagoId || servicio?.metodoPagoId || '';
+  const defaultMetodoPagoId = isVenta
+    ? (venta?.metodoPagoId || PENDING_USER_PAYMENT_ID)
+    : (servicio?.metodoPagoId || '');
   const defaultCosto = venta
     ? (props.mode === 'renew' ? venta.precioFinal || 0 : 0)
     : (props.mode === 'renew' ? (servicio?.costoServicio || 0) : 0);
@@ -150,8 +158,15 @@ export function PagoDialog(props: PagoDialogProps) {
   const fechaInicioValue = watch('fechaInicio');
   const fechaVencimientoValue = watch('fechaVencimiento');
 
-  const metodoPagoSeleccionado = metodosPago.find((m) => m.id === metodoPagoIdValue);
-  const currencySymbol = getCurrencySymbol(metodoPagoSeleccionado?.moneda);
+  const metodosFiltrados = useMemo(() => {
+    const metodosBase = metodosPago.filter((m) =>
+      m.activo && (isVenta ? m.asociadoA === 'usuario' : (m.asociadoA === 'servicio' || !m.asociadoA))
+    );
+
+    return isVenta ? withPendingUserPaymentMethod(metodosBase) : metodosBase;
+  }, [isVenta, metodosPago]);
+  const metodoPagoSeleccionado = metodosFiltrados.find((m) => m.id === metodoPagoIdValue);
+  const currencySymbol = getCurrencySymbol(getUsuarioMetodoPagoMoneda(metodoPagoIdValue, metodoPagoSeleccionado?.moneda));
   const descuentoNumero = Number(descuentoValue) || 0;
   const precioFinal = Math.max((Number(costoValue) || 0) * (1 - descuentoNumero / 100), 0);
 
@@ -163,7 +178,7 @@ export function PagoDialog(props: PagoDialogProps) {
         if (props.pago) {
           reset({
             periodoRenovacion: props.pago.cicloPago || '',
-            metodoPagoId: (props.pago.metodoPagoId as string) || venta?.metodoPagoId || '',
+            metodoPagoId: (props.pago.metodoPagoId as string) || venta?.metodoPagoId || PENDING_USER_PAYMENT_ID,
             costo: props.pago.precio ?? 0,
             descuento: (props.pago.descuento as number) ?? 0,
             fechaInicio: props.pago.fechaInicio ? new Date(props.pago.fechaInicio) : new Date(),
@@ -174,7 +189,7 @@ export function PagoDialog(props: PagoDialogProps) {
         }
         reset({
           periodoRenovacion: '',
-          metodoPagoId: venta?.metodoPagoId || '',
+          metodoPagoId: venta?.metodoPagoId || PENDING_USER_PAYMENT_ID,
           costo: 0,
           descuento: 0,
           fechaInicio: new Date(),
@@ -187,7 +202,7 @@ export function PagoDialog(props: PagoDialogProps) {
       const fechaVencimientoActual = venta?.fechaFin ? new Date(venta.fechaFin) : new Date();
       reset({
         periodoRenovacion: '',
-        metodoPagoId: venta?.metodoPagoId || '',
+        metodoPagoId: venta?.metodoPagoId || PENDING_USER_PAYMENT_ID,
         costo: venta?.precioFinal || 0,
         descuento: 0,
         fechaInicio: fechaVencimientoActual,
@@ -312,11 +327,11 @@ export function PagoDialog(props: PagoDialogProps) {
 
   const onSubmit = async (data: PagoDialogFormData) => {
     // Agregar campos denormalizados del método de pago
-    const metodoPago = metodosPago.find(m => m.id === data.metodoPagoId);
+    const metodoPago = metodosFiltrados.find(m => m.id === data.metodoPagoId);
     const enrichedData = {
       ...data,
-      metodoPagoNombre: metodoPago?.nombre,
-      moneda: metodoPago?.moneda,
+      metodoPagoNombre: getUsuarioMetodoPagoNombre(data.metodoPagoId, metodoPago?.nombre),
+      moneda: getUsuarioMetodoPagoMoneda(data.metodoPagoId, metodoPago?.moneda),
       // Pasar el mensaje editado (solo si hay WhatsApp activado)
       mensajeWhatsApp: data.notificarWhatsApp && previewMessage ? previewMessage : undefined,
     };
@@ -341,10 +356,6 @@ export function PagoDialog(props: PagoDialogProps) {
     : (isEdit
         ? `Corrija los datos del último pago registrado (${(pago as PagoServicio | null)?.descripcion ?? 'Pago'}) si se ingresó algo incorrecto.`
         : 'Registre un nuevo pago para este servicio para extender su fecha de vencimiento.');
-
-  const metodosFiltrados = metodosPago.filter((m) =>
-    m.activo && (isVenta ? m.asociadoA === 'usuario' : (m.asociadoA === 'servicio' || !m.asociadoA))
-  );
 
   const submitDisabled = isSubmitting || (!isVenta && isEdit && !hasChanges);
 
@@ -403,7 +414,9 @@ export function PagoDialog(props: PagoDialogProps) {
             type="button"
             className="w-full justify-between border-input bg-transparent dark:bg-input/30 dark:hover:bg-input/50 h-9"
           >
-            {metodoPagoIdValue ? metodosPago.find((m) => m.id === metodoPagoIdValue)?.nombre : 'Seleccionar método'}
+            {metodoPagoIdValue
+              ? getUsuarioMetodoPagoNombre(metodoPagoIdValue, metodoPagoSeleccionado?.nombre)
+              : 'Seleccionar método'}
             <ChevronDown className="h-4 w-4 opacity-50" />
           </Button>
         </DropdownMenuTrigger>

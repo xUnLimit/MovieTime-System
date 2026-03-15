@@ -39,7 +39,13 @@ import { formatearFechaWhatsApp, getSaludo } from '@/lib/utils/whatsapp';
 import { getCurrencySymbol } from '@/lib/constants';
 import { formatearFecha } from '@/lib/utils/calculations';
 import { syncUsuarioMetodoPago } from '@/lib/services/usuarioMetodoPagoSyncService';
-import { isPendingUserPaymentMethodId } from '@/lib/utils/usuarioMetodoPago';
+import {
+  getUsuarioMetodoPagoNombre,
+  isPendingUserPaymentMethodId,
+  PENDING_USER_PAYMENT_CURRENCY,
+  PENDING_USER_PAYMENT_ID,
+  PENDING_USER_PAYMENT_NAME,
+} from '@/lib/utils/usuarioMetodoPago';
 
 const ventaSchema = z.object({
   clienteId: z.string().min(1, 'Seleccione un cliente'),
@@ -90,6 +96,13 @@ interface MetodoPagoOption {
   asociadoA: string;
   moneda: string;
 }
+
+const PENDING_METODO_PAGO_OPTION: MetodoPagoOption = {
+  id: PENDING_USER_PAYMENT_ID,
+  nombre: PENDING_USER_PAYMENT_NAME,
+  asociadoA: 'usuario',
+  moneda: PENDING_USER_PAYMENT_CURRENCY,
+};
 
 interface PerfilDetalleOcupado {
   perfilNumero: number;
@@ -200,10 +213,10 @@ export function VentasForm() {
           COLLECTIONS.METODOS_PAGO,
           [{ field: 'asociadoA', operator: '==', value: 'usuario' }]
         );
-        setMetodosPagoUsuarios(metodos);
+        setMetodosPagoUsuarios([PENDING_METODO_PAGO_OPTION, ...metodos]);
       } catch (error) {
         console.error('Error cargando métodos de pago:', error);
-        setMetodosPagoUsuarios([]);
+        setMetodosPagoUsuarios([PENDING_METODO_PAGO_OPTION]);
       }
     };
     loadMetodosPagoUsuarios();
@@ -297,7 +310,13 @@ export function VentasForm() {
     [categorias]
   );
   const metodosPagoOrdenados = useMemo(
-    () => [...metodosPagoUsuarios].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
+    () => {
+      const metodosReales = metodosPagoUsuarios
+        .filter((metodo) => metodo.id !== PENDING_USER_PAYMENT_ID)
+        .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+
+      return [PENDING_METODO_PAGO_OPTION, ...metodosReales];
+    },
     [metodosPagoUsuarios]
   );
   const clienteSeleccionado = usuariosOrdenados.find((c) => c.id === clienteIdValue);
@@ -953,12 +972,11 @@ export function VentasForm() {
                             onClick={() => {
                               setValue('clienteId', usuario.id);
                               clearErrors('clienteId');
-                              if (!isPendingUserPaymentMethodId(usuario.metodoPagoId)) {
-                                setValue('metodoPagoId', usuario.metodoPagoId);
-                                clearErrors('metodoPagoId');
-                              } else {
-                                setValue('metodoPagoId', '');
-                              }
+                              const nextMetodoPagoId = isPendingUserPaymentMethodId(usuario.metodoPagoId)
+                                ? PENDING_USER_PAYMENT_ID
+                                : usuario.metodoPagoId;
+                              setValue('metodoPagoId', nextMetodoPagoId);
+                              clearErrors('metodoPagoId');
                               setSearchCliente(''); // Limpiar búsqueda después de seleccionar
                             }}
                           >
@@ -982,7 +1000,9 @@ export function VentasForm() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" type="button" className="w-full justify-between">
-                      {metodoPagoSeleccionado ? metodoPagoSeleccionado.nombre : 'Seleccionar metodo de pago'}
+                      {metodoPagoIdValue
+                        ? getUsuarioMetodoPagoNombre(metodoPagoIdValue, metodoPagoSeleccionado?.nombre)
+                        : 'Seleccionar metodo de pago'}
                       <ChevronDown className="h-4 w-4 opacity-50" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -1045,18 +1065,43 @@ export function VentasForm() {
                 <div className="space-y-2">
                   <Label>Servicio</Label>
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" type="button" className="w-full justify-between" disabled={!categoriaId || loadingServicios}>
-                        {loadingServicios
-                          ? 'Cargando servicios...'
-                          : servicioId
-                          ? `${serviciosCategoria.find((s) => s.id === servicioId)?.nombre} - ${serviciosCategoria.find((s) => s.id === servicioId)?.correo}`
-                          : categoriaId
-                            ? 'Seleccionar servicio'
-                            : 'Primero selecciona categoria'}
-                        <ChevronDown className="h-4 w-4 opacity-50" />
-                      </Button>
-                    </DropdownMenuTrigger>
+                    <div className="relative">
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          type="button"
+                          className="w-full justify-start pr-16 text-left"
+                          disabled={!categoriaId || loadingServicios}
+                        >
+                          <span className="truncate">
+                            {loadingServicios
+                              ? 'Cargando servicios...'
+                              : servicioId
+                              ? `${servicioSeleccionado?.nombre} - ${servicioSeleccionado?.correo}`
+                              : categoriaId
+                                ? 'Seleccionar servicio'
+                                : 'Primero selecciona categoria'}
+                          </span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      {servicioSeleccionado && (
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="absolute right-8 top-1/2 h-7 w-7 -translate-y-1/2"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            void handleOpenPerfilDetalle(servicioSeleccionado);
+                          }}
+                          aria-label={`Ver detalle de perfiles de ${servicioSeleccionado.nombre}`}
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 opacity-50" />
+                    </div>
                     <DropdownMenuContent
                       align="start"
                       className="w-[var(--radix-dropdown-menu-trigger-width)] overflow-hidden"
@@ -1686,36 +1731,39 @@ export function VentasForm() {
                       key={perfil.numero}
                       className={cn(
                         'rounded-md border px-3 py-2',
+                        'min-h-[64px]',
                         perfil.estado === 'ocupado' && 'bg-green-950/30 border-green-900/50',
                         perfil.estado === 'disponible' && 'bg-muted/50 border-border',
                         perfil.estado === 'pendiente' && 'border-purple-500/30 bg-purple-500/10'
                       )}
                     >
-                      <div className="flex items-start justify-between gap-4">
+                      <div className="flex min-h-[40px] items-start justify-between gap-4">
                         <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">{perfil.perfilNombre}</p>
+                          <p className="truncate text-sm font-medium">{perfil.perfilNombre}</p>
                           <p className="text-xs text-muted-foreground">Perfil {perfil.numero}</p>
                           {perfil.clienteNombre && (
-                            <p className="text-xs text-foreground/90 truncate mt-1">{perfil.clienteNombre}</p>
-                          )}
-                          {perfil.estado === 'pendiente' && (
-                            <p className="text-xs text-purple-300 mt-1">Pendiente en esta venta</p>
+                            <p className="mt-1 truncate text-xs text-foreground/90">{perfil.clienteNombre}</p>
                           )}
                         </div>
-                        <span
-                          className={cn(
-                            'rounded-full px-2 py-0.5 text-xs font-semibold whitespace-nowrap',
-                            perfil.estado === 'ocupado' && 'bg-green-600/20 text-green-300',
-                            perfil.estado === 'disponible' && 'bg-blue-600/20 text-blue-300',
-                            perfil.estado === 'pendiente' && 'bg-purple-500/20 text-purple-300'
+                        <div className="flex min-h-[40px] shrink-0 flex-col items-end justify-between gap-2 self-stretch">
+                          <span
+                            className={cn(
+                              'whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold',
+                              perfil.estado === 'ocupado' && 'bg-green-600/20 text-green-300',
+                              perfil.estado === 'disponible' && 'bg-blue-600/20 text-blue-300',
+                              perfil.estado === 'pendiente' && 'bg-purple-500/20 text-purple-300'
+                            )}
+                          >
+                            {perfil.estado === 'ocupado'
+                              ? 'En uso'
+                              : perfil.estado === 'pendiente'
+                              ? 'Pendiente'
+                              : 'Disponible'}
+                          </span>
+                          {perfil.estado === 'pendiente' && (
+                            <p className="text-right text-xs text-purple-300">Pendiente en esta venta</p>
                           )}
-                        >
-                          {perfil.estado === 'ocupado'
-                            ? 'En uso'
-                            : perfil.estado === 'pendiente'
-                            ? 'Pendiente'
-                            : 'Disponible'}
-                        </span>
+                        </div>
                       </div>
                     </div>
                   ))}

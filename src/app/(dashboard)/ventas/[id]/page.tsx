@@ -36,6 +36,7 @@ import { CYCLE_MONTHS } from '@/lib/constants';
 import { useNotificacionesStore } from '@/store/notificacionesStore';
 import { upsertVentaPronostico, adjustIngresosStats, getMesKeyFromDate, getDiaKeyFromDate } from '@/lib/services/dashboardStatsService';
 import { syncUsuarioMetodoPago } from '@/lib/services/usuarioMetodoPagoSyncService';
+import { withPendingUserPaymentMethod } from '@/lib/utils/usuarioMetodoPago';
 
 const getCicloPagoLabel = (ciclo?: string) => {
   const labels: Record<string, string> = {
@@ -243,7 +244,7 @@ function VentaDetallePageContent() {
         const methods = await queryDocuments<MetodoPago>(COLLECTIONS.METODOS_PAGO, [
           { field: 'asociadoA', operator: '==', value: 'usuario' }
         ]);
-        setMetodosPago(Array.isArray(methods) ? methods : []);
+        setMetodosPago(Array.isArray(methods) ? withPendingUserPaymentMethod(methods) : withPendingUserPaymentMethod([]));
       }
 
       // Cargar planes de la categoría

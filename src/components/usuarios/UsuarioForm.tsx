@@ -20,7 +20,9 @@ import { useUsuariosStore } from '@/store/usuariosStore';
 import { toast } from 'sonner';
 import { ChevronDown } from 'lucide-react';
 import {
+  createPendingUserPaymentMethod,
   getUsuarioMetodoPagoNombre,
+  getUsuarioMetodoPagoMoneda,
   isPendingUserPaymentMethodId,
   PENDING_USER_PAYMENT_ID,
   PENDING_USER_PAYMENT_NAME,
@@ -87,19 +89,7 @@ export function UsuarioForm({
   isPage = false,
 }: UsuarioFormProps) {
   const { createUsuario, updateUsuario } = useUsuariosStore();
-  const pendienteOption = useMemo<MetodoPago>(() => ({
-    id: PENDING_USER_PAYMENT_ID,
-    nombre: PENDING_USER_PAYMENT_NAME,
-    tipo: 'efectivo',
-    pais: 'N/A',
-    moneda: '',
-    titular: '',
-    identificador: '',
-    activo: true,
-    asociadoA: 'usuario',
-    createdAt: new Date(0),
-    updatedAt: new Date(0),
-  }), []);
+  const pendienteOption = useMemo<MetodoPago>(() => createPendingUserPaymentMethod(), []);
   const [activeTab, setActiveTab] = useState('personal');
   const [isPersonalTabComplete, setIsPersonalTabComplete] = useState(false);
   const {
@@ -232,7 +222,7 @@ export function UsuarioForm({
         telefono: telefonoFormateado,
         metodoPagoId: data.metodoPagoId,
         metodoPagoNombre: metodoPago?.nombre || PENDING_USER_PAYMENT_NAME,
-        moneda: metodoPago?.moneda || '',
+        moneda: getUsuarioMetodoPagoMoneda(data.metodoPagoId, metodoPago?.moneda),
         active: true,
         createdBy: 'current-user',
       };

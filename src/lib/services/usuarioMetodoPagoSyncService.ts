@@ -1,7 +1,8 @@
 import { COLLECTIONS, update } from '@/lib/firebase/firestore';
 import { useUsuariosStore } from '@/store/usuariosStore';
 import {
-  isPendingUserPaymentMethodId,
+  getUsuarioMetodoPagoMoneda,
+  getUsuarioMetodoPagoNombre,
   USUARIO_METODO_PAGO_UPDATED_EVENT,
 } from '@/lib/utils/usuarioMetodoPago';
 
@@ -15,20 +16,23 @@ interface SyncUsuarioMetodoPagoInput {
 export async function syncUsuarioMetodoPago(input: SyncUsuarioMetodoPagoInput): Promise<void> {
   const { usuarioId, metodoPagoId, metodoPagoNombre, moneda } = input;
 
-  if (!usuarioId || isPendingUserPaymentMethodId(metodoPagoId) || !metodoPagoNombre?.trim()) {
+  if (!usuarioId) {
     return;
   }
 
   const nextMetodoPagoId = typeof metodoPagoId === 'string' ? metodoPagoId.trim() : '';
-  const nextMetodoPagoNombre = metodoPagoNombre.trim();
 
   if (!nextMetodoPagoId) {
     return;
   }
+
+  const nextMetodoPagoNombre = getUsuarioMetodoPagoNombre(nextMetodoPagoId, metodoPagoNombre);
+  const nextMoneda = getUsuarioMetodoPagoMoneda(nextMetodoPagoId, moneda);
+
   const updates = {
     metodoPagoId: nextMetodoPagoId,
     metodoPagoNombre: nextMetodoPagoNombre,
-    moneda: moneda || '',
+    moneda: nextMoneda,
   };
 
   await update(COLLECTIONS.USUARIOS, usuarioId, updates);
