@@ -14,6 +14,7 @@ import {
   QueryConstraint,
   WhereFilterOp,
   increment,
+  runTransaction,
 } from 'firebase/firestore';
 import { db } from './config';
 import { logCacheHit as devLogCacheHit, logFirestoreOp } from '@/lib/utils/devLogger';
@@ -250,7 +251,18 @@ export async function adjustServiciosActivos(clienteId: string, delta: number): 
   if (!clienteId) return;
   try {
     const docRef = doc(db, 'usuarios', clienteId);
-    await updateDoc(docRef, { serviciosActivos: increment(delta) });
+    await runTransaction(db, async (transaction) => {
+      const docSnap = await transaction.get(docRef);
+      const serviciosActivosActuales = docSnap.exists()
+        ? Number(docSnap.data().serviciosActivos ?? 0)
+        : 0;
+      const serviciosActivosSaneados = Number.isFinite(serviciosActivosActuales)
+        ? Math.max(0, serviciosActivosActuales)
+        : 0;
+      const siguienteValor = Math.max(0, serviciosActivosSaneados + delta);
+
+      transaction.update(docRef, { serviciosActivos: siguienteValor });
+    });
   } catch (error) {
     console.error(`Error ajustando serviciosActivos para usuario ${clienteId}:`, error);
   }

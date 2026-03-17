@@ -1,9 +1,10 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { startOfDay, format } from 'date-fns';
-import { Usuario } from '@/types';
+import { Usuario, VentaDoc } from '@/types';
 import { getAll, getCount, getById, create as createDoc, update, remove, queryDocuments, COLLECTIONS, logCacheHit } from '@/lib/firebase/firestore';
 import { adjustUsuariosPorMes, getDiaKeyFromDate } from '@/lib/services/dashboardStatsService';
+import { sincronizarNotificacionesForzado } from '@/lib/services/notificationSyncService';
 import { useActivityLogStore } from '@/store/activityLogStore';
 import { useAuthStore } from '@/store/authStore';
 import { detectarCambios } from '@/lib/utils/activityLogHelpers';
@@ -32,6 +33,7 @@ interface UsuariosState {
   // Actions
   fetchUsuarios: (force?: boolean) => Promise<void>;
   fetchCounts: () => Promise<void>;
+  resyncServiciosActivos: () => Promise<{ usuariosReparados: number }>;
   createUsuario: (usuario: Omit<Usuario, 'id' | 'createdAt' | 'updatedAt' | 'serviciosActivos' | 'suscripcionesTotales'>) => Promise<void>;
   updateUsuario: (id: string, updates: Partial<Usuario>) => Promise<void>;
   deleteUsuario: (id: string, usuarioData?: { tipo: 'cliente' | 'revendedor'; nombre?: string; createdAt?: Date; serviciosActivos?: number }) => Promise<void>;
@@ -100,6 +102,70 @@ export const useUsuariosStore = create<UsuariosState>()(
         }
       },
 
+      resyncServiciosActivos: async () => {
+        try {
+          const [usuarios, ventas] = await Promise.all([
+            getAll<Usuario>(COLLECTIONS.USUARIOS),
+            getAll<VentaDoc>(COLLECTIONS.VENTAS),
+          ]);
+
+          const conteoVentasActivas = new Map<string, number>();
+
+          for (const venta of ventas) {
+            const clienteId = venta.clienteId;
+            const estaActiva = (venta.estado ?? 'activo') !== 'inactivo';
+
+            if (!clienteId || !estaActiva) {
+              continue;
+            }
+
+            conteoVentasActivas.set(clienteId, (conteoVentasActivas.get(clienteId) ?? 0) + 1);
+          }
+
+          const usuariosSincronizados = usuarios.map((usuario) => ({
+            ...usuario,
+            serviciosActivos: conteoVentasActivas.get(usuario.id) ?? 0,
+          }));
+          const serviciosActivosActuales = new Map(
+            usuarios.map((usuario) => [usuario.id, usuario.serviciosActivos ?? 0])
+          );
+
+          const usuariosDesfasados = usuariosSincronizados.filter(
+            (usuario) => serviciosActivosActuales.get(usuario.id) !== usuario.serviciosActivos
+          );
+
+          await Promise.all(
+            usuariosDesfasados.map((usuario) =>
+              update(COLLECTIONS.USUARIOS, usuario.id, { serviciosActivos: usuario.serviciosActivos })
+            )
+          );
+
+          set((state) => {
+            const selectedUsuario = state.selectedUsuario
+              ? usuariosSincronizados.find((usuario) => usuario.id === state.selectedUsuario?.id) ?? null
+              : null;
+
+            return {
+              usuarios: usuariosSincronizados,
+              totalClientes: usuariosSincronizados.filter((usuario) => usuario.tipo === 'cliente').length,
+              totalRevendedores: usuariosSincronizados.filter((usuario) => usuario.tipo === 'revendedor').length,
+              totalUsuariosActivos: usuariosSincronizados.filter((usuario) => (usuario.serviciosActivos ?? 0) > 0).length,
+              selectedUsuario,
+              error: null,
+              lastFetch: Date.now(),
+              lastCountsFetch: Date.now(),
+            };
+          });
+
+          return { usuariosReparados: usuariosDesfasados.length };
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Error al resincronizar servicios activos';
+          set({ error: errorMessage });
+          console.error('[UsuariosStore] Error resyncing serviciosActivos:', error);
+          throw error;
+        }
+      },
+
       createUsuario: async (usuarioData) => {
         try {
           const id = await createDoc(COLLECTIONS.USUARIOS, {
@@ -156,25 +222,55 @@ export const useUsuariosStore = create<UsuariosState>()(
           const oldUsuario = get().usuarios.find(u => u.id === id);
           const cambioTipo = oldUsuario && updates.tipo && oldUsuario.tipo !== updates.tipo;
           const cambioServiciosActivos = oldUsuario && updates.serviciosActivos !== undefined && oldUsuario.serviciosActivos !== updates.serviciosActivos;
+          const nombreChanged = oldUsuario
+            ? updates.nombre !== undefined || updates.apellido !== undefined
+            : false;
+          const telefonoChanged = oldUsuario
+            ? updates.telefono !== undefined && updates.telefono !== oldUsuario.telefono
+            : false;
 
           await update(COLLECTIONS.USUARIOS, id, updates);
 
-          // Si cambió nombre o apellido, sincronizar clienteNombre en ventas y pagosVenta
-          const nombreChanged = updates.nombre !== undefined || updates.apellido !== undefined;
-          if (nombreChanged && oldUsuario) {
+          // Si cambió nombre o teléfono, sincronizar campos denormalizados en ventas
+          // y refrescar notificaciones derivadas de esas ventas.
+          if ((nombreChanged || telefonoChanged) && oldUsuario) {
             const nuevoNombre = `${updates.nombre ?? oldUsuario.nombre} ${updates.apellido ?? oldUsuario.apellido}`;
-            const [ventasDelCliente, pagosDelCliente] = await Promise.all([
-              queryDocuments<{ id: string }>(COLLECTIONS.VENTAS, [{ field: 'clienteId', operator: '==', value: id }]),
-              queryDocuments<{ id: string }>(COLLECTIONS.PAGOS_VENTA, [{ field: 'clienteId', operator: '==', value: id }]),
-            ]);
-            await Promise.all([
-              ...ventasDelCliente.map(v => update(COLLECTIONS.VENTAS, v.id, { clienteNombre: nuevoNombre })),
-              ...pagosDelCliente.map(p => update(COLLECTIONS.PAGOS_VENTA, p.id, { clienteNombre: nuevoNombre })),
-            ]);
-            // Invalidar caché de ventas para que el módulo recargue con el nombre actualizado
-            if (typeof window !== 'undefined') {
-              window.dispatchEvent(new Event('usuario-nombre-updated'));
-            }
+            const nuevoTelefono = updates.telefono ?? oldUsuario.telefono;
+
+            void (async () => {
+              const [ventasDelCliente, pagosDelCliente] = await Promise.all([
+                queryDocuments<{ id: string }>(COLLECTIONS.VENTAS, [{ field: 'clienteId', operator: '==', value: id }]),
+                nombreChanged
+                  ? queryDocuments<{ id: string }>(COLLECTIONS.PAGOS_VENTA, [{ field: 'clienteId', operator: '==', value: id }])
+                  : Promise.resolve([] as { id: string }[]),
+              ]);
+              const ventaUpdates: Record<string, unknown> = {};
+
+              if (nombreChanged) {
+                ventaUpdates.clienteNombre = nuevoNombre;
+              }
+
+              if (telefonoChanged) {
+                ventaUpdates.clienteTelefono = nuevoTelefono;
+              }
+
+              await Promise.all([
+                ...ventasDelCliente.map(v => update(COLLECTIONS.VENTAS, v.id, ventaUpdates)),
+                ...pagosDelCliente.map(p => update(COLLECTIONS.PAGOS_VENTA, p.id, { clienteNombre: nuevoNombre })),
+              ]);
+
+              if (ventasDelCliente.length > 0) {
+                await sincronizarNotificacionesForzado();
+                const { useNotificacionesStore } = await import('@/store/notificacionesStore');
+                await useNotificacionesStore.getState().fetchNotificaciones(true);
+              }
+
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new Event('usuario-nombre-updated'));
+              }
+            })().catch((error) => {
+              console.error('[UsuariosStore] Error syncing cliente denormalized fields:', error);
+            });
           }
 
           set((state) => {

@@ -89,6 +89,7 @@ import { useDashboardStore } from '@/store/dashboardStore';
 import { useNotificacionesStore } from '@/store/notificacionesStore';
 import { useServiciosStore } from '@/store/serviciosStore';
 import { useCategoriasStore } from '@/store/categoriasStore';
+import { useUsuariosStore } from '@/store/usuariosStore';
 import { esNotificacionVenta, esNotificacionServicio } from '@/types/notificaciones';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Bell, ArrowRight } from 'lucide-react';
@@ -100,6 +101,7 @@ export default function DashboardPage() {
   const { fetchNotificaciones } = useNotificacionesStore();
   const { resyncPerfilesDisponiblesTotal } = useServiciosStore();
   const { fetchCategorias, resyncContadoresCategorias } = useCategoriasStore();
+  const { resyncServiciosActivos } = useUsuariosStore();
   const toastShown = useRef(false);
 
   useEffect(() => {
@@ -205,13 +207,19 @@ export default function DashboardPage() {
     try {
       // 1. Resync contadores de perfiles disponibles en categorías
       await resyncPerfilesDisponiblesTotal();
+      const { usuariosReparados } = await resyncServiciosActivos();
       // 2. Resync contadores de ventas, ingresos y gastos por categoría
       await resyncContadoresCategorias();
       // 3. Recalcular métricas del dashboard (rebuild desde Firestore)
       await recalculateDashboard();
       // 4. Refrescar categorías para reflejar los contadores actualizados
       await fetchCategorias(true);
-      toast.success('Sistema sincronizado correctamente', { id: toastId });
+      toast.success('Sistema sincronizado correctamente', {
+        id: toastId,
+        description: usuariosReparados > 0
+          ? `Se repararon ${usuariosReparados} usuario(s) con servicios activos desfasados.`
+          : 'No se encontraron usuarios desfasados en servicios activos.',
+      });
     } catch {
       toast.error('Error al sincronizar el sistema', { id: toastId });
     }
