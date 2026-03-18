@@ -91,7 +91,7 @@ export function IngresosVsGastosChart() {
         <div>
           <CardTitle className="text-base">Ingresos vs Gastos</CardTitle>
           <CardDescription className="text-sm hidden sm:block">
-            Comparativa mensual de los ingresos totales por ventas y los gastos totales en servicios.
+            Comparativa mensual de los ingresos totales por ventas y los gastos totales registrados.
           </CardDescription>
         </div>
         <Select value={selectedMonth} onValueChange={setSelectedMonth}>

@@ -14,3 +14,4 @@ export * from './whatsapp';
 export * from './dashboard';
 export * from './ventas';
 export * from './notificaciones';
+export * from './gastos';

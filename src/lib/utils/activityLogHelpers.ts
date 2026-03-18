@@ -53,6 +53,12 @@ const TRACKEABLE_FIELDS: Record<string, Record<string, { label: string; tipo: Ca
     tipo: { label: 'Tipo', tipo: 'string' },
     activo: { label: 'Estado', tipo: 'boolean' },
   },
+  gasto: {
+    tipoGastoNombre: { label: 'Tipo de Gasto', tipo: 'string' },
+    fecha: { label: 'Fecha', tipo: 'date' },
+    monto: { label: 'Monto', tipo: 'money' },
+    detalle: { label: 'Detalle', tipo: 'string' },
+  },
   template: {
     nombre: { label: 'Nombre', tipo: 'string' },
     tipo: { label: 'Tipo', tipo: 'string' },

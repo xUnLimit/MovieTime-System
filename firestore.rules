@@ -45,6 +45,10 @@ service cloud.firestore {
       allow read, write: if isAuthenticated();
     }
 
+    match /tiposGasto/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+
     match /activityLog/{docId} {
       allow read, create: if isAuthenticated();
       allow update: if false; // Immutable: no updates allowed

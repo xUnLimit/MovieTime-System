@@ -319,6 +319,7 @@ export const COLLECTIONS = {
   SERVICIOS: 'servicios',
   CATEGORIAS: 'categorias',
   METODOS_PAGO: 'metodosPago',
+  TIPOS_GASTO: 'tiposGasto',
   ACTIVITY_LOG: 'activityLog',
   CONFIG: 'config',
   GASTOS: 'gastos',

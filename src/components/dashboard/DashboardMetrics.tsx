@@ -34,7 +34,7 @@ export function DashboardMetrics() {
       <MetricCard
         title="Gastos Totales"
         value={isLoading ? '...' : formatUSD(gastosTotal)}
-        description="Suma del costo de todos los servicios"
+        description="Suma de todos los gastos registrados"
         icon={TrendingDown}
         iconColor="text-red-500"
         borderColor="border-l-red-500"

@@ -15,6 +15,7 @@ import {
   FileText,
   Moon,
   Pause,
+  DollarSign,
   Sun,
   ChevronLeft,
   X
@@ -79,6 +80,11 @@ const navigationSections: NavSection[] = [
   {
     label: 'OTROS',
     items: [
+      {
+        name: 'Gastos',
+        href: '/gastos',
+        icon: DollarSign
+      },
       {
         name: 'Netflix Reposo',
         href: '/netflix-reposo',

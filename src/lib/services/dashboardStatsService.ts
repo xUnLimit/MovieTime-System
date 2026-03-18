@@ -310,6 +310,7 @@ export async function adjustGastosStats(params: {
     });
   } catch (error) {
     console.error('[DashboardStats] Error adjusting gastos:', error);
+    throw error;
   }
 }
 
@@ -449,7 +450,7 @@ export async function upsertServicioPronostico(servicio: ServicioPronostico | nu
 // ===========================
 
 /**
- * Reads ALL ventas, pagosVenta, servicios, pagosServicio, and usuarios from Firestore
+ * Reads ALL ventas, pagosVenta, servicios, pagosServicio, gastos, and usuarios from Firestore
  * and rebuilds the dashboard_stats document from scratch.
  *
  * Use this to sync historical data or fix inconsistencies.
@@ -462,13 +463,15 @@ export async function rebuildDashboardStats(): Promise<void> {
   type PagoServicioType = import('@/types/servicios').PagoServicio;
   type UsuarioType = import('@/types/clientes').Usuario;
   type ServicioType = import('@/types/servicios').Servicio;
+  type GastoType = import('@/types/gastos').Gasto;
 
-  const [ventas, pagosVenta, pagosServicio, usuarios, servicios] = await Promise.all([
+  const [ventas, pagosVenta, pagosServicio, usuarios, servicios, gastosManuales] = await Promise.all([
     getAll<VentaDocType>(COLLECTIONS.VENTAS),
     getAll<PagoVentaType>(COLLECTIONS.PAGOS_VENTA),
     getAll<PagoServicioType>(COLLECTIONS.PAGOS_SERVICIO),
     getAll<UsuarioType>(COLLECTIONS.USUARIOS),
     getAll<ServicioType>(COLLECTIONS.SERVICIOS),
+    getAll<GastoType>(COLLECTIONS.GASTOS),
   ]);
 
   // Ensure exchange rates are loaded
@@ -588,6 +591,38 @@ export async function rebuildDashboardStats(): Promise<void> {
         catMesEntry.gastos += usd;
       } else {
         stats.ingresosCategoriasPorMes!.push({ mes, categoriaId, nombre: categoriaNombre, total: 0, gastos: usd });
+      }
+    }
+  }
+
+  // ---------- GASTOS MANUALES ----------
+  for (const gasto of gastosManuales) {
+    const fecha = gasto.fecha instanceof Date
+      ? gasto.fecha
+      : new Date(gasto.fecha as unknown as string);
+    if (isNaN(fecha.getTime())) continue;
+
+    const monto = Number(gasto.monto || 0);
+    if (monto <= 0) continue;
+
+    const mes = getMesKey(fecha);
+    const dia = getDiaKey(fecha);
+
+    stats.gastosTotal += monto;
+
+    const mesEntry = stats.ingresosPorMes.find((m) => m.mes === mes);
+    if (mesEntry) {
+      mesEntry.gastos += monto;
+    } else {
+      stats.ingresosPorMes.push({ mes, ingresos: 0, gastos: monto });
+    }
+
+    if (mes === currentMes) {
+      const diaEntry = stats.ingresosPorDia.find((d) => d.dia === dia);
+      if (diaEntry) {
+        diaEntry.gastos += monto;
+      } else {
+        stats.ingresosPorDia.push({ dia, ingresos: 0, gastos: monto });
       }
     }
   }
