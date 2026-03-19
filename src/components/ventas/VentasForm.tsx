@@ -37,7 +37,7 @@ import { COLLECTIONS, queryDocuments, adjustServiciosActivos } from '@/lib/fireb
 import { Switch } from '@/components/ui/switch';
 import { formatearFechaWhatsApp, getSaludo } from '@/lib/utils/whatsapp';
 import { getCurrencySymbol } from '@/lib/constants';
-import { formatearFecha } from '@/lib/utils/calculations';
+import { calculateDiscountedAmount, formatearFecha, roundToDecimals } from '@/lib/utils/calculations';
 import { syncUsuarioMetodoPago } from '@/lib/services/usuarioMetodoPagoSyncService';
 import {
   getUsuarioMetodoPagoNombre,
@@ -559,9 +559,9 @@ export function VentasForm() {
   }, [perfilesDetalleVisual]);
 
   const simboloMoneda = getCurrencySymbol(metodoPagoSeleccionado?.moneda);
-  const precioBase = Number(precio) || 0;
-  const descuentoNumero = Number(descuento) || 0;
-  const precioFinalNumero = Math.max(precioBase * (1 - descuentoNumero / 100), 0);
+  const precioBase = roundToDecimals(Number(precio) || 0);
+  const descuentoNumero = roundToDecimals(Number(descuento) || 0);
+  const precioFinalNumero = calculateDiscountedAmount(precioBase, descuentoNumero);
 
   const subtotal = useMemo(() => items.reduce((sum, item) => sum + item.precio, 0), [items]);
   const previewItem = items[0];
@@ -720,8 +720,8 @@ export function VentasForm() {
         fechaFin: fechaFinValue ? new Date(fechaFinValue) : undefined,
         perfilNumero: perfilNumero ? Number(perfilNumero) : undefined,
         perfilNombre: perfilNombre?.trim() || undefined,
-        precio: Number(precio) || 0,
-        descuento: Number(descuento) || 0,
+        precio: precioBase,
+        descuento: descuentoNumero,
         precioFinal: precioFinalNumero,
         codigo: watch('codigo')?.trim() ? watch('codigo')?.trim() : undefined,
         notas: notasItem?.trim() ? notasItem.trim() : undefined,

@@ -54,6 +54,7 @@ import { useAuthStore } from '@/store/authStore';
 import { format } from 'date-fns';
 import { syncUsuarioMetodoPago } from '@/lib/services/usuarioMetodoPagoSyncService';
 import { withPendingUserPaymentMethod } from '@/lib/utils/usuarioMetodoPago';
+import { calculateDiscountedAmount, roundToDecimals } from '@/lib/utils/calculations';
 
 // Helper para obtener contexto de usuario
 function getLogContext() {
@@ -355,8 +356,9 @@ export function VentasProximasTable() {
       const { metodosPago } = useMetodosPagoStore.getState();
 
       const metodoPagoSeleccionado = metodosPago.find((m) => m.id === data.metodoPagoId);
-      const descuentoNumero = Number(data.descuento) || 0;
-      const monto = Math.max(data.costo * (1 - descuentoNumero / 100), 0);
+      const costo = roundToDecimals(data.costo);
+      const descuentoNumero = roundToDecimals(Number(data.descuento) || 0);
+      const monto = calculateDiscountedAmount(costo, descuentoNumero);
 
       // Crear pago en la colección pagosVenta
       await crearPagoRenovacion(
@@ -372,7 +374,7 @@ export function VentasProximasTable() {
         data.notas?.trim(),
         data.fechaInicio,
         data.fechaVencimiento,
-        data.costo,
+        costo,
         descuentoNumero
       );
 

@@ -25,7 +25,7 @@ import { toast } from 'sonner';
 import { PagoDialog } from '@/components/shared/PagoDialog';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { generarMensajeVenta } from '@/lib/utils/whatsapp';
-import { formatearFecha } from '@/lib/utils/calculations';
+import { calculateDiscountedAmount, formatearFecha, roundToDecimals } from '@/lib/utils/calculations';
 import { VentaDoc, VentaPago, MetodoPago } from '@/types';
 import { Plan } from '@/types/categorias';
 import { VentaPagosTable } from '@/components/ventas/VentaPagosTable';
@@ -298,8 +298,9 @@ function VentaDetallePageContent() {
     if (!venta) return;
     try {
       const metodoPagoSeleccionado = metodosPago.find((m) => m.id === data.metodoPagoId);
-      const descuentoNumero = Number(data.descuento) || 0;
-      const monto = Math.max(data.costo * (1 - descuentoNumero / 100), 0);
+      const costo = roundToDecimals(data.costo);
+      const descuentoNumero = roundToDecimals(Number(data.descuento) || 0);
+      const monto = calculateDiscountedAmount(costo, descuentoNumero);
 
       // Crear pago en la colección pagosVenta
       await crearPagoRenovacion(
@@ -315,7 +316,7 @@ function VentaDetallePageContent() {
         data.notas?.trim(),
         data.fechaInicio,
         data.fechaVencimiento,
-        data.costo,                             // Precio original
+        costo,                                 // Precio original
         descuentoNumero                         // Porcentaje de descuento
       );
 
@@ -434,7 +435,9 @@ function VentaDetallePageContent() {
         const templateRenovacion = getTemplateByTipo('renovacion');
         if (templateRenovacion) {
           try {
-            const monto = Math.max(data.costo * (1 - (Number(data.descuento) || 0) / 100), 0);
+            const costo = roundToDecimals(data.costo);
+            const descuentoNumero = roundToDecimals(Number(data.descuento) || 0);
+            const monto = calculateDiscountedAmount(costo, descuentoNumero);
             const clienteSoloNombre = venta.clienteNombre.split(' ')[0];
             const mensaje = generarMensajeVenta(templateRenovacion.contenido, {
               clienteNombre: venta.clienteNombre,
@@ -508,12 +511,13 @@ function VentaDetallePageContent() {
 
     try {
       const metodoPagoSeleccionado = metodosPago.find((m) => m.id === data.metodoPagoId);
-      const descuentoNumero = Number(data.descuento) || 0;
-      const monto = Math.max(data.costo * (1 - descuentoNumero / 100), 0);
+      const costo = roundToDecimals(data.costo);
+      const descuentoNumero = roundToDecimals(Number(data.descuento) || 0);
+      const monto = calculateDiscountedAmount(costo, descuentoNumero);
 
       // Actualizar el pago en la colección pagosVenta (fuente de verdad)
       await update(COLLECTIONS.PAGOS_VENTA, pagoToEdit.id, {
-        precio: data.costo,                         // Precio original
+        precio: costo,                              // Precio original
         descuento: descuentoNumero,                 // Porcentaje de descuento
         monto,                                      // Monto final
         metodoPagoId: data.metodoPagoId,            // Denormalizado

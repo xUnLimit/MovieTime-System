@@ -19,12 +19,13 @@ import { cn } from '@/lib/utils';
 import { MetodoPago, PagoServicio, Servicio } from '@/types';
 import { Plan } from '@/types/categorias';
 import { getCurrencySymbol } from '@/lib/constants';
-import { formatearFecha } from '@/lib/utils/calculations';
+import { calculateDiscountedAmount, formatearFecha, roundToDecimals } from '@/lib/utils/calculations';
 import { generarMensajeVenta } from '@/lib/utils/whatsapp';
 import { useTemplatesStore } from '@/store/templatesStore';
 import {
   getUsuarioMetodoPagoMoneda,
   getUsuarioMetodoPagoNombre,
+  isPendingUserPaymentMethodId,
   PENDING_USER_PAYMENT_ID,
   withPendingUserPaymentMethod,
 } from '@/lib/utils/usuarioMetodoPago';
@@ -106,6 +107,7 @@ export function PagoDialog(props: PagoDialogProps) {
   const [fechaInicioOpen, setFechaInicioOpen] = useState(false);
   const [fechaVencimientoOpen, setFechaVencimientoOpen] = useState(false);
   const [previewMessage, setPreviewMessage] = useState('');
+  const [isCostoFocused, setIsCostoFocused] = useState(false);
   const isVenta = props.context === 'venta';
   const isEdit = props.mode === 'edit';
   const venta = props.context === 'venta' ? props.venta : null;
@@ -125,8 +127,8 @@ export function PagoDialog(props: PagoDialogProps) {
     ? (venta?.metodoPagoId || PENDING_USER_PAYMENT_ID)
     : (servicio?.metodoPagoId || '');
   const defaultCosto = venta
-    ? (props.mode === 'renew' ? venta.precioFinal || 0 : 0)
-    : (props.mode === 'renew' ? (servicio?.costoServicio || 0) : 0);
+    ? (props.mode === 'renew' ? roundToDecimals(venta.precioFinal || 0) : 0)
+    : (props.mode === 'renew' ? roundToDecimals(servicio?.costoServicio || 0) : 0);
 
   const {
     register,
@@ -165,10 +167,23 @@ export function PagoDialog(props: PagoDialogProps) {
 
     return isVenta ? withPendingUserPaymentMethod(metodosBase) : metodosBase;
   }, [isVenta, metodosPago]);
-  const metodoPagoSeleccionado = metodosFiltrados.find((m) => m.id === metodoPagoIdValue);
+  const metodosPagoOrdenados = useMemo(() => {
+    if (isVenta) {
+      const pendientes = metodosFiltrados.filter((metodo) => isPendingUserPaymentMethodId(metodo.id));
+      const restantes = metodosFiltrados
+        .filter((metodo) => !isPendingUserPaymentMethodId(metodo.id))
+        .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+
+      return [...pendientes, ...restantes];
+    }
+
+    return [...metodosFiltrados].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  }, [isVenta, metodosFiltrados]);
+  const metodoPagoSeleccionado = metodosPagoOrdenados.find((m) => m.id === metodoPagoIdValue);
   const currencySymbol = getCurrencySymbol(getUsuarioMetodoPagoMoneda(metodoPagoIdValue, metodoPagoSeleccionado?.moneda));
+  const costoNormalizado = roundToDecimals(Number(costoValue) || 0);
   const descuentoNumero = Number(descuentoValue) || 0;
-  const precioFinal = Math.max((Number(costoValue) || 0) * (1 - descuentoNumero / 100), 0);
+  const precioFinal = calculateDiscountedAmount(costoNormalizado, descuentoNumero);
 
   useEffect(() => {
     if (!open) return;
@@ -179,7 +194,7 @@ export function PagoDialog(props: PagoDialogProps) {
           reset({
             periodoRenovacion: props.pago.cicloPago || '',
             metodoPagoId: (props.pago.metodoPagoId as string) || venta?.metodoPagoId || PENDING_USER_PAYMENT_ID,
-            costo: props.pago.precio ?? 0,
+            costo: roundToDecimals(props.pago.precio ?? 0),
             descuento: (props.pago.descuento as number) ?? 0,
             fechaInicio: props.pago.fechaInicio ? new Date(props.pago.fechaInicio) : new Date(),
             fechaVencimiento: props.pago.fechaVencimiento ? new Date(props.pago.fechaVencimiento) : new Date(),
@@ -203,7 +218,7 @@ export function PagoDialog(props: PagoDialogProps) {
       reset({
         periodoRenovacion: '',
         metodoPagoId: venta?.metodoPagoId || PENDING_USER_PAYMENT_ID,
-        costo: venta?.precioFinal || 0,
+        costo: roundToDecimals(venta?.precioFinal || 0),
         descuento: 0,
         fechaInicio: fechaVencimientoActual,
         fechaVencimiento: fechaVencimientoActual,
@@ -217,7 +232,7 @@ export function PagoDialog(props: PagoDialogProps) {
       reset({
         periodoRenovacion: servicio.cicloPago || '',
         metodoPagoId: servicio.metodoPagoId || '',
-        costo: props.pago.monto,
+        costo: roundToDecimals(props.pago.monto),
         fechaInicio: new Date(props.pago.fechaInicio),
         fechaVencimiento: new Date(props.pago.fechaVencimiento),
         notas: props.pago.notas ?? servicio?.notas ?? '',
@@ -231,7 +246,7 @@ export function PagoDialog(props: PagoDialogProps) {
     reset({
       periodoRenovacion: '',
       metodoPagoId: servicio?.metodoPagoId || '',
-      costo: servicio?.costoServicio || 0,
+      costo: roundToDecimals(servicio?.costoServicio || 0),
       fechaInicio: fechaVencimientoActual,
       fechaVencimiento: fechaVencimientoActual,
       notas: servicio?.notas || '',
@@ -263,7 +278,7 @@ export function PagoDialog(props: PagoDialogProps) {
       return;
     }
 
-    const precioFinal = Math.max((Number(costoValue) || 0) * (1 - (Number(descuentoValue) || 0) / 100), 0);
+    const precioFinal = calculateDiscountedAmount(Number(costoValue) || 0, Number(descuentoValue) || 0);
 
     try {
       const mensaje = generarMensajeVenta(template.contenido, {
@@ -309,7 +324,7 @@ export function PagoDialog(props: PagoDialogProps) {
     return (
       periodoValue !== (servicio.cicloPago || '') ||
       metodoPagoIdValue !== (servicio.metodoPagoId || '') ||
-      costoValue !== props.pago.monto ||
+      costoValue !== roundToDecimals(props.pago.monto) ||
       fechaInicioValue?.getTime() !== inicioPago ||
       fechaVencimientoValue?.getTime() !== vencimientoPago
     );
@@ -328,8 +343,12 @@ export function PagoDialog(props: PagoDialogProps) {
   const onSubmit = async (data: PagoDialogFormData) => {
     // Agregar campos denormalizados del método de pago
     const metodoPago = metodosFiltrados.find(m => m.id === data.metodoPagoId);
+    const costo = roundToDecimals(data.costo);
+    const descuento = data.descuento === undefined ? undefined : roundToDecimals(data.descuento);
     const enrichedData = {
       ...data,
+      costo,
+      descuento,
       metodoPagoNombre: getUsuarioMetodoPagoNombre(data.metodoPagoId, metodoPago?.nombre),
       moneda: getUsuarioMetodoPagoMoneda(data.metodoPagoId, metodoPago?.moneda),
       // Pasar el mensaje editado (solo si hay WhatsApp activado)
@@ -340,6 +359,7 @@ export function PagoDialog(props: PagoDialogProps) {
   };
 
   const handleCancel = () => {
+    setIsCostoFocused(false);
     reset();
     props.onOpenChange(false);
   };
@@ -421,7 +441,7 @@ export function PagoDialog(props: PagoDialogProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
-          {metodosFiltrados.map((m) => (
+          {metodosPagoOrdenados.map((m) => (
             <DropdownMenuItem key={m.id} onClick={() => { setValue('metodoPagoId', m.id); clearErrors('metodoPagoId'); }}>
               {m.nombre}
             </DropdownMenuItem>
@@ -441,10 +461,19 @@ export function PagoDialog(props: PagoDialogProps) {
         <span className="text-muted-foreground shrink-0 pr-2">{currencySymbol}</span>
         <input
           id="costo"
-          type="number"
-          step="0.01"
-          value={costoValue}
-          onChange={(e) => setValue('costo', parseFloat(e.target.value) || 0)}
+          type="text"
+          inputMode="decimal"
+          value={isCostoFocused ? String(costoValue ?? '') : costoNormalizado.toFixed(2)}
+          onFocus={() => setIsCostoFocused(true)}
+          onBlur={(e) => {
+            const normalizedValue = roundToDecimals(parseFloat(e.target.value.replace(',', '.')) || 0);
+            setValue('costo', normalizedValue);
+            setIsCostoFocused(false);
+          }}
+          onChange={(e) => {
+            const sanitized = e.target.value.replace(',', '.');
+            setValue('costo', parseFloat(sanitized) || 0);
+          }}
           className="flex-1 min-w-0 bg-transparent outline-none text-base md:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
         />
       </div>

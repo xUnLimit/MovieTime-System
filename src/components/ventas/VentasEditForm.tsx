@@ -34,7 +34,7 @@ import { MetodoPago, PagoVenta, Servicio } from '@/types';
 import type { VentaDoc } from '@/types/ventas';
 import { toast } from 'sonner';
 import { getCurrencySymbol } from '@/lib/constants';
-import { formatearFecha } from '@/lib/utils/calculations';
+import { calculateDiscountedAmount, formatearFecha, roundToDecimals } from '@/lib/utils/calculations';
 import { syncUsuarioMetodoPago } from '@/lib/services/usuarioMetodoPagoSyncService';
 import {
   getUsuarioMetodoPagoMoneda,
@@ -208,8 +208,16 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
   const notasValue = watch('notas');
 
   const clientes = useMemo(() => usuarios.filter((u) => u.tipo === 'cliente'), [usuarios]);
+  const metodosPagoOrdenados = useMemo(() => {
+    const pendientes = metodosPago.filter((metodo) => isPendingUserPaymentMethodId(metodo.id));
+    const restantes = metodosPago
+      .filter((metodo) => !isPendingUserPaymentMethodId(metodo.id))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+
+    return [...pendientes, ...restantes];
+  }, [metodosPago]);
   const clienteSeleccionado = clientes.find((c) => c.id === clienteIdValue);
-  const metodoPagoSeleccionado = metodosPago.find((m) => m.id === metodoPagoIdValue);
+  const metodoPagoSeleccionado = metodosPagoOrdenados.find((m) => m.id === metodoPagoIdValue);
 
   // Efecto para cargar servicios cuando se selecciona una categoría
   useEffect(() => {
@@ -582,9 +590,9 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
   const simboloMoneda = getCurrencySymbol(
     getUsuarioMetodoPagoMoneda(metodoPagoIdValue, metodoPagoSeleccionado?.moneda || venta.moneda)
   );
-  const precioBase = Number(precioValue) || 0;
-  const descuentoNumero = Number(descuentoValue) || 0;
-  const precioFinal = Math.max(precioBase * (1 - descuentoNumero / 100), 0);
+  const precioBase = roundToDecimals(Number(precioValue) || 0);
+  const descuentoNumero = roundToDecimals(Number(descuentoValue) || 0);
+  const precioFinal = calculateDiscountedAmount(precioBase, descuentoNumero);
 
   const hasChanges = useMemo(() => {
     if (clienteIdValue !== venta.clienteId) return true;
@@ -678,9 +686,9 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
       const servicio = serviciosCategoria.find((s) => s.id === data.servicioId);
       const categoria = categorias.find((c) => c.id === data.categoriaId);
       const plan = categoria?.planes?.find((p) => p.id === data.planId);
-      const precio = Number(data.precio) || 0;
-      const descuento = Number(data.descuento) || 0;
-      const precioFinalValue = Math.max(precio * (1 - descuento / 100), 0);
+      const precio = roundToDecimals(Number(data.precio) || 0);
+      const descuento = roundToDecimals(Number(data.descuento) || 0);
+      const precioFinalValue = calculateDiscountedAmount(precio, descuento);
       const metodoPagoNombre = getUsuarioMetodoPagoNombre(data.metodoPagoId, metodoPagoSeleccionado?.nombre || venta.metodoPagoNombre);
       const monedaMetodoPago = getUsuarioMetodoPagoMoneda(data.metodoPagoId, metodoPagoSeleccionado?.moneda || venta.moneda);
 
@@ -873,7 +881,7 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                  {metodosPago.map((metodo) => (
+                  {metodosPagoOrdenados.map((metodo) => (
                     <DropdownMenuItem
                       key={metodo.id}
                       onClick={() => {

@@ -104,6 +104,21 @@ export function formatearMoneda(monto: number): string {
 }
 
 /**
+ * Redondea números decimales para evitar ruido de coma flotante en montos y porcentajes.
+ */
+export function roundToDecimals(value: number, decimals = 2): number {
+  const factor = 10 ** decimals;
+  return Math.round((value + Number.EPSILON) * factor) / factor;
+}
+
+/**
+ * Calcula un monto final después de descuento y lo normaliza a 2 decimales.
+ */
+export function calculateDiscountedAmount(baseAmount: number, discountPercentage = 0): number {
+  return roundToDecimals(Math.max(baseAmount * (1 - discountPercentage / 100), 0));
+}
+
+/**
  * Formatea una fecha en formato legible
  */
 export function formatearFecha(fecha: Date): string {
