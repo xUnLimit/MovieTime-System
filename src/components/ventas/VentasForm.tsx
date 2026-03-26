@@ -564,6 +564,7 @@ export function VentasForm() {
   const precioFinalNumero = calculateDiscountedAmount(precioBase, descuentoNumero);
 
   const subtotal = useMemo(() => items.reduce((sum, item) => sum + item.precio, 0), [items]);
+  const totalFinal = useMemo(() => items.reduce((sum, item) => sum + item.precioFinal, 0), [items]);
   const previewItem = items[0];
   const previewServicio = previewItem
     ? serviciosCategoria.find((s) => s.id === previewItem.servicioId)
@@ -576,7 +577,7 @@ export function VentasForm() {
     : 'Sin cliente';
   const previewNombreCliente = clienteSeleccionado?.nombre || previewClienteNombre.split(' ')[0] || 'Cliente';
   const previewFechaVencimiento = previewItem?.fechaFin ?? fechaFinValue;
-  const previewMonto = previewItem?.precioFinal ?? subtotal;
+  const previewMonto = items.length > 0 ? totalFinal : precioFinalNumero;
   const previewCodigo = previewItem?.codigo || watch('codigo')?.trim() || '—';
   const previewPerfilNombre = previewItem?.perfilNombre?.trim() || '—';
   const previewCorreo = previewServicio?.correo || previewItem?.servicioCorreo || '—';
@@ -835,7 +836,7 @@ export function VentasForm() {
           ],
           itemId: item.itemId,
           ventaId,
-          totalVenta: subtotal,
+          totalVenta: totalFinal,
         })
       );
       await Promise.all(writes);
@@ -1506,7 +1507,7 @@ export function VentasForm() {
                       Items Agregados ({items.length})
                     </div>
                     <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
-                      Total: {simboloMoneda} {subtotal.toFixed(2)}
+                      Total: {simboloMoneda} {totalFinal.toFixed(2)}
                     </span>
                   </div>
 
@@ -1546,8 +1547,12 @@ export function VentasForm() {
                   </div>
 
                   <div className="mt-2 pt-2 border-t flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Subtotal:</span>
+                    <span className="text-sm text-muted-foreground">Subtotal original:</span>
                     <span className="text-sm font-semibold">{simboloMoneda} {subtotal.toFixed(2)}</span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Total final:</span>
+                    <span className="text-sm font-semibold text-green-500">{simboloMoneda} {totalFinal.toFixed(2)}</span>
                   </div>
                 </Card>
               )}
@@ -1654,7 +1659,7 @@ export function VentasForm() {
             <div className="mt-1 rounded-lg bg-muted/50 p-3 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-lg font-semibold text-foreground">Total de la venta</span>
-                <span className="text-xl font-semibold text-green-500">{simboloMoneda} {subtotal.toFixed(2)}</span>
+                <span className="text-xl font-semibold text-green-500">{simboloMoneda} {totalFinal.toFixed(2)}</span>
               </div>
               <div className="mt-0 text-sm text-muted-foreground">
                 El total corresponde a la suma de todos los items agregados.
