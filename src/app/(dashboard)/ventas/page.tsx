@@ -14,6 +14,7 @@ import { useVentasStore } from '@/store/ventasStore';
 import { useCategoriasStore } from '@/store/categoriasStore';
 import { toast } from 'sonner';
 import { COLLECTIONS } from '@/lib/firebase/firestore';
+import { normalizeSearchText } from '@/lib/utils';
 import { VentaDoc } from '@/types';
 import { FilterOption } from '@/lib/firebase/pagination';
 import { getVentasConUltimoPago, VentaConUltimoPago } from '@/lib/services/ventaSyncService';
@@ -86,7 +87,7 @@ function VentasPageContent() {
 
   const searchResults = useMemo((): VentaDoc[] => {
     if (!isSearchMode) return [];
-    const q = searchQuery.trim().toLowerCase();
+    const q = normalizeSearchText(searchQuery);
     let base = activeTab === 'activas'
       ? ventas.filter(v => v.estado === 'activo')
       : activeTab === 'inactivas'
@@ -97,9 +98,9 @@ function VentasPageContent() {
     }
     if (q) {
       base = base.filter(v =>
-        (v.clienteNombre ?? '').toLowerCase().includes(q) ||
-        (v.servicioNombre ?? '').toLowerCase().includes(q) ||
-        (v.servicioCorreo ?? '').toLowerCase().includes(q)
+        normalizeSearchText(v.clienteNombre).includes(q) ||
+        normalizeSearchText(v.servicioNombre).includes(q) ||
+        normalizeSearchText(v.servicioCorreo).includes(q)
       );
     }
     return base.sort((a, b) => {

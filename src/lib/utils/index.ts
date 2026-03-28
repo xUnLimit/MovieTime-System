@@ -10,5 +10,8 @@ export * from './cn';
 // Re-export calculation utilities
 export * from './calculations';
 
+// Re-export text utilities
+export * from './text';
+
 // Re-export WhatsApp utilities
 export * from './whatsapp';

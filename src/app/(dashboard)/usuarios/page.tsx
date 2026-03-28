@@ -17,6 +17,7 @@ import { invalidateVentasPorUsuariosCache } from '@/hooks/use-ventas-por-usuario
 import { Usuario } from '@/types';
 import { COLLECTIONS } from '@/lib/firebase/firestore';
 import { FilterOption } from '@/lib/firebase/pagination';
+import { normalizeSearchText } from '@/lib/utils';
 import { USUARIO_METODO_PAGO_UPDATED_EVENT } from '@/lib/utils/usuarioMetodoPago';
 
 function UsuariosPageContent() {
@@ -58,18 +59,20 @@ function UsuariosPageContent() {
 
   const searchResults = useMemo(() => {
     if (!isSearchMode) return [];
-    const q = searchQuery.trim().toLowerCase();
+    const q = normalizeSearchText(searchQuery);
     const base = activeTab === 'clientes'
       ? usuarios.filter(u => u.tipo === 'cliente')
       : activeTab === 'revendedores'
         ? usuarios.filter(u => u.tipo === 'revendedor')
         : usuarios;
     return base.filter(u => {
-      const nombreCompleto = `${u.nombre} ${u.apellido ?? ''}`.toLowerCase();
+      const nombreCompleto = normalizeSearchText(`${u.nombre} ${u.apellido ?? ''}`);
+      const nombre = normalizeSearchText(u.nombre);
+      const apellido = normalizeSearchText(u.apellido);
       return (
         nombreCompleto.includes(q) ||
-        u.nombre.toLowerCase().includes(q) ||
-        (u.apellido ?? '').toLowerCase().includes(q) ||
+        nombre.includes(q) ||
+        apellido.includes(q) ||
         u.telefono.includes(q)
       );
     });

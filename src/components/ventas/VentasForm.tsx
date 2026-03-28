@@ -23,7 +23,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Card } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
+import { cn, normalizeSearchText } from '@/lib/utils';
 import { CalendarIcon, ChevronDown, ChevronUp, Eye, Loader2, MessageCircle, Plus, Search, Trash2, User } from 'lucide-react';
 import { useCategoriasStore } from '@/store/categoriasStore';
 import { useServiciosStore } from '@/store/serviciosStore';
@@ -298,9 +298,9 @@ export function VentasForm() {
   // Usuarios filtrados por búsqueda
   const usuariosFiltrados = useMemo(() => {
     if (!searchCliente) return usuariosOrdenados;
-    const search = searchCliente.toLowerCase().trim();
+    const search = normalizeSearchText(searchCliente);
     return usuariosOrdenados.filter((u) => {
-      const nombreCompleto = `${u.nombre} ${u.apellido || ''}`.toLowerCase();
+      const nombreCompleto = normalizeSearchText(`${u.nombre} ${u.apellido || ''}`);
       return nombreCompleto.includes(search);
     });
   }, [usuariosOrdenados, searchCliente]);
