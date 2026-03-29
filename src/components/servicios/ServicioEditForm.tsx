@@ -699,14 +699,7 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
             id="perfiles"
             type="text"
             inputMode="numeric"
-            {...register('perfilesDisponibles', {
-              onChange: (e) => {
-                const value = parseInt(e.target.value);
-                if (!isNaN(value) && value > 15) {
-                  e.target.value = '15';
-                }
-              }
-            })}
+            {...register('perfilesDisponibles')}
             placeholder="Ingrese la cantidad"
             onKeyDown={(e) => {
               const char = e.key;

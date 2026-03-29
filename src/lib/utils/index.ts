@@ -13,5 +13,8 @@ export * from './calculations';
 // Re-export text utilities
 export * from './text';
 
+// Re-export profile utilities
+export * from './perfiles';
+
 // Re-export WhatsApp utilities
 export * from './whatsapp';

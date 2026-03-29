@@ -31,6 +31,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CURRENCY_SYMBOLS } from '@/lib/constants';
+import { PROFILE_ICON_LIMIT, getProfileIndicatorStates } from '@/lib/utils/perfiles';
 
 interface ServiciosCategoriaTableDetalleProps {
   servicios: Servicio[];
@@ -88,7 +89,7 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
 
   const handleDelete = (servicio: Servicio) => {
     setServicioToDelete(servicio);
-    setDeletePayments(false); // Reset checkbox
+    setDeletePayments(false);
     setDeleteDialogOpen(true);
   };
 
@@ -103,10 +104,9 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
           toast.success('Servicio eliminado', { description: 'El servicio fue eliminado. Los registros de pago se conservaron.' });
         }
 
-        // Refrescar categorías y contadores de servicios para actualizar widgets
         await Promise.all([
           fetchCategorias(true),
-          fetchCounts(true), // Force refresh para actualizar inmediatamente
+          fetchCounts(true),
         ]);
 
         setDeleteDialogOpen(false);
@@ -130,24 +130,25 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
       const d = Math.abs(dias);
       return {
         className: 'border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
-        text: `${d} día${d > 1 ? 's' : ''} de retraso`,
+        text: `${d} dia${d > 1 ? 's' : ''} de retraso`,
       };
-    } else if (dias === 0) {
+    }
+    if (dias === 0) {
       return {
         className: 'border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
         text: 'Vence hoy',
       };
-    } else if (dias <= 7) {
+    }
+    if (dias <= 7) {
       return {
         className: 'border-yellow-500/50 bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-300',
-        text: `${dias} día${dias > 1 ? 's' : ''} restante${dias > 1 ? 's' : ''}`,
-      };
-    } else {
-      return {
-        className: 'border-green-500/50 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300',
-        text: `${dias} día${dias > 1 ? 's' : ''} restante${dias > 1 ? 's' : ''}`,
+        text: `${dias} dia${dias > 1 ? 's' : ''} restante${dias > 1 ? 's' : ''}`,
       };
     }
+    return {
+      className: 'border-green-500/50 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300',
+      text: `${dias} dia${dias > 1 ? 's' : ''} restante${dias > 1 ? 's' : ''}`,
+    };
   };
 
   const columns: Column<Servicio>[] = [
@@ -156,18 +157,14 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
       header: 'Nombre',
       sortable: true,
       width: '10%',
-      render: (item) => (
-        <div className="font-medium">{item.nombre}</div>
-      ),
+      render: (item) => <div className="font-medium">{item.nombre}</div>,
     },
     {
       key: 'correo',
       header: 'Email',
       sortable: true,
       width: '14%',
-      render: (item) => (
-        <div className="text-sm">{item.correo}</div>
-      ),
+      render: (item) => <div className="text-sm">{item.correo}</div>,
     },
     {
       key: 'fechaInicio',
@@ -177,7 +174,7 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
       width: '12%',
       render: (item) => (
         <div className="text-sm">
-          {item.fechaInicio ? format(new Date(item.fechaInicio), 'dd \'de\' MMMM \'del\' yyyy', { locale: es }) : '-'}
+          {item.fechaInicio ? format(new Date(item.fechaInicio), "dd 'de' MMMM 'del' yyyy", { locale: es }) : '-'}
         </div>
       ),
     },
@@ -189,7 +186,7 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
       width: '12%',
       render: (item) => (
         <div className="text-sm">
-          {item.fechaVencimiento ? format(new Date(item.fechaVencimiento), 'dd \'de\' MMMM \'del\' yyyy', { locale: es }) : '-'}
+          {item.fechaVencimiento ? format(new Date(item.fechaVencimiento), "dd 'de' MMMM 'del' yyyy", { locale: es }) : '-'}
         </div>
       ),
     },
@@ -208,12 +205,11 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
     },
     {
       key: 'fechaVencimiento',
-      header: 'Días Restantes',
+      header: 'Dias Restantes',
       sortable: true,
       align: 'center',
       width: '11%',
       render: (item) => {
-        // Si el servicio está inactivo, mostrar solo un guion
         if (!item.activo) {
           return <span className="text-muted-foreground">-</span>;
         }
@@ -249,26 +245,37 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
       render: (item) => {
         const ocupados = item.perfilesOcupados || 0;
         const disponibles = item.perfilesDisponibles || 0;
-        // Si el servicio está inactivo, mostrar 0 perfiles disponibles
-        const libres = !item.activo ? 0 : (disponibles - ocupados);
-        const icons = [];
-        for (let i = 0; i < disponibles; i++) {
-          // Si el servicio está inactivo, todos los iconos son grises
-          const iconColor = !item.activo ? 'text-gray-600' : (i < ocupados ? 'text-red-500' : 'text-green-500');
-          icons.push(
-            <User
-              key={i}
-              className={`h-4 w-4 ${iconColor}`}
-            />
-          );
-        }
+        const libres = !item.activo ? 0 : Math.max(disponibles - ocupados, 0);
+        const indicatorStates = getProfileIndicatorStates(
+          disponibles,
+          ocupados,
+          item.activo,
+          PROFILE_ICON_LIMIT
+        );
+        const perfilesRestantes = Math.max(disponibles - indicatorStates.length, 0);
+
         return (
           <div className="flex flex-col items-center gap-1">
             <div className="flex items-center gap-0.5">
-              {icons}
+              {indicatorStates.map((state, index) => {
+                const iconColor =
+                  state === 'inactive'
+                    ? 'text-gray-600'
+                    : state === 'occupied'
+                    ? 'text-red-500'
+                    : 'text-green-500';
+
+                return <User key={`${item.id}-indicator-${index}`} className={`h-4 w-4 ${iconColor}`} />;
+              })}
+              {perfilesRestantes > 0 && (
+                <span className="ml-1 text-[11px] font-medium text-muted-foreground">+{perfilesRestantes}</span>
+              )}
             </div>
             <span className="text-xs text-muted-foreground">
-              <span className={libres === 0 ? 'text-red-600 font-medium' : 'text-green-600 font-medium'}>{libres}</span>/{disponibles} disponibles
+              <span className={`font-medium ${libres > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {libres}
+              </span>
+              <span>/{disponibles} disponibles</span>
             </span>
           </div>
         );
@@ -386,7 +393,7 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
         onOpenChange={setDeleteDialogOpen}
         onConfirm={handleConfirmDelete}
         title="Eliminar Servicio"
-        description={`¿Estás seguro de que quieres eliminar el servicio "${servicioToDelete?.nombre}"? Esta acción no se puede deshacer.`}
+        description={`Estas seguro de que quieres eliminar el servicio "${servicioToDelete?.nombre}"? Esta accion no se puede deshacer.`}
         confirmText="Eliminar"
         variant="danger"
       >
@@ -399,12 +406,12 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
           <div className="grid gap-1.5 leading-none">
             <Label
               htmlFor="delete-payments"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+              className="cursor-pointer text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
-              Eliminar también los registros de pago
+              Eliminar tambien los registros de pago
             </Label>
             <p className="text-sm text-muted-foreground">
-              Al marcar esta opción, se eliminarán todos los registros de pago de la base de datos. Si no se marca, se conservarán para historial.
+              Al marcar esta opcion, se eliminaran todos los registros de pago de la base de datos. Si no se marca, se conservaran para historial.
             </p>
           </div>
         </div>

@@ -29,6 +29,10 @@ import { addMonths, addDays } from 'date-fns';
 import { CURRENCY_SYMBOLS, CYCLE_MONTHS } from '@/lib/constants';
 import { usePagosServicio } from '@/hooks/use-pagos-servicio';
 import { update, getCount, COLLECTIONS } from '@/lib/firebase/firestore';
+import {
+  PROFILE_PREVIEW_FULL_RENDER_LIMIT,
+  getProfilePreviewSample,
+} from '@/lib/utils/perfiles';
 
 const servicioSchema = z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
@@ -152,6 +156,12 @@ export function ServicioForm({ servicio, returnTo = '/servicios' }: ServicioForm
   const fechaVencimientoValue = watch('fechaVencimiento');
   const estadoValue = watch('estado');
   const notasValue = watch('notas');
+  const perfilesPreviewTotal = Math.max(Number(perfilesDisponiblesValue) || 0, 0);
+  const perfilesPreviewSample = useMemo(
+    () => getProfilePreviewSample(perfilesPreviewTotal, PROFILE_PREVIEW_FULL_RENDER_LIMIT),
+    [perfilesPreviewTotal]
+  );
+  const hasAdditionalProfiles = perfilesPreviewTotal > PROFILE_PREVIEW_FULL_RENDER_LIMIT;
 
 
   // Detectar si hay cambios en el formulario
@@ -822,14 +832,7 @@ export function ServicioForm({ servicio, returnTo = '/servicios' }: ServicioForm
                 id="perfiles"
                 type="text"
                 inputMode="numeric"
-                {...register('perfilesDisponibles', {
-                  onChange: (e) => {
-                    const value = parseInt(e.target.value);
-                    if (!isNaN(value) && value > 15) {
-                      e.target.value = '15';
-                    }
-                  }
-                })}
+                {...register('perfilesDisponibles')}
                 placeholder="Ingrese la cantidad"
                 onKeyDown={(e) => {
                   const char = e.key;
@@ -943,18 +946,29 @@ export function ServicioForm({ servicio, returnTo = '/servicios' }: ServicioForm
               </p>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              {Array.from({ length: Number(perfilesDisponiblesValue) || 0 }).map((_, index) => (
-                <div
-                  key={index}
-                  className="flex flex-col items-center justify-center p-6 rounded-lg bg-green-100 border border-green-300 dark:bg-green-900/40 dark:border-green-700"
-                >
-                  <Users className="h-8 w-8 text-green-700 dark:text-white mb-2" />
-                  <span className="text-sm font-medium text-green-700 dark:text-white">Perfil {index + 1}</span>
-                  <span className="text-xs text-green-600 dark:text-green-400 mt-1">Disponible</span>
+            {perfilesPreviewTotal > 0 ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+                  {perfilesPreviewSample.map((numero) => (
+                    <div
+                      key={numero}
+                      className="flex flex-col items-center justify-center rounded-lg border border-green-300 bg-green-100 p-6 dark:border-green-700 dark:bg-green-900/40"
+                    >
+                      <Users className="mb-2 h-8 w-8 text-green-700 dark:text-white" />
+                      <span className="text-sm font-medium text-green-700 dark:text-white">Perfil {numero}</span>
+                      <span className="mt-1 text-xs text-green-600 dark:text-green-400">Disponible</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+                {hasAdditionalProfiles && (
+                  <div className="text-sm text-muted-foreground">
+                    <span className="font-medium text-foreground">
+                      +{Math.max(perfilesPreviewTotal - perfilesPreviewSample.length, 0)} perfiles adicionales
+                    </span>
+                  </div>
+                )}
+              </div>
+            ) : null}
 
             {/* Resumen del servicio */}
             <div className="p-5 bg-muted/50 rounded-lg space-y-4">

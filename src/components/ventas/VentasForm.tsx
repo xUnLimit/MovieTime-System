@@ -46,6 +46,13 @@ import {
   PENDING_USER_PAYMENT_ID,
   PENDING_USER_PAYMENT_NAME,
 } from '@/lib/utils/usuarioMetodoPago';
+import {
+  PROFILE_PAGE_SIZE,
+  getProfileNumbersForPage,
+  getProfilePageCount,
+  getProfilePageForNumber,
+  getProfilePageLabel,
+} from '@/lib/utils/perfiles';
 
 const ventaSchema = z.object({
   clienteId: z.string().min(1, 'Seleccione un cliente'),
@@ -169,6 +176,8 @@ export function VentasForm() {
   const [loadingPerfilesDetalle, setLoadingPerfilesDetalle] = useState(false);
   const [errorPerfilesDetalle, setErrorPerfilesDetalle] = useState<string | null>(null);
   const [serviciosWindowStart, setServiciosWindowStart] = useState(0);
+  const [perfilPage, setPerfilPage] = useState(0);
+  const [perfilSearch, setPerfilSearch] = useState('');
 
   const {
     register,
@@ -252,6 +261,8 @@ export function VentasForm() {
     setPrecio('');
     setDescuento('');
     setPerfilNumero('');
+    setPerfilPage(0);
+    setPerfilSearch('');
     setPerfilNombre('');
     setNotasItem('');
     setItemErrors({});
@@ -421,6 +432,25 @@ export function VentasForm() {
     return Math.max((servicio.perfilesDisponibles || 0) - ocupadosActual - ocupadosEnVenta, 0);
   };
 
+  const totalPerfilesServicioSeleccionado = servicioSeleccionado?.perfilesDisponibles || 0;
+  const perfilPageCount = useMemo(
+    () => getProfilePageCount(totalPerfilesServicioSeleccionado, PROFILE_PAGE_SIZE),
+    [totalPerfilesServicioSeleccionado]
+  );
+  const perfilesPaginaActual = useMemo(() => {
+    const numbers = getProfileNumbersForPage(
+      totalPerfilesServicioSeleccionado,
+      perfilPage,
+      PROFILE_PAGE_SIZE
+    );
+
+    return numbers.filter((numero) => {
+      const ocupado = perfilesUsados[servicioId]?.has(numero);
+      const ocupadoEnVentas = perfilesOcupadosVenta[servicioId]?.has(numero);
+      return !ocupado && !ocupadoEnVentas;
+    });
+  }, [perfilPage, perfilesOcupadosVenta, perfilesUsados, servicioId, totalPerfilesServicioSeleccionado]);
+
   const getDisponiblesColorClass = (disponibles: number, total: number) => {
     if (total <= 0) return 'text-muted-foreground';
     const ratio = disponibles / total;
@@ -443,12 +473,30 @@ export function VentasForm() {
     scrollServiciosDropdown(e.deltaY > 0 ? 'down' : 'up');
   }, [scrollServiciosDropdown]);
 
+  useEffect(() => {
+    setPerfilPage((prev) => Math.min(prev, Math.max(perfilPageCount - 1, 0)));
+  }, [perfilPageCount]);
+
+  const handlePerfilSearchChange = (value: string) => {
+    const sanitized = value.replace(/\D/g, '');
+    setPerfilSearch(sanitized);
+
+    if (!sanitized) {
+      setPerfilPage(0);
+      return;
+    }
+
+    const numero = Number(sanitized);
+    if (numero >= 1 && numero <= totalPerfilesServicioSeleccionado) {
+      setPerfilPage(getProfilePageForNumber(numero, PROFILE_PAGE_SIZE));
+    }
+  };
+
   const handleOpenPerfilDetalle = useCallback(async (servicio: Servicio) => {
     setServicioDetalle(servicio);
     setPerfilDetalleOpen(true);
     setLoadingPerfilesDetalle(true);
     setErrorPerfilesDetalle(null);
-
     try {
       const ventas = await queryDocuments<VentaDoc>(COLLECTIONS.VENTAS, [
         { field: 'servicioId', operator: '==', value: servicio.id },
@@ -512,12 +560,13 @@ export function VentasForm() {
     return map;
   }, [perfilesOcupadosDetalle]);
 
+  const totalPerfilesDetalle = Math.max(servicioDetalle?.perfilesDisponibles || 0, 0);
+  const detallePerfilNumbers = useMemo(
+    () => Array.from({ length: totalPerfilesDetalle }, (_, index) => index + 1),
+    [totalPerfilesDetalle]
+  );
   const perfilesDetalleVisual = useMemo<PerfilDetalleVisual[]>(() => {
-    if (!servicioDetalle) return [];
-    const total = Math.max(servicioDetalle.perfilesDisponibles || 0, 0);
-
-    return Array.from({ length: total }, (_, i) => {
-      const numero = i + 1;
+    return detallePerfilNumbers.map((numero) => {
       const pendiente = perfilesPendientesDetalle.get(numero);
       const ocupado = perfilesOcupadosDetalleMap.get(numero);
 
@@ -543,20 +592,18 @@ export function VentasForm() {
         perfilNombre: `Perfil ${numero}`,
       };
     });
-  }, [servicioDetalle, perfilesPendientesDetalle, perfilesOcupadosDetalleMap]);
+  }, [detallePerfilNumbers, perfilesPendientesDetalle, perfilesOcupadosDetalleMap]);
 
   const resumenPerfilesDetalle = useMemo(() => {
-    return perfilesDetalleVisual.reduce(
-      (acc, perfil) => {
-        acc.total += 1;
-        if (perfil.estado === 'pendiente') acc.pendientes += 1;
-        if (perfil.estado === 'ocupado') acc.ocupados += 1;
-        if (perfil.estado === 'disponible') acc.disponibles += 1;
-        return acc;
-      },
-      { total: 0, disponibles: 0, ocupados: 0, pendientes: 0 }
-    );
-  }, [perfilesDetalleVisual]);
+    const pendientes = Array.from(perfilesPendientesDetalle.keys());
+    const ocupados = Array.from(perfilesOcupadosDetalleMap.keys()).filter((numero) => !perfilesPendientesDetalle.has(numero));
+    return {
+      total: totalPerfilesDetalle,
+      pendientes: pendientes.length,
+      ocupados: ocupados.length,
+      disponibles: Math.max(totalPerfilesDetalle - pendientes.length - ocupados.length, 0),
+    };
+  }, [perfilesOcupadosDetalleMap, perfilesPendientesDetalle, totalPerfilesDetalle]);
 
   const simboloMoneda = getCurrencySymbol(metodoPagoSeleccionado?.moneda);
   const precioBase = roundToDecimals(Number(precio) || 0);
@@ -1149,7 +1196,7 @@ export function VentasForm() {
                                 >
                                   <span className="min-w-0 flex-1 truncate">{servicio.nombre} - {servicio.correo}</span>
                                   <span
-                                    className="w-[68px] shrink-0 text-left text-xs tabular-nums text-foreground"
+                                    className="w-[112px] shrink-0 whitespace-nowrap pr-1 text-right text-xs tabular-nums text-foreground"
                                   >
                                     <span className={cn('font-extrabold', getDisponiblesColorClass(perfilesDisponibles, totalPerfiles))}>
                                       {perfilesDisponibles}
@@ -1265,25 +1312,61 @@ export function VentasForm() {
                         <ChevronDown className="h-4 w-4 opacity-50" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                      {Array.from({ length: servicioSeleccionado?.perfilesDisponibles || 0 }, (_, index) => {
-                        const numero = index + 1;
-                        if (getSlotsDisponibles(servicioId) <= 0) return null;
-                        const ocupado = perfilesUsados[servicioId]?.has(numero);
-                        const ocupadoEnVentas = perfilesOcupadosVenta[servicioId]?.has(numero);
-                        if (ocupado || ocupadoEnVentas) return null;
-                        return (
-                          <DropdownMenuItem
-                            key={numero}
-                            onClick={() => {
-                              setPerfilNumero(String(numero));
-                              setItemErrors((prev) => ({ ...prev, perfil: undefined }));
-                            }}
+                    <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)] p-0">
+                      <div className="space-y-2 p-2">
+                        <Input
+                          value={perfilSearch}
+                          onChange={(event) => handlePerfilSearchChange(event.target.value)}
+                          placeholder="Ir al perfil"
+                          inputMode="numeric"
+                        />
+                        <div className="flex items-center justify-between gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-8 px-2 text-xs"
+                            onClick={() => setPerfilPage((prev) => Math.max(prev - 1, 0))}
+                            disabled={perfilPage === 0}
                           >
-                            Perfil {numero}
-                          </DropdownMenuItem>
-                        );
-                      })}
+                            Anterior
+                          </Button>
+                          <span className="text-xs text-muted-foreground">
+                            {getProfilePageLabel(totalPerfilesServicioSeleccionado, perfilPage, PROFILE_PAGE_SIZE)}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-8 px-2 text-xs"
+                            onClick={() => setPerfilPage((prev) => Math.min(prev + 1, perfilPageCount - 1))}
+                            disabled={perfilPage >= perfilPageCount - 1}
+                          >
+                            Siguiente
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="max-h-60 overflow-y-auto border-t p-1">
+                        {getSlotsDisponibles(servicioId) <= 0 ? (
+                          <p className="px-2 py-3 text-xs text-muted-foreground">No hay perfiles disponibles.</p>
+                        ) : perfilesPaginaActual.length === 0 ? (
+                          <p className="px-2 py-3 text-xs text-muted-foreground">No hay perfiles libres en este bloque.</p>
+                        ) : (
+                          perfilesPaginaActual.map((numero) => (
+                            <DropdownMenuItem
+                              key={numero}
+                              onClick={() => {
+                                setPerfilNumero(String(numero));
+                                setPerfilSearch(String(numero));
+                                setPerfilPage(getProfilePageForNumber(numero, PROFILE_PAGE_SIZE));
+                                setItemErrors((prev) => ({ ...prev, perfil: undefined }));
+                              }}
+                            >
+                              Perfil {numero}
+                            </DropdownMenuItem>
+                          ))
+                        )}
+                      </div>
                     </DropdownMenuContent>
                   </DropdownMenu>
                   {itemErrors.perfil && <p className="text-sm text-red-500">{itemErrors.perfil}</p>}
@@ -1705,15 +1788,17 @@ export function VentasForm() {
           }
         }}
       >
-        <DialogContent className="max-w-2xl p-0 overflow-hidden">
-          <DialogHeader className="px-6 pr-14 pt-6 pb-3 border-b">
-            <DialogTitle className="flex items-center justify-between gap-4">
-              <span className="truncate">Perfiles de {servicioDetalle?.nombre || 'Servicio'}</span>
-              <span className="text-xs sm:text-sm font-normal text-muted-foreground whitespace-nowrap">
+        <DialogContent className="max-w-2xl overflow-hidden p-0">
+          <DialogHeader className="border-b px-6 pb-2 pt-5 pr-20">
+            <DialogTitle className="flex items-start justify-between gap-3">
+              <span className="min-w-0 pr-2 text-base leading-tight whitespace-normal break-words">
+                Perfiles de {servicioDetalle?.nombre || 'Servicio'}
+              </span>
+              <span className="shrink-0 text-xs font-normal text-muted-foreground sm:text-sm">
                 {resumenPerfilesDetalle.total} perfiles registrados
               </span>
             </DialogTitle>
-            <p className="text-xs text-muted-foreground">
+            <p className="mt-0.5 text-xs text-muted-foreground">
               {servicioDetalle?.correo || 'Sin correo'} - {resumenPerfilesDetalle.disponibles} de {resumenPerfilesDetalle.total} Disponibles
             </p>
           </DialogHeader>

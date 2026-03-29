@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
+import { PROFILE_ICON_LIMIT, getProfileIndicatorStates } from '@/lib/utils/perfiles';
 
 interface ServiciosCategoriaTableProps {
   servicios: Servicio[];
@@ -78,7 +79,7 @@ export function ServiciosCategoriaTable({ servicios }: ServiciosCategoriaTablePr
               <TableHead>Fecha de Inicio</TableHead>
               <TableHead>Fecha de Vencimiento</TableHead>
               <TableHead>Costo</TableHead>
-              <TableHead>Días Restantes</TableHead>
+              <TableHead>Dias Restantes</TableHead>
               <TableHead>Renovaciones</TableHead>
               <TableHead>Perfiles</TableHead>
               <TableHead>Estado</TableHead>
@@ -97,8 +98,15 @@ export function ServiciosCategoriaTable({ servicios }: ServiciosCategoriaTablePr
                 const diasRestantes = calcularDiasRestantes(servicio.fechaVencimiento);
                 const badgeColor = getBadgeColor(diasRestantes);
                 const perfilesOcupados = servicio.perfilesOcupados || 0;
-                // Si el servicio está inactivo, mostrar 0 perfiles disponibles
-                const perfilesLibres = !servicio.activo ? 0 : (servicio.perfilesDisponibles - perfilesOcupados);
+                const perfilesTotales = servicio.perfilesDisponibles || 0;
+                const perfilesLibres = !servicio.activo ? 0 : Math.max(perfilesTotales - perfilesOcupados, 0);
+                const indicatorStates = getProfileIndicatorStates(
+                  perfilesTotales,
+                  perfilesOcupados,
+                  servicio.activo,
+                  PROFILE_ICON_LIMIT
+                );
+                const perfilesRestantes = Math.max(perfilesTotales - indicatorStates.length, 0);
 
                 return (
                   <TableRow key={servicio.id}>
@@ -117,7 +125,7 @@ export function ServiciosCategoriaTable({ servicios }: ServiciosCategoriaTablePr
                     <TableCell className="font-medium">${servicio.costoServicio * servicio.perfilesDisponibles}</TableCell>
                     <TableCell>
                       <Badge variant={badgeColor}>
-                        {diasRestantes < 0 ? `Vencido` : `${diasRestantes} días restantes`}
+                        {diasRestantes < 0 ? 'Vencido' : `${diasRestantes} dias restantes`}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-center">
@@ -129,27 +137,44 @@ export function ServiciosCategoriaTable({ servicios }: ServiciosCategoriaTablePr
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <div className="flex -space-x-2">
-                          {Array.from({ length: servicio.perfilesDisponibles }).map((_, i) => {
-                            const isOcupado = i < perfilesOcupados;
-                            // Si el servicio está inactivo, todos los iconos son grises
-                            const iconColor = !servicio.activo ? 'bg-gray-600' : (isOcupado ? 'bg-red-600' : 'bg-green-600');
+                          {indicatorStates.map((state, index) => {
+                            const iconColor =
+                              state === 'inactive'
+                                ? 'bg-gray-600'
+                                : state === 'occupied'
+                                ? 'bg-red-600'
+                                : 'bg-green-600';
+
                             return (
                               <div
-                                key={i}
-                                className={`w-6 h-6 rounded-full border-2 border-background flex items-center justify-center ${iconColor}`}
+                                key={`${servicio.id}-indicator-${index}`}
+                                className={`flex h-6 w-6 items-center justify-center rounded-full border-2 border-background ${iconColor}`}
                               >
                                 <Users className="h-3 w-3 text-white" />
                               </div>
                             );
                           })}
                         </div>
-                        <span className="text-xs text-muted-foreground">
-                          <span className={perfilesLibres === 0 ? 'text-red-600 font-medium' : 'text-green-600 font-medium'}>{perfilesLibres}</span>/{servicio.perfilesDisponibles} disponibles
-                        </span>
+                        {perfilesRestantes > 0 && (
+                          <span className="text-[11px] font-medium text-muted-foreground">+{perfilesRestantes}</span>
+                        )}
+                        <div className="text-xs leading-tight text-muted-foreground">
+                          <span className={`font-medium ${perfilesLibres > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {perfilesLibres}
+                          </span>
+                          <span>/{perfilesTotales} disponibles</span>
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={servicio.activo ? 'border-green-500/50 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300'}>
+                      <Badge
+                        variant="outline"
+                        className={
+                          servicio.activo
+                            ? 'border-green-500/50 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300'
+                            : 'border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300'
+                        }
+                      >
                         {servicio.activo ? 'Activo' : 'Inactivo'}
                       </Badge>
                     </TableCell>
@@ -165,7 +190,11 @@ export function ServiciosCategoriaTable({ servicios }: ServiciosCategoriaTablePr
                             <Eye className="h-4 w-4 mr-2" />
                             Ver detalles
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => router.push(`/servicios/${servicio.id}/editar?from=/servicios/${servicio.categoriaId}`)}>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              router.push(`/servicios/${servicio.id}/editar?from=/servicios/${servicio.categoriaId}`)
+                            }
+                          >
                             <Edit className="h-4 w-4 mr-2" />
                             Editar
                           </DropdownMenuItem>
