@@ -21,7 +21,6 @@ import {
 } from 'recharts';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, eachMonthOfInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { useTheme } from 'next-themes';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { IngresosMes, IngresosDia } from '@/types/dashboard';
@@ -35,14 +34,11 @@ interface DiaData {
 export function IngresosVsGastosChart() {
   const [selectedMonth, setSelectedMonth] = useState('actual');
   const { stats, isLoading } = useDashboardStore();
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
-
-  const axisColor = isDark ? '#a1a1aa' : '#71717a';
-  const gridColor = isDark ? '#27272a' : '#e4e4e7';
-  const tooltipBg = isDark ? '#09090b' : '#ffffff';
-  const tooltipBorder = isDark ? '#3f3f46' : '#e4e4e7';
-  const tooltipText = isDark ? '#ffffff' : '#18181b';
+  const axisColor = 'var(--muted-foreground)';
+  const gridColor = 'var(--border)';
+  const tooltipBg = 'var(--background)';
+  const tooltipBorder = 'var(--border)';
+  const tooltipText = 'var(--foreground)';
 
   const data = useMemo((): DiaData[] => {
     const ingresosPorMes: IngresosMes[] = stats?.ingresosPorMes ?? [];

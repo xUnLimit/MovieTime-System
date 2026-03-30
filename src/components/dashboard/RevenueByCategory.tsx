@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useTheme } from 'next-themes';
+import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   BarChart,
@@ -13,6 +12,7 @@ import {
   Cell,
   LabelList,
 } from 'recharts';
+import type { LabelProps } from 'recharts';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { useDashboardFilterStore } from '@/store/dashboardFilterStore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -26,30 +26,16 @@ const COLORS = [
   '#f59e0b', // amber
   '#14b8a6', // teal
 ];
+const NEGATIVE_COLOR = '#dc2626';
 
 export function RevenueByCategory() {
   const { stats, isLoading } = useDashboardStore();
   const { selectedYear } = useDashboardFilterStore();
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
-  const prevThemeRef = useRef(resolvedTheme);
-  const [animationActive, setAnimationActive] = useState(true);
-
-  useEffect(() => {
-    if (prevThemeRef.current !== resolvedTheme) {
-      prevThemeRef.current = resolvedTheme;
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setAnimationActive(false);
-      const t = setTimeout(() => setAnimationActive(true), 50);
-      return () => clearTimeout(t);
-    }
-  }, [resolvedTheme]);
-
-  const axisColor = isDark ? '#a1a1aa' : '#71717a';
-  const labelColor = isDark ? '#ffffff' : '#18181b';
-  const tooltipBg = isDark ? '#09090b' : '#ffffff';
-  const tooltipBorder = isDark ? '#3f3f46' : '#e4e4e7';
-  const tooltipText = isDark ? '#ffffff' : '#18181b';
+  const axisColor = 'var(--muted-foreground)';
+  const labelColor = 'var(--foreground)';
+  const tooltipBg = 'var(--background)';
+  const tooltipBorder = 'var(--border)';
+  const tooltipText = 'var(--foreground)';
 
   const { data, hasData } = useMemo(() => {
     const cutoff = `${selectedYear}-01`;
@@ -94,6 +80,36 @@ export function RevenueByCategory() {
     return { data, hasData };
   }, [stats, selectedYear]);
 
+  const renderRentabilidadLabel = (props: LabelProps) => {
+    const xNum = Number(props.x);
+    const yNum = Number(props.y);
+    const widthNum = Number(props.width);
+    const heightNum = Number(props.height);
+    const numericValue = typeof props.value === 'number' ? props.value : Number(props.value ?? 0);
+    if (!Number.isFinite(xNum) || !Number.isFinite(yNum) || !Number.isFinite(widthNum) || !Number.isFinite(heightNum)) {
+      return '';
+    }
+    const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
+    const isNegative = safeValue < 0;
+
+    const barEnd = Math.max(xNum, xNum + widthNum);
+    const barStart = Math.min(xNum, xNum + widthNum);
+    const labelX = isNegative ? barStart - 6 : barEnd + 6;
+    const labelY = yNum + heightNum / 2 + 4;
+
+    return (
+      <text
+        x={labelX}
+        y={labelY}
+        fill={isNegative ? NEGATIVE_COLOR : labelColor}
+        fontSize={11}
+        textAnchor={isNegative ? 'end' : 'start'}
+      >
+        {`$${safeValue.toLocaleString()}`}
+      </text>
+    );
+  };
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -130,6 +146,7 @@ export function RevenueByCategory() {
                 fontSize={11}
                 tickLine={false}
                 axisLine={false}
+                interval={0}
                 width={90}
                 tick={{ fill: labelColor }}
               />
@@ -148,20 +165,20 @@ export function RevenueByCategory() {
               <Bar
                 dataKey="rentabilidad"
                 radius={[0, 12, 12, 0]}
-                isAnimationActive={animationActive}
-                animationDuration={1000}
+                isAnimationActive
+                animationDuration={900}
                 animationEasing="ease-out"
                 barSize={20}
               >
                 {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={entry.rentabilidad < 0 ? NEGATIVE_COLOR : COLORS[index % COLORS.length]}
+                  />
                 ))}
                 <LabelList
                   dataKey="rentabilidad"
-                  position="right"
-                  formatter={(value) => `$${value ?? 0}`}
-                  fill={labelColor}
-                  fontSize={11}
+                  content={renderRentabilidadLabel}
                 />
               </Bar>
             </BarChart>
