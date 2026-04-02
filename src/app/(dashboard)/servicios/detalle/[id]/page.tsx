@@ -1,13 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ArrowLeft, Pencil, Trash2, RefreshCw, User, ChevronDown, DollarSign, Monitor, Calendar, Tag, Lock, ExternalLink } from 'lucide-react';
 import { useServiciosStore } from '@/store/serviciosStore';
@@ -38,12 +37,6 @@ import { useActivityLogStore } from '@/store/activityLogStore';
 import { useAuthStore } from '@/store/authStore';
 import { adjustGastosStats, getMesKeyFromDate, getDiaKeyFromDate, upsertServicioPronostico } from '@/lib/services/dashboardStatsService';
 import { useNotificacionesStore } from '@/store/notificacionesStore';
-import {
-  PROFILE_PAGE_SIZE,
-  getProfilePageCount,
-  getProfileNumbersForPage,
-  getProfilePageLabel,
-} from '@/lib/utils/perfiles';
 
 interface PerfilVenta {
   ventaId?: string;
@@ -100,11 +93,7 @@ function ServicioDetallePageContent() {
   const [pagoToEdit, setPagoToEdit] = useState<PagoServicio | null>(null);
   const [renovarDialogOpen, setRenovarDialogOpen] = useState(false);
   const [ventasServicio, setVentasServicio] = useState<Array<PerfilVenta & { perfilNumero?: number | null }>>([]);
-  const [expandedProfileNumber, setExpandedProfileNumber] = useState<number | null>(null);
-  const [profilePage, setProfilePage] = useState(0);
-  const [profileSearch, setProfileSearch] = useState('');
-  const additionalInfoCardRef = useRef<HTMLDivElement | null>(null);
-  const [profilesCardMinHeight, setProfilesCardMinHeight] = useState<number | null>(null);
+  const [expandedProfileIndex, setExpandedProfileIndex] = useState<number | null>(null);
 
   // Usar el hook para cargar pagos (con cache)
   const { pagos: pagosServicio, isLoading: pagosHistorialLoading, renovaciones, refresh: refreshPagos } = usePagosServicio(id);
@@ -553,21 +542,12 @@ function ServicioDetallePageContent() {
     return map;
   }, [ventasServicio]);
 
-  const totalPerfilesServicio = servicio?.perfilesDisponibles ?? 0;
-  const servicioActivo = !!servicio?.activo;
-  const profilePageCount = useMemo(
-    () => getProfilePageCount(totalPerfilesServicio, PROFILE_PAGE_SIZE),
-    [totalPerfilesServicio]
-  );
-  const profileNumbers = useMemo(
-    () => getProfileNumbersForPage(totalPerfilesServicio, profilePage, PROFILE_PAGE_SIZE),
-    [profilePage, totalPerfilesServicio]
-  );
   const perfilesArray = useMemo(
     () =>
-      profileNumbers.map((numero) => {
+      Array.from({ length: servicio?.perfilesDisponibles ?? 0 }, (_, i) => {
+        const numero = i + 1;
         const venta = ventasPorPerfil.get(numero);
-        const estado = !servicioActivo ? 'inactivo' : (venta ? 'ocupado' : 'disponible');
+        const estado = !servicio?.activo ? 'inactivo' : (venta ? 'ocupado' : 'disponible');
         return {
           numero,
           nombre: `Perfil ${numero}`,
@@ -576,83 +556,20 @@ function ServicioDetallePageContent() {
           venta,
         };
       }),
-    [profileNumbers, servicioActivo, ventasPorPerfil]
+    [servicio?.activo, servicio?.perfilesDisponibles, ventasPorPerfil]
   );
-  const perfilesEnUso = servicioActivo ? ventasPorPerfil.size : 0;
-  const perfilesDisponibles = servicioActivo ? Math.max(totalPerfilesServicio - perfilesEnUso, 0) : 0;
-  const normalizedProfileSearch = profileSearch.trim().toLowerCase();
-  const isSearchingProfiles = normalizedProfileSearch.length > 0;
-  const searchedPerfilesArray = useMemo(
-    () =>
-      Array.from(ventasPorPerfil.entries())
-        .map(([numero, venta]) => ({
-          numero,
-          nombre: `Perfil ${numero}`,
-          estado: !servicioActivo ? 'inactivo' : 'ocupado',
-          clienteNombre: venta?.clienteNombre,
-          venta,
-        }))
-        .filter((perfil) => (perfil.clienteNombre || '').toLowerCase().includes(normalizedProfileSearch))
-        .sort((a, b) => a.numero - b.numero),
-    [normalizedProfileSearch, servicioActivo, ventasPorPerfil]
-  );
-  const visiblePerfiles = isSearchingProfiles ? searchedPerfilesArray : perfilesArray;
-  const visibleProfileNumbers = useMemo(
-    () => visiblePerfiles.map((perfil) => perfil.numero),
-    [visiblePerfiles]
-  );
-  const profileStatusLabel = isSearchingProfiles
-    ? `${searchedPerfilesArray.length} resultado${searchedPerfilesArray.length === 1 ? '' : 's'}`
-    : getProfilePageLabel(totalPerfilesServicio, profilePage, PROFILE_PAGE_SIZE);
+  const perfilesEnUso = perfilesArray.filter((p: { estado: string }) => p.estado === 'ocupado').length;
+  const perfilesDisponibles = (servicio?.perfilesDisponibles ?? 0) - perfilesEnUso;
 
   useEffect(() => {
-    setProfilePage((prev) => Math.min(prev, Math.max(profilePageCount - 1, 0)));
-  }, [profilePageCount]);
-
-  useEffect(() => {
-    if (expandedProfileNumber === null) return;
-    if (!visibleProfileNumbers.includes(expandedProfileNumber)) {
-      setExpandedProfileNumber(null);
+    if (expandedProfileIndex === null) return;
+    if (expandedProfileIndex >= perfilesArray.length) {
+      setExpandedProfileIndex(null);
     }
-  }, [expandedProfileNumber, visibleProfileNumbers]);
+  }, [expandedProfileIndex, perfilesArray.length]);
 
-  useEffect(() => {
-    const additionalInfoCard = additionalInfoCardRef.current;
-    if (!additionalInfoCard || typeof window === 'undefined') return;
-
-    const syncProfilesHeight = () => {
-      if (window.innerWidth >= 1024) {
-        setProfilesCardMinHeight(additionalInfoCard.offsetHeight);
-        return;
-      }
-
-      setProfilesCardMinHeight(null);
-    };
-
-    syncProfilesHeight();
-
-    const resizeObserver =
-      typeof ResizeObserver !== 'undefined'
-        ? new ResizeObserver(() => {
-            syncProfilesHeight();
-          })
-        : null;
-
-    resizeObserver?.observe(additionalInfoCard);
-    window.addEventListener('resize', syncProfilesHeight);
-
-    return () => {
-      resizeObserver?.disconnect();
-      window.removeEventListener('resize', syncProfilesHeight);
-    };
-  }, [servicio?.id]);
-
-  const handleProfileSearchChange = (value: string) => {
-    setProfileSearch(value);
-  };
-
-  const toggleProfile = (profileNumber: number) => {
-    setExpandedProfileNumber((prev) => (prev === profileNumber ? null : profileNumber));
+  const toggleProfile = (index: number) => {
+    setExpandedProfileIndex((prev) => (prev === index ? null : index));
   };
 
   // Estado de carga
@@ -701,41 +618,6 @@ function ServicioDetallePageContent() {
       </div>
     );
   }
-
-  // Generar perfiles dinámicamente
-  const legacyProfilePageCount = getProfilePageCount(servicio.perfilesDisponibles, PROFILE_PAGE_SIZE);
-  const legacyProfileNumbers = getProfileNumbersForPage(servicio.perfilesDisponibles, profilePage, PROFILE_PAGE_SIZE);
-  const legacyPerfilesArray = legacyProfileNumbers.map((numero) => {
-    const venta = ventasPorPerfil.get(numero);
-    // Si el servicio está inactivo, todos los perfiles se muestran como inactivos
-    const estado = !servicio.activo ? 'inactivo' : (venta ? 'ocupado' : 'disponible');
-    return {
-      numero,
-      nombre: `Perfil ${numero}`,
-      estado,
-      clienteNombre: venta?.clienteNombre,
-      venta,
-    };
-  });
-
-  const legacyPerfilesEnUso = servicio.activo ? ventasPorPerfil.size : 0;
-  const legacyPerfilesDisponibles = servicio.activo ? Math.max(servicio.perfilesDisponibles - legacyPerfilesEnUso, 0) : 0;
-
-  void legacyProfilePageCount;
-  void legacyProfileNumbers;
-  void legacyPerfilesArray;
-  void legacyPerfilesEnUso;
-  void legacyPerfilesDisponibles;
-
-  const legacyHandleProfileSearchChange = (value: string) => {
-    void value;
-  };
-
-  const legacyToggleProfile = (profileNumber: number) => {
-    setExpandedProfileNumber((prev) => (prev === profileNumber ? null : profileNumber));
-  };
-  void legacyHandleProfileSearchChange;
-  void legacyToggleProfile;
 
   const returnToServicios = (() => {
     if (from && from.startsWith('/servicios/')) return from;
@@ -920,77 +802,36 @@ function ServicioDetallePageContent() {
                 </div>
               </div>
             </Card>
+
+            {/* Notes Card */}
+            <Card className="p-6">
+              <h2 className="text-lg font-semibold">Notas</h2>
+              <p className="text-sm text-muted-foreground whitespace-pre-line">
+                {servicio.notas || 'Sin notas'}
+              </p>
+            </Card>
           </div>
 
           {/* Right Column - Profiles */}
-          <div>
+          <div className="space-y-4">
             {/* Profiles Card */}
             <Card
-              className="flex h-full flex-col overflow-hidden px-0 pt-0 pb-3"
-              style={profilesCardMinHeight ? { minHeight: `${profilesCardMinHeight}px` } : undefined}
+              className="h-full p-6"
             >
-              <div className="border-b border-border px-6 py-4">
-                <div className="flex items-start justify-between gap-4">
-                  <h2 className="text-lg font-semibold">Perfiles</h2>
-                  <p className="text-sm text-muted-foreground">{servicio.perfilesDisponibles} perfiles registrados</p>
-                </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {servicio.correo || 'Sin correo'}
-                  {' - '}
-                  {servicio.activo
-                    ? `${perfilesDisponibles} de ${servicio.perfilesDisponibles} disponibles`
-                    : 'Servicio inactivo'}
-                </p>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold">Perfiles</h2>
+                <p className="text-sm text-muted-foreground">{servicio.perfilesDisponibles} perfiles registrados</p>
               </div>
 
-              <div className="flex flex-1 flex-col px-6 py-4">
-                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setProfilePage((prev) => Math.max(prev - 1, 0))}
-                      disabled={isSearchingProfiles || profilePage === 0}
-                    >
-                      Anterior
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setProfilePage((prev) => Math.min(prev + 1, profilePageCount - 1))}
-                      disabled={isSearchingProfiles || profilePage >= profilePageCount - 1}
-                    >
-                      Siguiente
-                    </Button>
-                  </div>
-                  <div className="flex w-full flex-col gap-1 sm:w-56 sm:items-end">
-                    <Input
-                      value={profileSearch}
-                      onChange={(event) => handleProfileSearchChange(event.target.value)}
-                      placeholder="Buscar por persona"
-                      className="w-full"
-                    />
-                    <span className="text-sm text-muted-foreground">
-                      {isSearchingProfiles ? profileStatusLabel : `${profileStatusLabel} perfiles`}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                {visiblePerfiles.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
-                    No se encontró ningún perfil con ese nombre.
-                  </div>
-                ) : visiblePerfiles.map((perfil) => {
+              <div className="space-y-2">
+                {perfilesArray.map((perfil, index) => {
                   const venta = perfil.venta;
                   const ventaCurrency = getCurrencySymbol(venta?.moneda || metodoPago?.moneda);
                   const diasRestantes =
                     venta?.fechaFin ? Math.ceil((new Date(venta.fechaFin).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
                   return (
                   <div
-                    key={perfil.numero}
+                    key={index}
                     className={`rounded-lg border px-4 py-3 ${
                       perfil.estado === 'ocupado' ? 'bg-green-950/30 border-green-900/50' :
                       perfil.estado === 'inactivo' ? 'bg-muted/30 border-muted opacity-50' :
@@ -999,42 +840,38 @@ function ServicioDetallePageContent() {
                   >
                     <button
                       type="button"
-                      onClick={() => perfil.estado === 'ocupado' && toggleProfile(perfil.numero)}
-                      className="flex w-full items-start justify-between gap-4 text-left"
+                      onClick={() => perfil.estado === 'ocupado' && toggleProfile(index)}
+                      className="w-full flex items-center justify-between"
                       disabled={perfil.estado === 'inactivo'}
                     >
-                      <div className="min-w-0">
-                        <p className={`font-semibold ${perfil.estado === 'inactivo' ? 'text-gray-600' : ''}`}>
-                          {perfil.nombre}
-                        </p>
-                        <p className={`text-xs ${perfil.estado === 'inactivo' ? 'text-gray-600' : 'text-muted-foreground'}`}>
-                          {perfil.nombre}
-                        </p>
-                        {perfil.estado === 'ocupado' && perfil.clienteNombre && (
-                          <p className="mt-2 truncate text-sm font-medium">{perfil.clienteNombre}</p>
-                        )}
+                      <div className="flex items-center gap-3">
+                        <User className={`h-5 w-5 ${
+                          perfil.estado === 'ocupado' ? 'text-green-500' :
+                          perfil.estado === 'inactivo' ? 'text-gray-600' :
+                          'text-blue-500'
+                        }`} />
+                        <span className={`font-medium ${perfil.estado === 'inactivo' ? 'text-gray-600' : ''}`}>
+                          {perfil.estado === 'ocupado' && perfil.clienteNombre
+                            ? perfil.clienteNombre
+                            : perfil.nombre}
+                        </span>
                       </div>
-                      <div className="flex shrink-0 items-center gap-2">
+                      <div className="flex items-center gap-2">
                         {perfil.estado === 'inactivo' ? (
                           <Badge variant="secondary" className="bg-gray-200 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-700">
                             Inactivo
                           </Badge>
                         ) : perfil.estado === 'disponible' ? (
-                          <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-600 dark:text-white dark:hover:bg-blue-700">
+                          <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-600 dark:text-white dark:hover:bg-green-700">
                             Disponible
                           </Badge>
                         ) : (
-                          <>
-                            <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-600 dark:text-white dark:hover:bg-green-700">
-                              En uso
-                            </Badge>
-                            <ChevronDown className={`h-4 w-4 transition-transform ${expandedProfileNumber === perfil.numero ? 'rotate-180' : ''}`} />
-                          </>
+                          <ChevronDown className={`h-4 w-4 transition-transform ${expandedProfileIndex === index ? 'rotate-180' : ''}`} />
                         )}
                       </div>
                     </button>
 
-                    {perfil.estado === 'ocupado' && expandedProfileNumber === perfil.numero && venta && (
+                    {perfil.estado === 'ocupado' && expandedProfileIndex === index && venta && (
                       <div className="mt-4 space-y-3">
                         <div className="pt-3 border-t border-border">
                           <div className="flex items-center justify-between mb-2">
@@ -1139,7 +976,7 @@ function ServicioDetallePageContent() {
                 )})}
               </div>
 
-              <div className="mt-auto flex items-center justify-between pt-2 text-sm">
+              <div className="mt-4 flex items-center justify-between text-sm">
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-green-600"></div>
@@ -1160,25 +997,10 @@ function ServicioDetallePageContent() {
                   {servicio.activo ? `${perfilesDisponibles} de ${servicio.perfilesDisponibles} perfiles disponibles` : 'Servicio inactivo'}
                 </span>
               </div>
-              </div>
             </Card>
-          </div>
-          </div>
 
-          <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[380px_1fr]">
-            <div>
-              {/* Notes Card */}
-              <Card className="p-6">
-                <h2 className="text-lg font-semibold">Notas</h2>
-                <p className="text-sm text-muted-foreground whitespace-pre-line">
-                  {servicio.notas || 'Sin notas'}
-                </p>
-              </Card>
-            </div>
-
-            <div>
             {/* Payment History Card */}
-            <Card ref={additionalInfoCardRef} className="p-6">
+            <Card className="p-6">
               <div className="flex items-center gap-2">
                 <DollarSign className="h-5 w-5" />
                 <h2 className="text-lg font-semibold">Historial de pagos del servicio</h2>
