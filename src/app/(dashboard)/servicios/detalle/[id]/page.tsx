@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ArrowLeft, Pencil, Trash2, RefreshCw, User, ChevronDown, DollarSign, Monitor, Calendar, Tag, Lock, ExternalLink } from 'lucide-react';
 import { useServiciosStore } from '@/store/serviciosStore';
@@ -67,6 +68,8 @@ interface PagoFormData {
   moneda?: string;
 }
 
+const PROFILES_PAGE_SIZE = 10;
+
 function ServicioDetallePageContent() {
   const params = useParams();
   const router = useRouter();
@@ -93,7 +96,9 @@ function ServicioDetallePageContent() {
   const [pagoToEdit, setPagoToEdit] = useState<PagoServicio | null>(null);
   const [renovarDialogOpen, setRenovarDialogOpen] = useState(false);
   const [ventasServicio, setVentasServicio] = useState<Array<PerfilVenta & { perfilNumero?: number | null }>>([]);
-  const [expandedProfileIndex, setExpandedProfileIndex] = useState<number | null>(null);
+  const [expandedProfileNumber, setExpandedProfileNumber] = useState<number | null>(null);
+  const [profilePage, setProfilePage] = useState(0);
+  const [profileSearch, setProfileSearch] = useState('');
 
   // Usar el hook para cargar pagos (con cache)
   const { pagos: pagosServicio, isLoading: pagosHistorialLoading, renovaciones, refresh: refreshPagos } = usePagosServicio(id);
@@ -452,7 +457,7 @@ function ServicioDetallePageContent() {
         entidad: 'servicio',
         entidadId: id,
         entidadNombre: `${servicio?.nombre ?? id} [${servicio?.correo}]`,
-        detalles: `Servicio renovado: "${servicio?.nombre}" [${servicio?.correo}] — ${getCurrencySymbol(data.moneda)}${data.costo} — hasta ${format(data.fechaVencimiento, 'dd/MM/yyyy')} (${data.periodoRenovacion})`,
+        detalles: `Servicio renovado: "${servicio?.nombre}" [${servicio?.correo}] - ${getCurrencySymbol(data.moneda)}${data.costo} - hasta ${format(data.fechaVencimiento, 'dd/MM/yyyy')} (${data.periodoRenovacion})`,
       }).catch(() => {});
 
       // Remove notification and refresh store
@@ -560,16 +565,50 @@ function ServicioDetallePageContent() {
   );
   const perfilesEnUso = perfilesArray.filter((p: { estado: string }) => p.estado === 'ocupado').length;
   const perfilesDisponibles = (servicio?.perfilesDisponibles ?? 0) - perfilesEnUso;
+  const showProfileControls = (servicio?.perfilesDisponibles ?? 0) > PROFILES_PAGE_SIZE;
+  const normalizedProfileSearch = showProfileControls ? profileSearch.trim().toLowerCase() : '';
+  const filteredPerfiles = useMemo(
+    () =>
+      perfilesArray.filter((perfil) => {
+        if (!normalizedProfileSearch) return true;
+        const persona = (perfil.clienteNombre || '').toLowerCase();
+        const perfilLabel = perfil.nombre.toLowerCase();
+        return persona.includes(normalizedProfileSearch) || perfilLabel.includes(normalizedProfileSearch);
+      }),
+    [normalizedProfileSearch, perfilesArray]
+  );
+  const profilePageCount = Math.max(Math.ceil(filteredPerfiles.length / PROFILES_PAGE_SIZE), 1);
+  const visiblePerfiles = useMemo(() => {
+    if (!showProfileControls) return filteredPerfiles;
+    const start = profilePage * PROFILES_PAGE_SIZE;
+    return filteredPerfiles.slice(start, start + PROFILES_PAGE_SIZE);
+  }, [filteredPerfiles, profilePage, showProfileControls]);
+  const visibleProfileNumbers = useMemo(
+    () => visiblePerfiles.map((perfil) => perfil.numero),
+    [visiblePerfiles]
+  );
 
   useEffect(() => {
-    if (expandedProfileIndex === null) return;
-    if (expandedProfileIndex >= perfilesArray.length) {
-      setExpandedProfileIndex(null);
-    }
-  }, [expandedProfileIndex, perfilesArray.length]);
+    if (!showProfileControls) return;
+    setProfilePage((prev) => Math.min(prev, Math.max(profilePageCount - 1, 0)));
+  }, [profilePageCount, showProfileControls]);
 
-  const toggleProfile = (index: number) => {
-    setExpandedProfileIndex((prev) => (prev === index ? null : index));
+  useEffect(() => {
+    if (!showProfileControls) {
+      setProfilePage(0);
+      setProfileSearch('');
+    }
+  }, [showProfileControls]);
+
+  useEffect(() => {
+    if (expandedProfileNumber === null) return;
+    if (!visibleProfileNumbers.includes(expandedProfileNumber)) {
+      setExpandedProfileNumber(null);
+    }
+  }, [expandedProfileNumber, visibleProfileNumbers]);
+
+  const toggleProfile = (profileNumber: number) => {
+    setExpandedProfileNumber((prev) => (prev === profileNumber ? null : profileNumber));
   };
 
   // Estado de carga
@@ -703,13 +742,13 @@ function ServicioDetallePageContent() {
                   <div className="flex items-start gap-2">
                     <span className="text-sm text-muted-foreground mt-0.5">Fecha de Inicio</span>
                     <Badge variant="outline" className="ml-auto font-normal text-sm bg-green-100 text-green-700 border-green-300 dark:bg-green-500/20 dark:text-green-300 dark:border-green-500/30 [a&]:hover:bg-green-200 dark:[a&]:hover:bg-green-500/30">
-                      {servicio.fechaInicio ? formatearFecha(new Date(servicio.fechaInicio)) : '—'}
+                      {servicio.fechaInicio ? formatearFecha(new Date(servicio.fechaInicio)) : '-'}
                     </Badge>
                   </div>
                   <div className="flex items-start gap-2">
                     <span className="text-sm text-muted-foreground mt-0.5">Fecha de Vencimiento</span>
                     <Badge variant="outline" className="ml-auto font-normal text-sm bg-green-100 text-green-700 border-green-300 dark:bg-green-500/20 dark:text-green-300 dark:border-green-500/30 [a&]:hover:bg-green-200 dark:[a&]:hover:bg-green-500/30">
-                      {servicio.fechaVencimiento ? formatearFecha(new Date(servicio.fechaVencimiento)) : '—'}
+                      {servicio.fechaVencimiento ? formatearFecha(new Date(servicio.fechaVencimiento)) : '-'}
                     </Badge>
                   </div>
                   {servicio.fechaVencimiento && (() => {
@@ -818,20 +857,36 @@ function ServicioDetallePageContent() {
             <Card
               className="h-full p-6"
             >
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold">Perfiles</h2>
-                <p className="text-sm text-muted-foreground">{servicio.perfilesDisponibles} perfiles registrados</p>
+              <div className="mb-2 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold">Perfiles</h2>
+                  <p className="text-sm text-muted-foreground">
+                    {servicio.activo ? `${perfilesDisponibles} de ${servicio.perfilesDisponibles} perfiles disponibles` : 'Servicio inactivo'}
+                  </p>
+                </div>
+                {showProfileControls && (
+                  <div className="w-full sm:w-64">
+                    <Input
+                      value={profileSearch}
+                      onChange={(event) => {
+                        setProfileSearch(event.target.value);
+                        setProfilePage(0);
+                      }}
+                      placeholder="Buscar persona..."
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
-                {perfilesArray.map((perfil, index) => {
+                {visiblePerfiles.map((perfil) => {
                   const venta = perfil.venta;
                   const ventaCurrency = getCurrencySymbol(venta?.moneda || metodoPago?.moneda);
                   const diasRestantes =
                     venta?.fechaFin ? Math.ceil((new Date(venta.fechaFin).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
                   return (
                   <div
-                    key={index}
+                    key={perfil.numero}
                     className={`rounded-lg border px-4 py-3 ${
                       perfil.estado === 'ocupado' ? 'bg-green-950/30 border-green-900/50' :
                       perfil.estado === 'inactivo' ? 'bg-muted/30 border-muted opacity-50' :
@@ -840,7 +895,7 @@ function ServicioDetallePageContent() {
                   >
                     <button
                       type="button"
-                      onClick={() => perfil.estado === 'ocupado' && toggleProfile(index)}
+                      onClick={() => perfil.estado === 'ocupado' && toggleProfile(perfil.numero)}
                       className="w-full flex items-center justify-between"
                       disabled={perfil.estado === 'inactivo'}
                     >
@@ -866,12 +921,12 @@ function ServicioDetallePageContent() {
                             Disponible
                           </Badge>
                         ) : (
-                          <ChevronDown className={`h-4 w-4 transition-transform ${expandedProfileIndex === index ? 'rotate-180' : ''}`} />
+                          <ChevronDown className={`h-4 w-4 transition-transform ${expandedProfileNumber === perfil.numero ? 'rotate-180' : ''}`} />
                         )}
                       </div>
                     </button>
 
-                    {perfil.estado === 'ocupado' && expandedProfileIndex === index && venta && (
+                    {perfil.estado === 'ocupado' && expandedProfileNumber === perfil.numero && venta && (
                       <div className="mt-4 space-y-3">
                         <div className="pt-3 border-t border-border">
                           <div className="flex items-center justify-between mb-2">
@@ -906,18 +961,18 @@ function ServicioDetallePageContent() {
                               <div className="flex items-center gap-2">
                                 <RefreshCw className="h-4 w-4 text-muted-foreground shrink-0" />
                                 <span className="text-muted-foreground">Ciclo:</span>
-                                <span className="font-medium">{venta.cicloPago ? getCicloPagoLabel(venta.cicloPago) : '—'}</span>
+                                <span className="font-medium">{venta.cicloPago ? getCicloPagoLabel(venta.cicloPago) : '-'}</span>
                               </div>
                               <div className="flex items-center gap-2">
                                 <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
                                 <span className="font-medium">
-                                  Inicio: {venta.fechaInicio ? format(new Date(venta.fechaInicio), 'd MMM yyyy', { locale: es }) : '—'}
+                                  Inicio: {venta.fechaInicio ? format(new Date(venta.fechaInicio), 'd MMM yyyy', { locale: es }) : '-'}
                                 </span>
                               </div>
                               <div className="flex items-center gap-2">
                                 <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
                                 <span className="font-medium">
-                                  Vence: {venta.fechaFin ? format(new Date(venta.fechaFin), 'd MMM yyyy', { locale: es }) : '—'}
+                                  Vence: {venta.fechaFin ? format(new Date(venta.fechaFin), 'd MMM yyyy', { locale: es }) : '-'}
                                 </span>
                               </div>
                             </div>
@@ -926,7 +981,7 @@ function ServicioDetallePageContent() {
                               <div className="flex items-center gap-2">
                                 <User className="h-4 w-4 text-muted-foreground shrink-0" />
                                 <span className="text-muted-foreground">Perfil:</span>
-                                <span className="font-medium truncate">{venta.perfilNombre || '—'}</span>
+                                <span className="font-medium truncate">{venta.perfilNombre || '-'}</span>
                               </div>
                               {venta.codigo && (
                                 <div className="flex items-center gap-2">
@@ -976,8 +1031,8 @@ function ServicioDetallePageContent() {
                 )})}
               </div>
 
-              <div className="mt-4 flex items-center justify-between text-sm">
-                <div className="flex items-center gap-4">
+              <div className="mt-2 flex items-center justify-between text-sm">
+                <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-green-600"></div>
                     <span className="text-muted-foreground">En uso</span>
@@ -993,9 +1048,35 @@ function ServicioDetallePageContent() {
                     </div>
                   )}
                 </div>
-                <span className="text-muted-foreground">
-                  {servicio.activo ? `${perfilesDisponibles} de ${servicio.perfilesDisponibles} perfiles disponibles` : 'Servicio inactivo'}
-                </span>
+                {showProfileControls ? (
+                  <div className="flex items-center gap-2">
+                    <span className="whitespace-nowrap text-muted-foreground mr-2">
+                      Pagina {Math.min(profilePage + 1, profilePageCount)} de {profilePageCount}
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 px-2"
+                      onClick={() => setProfilePage((prev) => Math.max(prev - 1, 0))}
+                      disabled={profilePage === 0}
+                    >
+                      Anterior
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 px-2"
+                      onClick={() => setProfilePage((prev) => Math.min(prev + 1, profilePageCount - 1))}
+                      disabled={profilePage >= profilePageCount - 1}
+                    >
+                      Siguiente
+                    </Button>
+                  </div>
+                ) : (
+                  <span className="text-muted-foreground" />
+                )}
               </div>
             </Card>
 
@@ -1032,7 +1113,7 @@ function ServicioDetallePageContent() {
                     {pagosHistorialLoading ? (
                       <tr>
                         <td colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
-                          Cargando historial de pagos…
+                          Cargando historial de pagos...
                         </td>
                       </tr>
                     ) : (
@@ -1050,7 +1131,7 @@ function ServicioDetallePageContent() {
                             </td>
                             <td className="py-3">{pago.descripcion}</td>
                             <td className="py-3">
-                              {getCicloPagoLabel(pago.cicloPago ?? '') || '—'}
+                              {getCicloPagoLabel(pago.cicloPago ?? '') || '-'}
                             </td>
                             <td className="py-3">
                               {format(new Date(pago.fechaInicio), 'd MMM yyyy', { locale: es })}
@@ -1066,7 +1147,7 @@ function ServicioDetallePageContent() {
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="icon" className="h-8 w-8">
-                                      <span className="text-lg">⋯</span>
+                                      <span className="text-lg">...</span>
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="center">
@@ -1084,7 +1165,7 @@ function ServicioDetallePageContent() {
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               ) : (
-                                <span className="text-muted-foreground">—</span>
+                                <span className="text-muted-foreground">-</span>
                               )}
                             </td>
                           </tr>
