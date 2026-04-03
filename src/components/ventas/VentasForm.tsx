@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { WheelEvent } from 'react';
@@ -46,13 +46,7 @@ import {
   PENDING_USER_PAYMENT_ID,
   PENDING_USER_PAYMENT_NAME,
 } from '@/lib/utils/usuarioMetodoPago';
-import {
-  PROFILE_PAGE_SIZE,
-  getProfileNumbersForPage,
-  getProfilePageCount,
-  getProfilePageForNumber,
-  getProfilePageLabel,
-} from '@/lib/utils/perfiles';
+import { PROFILE_PAGE_SIZE } from '@/lib/utils/perfiles';
 
 const ventaSchema = z.object({
   clienteId: z.string().min(1, 'Seleccione un cliente'),
@@ -72,7 +66,7 @@ interface VentaItem {
   itemId: string;
   tipo: TipoItem;
   categoriaId: string;
-  categoriaNombre: string; // ← Denormalizar nombre de categoría
+  categoriaNombre: string; // â† Denormalizar nombre de categorÃ­a
   servicioId: string;
   servicioNombre: string;
   servicioCorreo?: string;
@@ -144,10 +138,10 @@ export function VentasForm() {
   const fetchTemplates = useTemplatesStore((state) => state.fetchTemplates);
   const templateNotificacion = useTemplatesStore((state) => state.getTemplateByTipo('suscripcion'));
 
-  // Estado local para métodos de pago filtrados (solo usuarios)
+  // Estado local para mÃ©todos de pago filtrados (solo usuarios)
   const [metodosPagoUsuarios, setMetodosPagoUsuarios] = useState<MetodoPagoOption[]>([]);
 
-  // Estado local para servicios (cargados solo cuando se selecciona categoría)
+  // Estado local para servicios (cargados solo cuando se selecciona categorÃ­a)
   const [serviciosCategoria, setServiciosCategoria] = useState<Servicio[]>([]);
   const [loadingServicios, setLoadingServicios] = useState(false);
 
@@ -176,8 +170,6 @@ export function VentasForm() {
   const [loadingPerfilesDetalle, setLoadingPerfilesDetalle] = useState(false);
   const [errorPerfilesDetalle, setErrorPerfilesDetalle] = useState<string | null>(null);
   const [serviciosWindowStart, setServiciosWindowStart] = useState(0);
-  const [perfilPage, setPerfilPage] = useState(0);
-  const [perfilSearch, setPerfilSearch] = useState('');
 
   const {
     register,
@@ -209,13 +201,13 @@ export function VentasForm() {
     }
   }, [estadoValue, notifyCliente]);
 
-  // Efecto inicial: solo cargar datos que no dependen de selección
+  // Efecto inicial: solo cargar datos que no dependen de selecciÃ³n
   useEffect(() => {
     fetchCategorias();
     fetchUsuarios();
     fetchTemplates();
 
-    // Cargar métodos de pago filtrados (solo usuarios)
+    // Cargar mÃ©todos de pago filtrados (solo usuarios)
     const loadMetodosPagoUsuarios = async () => {
       try {
         const metodos = await queryDocuments<MetodoPagoOption>(
@@ -224,14 +216,14 @@ export function VentasForm() {
         );
         setMetodosPagoUsuarios([PENDING_METODO_PAGO_OPTION, ...metodos]);
       } catch (error) {
-        console.error('Error cargando métodos de pago:', error);
+        console.error('Error cargando mÃ©todos de pago:', error);
         setMetodosPagoUsuarios([PENDING_METODO_PAGO_OPTION]);
       }
     };
     loadMetodosPagoUsuarios();
   }, [fetchCategorias, fetchUsuarios, fetchTemplates]);
 
-  // Efecto para cargar servicios cuando se selecciona una categoría
+  // Efecto para cargar servicios cuando se selecciona una categorÃ­a
   useEffect(() => {
     if (!categoriaId) {
       setServiciosCategoria([]);
@@ -261,8 +253,6 @@ export function VentasForm() {
     setPrecio('');
     setDescuento('');
     setPerfilNumero('');
-    setPerfilPage(0);
-    setPerfilSearch('');
     setPerfilNombre('');
     setNotasItem('');
     setItemErrors({});
@@ -297,16 +287,16 @@ export function VentasForm() {
     [categorias, categoriaId]
   );
 
-  // Usuarios (clientes + revendedores) ordenados por fecha de creación (más reciente primero)
+  // Usuarios (clientes + revendedores) ordenados por fecha de creaciÃ³n (mÃ¡s reciente primero)
   const usuariosOrdenados = useMemo(() => {
     return [...usuarios].sort((a, b) => {
       const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return bDate - aDate; // Más reciente primero
+      return bDate - aDate; // MÃ¡s reciente primero
     });
   }, [usuarios]);
 
-  // Usuarios filtrados por búsqueda
+  // Usuarios filtrados por bÃºsqueda
   const usuariosFiltrados = useMemo(() => {
     if (!searchCliente) return usuariosOrdenados;
     const search = normalizeSearchText(searchCliente);
@@ -369,12 +359,12 @@ export function VentasForm() {
     setValue('fechaFin', addMonths(new Date(fechaInicioValue), meses));
   }, [planSeleccionado, fechaInicioValue, setValue]);
 
-  // Ordenar servicios por fecha de creación (más recientes primero)
+  // Ordenar servicios por fecha de creaciÃ³n (mÃ¡s recientes primero)
   const serviciosOrdenados = useMemo(() => {
     return [...serviciosCategoria].sort((a, b) => {
       const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return bDate - aDate; // Más reciente primero
+      return bDate - aDate; // MÃ¡s reciente primero
     });
   }, [serviciosCategoria]);
 
@@ -432,24 +422,45 @@ export function VentasForm() {
     return Math.max((servicio.perfilesDisponibles || 0) - ocupadosActual - ocupadosEnVenta, 0);
   };
 
-  const totalPerfilesServicioSeleccionado = servicioSeleccionado?.perfilesDisponibles || 0;
-  const perfilPageCount = useMemo(
-    () => getProfilePageCount(totalPerfilesServicioSeleccionado, PROFILE_PAGE_SIZE),
-    [totalPerfilesServicioSeleccionado]
-  );
-  const perfilesPaginaActual = useMemo(() => {
-    const numbers = getProfileNumbersForPage(
-      totalPerfilesServicioSeleccionado,
-      perfilPage,
-      PROFILE_PAGE_SIZE
-    );
+  const perfilesDropdown = useMemo(() => {
+    if (!servicioId) return [];
 
-    return numbers.filter((numero) => {
-      const ocupado = perfilesUsados[servicioId]?.has(numero);
-      const ocupadoEnVentas = perfilesOcupadosVenta[servicioId]?.has(numero);
-      return !ocupado && !ocupadoEnVentas;
-    });
-  }, [perfilPage, perfilesOcupadosVenta, perfilesUsados, servicioId, totalPerfilesServicioSeleccionado]);
+    const totalPerfiles = servicioSeleccionado?.perfilesDisponibles || 0;
+    if (totalPerfiles <= 0) return [];
+
+    const ocupados = perfilesUsados[servicioId] ?? new Set<number>();
+    const ocupadosEnVentas = perfilesOcupadosVenta[servicioId] ?? new Set<number>();
+    const isDisponible = (numero: number) => !ocupados.has(numero) && !ocupadosEnVentas.has(numero);
+
+    if (totalPerfiles <= PROFILE_PAGE_SIZE) {
+      const disponibles: number[] = [];
+      for (let numero = 1; numero <= totalPerfiles; numero++) {
+        if (!isDisponible(numero)) continue;
+        disponibles.push(numero);
+      }
+      return disponibles;
+    }
+
+    const bloqueTamano = 5;
+    const totalBloques = Math.ceil(totalPerfiles / bloqueTamano);
+
+    for (let bloque = 0; bloque < totalBloques; bloque++) {
+      const inicio = bloque * bloqueTamano + 1;
+      const fin = Math.min(inicio + bloqueTamano - 1, totalPerfiles);
+      const disponiblesBloque: number[] = [];
+
+      for (let numero = inicio; numero <= fin; numero++) {
+        if (!isDisponible(numero)) continue;
+        disponiblesBloque.push(numero);
+      }
+
+      if (disponiblesBloque.length > 0) {
+        return disponiblesBloque;
+      }
+    }
+
+    return [];
+  }, [perfilesOcupadosVenta, perfilesUsados, servicioId, servicioSeleccionado?.perfilesDisponibles]);
 
   const getDisponiblesColorClass = (disponibles: number, total: number) => {
     if (total <= 0) return 'text-muted-foreground';
@@ -472,25 +483,6 @@ export function VentasForm() {
     if (e.deltaY === 0) return;
     scrollServiciosDropdown(e.deltaY > 0 ? 'down' : 'up');
   }, [scrollServiciosDropdown]);
-
-  useEffect(() => {
-    setPerfilPage((prev) => Math.min(prev, Math.max(perfilPageCount - 1, 0)));
-  }, [perfilPageCount]);
-
-  const handlePerfilSearchChange = (value: string) => {
-    const sanitized = value.replace(/\D/g, '');
-    setPerfilSearch(sanitized);
-
-    if (!sanitized) {
-      setPerfilPage(0);
-      return;
-    }
-
-    const numero = Number(sanitized);
-    if (numero >= 1 && numero <= totalPerfilesServicioSeleccionado) {
-      setPerfilPage(getProfilePageForNumber(numero, PROFILE_PAGE_SIZE));
-    }
-  };
 
   const handleOpenPerfilDetalle = useCallback(async (servicio: Servicio) => {
     setServicioDetalle(servicio);
@@ -625,15 +617,15 @@ export function VentasForm() {
   const previewNombreCliente = clienteSeleccionado?.nombre || previewClienteNombre.split(' ')[0] || 'Cliente';
   const previewFechaVencimiento = previewItem?.fechaFin ?? fechaFinValue;
   const previewMonto = items.length > 0 ? totalFinal : precioFinalNumero;
-  const previewCodigo = previewItem?.codigo || watch('codigo')?.trim() || '—';
-  const previewPerfilNombre = previewItem?.perfilNombre?.trim() || '—';
-  const previewCorreo = previewServicio?.correo || previewItem?.servicioCorreo || '—';
-  const previewContrasena = previewServicio?.contrasena || previewItem?.servicioContrasena || '—';
+  const previewCodigo = previewItem?.codigo || watch('codigo')?.trim() || 'â€”';
+  const previewPerfilNombre = previewItem?.perfilNombre?.trim() || 'â€”';
+  const previewCorreo = previewServicio?.correo || previewItem?.servicioCorreo || 'â€”';
+  const previewContrasena = previewServicio?.contrasena || previewItem?.servicioContrasena || 'â€”';
   const previewCategoriaNombre = previewCategoria?.nombre || previewItem?.servicioNombre || 'Servicio';
   const previewServicioNombre = previewItem?.servicioNombre || previewServicio?.nombre || 'Servicio';
   const formatItemsList = (names: string[]) => {
     const cleaned = names.map((n) => n.trim()).filter(Boolean);
-    if (cleaned.length === 0) return '—';
+    if (cleaned.length === 0) return 'â€”';
     if (cleaned.length === 1) return `*${cleaned[0]}*`;
     if (cleaned.length === 2) return `*${cleaned[0]}* y *${cleaned[1]}*`;
     const first = cleaned.slice(0, -1).map((n) => `*${n}*`).join(', ');
@@ -666,11 +658,11 @@ export function VentasForm() {
         const itemValues: Record<string, string> = {
           '{servicio}': item.servicioNombre || servicio?.nombre || 'Servicio',
           '{categoria}': categoria?.nombre || item.servicioNombre || 'Servicio',
-          '{correo}': servicio?.correo || item.servicioCorreo || '—',
-          '{contrasena}': servicio?.contrasena || item.servicioContrasena || '—',
-          '{perfil_nombre}': item.perfilNombre?.trim() || '—',
-          '{codigo}': item.codigo || '—',
-          '{vencimiento}': item.fechaFin ? formatearFechaWhatsApp(new Date(item.fechaFin)) : '—',
+          '{correo}': servicio?.correo || item.servicioCorreo || 'â€”',
+          '{contrasena}': servicio?.contrasena || item.servicioContrasena || 'â€”',
+          '{perfil_nombre}': item.perfilNombre?.trim() || 'â€”',
+          '{codigo}': item.codigo || 'â€”',
+          '{vencimiento}': item.fechaFin ? formatearFechaWhatsApp(new Date(item.fechaFin)) : 'â€”',
           '{monto}': `$${item.precioFinal?.toFixed(2) || '0.00'}`,
         };
         return replaceAllPlaceholders(block, { ...globals, ...itemValues });
@@ -680,7 +672,7 @@ export function VentasForm() {
     return replaceAllPlaceholders(content, globals);
   }, [items, serviciosCategoria, categorias]);
   const previewMessage = useMemo(() => {
-    const content = templateNotificacion?.contenido || 'No hay plantilla de Notificación de Suscripción configurada.';
+    const content = templateNotificacion?.contenido || 'No hay plantilla de NotificaciÃ³n de SuscripciÃ³n configurada.';
     const placeholders: Record<string, string> = {
       '{saludo}': getSaludo(),
       '{cliente}': previewClienteNombre,
@@ -691,7 +683,7 @@ export function VentasForm() {
       '{perfil_nombre}': previewPerfilNombre,
       '{correo}': previewCorreo,
       '{contrasena}': previewContrasena,
-      '{vencimiento}': previewFechaVencimiento ? formatearFechaWhatsApp(new Date(previewFechaVencimiento)) : '—',
+      '{vencimiento}': previewFechaVencimiento ? formatearFechaWhatsApp(new Date(previewFechaVencimiento)) : 'â€”',
       '{monto}': `$${previewMonto.toFixed(2)}`,
       '{codigo}': previewCodigo,
     };
@@ -758,7 +750,7 @@ export function VentasForm() {
       itemId,
       tipo: tipoItem,
       categoriaId: categoria.id,
-      categoriaNombre: categoria.nombre, // ← Denormalizar nombre
+      categoriaNombre: categoria.nombre, // â† Denormalizar nombre
         servicioId,
         servicioNombre: servicioSeleccionado?.nombre || plan.nombre,
         servicioCorreo: servicioSeleccionado?.correo,
@@ -854,7 +846,7 @@ export function VentasForm() {
           estado: estadoVenta || 'activo',
           notas: item.notas || '',
           categoriaId: item.categoriaId,
-          categoriaNombre: item.categoriaNombre, // ← Guardar nombre denormalizado
+          categoriaNombre: item.categoriaNombre, // â† Guardar nombre denormalizado
           servicioId: item.servicioId,
           servicioNombre: item.servicioNombre,
           servicioCorreo: item.servicioCorreo ?? '',
@@ -896,9 +888,9 @@ export function VentasForm() {
           moneda,
         });
       } catch (syncError) {
-        console.error('Error sincronizando método de pago del usuario:', syncError);
+        console.error('Error sincronizando mÃ©todo de pago del usuario:', syncError);
         toast.warning('Venta guardada con advertencia', {
-          description: 'La venta se creó, pero no se pudo actualizar el método de pago en usuarios.',
+          description: 'La venta se creÃ³, pero no se pudo actualizar el mÃ©todo de pago en usuarios.',
         });
       }
 
@@ -1025,7 +1017,7 @@ export function VentasForm() {
                                 : usuario.metodoPagoId;
                               setValue('metodoPagoId', nextMetodoPagoId);
                               clearErrors('metodoPagoId');
-                              setSearchCliente(''); // Limpiar búsqueda después de seleccionar
+                              setSearchCliente(''); // Limpiar bÃºsqueda despuÃ©s de seleccionar
                             }}
                           >
                             <div className="flex items-center gap-2">
@@ -1313,52 +1305,17 @@ export function VentasForm() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)] p-0">
-                      <div className="space-y-2 p-2">
-                        <Input
-                          value={perfilSearch}
-                          onChange={(event) => handlePerfilSearchChange(event.target.value)}
-                          placeholder="Ir al perfil"
-                          inputMode="numeric"
-                        />
-                        <div className="flex items-center justify-between gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-8 px-2 text-xs"
-                            onClick={() => setPerfilPage((prev) => Math.max(prev - 1, 0))}
-                            disabled={perfilPage === 0}
-                          >
-                            Anterior
-                          </Button>
-                          <span className="text-xs text-muted-foreground">
-                            {getProfilePageLabel(totalPerfilesServicioSeleccionado, perfilPage, PROFILE_PAGE_SIZE)}
-                          </span>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-8 px-2 text-xs"
-                            onClick={() => setPerfilPage((prev) => Math.min(prev + 1, perfilPageCount - 1))}
-                            disabled={perfilPage >= perfilPageCount - 1}
-                          >
-                            Siguiente
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="max-h-60 overflow-y-auto border-t p-1">
+                      <div className="p-1">
                         {getSlotsDisponibles(servicioId) <= 0 ? (
                           <p className="px-2 py-3 text-xs text-muted-foreground">No hay perfiles disponibles.</p>
-                        ) : perfilesPaginaActual.length === 0 ? (
-                          <p className="px-2 py-3 text-xs text-muted-foreground">No hay perfiles libres en este bloque.</p>
+                        ) : perfilesDropdown.length === 0 ? (
+                          <p className="px-2 py-3 text-xs text-muted-foreground">No hay perfiles libres.</p>
                         ) : (
-                          perfilesPaginaActual.map((numero) => (
+                          perfilesDropdown.map((numero) => (
                             <DropdownMenuItem
                               key={numero}
                               onClick={() => {
                                 setPerfilNumero(String(numero));
-                                setPerfilSearch(String(numero));
-                                setPerfilPage(getProfilePageForNumber(numero, PROFILE_PAGE_SIZE));
                                 setItemErrors((prev) => ({ ...prev, perfil: undefined }));
                               }}
                             >
@@ -1659,7 +1616,7 @@ export function VentasForm() {
                 <p className="text-sm font-medium">{clienteSeleccionado ? `${clienteSeleccionado.nombre} ${clienteSeleccionado.apellido}` : 'Sin seleccionar'}</p>
               </div>
               <div className="rounded-lg border bg-background/40 p-4">
-                <p className="text-xs text-muted-foreground">Método de pago</p>
+                <p className="text-xs text-muted-foreground">MÃ©todo de pago</p>
                 <p className="text-sm font-medium">{metodoPagoSeleccionado?.nombre || 'Sin seleccionar'}</p>
               </div>
             </div>
@@ -1686,7 +1643,7 @@ export function VentasForm() {
                         <div>
                           <p className="font-medium">{item.servicioNombre}</p>
                           <p className="text-xs text-muted-foreground">
-                            {item.cicloPago ? `${item.cicloPago.charAt(0).toUpperCase()}${item.cicloPago.slice(1)}` : '—'}
+                            {item.cicloPago ? `${item.cicloPago.charAt(0).toUpperCase()}${item.cicloPago.slice(1)}` : 'â€”'}
                           </p>
                         </div>
                         <span className="text-green-500 font-semibold">{simboloMoneda} {item.precioFinal.toFixed(2)}</span>
@@ -1695,13 +1652,13 @@ export function VentasForm() {
                         <div>
                           <p>Fecha de inicio</p>
                           <p className="text-foreground font-medium">
-                            {item.fechaInicio ? formatearFecha(item.fechaInicio) : '—'}
+                            {item.fechaInicio ? formatearFecha(item.fechaInicio) : 'â€”'}
                           </p>
                         </div>
                         <div>
                           <p>Fecha de fin</p>
                           <p className="text-foreground font-medium">
-                            {item.fechaFin ? formatearFecha(item.fechaFin) : '—'}
+                            {item.fechaFin ? formatearFecha(item.fechaFin) : 'â€”'}
                           </p>
                         </div>
                         <div>
@@ -1717,12 +1674,12 @@ export function VentasForm() {
                         <div>
                           <p>Nombre del perfil</p>
                           <p className="text-foreground font-medium">
-                            {item.perfilNombre?.trim() ? item.perfilNombre : '—'}
+                            {item.perfilNombre?.trim() ? item.perfilNombre : 'â€”'}
                           </p>
                         </div>
                         <div>
                           <p>Codigo</p>
-                          <p className="text-foreground font-medium">{item.codigo || '—'}</p>
+                          <p className="text-foreground font-medium">{item.codigo || 'â€”'}</p>
                         </div>
                       </div>
                       <div className="mt-3 text-xs text-muted-foreground">
@@ -1764,7 +1721,7 @@ export function VentasForm() {
 
               {notifyCliente && estadoValue !== 'inactivo' && (
                 <div className="mt-4 space-y-2">
-                  <p className="text-sm font-semibold">Editar Mensaje de Notificación</p>
+                  <p className="text-sm font-semibold">Editar Mensaje de NotificaciÃ³n</p>
                   <p className="text-xs text-muted-foreground">Puedes ajustar el mensaje antes de enviarlo. Los cambios no se guardan en las plantillas.</p>
                   <Textarea
                     value={editedMessage}
@@ -1914,4 +1871,5 @@ export function VentasForm() {
     </form>
   );
 }
+
 
