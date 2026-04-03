@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
@@ -202,10 +203,14 @@ export function Sidebar({ collapsed: controlledCollapsed, onCollapse, mobileOpen
             transition: 'left 300ms ease-in-out',
           }}
         >
-          <svg width="32" height="32" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" className="w-7 h-7">
-            <path fill="none" d="M0 0h256v256H0z" />
-            <path fill="currentColor" d="M168,40V176a8,8,0,0,1-16,0V50.8L89.2,210.8a8.2,8.2,0,0,1-7.2,4.4,8.1,8.1,0,0,1-7.2-4.4L42.2,50.8V176a8,8,0,0,1-16,0V40a8,8,0,0,1,8-32h48a8,8,0,0,1,7.2,4.4L128,100.8l28.8-88.4a8,8,0,0,1,7.2-4.4h48a8,8,0,0,1,8,32Z" />
-          </svg>
+          <Image
+            src="/logo.svg"
+            alt="MovieTime logo"
+            width={28}
+            height={28}
+            priority
+            className="w-7 h-7 dark:invert"
+          />
         </div>
 
         {/* Texto - aparece a la derecha del logo */}
