@@ -17,7 +17,7 @@ import { invalidateVentasPorUsuariosCache } from '@/hooks/use-ventas-por-usuario
 import { Usuario } from '@/types';
 import { COLLECTIONS } from '@/lib/firebase/firestore';
 import { FilterOption } from '@/lib/firebase/pagination';
-import { normalizeSearchText } from '@/lib/utils';
+import { normalizePhoneSearch, normalizeSearchText } from '@/lib/utils';
 import { USUARIO_METODO_PAGO_UPDATED_EVENT } from '@/lib/utils/usuarioMetodoPago';
 
 function UsuariosPageContent() {
@@ -60,6 +60,7 @@ function UsuariosPageContent() {
   const searchResults = useMemo(() => {
     if (!isSearchMode) return [];
     const q = normalizeSearchText(searchQuery);
+    const phoneQuery = normalizePhoneSearch(searchQuery);
     const base = activeTab === 'clientes'
       ? usuarios.filter(u => u.tipo === 'cliente')
       : activeTab === 'revendedores'
@@ -69,11 +70,12 @@ function UsuariosPageContent() {
       const nombreCompleto = normalizeSearchText(`${u.nombre} ${u.apellido ?? ''}`);
       const nombre = normalizeSearchText(u.nombre);
       const apellido = normalizeSearchText(u.apellido);
+      const telefono = normalizePhoneSearch(u.telefono);
       return (
         nombreCompleto.includes(q) ||
         nombre.includes(q) ||
         apellido.includes(q) ||
-        u.telefono.includes(q)
+        (phoneQuery.length > 0 && telefono.includes(phoneQuery))
       );
     });
   }, [isSearchMode, searchQuery, usuarios, activeTab]);

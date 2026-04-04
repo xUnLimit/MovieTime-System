@@ -5,3 +5,7 @@ export function normalizeSearchText(value: string | null | undefined): string {
     .toLowerCase()
     .trim();
 }
+
+export function normalizePhoneSearch(value: string | null | undefined): string {
+  return (value ?? '').replace(/\D/g, '');
+}

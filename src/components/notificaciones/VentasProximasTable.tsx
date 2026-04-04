@@ -28,7 +28,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { BellRing, BellOff, Search, MoreHorizontal, MessageSquare, XCircle, RefreshCw, User, Scissors, AlertTriangle, ChevronDown, ShoppingCart, Tv2 } from 'lucide-react';
+import { BellRing, BellOff, Search, MoreHorizontal, MessageSquare, XCircle, RefreshCw, User, Scissors, AlertTriangle, ChevronDown, ShoppingCart, Tv2, Copy } from 'lucide-react';
 import { useNotificacionesStore } from '@/store/notificacionesStore';
 import { esNotificacionVenta } from '@/types/notificaciones';
 import type { NotificacionVenta } from '@/types/notificaciones';
@@ -230,6 +230,15 @@ export function VentasProximasTable() {
   const handleItemsPerPageChange = (value: string) => {
     setItemsPerPage(Number(value));
     setCurrentPage(1);
+  };
+
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`${label} copiado`, { description: `${label} copiado al portapapeles exitosamente.` });
+    } catch {
+      toast.error('Error al copiar', { description: `No se pudo copiar ${label} al portapapeles.` });
+    }
   };
 
   /**
@@ -669,6 +678,9 @@ export function VentasProximasTable() {
                       Categoría
                     </TableHead>
                     <TableHead className="h-12 px-4 text-center text-muted-foreground">
+                      Email
+                    </TableHead>
+                    <TableHead className="h-12 px-4 text-center text-muted-foreground">
                       Fecha de Inicio
                     </TableHead>
                     <TableHead className="h-12 px-4 text-center text-muted-foreground">
@@ -737,6 +749,28 @@ export function VentasProximasTable() {
                         {/* Categoría */}
                         <TableCell className="p-4 text-center">
                           {notif.categoriaNombre}
+                        </TableCell>
+
+                        {/* Email */}
+                        <TableCell className="p-4 text-center">
+                          {notif.servicioCorreo ? (
+                            <div className="flex items-center justify-center gap-2">
+                              <span className="font-medium truncate max-w-[200px]">
+                                {notif.servicioCorreo}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 flex-shrink-0"
+                                onClick={() => copyToClipboard(notif.servicioCorreo!, 'Email')}
+                                title="Copiar email"
+                              >
+                                <Copy className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            '-'
+                          )}
                         </TableCell>
 
                         {/* Fecha de Inicio */}
@@ -907,3 +941,4 @@ export function VentasProximasTable() {
     </Card>
   );
 }
+
