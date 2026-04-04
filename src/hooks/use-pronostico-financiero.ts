@@ -12,6 +12,11 @@ export interface MesPronostico extends PronosticoMensual {
   mesKey: string;
 }
 
+interface UsePronosticoFinancieroOptions {
+  monthsCount?: number;
+  endAtCurrentYear?: boolean;
+}
+
 interface UsePronosticoFinancieroResult {
   meses: MesPronostico[];
   isLoading: boolean;
@@ -32,10 +37,13 @@ function caeEnMes(
   return isWithinInterval(fecha, { start, end });
 }
 
-// Deduplicación de logs por Strict Mode (doble ejecución de useEffect)
+// Deduplicacion de logs por Strict Mode (doble ejecucion de useEffect)
 let lastPronosticoLogTime = 0;
 
-export function usePronosticoFinanciero(): UsePronosticoFinancieroResult {
+export function usePronosticoFinanciero(
+  options: UsePronosticoFinancieroOptions = {}
+): UsePronosticoFinancieroResult {
+  const { monthsCount = 4, endAtCurrentYear = false } = options;
   const { stats, isLoading: statsLoading } = useDashboardStore();
   const [meses, setMeses] = useState<MesPronostico[]>([]);
   const [isCalculating, setIsCalculating] = useState(false);
@@ -57,8 +65,12 @@ export function usePronosticoFinanciero(): UsePronosticoFinancieroResult {
 
         const hoy = new Date();
         const inicioMesActual = startOfMonth(hoy);
+        const totalMeses = Math.max(
+          1,
+          Math.floor(endAtCurrentYear ? 12 - hoy.getMonth() : monthsCount)
+        );
 
-        const mesesCalculados = Array.from({ length: 4 }, (_, offset) => {
+        const mesesCalculados = Array.from({ length: totalMeses }, (_, offset) => {
           const targetMonth = addMonths(startOfMonth(hoy), offset);
           const inicioMes = startOfMonth(targetMonth);
           const finMes = endOfMonth(targetMonth);
@@ -66,7 +78,7 @@ export function usePronosticoFinanciero(): UsePronosticoFinancieroResult {
           const ventasDelMes = ventas.filter((v) => {
             if (!v.fechaFin || !v.cicloPago) return false;
             const fechaFin = new Date(v.fechaFin);
-            // Ventas vencidas antes del mes actual → incluir siempre en el mes actual
+            // Ventas vencidas antes del mes actual -> incluir siempre en el mes actual
             if (offset === 0 && fechaFin < inicioMesActual) return true;
             return caeEnMes(fechaFin, v.cicloPago as keyof typeof CYCLE_MONTHS, inicioMes, finMes);
           });
@@ -76,7 +88,7 @@ export function usePronosticoFinanciero(): UsePronosticoFinancieroResult {
             return caeEnMes(new Date(s.fechaVencimiento), s.cicloPago as keyof typeof CYCLE_MONTHS, inicioMes, finMes);
           });
 
-          // Sync conversion — no await needed, rates are already cached
+          // Sync conversion - no await needed, rates are already cached
           const ingresos = ventasDelMes.reduce(
             (sum, v) => sum + currencyService.convertToUSDSync(v.precioFinal || 0, v.moneda || 'USD'),
             0
@@ -93,7 +105,7 @@ export function usePronosticoFinanciero(): UsePronosticoFinancieroResult {
           const now = Date.now();
           if (process.env.NODE_ENV === 'development' && now - lastPronosticoLogTime > 500) {
             console.groupCollapsed(
-              `%c[Pronóstico]%c ${mes} → Ingresos: $${ingresos.toFixed(2)} | Gastos: $${gastos.toFixed(2)} | Ganancia: $${(ingresos - gastos).toFixed(2)}`,
+              `%c[Pronostico]%c ${mes} -> Ingresos: $${ingresos.toFixed(2)} | Gastos: $${gastos.toFixed(2)} | Ganancia: $${(ingresos - gastos).toFixed(2)}`,
               'background:#7C3AED;color:#fff;padding:2px 6px;border-radius:3px;font-weight:600',
               'color:#7C3AED;font-weight:600'
             );
@@ -134,7 +146,7 @@ export function usePronosticoFinanciero(): UsePronosticoFinancieroResult {
     };
 
     calcular();
-  }, [stats?.ventasPronostico, stats?.serviciosPronostico]);
+  }, [stats?.ventasPronostico, stats?.serviciosPronostico, monthsCount, endAtCurrentYear]);
 
   return { meses, isLoading: statsLoading || isCalculating };
 }

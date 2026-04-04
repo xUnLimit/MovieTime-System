@@ -45,9 +45,35 @@ export const dateToTimestamp = (date: Date | string): Timestamp => {
   return Timestamp.fromDate(new Date(date));
 };
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+  return Object.prototype.toString.call(value) === '[object Object]';
+};
+
+const sanitizeFirestoreValue = (value: unknown): unknown => {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+
+  // Keep Firestore-friendly special values as-is
+  if (value instanceof Date || value instanceof Timestamp) return value;
+
+  if (Array.isArray(value)) {
+    return value
+      .map(sanitizeFirestoreValue)
+      .filter((item): item is Exclude<typeof item, undefined> => item !== undefined);
+  }
+
+  if (isPlainObject(value)) {
+    const entries = Object.entries(value)
+      .map(([key, nested]) => [key, sanitizeFirestoreValue(nested)] as const)
+      .filter(([, nested]) => nested !== undefined);
+    return Object.fromEntries(entries);
+  }
+
+  return value;
+};
+
 const removeUndefinedFields = <T extends Record<string, unknown>>(data: T): T => {
-  const entries = Object.entries(data).filter(([, value]) => value !== undefined);
-  return Object.fromEntries(entries) as T;
+  return sanitizeFirestoreValue(data) as T;
 };
 
 /**
