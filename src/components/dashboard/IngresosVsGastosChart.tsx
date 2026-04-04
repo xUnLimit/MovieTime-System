@@ -142,7 +142,7 @@ export function IngresosVsGastosChart() {
                 border: `1px solid ${tooltipBorder}`,
                 borderRadius: '8px',
               }}
-              itemSorter={(item: { dataKey?: string | number }) => (item.dataKey === 'ingresos' ? -1 : 1)}
+              itemSorter={(item) => (item.dataKey === 'ingresos' ? 0 : 1)}
               formatter={(value: number | undefined) => {
                 if (value === undefined) return '';
                 return `$${value.toFixed(2)}`;
