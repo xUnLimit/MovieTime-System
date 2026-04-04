@@ -66,7 +66,7 @@ interface VentaItem {
   itemId: string;
   tipo: TipoItem;
   categoriaId: string;
-  categoriaNombre: string; // â† Denormalizar nombre de categorÃ­a
+  categoriaNombre: string; // <- Denormalizar nombre de categoría
   servicioId: string;
   servicioNombre: string;
   servicioCorreo?: string;
@@ -138,10 +138,10 @@ export function VentasForm() {
   const fetchTemplates = useTemplatesStore((state) => state.fetchTemplates);
   const templateNotificacion = useTemplatesStore((state) => state.getTemplateByTipo('suscripcion'));
 
-  // Estado local para mÃ©todos de pago filtrados (solo usuarios)
+  // Estado local para métodos de pago filtrados (solo usuarios)
   const [metodosPagoUsuarios, setMetodosPagoUsuarios] = useState<MetodoPagoOption[]>([]);
 
-  // Estado local para servicios (cargados solo cuando se selecciona categorÃ­a)
+  // Estado local para servicios (cargados solo cuando se selecciona categoría)
   const [serviciosCategoria, setServiciosCategoria] = useState<Servicio[]>([]);
   const [loadingServicios, setLoadingServicios] = useState(false);
 
@@ -201,13 +201,13 @@ export function VentasForm() {
     }
   }, [estadoValue, notifyCliente]);
 
-  // Efecto inicial: solo cargar datos que no dependen de selecciÃ³n
+  // Efecto inicial: solo cargar datos que no dependen de selección
   useEffect(() => {
     fetchCategorias();
     fetchUsuarios();
     fetchTemplates();
 
-    // Cargar mÃ©todos de pago filtrados (solo usuarios)
+    // Cargar métodos de pago filtrados (solo usuarios)
     const loadMetodosPagoUsuarios = async () => {
       try {
         const metodos = await queryDocuments<MetodoPagoOption>(
@@ -216,14 +216,14 @@ export function VentasForm() {
         );
         setMetodosPagoUsuarios([PENDING_METODO_PAGO_OPTION, ...metodos]);
       } catch (error) {
-        console.error('Error cargando mÃ©todos de pago:', error);
+        console.error('Error cargando métodos de pago:', error);
         setMetodosPagoUsuarios([PENDING_METODO_PAGO_OPTION]);
       }
     };
     loadMetodosPagoUsuarios();
   }, [fetchCategorias, fetchUsuarios, fetchTemplates]);
 
-  // Efecto para cargar servicios cuando se selecciona una categorÃ­a
+  // Efecto para cargar servicios cuando se selecciona una categoría
   useEffect(() => {
     if (!categoriaId) {
       setServiciosCategoria([]);
@@ -287,16 +287,16 @@ export function VentasForm() {
     [categorias, categoriaId]
   );
 
-  // Usuarios (clientes + revendedores) ordenados por fecha de creaciÃ³n (mÃ¡s reciente primero)
+  // Usuarios (clientes + revendedores) ordenados por fecha de creación (más reciente primero)
   const usuariosOrdenados = useMemo(() => {
     return [...usuarios].sort((a, b) => {
       const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return bDate - aDate; // MÃ¡s reciente primero
+      return bDate - aDate; // Más reciente primero
     });
   }, [usuarios]);
 
-  // Usuarios filtrados por bÃºsqueda
+  // Usuarios filtrados por búsqueda
   const usuariosFiltrados = useMemo(() => {
     if (!searchCliente) return usuariosOrdenados;
     const search = normalizeSearchText(searchCliente);
@@ -359,12 +359,12 @@ export function VentasForm() {
     setValue('fechaFin', addMonths(new Date(fechaInicioValue), meses));
   }, [planSeleccionado, fechaInicioValue, setValue]);
 
-  // Ordenar servicios por fecha de creaciÃ³n (mÃ¡s recientes primero)
+  // Ordenar servicios por fecha de creación (más recientes primero)
   const serviciosOrdenados = useMemo(() => {
     return [...serviciosCategoria].sort((a, b) => {
       const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return bDate - aDate; // MÃ¡s reciente primero
+      return bDate - aDate; // Más reciente primero
     });
   }, [serviciosCategoria]);
 
@@ -617,15 +617,15 @@ export function VentasForm() {
   const previewNombreCliente = clienteSeleccionado?.nombre || previewClienteNombre.split(' ')[0] || 'Cliente';
   const previewFechaVencimiento = previewItem?.fechaFin ?? fechaFinValue;
   const previewMonto = items.length > 0 ? totalFinal : precioFinalNumero;
-  const previewCodigo = previewItem?.codigo || watch('codigo')?.trim() || 'â€”';
-  const previewPerfilNombre = previewItem?.perfilNombre?.trim() || 'â€”';
-  const previewCorreo = previewServicio?.correo || previewItem?.servicioCorreo || 'â€”';
-  const previewContrasena = previewServicio?.contrasena || previewItem?.servicioContrasena || 'â€”';
+  const previewCodigo = previewItem?.codigo || watch('codigo')?.trim() || '—';
+  const previewPerfilNombre = previewItem?.perfilNombre?.trim() || '—';
+  const previewCorreo = previewServicio?.correo || previewItem?.servicioCorreo || '—';
+  const previewContrasena = previewServicio?.contrasena || previewItem?.servicioContrasena || '—';
   const previewCategoriaNombre = previewCategoria?.nombre || previewItem?.servicioNombre || 'Servicio';
   const previewServicioNombre = previewItem?.servicioNombre || previewServicio?.nombre || 'Servicio';
   const formatItemsList = (names: string[]) => {
     const cleaned = names.map((n) => n.trim()).filter(Boolean);
-    if (cleaned.length === 0) return 'â€”';
+    if (cleaned.length === 0) return '—';
     if (cleaned.length === 1) return `*${cleaned[0]}*`;
     if (cleaned.length === 2) return `*${cleaned[0]}* y *${cleaned[1]}*`;
     const first = cleaned.slice(0, -1).map((n) => `*${n}*`).join(', ');
@@ -658,11 +658,11 @@ export function VentasForm() {
         const itemValues: Record<string, string> = {
           '{servicio}': item.servicioNombre || servicio?.nombre || 'Servicio',
           '{categoria}': categoria?.nombre || item.servicioNombre || 'Servicio',
-          '{correo}': servicio?.correo || item.servicioCorreo || 'â€”',
-          '{contrasena}': servicio?.contrasena || item.servicioContrasena || 'â€”',
-          '{perfil_nombre}': item.perfilNombre?.trim() || 'â€”',
-          '{codigo}': item.codigo || 'â€”',
-          '{vencimiento}': item.fechaFin ? formatearFechaWhatsApp(new Date(item.fechaFin)) : 'â€”',
+          '{correo}': servicio?.correo || item.servicioCorreo || '—',
+          '{contrasena}': servicio?.contrasena || item.servicioContrasena || '—',
+          '{perfil_nombre}': item.perfilNombre?.trim() || '—',
+          '{codigo}': item.codigo || '—',
+          '{vencimiento}': item.fechaFin ? formatearFechaWhatsApp(new Date(item.fechaFin)) : '—',
           '{monto}': `$${item.precioFinal?.toFixed(2) || '0.00'}`,
         };
         return replaceAllPlaceholders(block, { ...globals, ...itemValues });
@@ -672,7 +672,7 @@ export function VentasForm() {
     return replaceAllPlaceholders(content, globals);
   }, [items, serviciosCategoria, categorias]);
   const previewMessage = useMemo(() => {
-    const content = templateNotificacion?.contenido || 'No hay plantilla de NotificaciÃ³n de SuscripciÃ³n configurada.';
+    const content = templateNotificacion?.contenido || 'No hay plantilla de Notificación de Suscripción configurada.';
     const placeholders: Record<string, string> = {
       '{saludo}': getSaludo(),
       '{cliente}': previewClienteNombre,
@@ -683,7 +683,7 @@ export function VentasForm() {
       '{perfil_nombre}': previewPerfilNombre,
       '{correo}': previewCorreo,
       '{contrasena}': previewContrasena,
-      '{vencimiento}': previewFechaVencimiento ? formatearFechaWhatsApp(new Date(previewFechaVencimiento)) : 'â€”',
+      '{vencimiento}': previewFechaVencimiento ? formatearFechaWhatsApp(new Date(previewFechaVencimiento)) : '—',
       '{monto}': `$${previewMonto.toFixed(2)}`,
       '{codigo}': previewCodigo,
     };
@@ -750,7 +750,7 @@ export function VentasForm() {
       itemId,
       tipo: tipoItem,
       categoriaId: categoria.id,
-      categoriaNombre: categoria.nombre, // â† Denormalizar nombre
+      categoriaNombre: categoria.nombre, // <- Denormalizar nombre
         servicioId,
         servicioNombre: servicioSeleccionado?.nombre || plan.nombre,
         servicioCorreo: servicioSeleccionado?.correo,
@@ -846,7 +846,7 @@ export function VentasForm() {
           estado: estadoVenta || 'activo',
           notas: item.notas || '',
           categoriaId: item.categoriaId,
-          categoriaNombre: item.categoriaNombre, // â† Guardar nombre denormalizado
+          categoriaNombre: item.categoriaNombre, // <- Guardar nombre denormalizado
           servicioId: item.servicioId,
           servicioNombre: item.servicioNombre,
           servicioCorreo: item.servicioCorreo ?? '',
@@ -888,9 +888,9 @@ export function VentasForm() {
           moneda,
         });
       } catch (syncError) {
-        console.error('Error sincronizando mÃ©todo de pago del usuario:', syncError);
+        console.error('Error sincronizando método de pago del usuario:', syncError);
         toast.warning('Venta guardada con advertencia', {
-          description: 'La venta se creÃ³, pero no se pudo actualizar el mÃ©todo de pago en usuarios.',
+          description: 'La venta se creó, pero no se pudo actualizar el método de pago en usuarios.',
         });
       }
 
@@ -1017,7 +1017,7 @@ export function VentasForm() {
                                 : usuario.metodoPagoId;
                               setValue('metodoPagoId', nextMetodoPagoId);
                               clearErrors('metodoPagoId');
-                              setSearchCliente(''); // Limpiar bÃºsqueda despuÃ©s de seleccionar
+                              setSearchCliente(''); // Limpiar búsqueda después de seleccionar
                             }}
                           >
                             <div className="flex items-center gap-2">
@@ -1616,7 +1616,7 @@ export function VentasForm() {
                 <p className="text-sm font-medium">{clienteSeleccionado ? `${clienteSeleccionado.nombre} ${clienteSeleccionado.apellido}` : 'Sin seleccionar'}</p>
               </div>
               <div className="rounded-lg border bg-background/40 p-4">
-                <p className="text-xs text-muted-foreground">MÃ©todo de pago</p>
+                <p className="text-xs text-muted-foreground">Método de pago</p>
                 <p className="text-sm font-medium">{metodoPagoSeleccionado?.nombre || 'Sin seleccionar'}</p>
               </div>
             </div>
@@ -1643,7 +1643,7 @@ export function VentasForm() {
                         <div>
                           <p className="font-medium">{item.servicioNombre}</p>
                           <p className="text-xs text-muted-foreground">
-                            {item.cicloPago ? `${item.cicloPago.charAt(0).toUpperCase()}${item.cicloPago.slice(1)}` : 'â€”'}
+                            {item.cicloPago ? `${item.cicloPago.charAt(0).toUpperCase()}${item.cicloPago.slice(1)}` : '—'}
                           </p>
                         </div>
                         <span className="text-green-500 font-semibold">{simboloMoneda} {item.precioFinal.toFixed(2)}</span>
@@ -1652,13 +1652,13 @@ export function VentasForm() {
                         <div>
                           <p>Fecha de inicio</p>
                           <p className="text-foreground font-medium">
-                            {item.fechaInicio ? formatearFecha(item.fechaInicio) : 'â€”'}
+                            {item.fechaInicio ? formatearFecha(item.fechaInicio) : '—'}
                           </p>
                         </div>
                         <div>
                           <p>Fecha de fin</p>
                           <p className="text-foreground font-medium">
-                            {item.fechaFin ? formatearFecha(item.fechaFin) : 'â€”'}
+                            {item.fechaFin ? formatearFecha(item.fechaFin) : '—'}
                           </p>
                         </div>
                         <div>
@@ -1674,12 +1674,12 @@ export function VentasForm() {
                         <div>
                           <p>Nombre del perfil</p>
                           <p className="text-foreground font-medium">
-                            {item.perfilNombre?.trim() ? item.perfilNombre : 'â€”'}
+                            {item.perfilNombre?.trim() ? item.perfilNombre : '—'}
                           </p>
                         </div>
                         <div>
                           <p>Codigo</p>
-                          <p className="text-foreground font-medium">{item.codigo || 'â€”'}</p>
+                          <p className="text-foreground font-medium">{item.codigo || '—'}</p>
                         </div>
                       </div>
                       <div className="mt-3 text-xs text-muted-foreground">
@@ -1721,7 +1721,7 @@ export function VentasForm() {
 
               {notifyCliente && estadoValue !== 'inactivo' && (
                 <div className="mt-4 space-y-2">
-                  <p className="text-sm font-semibold">Editar Mensaje de NotificaciÃ³n</p>
+                  <p className="text-sm font-semibold">Editar Mensaje de Notificación</p>
                   <p className="text-xs text-muted-foreground">Puedes ajustar el mensaje antes de enviarlo. Los cambios no se guardan en las plantillas.</p>
                   <Textarea
                     value={editedMessage}
@@ -1871,5 +1871,4 @@ export function VentasForm() {
     </form>
   );
 }
-
 
