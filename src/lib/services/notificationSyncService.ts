@@ -326,6 +326,8 @@ async function procesarNotificacionReposo(servicio: Servicio, forzarActualizacio
     servicioNombre: servicio.nombre,
     categoriaNombre: servicio.categoriaNombre || '',
     correo: servicio.correo,
+    fechaInicio: servicio.fechaInicio,
+    fechaFin: servicio.fechaVencimiento,
     diasReposo: servicio.diasReposo || 28,
     fechaInicioReposo: servicio.fechaInicioReposo!,
     fechaFinReposo: servicio.fechaFinReposo,

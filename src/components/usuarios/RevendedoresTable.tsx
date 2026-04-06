@@ -20,6 +20,11 @@ import { toast } from 'sonner';
 import { useVentasPorUsuarios } from '@/hooks/use-ventas-por-usuarios';
 import { getUsuarioMetodoPagoNombre } from '@/lib/utils/usuarioMetodoPago';
 
+interface MetodoPagoFilterOption {
+  value: string;
+  label: string;
+}
+
 interface RevendedoresTableProps {
   revendedores: Usuario[];
   onEdit: (revendedor: Usuario) => void;
@@ -30,34 +35,34 @@ interface RevendedoresTableProps {
   searchQuery: string;
   onSearchChange: (value: string) => void;
   onRefresh: () => void;
+  metodoPagoFilter: string;
+  onMetodoPagoFilterChange: (value: string) => void;
+  metodoPagoOptions: MetodoPagoFilterOption[];
 }
 
-export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Revendedores', isLoading = false, pagination, searchQuery, onSearchChange, onRefresh }: RevendedoresTableProps) {
+export function RevendedoresTable({
+  revendedores,
+  onEdit,
+  onView,
+  title = 'Revendedores',
+  isLoading = false,
+  pagination,
+  searchQuery,
+  onSearchChange,
+  onRefresh,
+  metodoPagoFilter,
+  onMetodoPagoFilterChange,
+  metodoPagoOptions,
+}: RevendedoresTableProps) {
   const { deleteUsuario } = useUsuariosStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [revendedorToDelete, setRevendedorToDelete] = useState<Usuario | null>(null);
-  const [metodoPagoFilter, setMetodoPagoFilter] = useState('todos');
 
-  // IDs de revendedores de la página actual para la query de ventas
-  const revendedorIds = useMemo(
-    () => revendedores.map(r => r.id),
-    [revendedores]
-  );
+  const revendedorIds = useMemo(() => revendedores.map((r) => r.id), [revendedores]);
   const { stats: ventasPorUsuario } = useVentasPorUsuarios(revendedorIds, { enabled: !isLoading });
 
-  // Obtener métodos de pago únicos
-  const metodosPagoUnicos = useMemo(() => {
-    const metodos = new Set(revendedores.map((r) => getUsuarioMetodoPagoNombre(r.metodoPagoId, r.metodoPagoNombre)));
-    return Array.from(metodos).filter(Boolean);
-  }, [revendedores]);
-
-  // Filtrar revendedores por método de pago (la búsqueda por nombre/teléfono la maneja el page)
-  const filteredRevendedores = useMemo(() => {
-    return revendedores.filter((revendedor) =>
-      metodoPagoFilter === 'todos' ||
-      getUsuarioMetodoPagoNombre(revendedor.metodoPagoId, revendedor.metodoPagoNombre) === metodoPagoFilter
-    );
-  }, [revendedores, metodoPagoFilter]);
+  const selectedMetodoPagoLabel =
+    metodoPagoOptions.find((option) => option.value === metodoPagoFilter)?.label ?? 'Todos los métodos';
 
   const handleDelete = (revendedor: Usuario) => {
     setRevendedorToDelete(revendedor);
@@ -73,12 +78,16 @@ export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Reven
           createdAt: revendedorToDelete.createdAt,
           serviciosActivos: revendedorToDelete.serviciosActivos,
         });
-        toast.success('Revendedor eliminado', { description: 'El revendedor ha sido eliminado correctamente del sistema.' });
+        toast.success('Revendedor eliminado', {
+          description: 'El revendedor ha sido eliminado correctamente del sistema.',
+        });
         setDeleteDialogOpen(false);
         setRevendedorToDelete(null);
         onRefresh();
       } catch (error) {
-        toast.error('Error al eliminar revendedor', { description: error instanceof Error ? error.message : undefined });
+        toast.error('Error al eliminar revendedor', {
+          description: error instanceof Error ? error.message : undefined,
+        });
       }
     }
   };
@@ -187,19 +196,19 @@ export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Reven
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="w-[180px] justify-between font-normal">
-                {metodoPagoFilter === 'todos' ? 'Todos los métodos' : metodoPagoFilter}
+                {selectedMetodoPagoLabel}
                 <svg className="h-4 w-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-[180px]">
-              {[{ value: 'todos', label: 'Todos los métodos' }, ...metodosPagoUnicos.map(m => ({ value: m, label: m }))].map(op => (
+              {metodoPagoOptions.map((option) => (
                 <DropdownMenuItem
-                  key={op.value}
-                  onClick={() => setMetodoPagoFilter(op.value)}
+                  key={option.value}
+                  onClick={() => onMetodoPagoFilterChange(option.value)}
                   className="flex items-center justify-between"
                 >
-                  {op.label}
-                  {metodoPagoFilter === op.value && <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>}
+                  {option.label}
+                  {metodoPagoFilter === option.value && <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -208,7 +217,7 @@ export function RevendedoresTable({ revendedores, onEdit, onView, title = 'Reven
 
         <div>
           <DataTable
-            data={filteredRevendedores as unknown as Record<string, unknown>[]}
+            data={revendedores as unknown as Record<string, unknown>[]}
             columns={columns as unknown as Column<Record<string, unknown>>[]}
             loading={isLoading}
             pagination={false}

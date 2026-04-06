@@ -20,6 +20,11 @@ import { toast } from 'sonner';
 import { useVentasPorUsuarios } from '@/hooks/use-ventas-por-usuarios';
 import { getUsuarioMetodoPagoNombre } from '@/lib/utils/usuarioMetodoPago';
 
+interface MetodoPagoFilterOption {
+  value: string;
+  label: string;
+}
+
 interface ClientesTableProps {
   clientes: Usuario[];
   onEdit: (cliente: Usuario) => void;
@@ -30,34 +35,34 @@ interface ClientesTableProps {
   searchQuery: string;
   onSearchChange: (value: string) => void;
   onRefresh: () => void;
+  metodoPagoFilter: string;
+  onMetodoPagoFilterChange: (value: string) => void;
+  metodoPagoOptions: MetodoPagoFilterOption[];
 }
 
-export function ClientesTable({ clientes, onEdit, onView, title = 'Clientes', isLoading = false, pagination, searchQuery, onSearchChange, onRefresh }: ClientesTableProps) {
+export function ClientesTable({
+  clientes,
+  onEdit,
+  onView,
+  title = 'Clientes',
+  isLoading = false,
+  pagination,
+  searchQuery,
+  onSearchChange,
+  onRefresh,
+  metodoPagoFilter,
+  onMetodoPagoFilterChange,
+  metodoPagoOptions,
+}: ClientesTableProps) {
   const { deleteUsuario } = useUsuariosStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clienteToDelete, setClienteToDelete] = useState<Usuario | null>(null);
-  const [metodoPagoFilter, setMetodoPagoFilter] = useState('todos');
 
-  // IDs de clientes de la página actual para la query de ventas
-  const clienteIds = useMemo(
-    () => clientes.map(c => c.id),
-    [clientes]
-  );
+  const clienteIds = useMemo(() => clientes.map((c) => c.id), [clientes]);
   const { stats: ventasPorUsuario } = useVentasPorUsuarios(clienteIds, { enabled: !isLoading });
 
-  // Obtener métodos de pago únicos
-  const metodosPagoUnicos = useMemo(() => {
-    const metodos = new Set(clientes.map((c) => getUsuarioMetodoPagoNombre(c.metodoPagoId, c.metodoPagoNombre)));
-    return Array.from(metodos).filter(Boolean);
-  }, [clientes]);
-
-  // Filtrar clientes por método de pago (la búsqueda por nombre/teléfono la maneja el page)
-  const filteredClientes = useMemo(() => {
-    return clientes.filter((cliente) =>
-      metodoPagoFilter === 'todos' ||
-      getUsuarioMetodoPagoNombre(cliente.metodoPagoId, cliente.metodoPagoNombre) === metodoPagoFilter
-    );
-  }, [clientes, metodoPagoFilter]);
+  const selectedMetodoPagoLabel =
+    metodoPagoOptions.find((option) => option.value === metodoPagoFilter)?.label ?? 'Todos los métodos';
 
   const handleDelete = (cliente: Usuario) => {
     setClienteToDelete(cliente);
@@ -73,12 +78,16 @@ export function ClientesTable({ clientes, onEdit, onView, title = 'Clientes', is
           createdAt: clienteToDelete.createdAt,
           serviciosActivos: clienteToDelete.serviciosActivos,
         });
-        toast.success('Cliente eliminado', { description: 'El cliente ha sido eliminado correctamente del sistema.' });
+        toast.success('Cliente eliminado', {
+          description: 'El cliente ha sido eliminado correctamente del sistema.',
+        });
         setDeleteDialogOpen(false);
         setClienteToDelete(null);
         onRefresh();
       } catch (error) {
-        toast.error('Error al eliminar cliente', { description: error instanceof Error ? error.message : undefined });
+        toast.error('Error al eliminar cliente', {
+          description: error instanceof Error ? error.message : undefined,
+        });
       }
     }
   };
@@ -187,19 +196,19 @@ export function ClientesTable({ clientes, onEdit, onView, title = 'Clientes', is
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="w-[180px] justify-between font-normal">
-                {metodoPagoFilter === 'todos' ? 'Todos los métodos' : metodoPagoFilter}
+                {selectedMetodoPagoLabel}
                 <svg className="h-4 w-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-[180px]">
-              {[{ value: 'todos', label: 'Todos los métodos' }, ...metodosPagoUnicos.map(m => ({ value: m, label: m }))].map(op => (
+              {metodoPagoOptions.map((option) => (
                 <DropdownMenuItem
-                  key={op.value}
-                  onClick={() => setMetodoPagoFilter(op.value)}
+                  key={option.value}
+                  onClick={() => onMetodoPagoFilterChange(option.value)}
                   className="flex items-center justify-between"
                 >
-                  {op.label}
-                  {metodoPagoFilter === op.value && <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>}
+                  {option.label}
+                  {metodoPagoFilter === option.value && <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -208,7 +217,7 @@ export function ClientesTable({ clientes, onEdit, onView, title = 'Clientes', is
 
         <div>
           <DataTable
-            data={filteredClientes as unknown as Record<string, unknown>[]}
+            data={clientes as unknown as Record<string, unknown>[]}
             columns={columns as unknown as Column<Record<string, unknown>>[]}
             loading={isLoading}
             pagination={false}

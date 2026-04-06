@@ -30,7 +30,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { getCurrencySymbol } from '@/lib/constants';
-import { formatearFecha, sumInUSD, formatAggregateInUSD } from '@/lib/utils/calculations';
+import { formatearFecha, formatearFechaHora, sumInUSD, formatAggregateInUSD } from '@/lib/utils/calculations';
 import { currencyService } from '@/lib/services/currencyService';
 import { usePagosServicio } from '@/hooks/use-pagos-servicio';
 import { crearPagoRenovacion } from '@/lib/services/pagosServicioService';
@@ -833,11 +833,11 @@ function ServicioDetallePageContent() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Creado:</p>
-                  <p className="text-sm">{formatearFecha(new Date(servicio.createdAt))}</p>
+                  <p className="text-sm">{formatearFechaHora(new Date(servicio.createdAt))}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Última Actualización:</p>
-                  <p className="text-sm">{formatearFecha(new Date(servicio.updatedAt))}</p>
+                  <p className="text-sm">{formatearFechaHora(new Date(servicio.updatedAt))}</p>
                 </div>
               </div>
             </Card>

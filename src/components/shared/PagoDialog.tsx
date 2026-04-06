@@ -29,6 +29,7 @@ import {
   PENDING_USER_PAYMENT_ID,
   withPendingUserPaymentMethod,
 } from '@/lib/utils/usuarioMetodoPago';
+import { getServicioMetodoPagoNombre } from '@/lib/utils/servicioMetodoPago';
 
 const pagoDialogSchema = z.object({
   periodoRenovacion: z
@@ -180,6 +181,9 @@ export function PagoDialog(props: PagoDialogProps) {
     return [...metodosFiltrados].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
   }, [isVenta, metodosFiltrados]);
   const metodoPagoSeleccionado = metodosPagoOrdenados.find((m) => m.id === metodoPagoIdValue);
+  const metodoPagoDisplayName = isVenta
+    ? getUsuarioMetodoPagoNombre(metodoPagoIdValue, metodoPagoSeleccionado?.nombre)
+    : getServicioMetodoPagoNombre(metodoPagoSeleccionado, 'Seleccionar método');
   const currencySymbol = getCurrencySymbol(getUsuarioMetodoPagoMoneda(metodoPagoIdValue, metodoPagoSeleccionado?.moneda));
   const costoNormalizado = roundToDecimals(Number(costoValue) || 0);
   const descuentoNumero = Number(descuentoValue) || 0;
@@ -378,6 +382,9 @@ export function PagoDialog(props: PagoDialogProps) {
         : 'Registre un nuevo pago para este servicio para extender su fecha de vencimiento.');
 
   const submitDisabled = isSubmitting || (!isVenta && isEdit && !hasChanges);
+  const dialogContentClassName = isVenta
+    ? 'sm:max-w-[600px]'
+    : 'sm:max-w-[760px]';
 
   const renderPeriodoField = () => (
     <div className="space-y-2">
@@ -387,10 +394,10 @@ export function PagoDialog(props: PagoDialogProps) {
           <Button
             variant="outline"
             type="button"
-            className="w-full justify-between border-input bg-transparent dark:bg-input/30 dark:hover:bg-input/50 h-9"
+            className="h-9 w-full justify-between gap-2 border-input bg-transparent dark:bg-input/30 dark:hover:bg-input/50"
           >
             {periodoValue === 'mensual' ? 'Mensual' : periodoValue === 'trimestral' ? 'Trimestral' : periodoValue === 'semestral' ? 'Semestral' : periodoValue === 'anual' ? 'Anual' : 'Seleccionar ciclo'}
-            <ChevronDown className="h-4 w-4 opacity-50" />
+            <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
@@ -432,18 +439,21 @@ export function PagoDialog(props: PagoDialogProps) {
           <Button
             variant="outline"
             type="button"
-            className="w-full justify-between border-input bg-transparent dark:bg-input/30 dark:hover:bg-input/50 h-9"
+            className="h-9 w-full justify-between gap-2 border-input bg-transparent dark:bg-input/30 dark:hover:bg-input/50"
           >
-            {metodoPagoIdValue
-              ? getUsuarioMetodoPagoNombre(metodoPagoIdValue, metodoPagoSeleccionado?.nombre)
+            <span className="min-w-0 truncate text-left">{metodoPagoIdValue
+              ? metodoPagoDisplayName
               : 'Seleccionar método'}
-            <ChevronDown className="h-4 w-4 opacity-50" />
+            </span>
+            <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
           {metodosPagoOrdenados.map((m) => (
             <DropdownMenuItem key={m.id} onClick={() => { setValue('metodoPagoId', m.id); clearErrors('metodoPagoId'); }}>
-              {m.nombre}
+              <span className="block w-full truncate">
+                {isVenta ? m.nombre : getServicioMetodoPagoNombre(m)}
+              </span>
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>
@@ -511,7 +521,7 @@ export function PagoDialog(props: PagoDialogProps) {
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className={cn('max-w-[calc(100vw-2rem)]', dialogContentClassName)}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <p className="text-sm text-muted-foreground">

@@ -126,10 +126,10 @@ export function formatearFecha(fecha: Date): string {
 }
 
 /**
- * Formatea una fecha con hora en formato legible (d de MMMM del yyyy, h:mm a)
+ * Formatea una fecha con hora en formato legible (d de MMMM de yyyy, hh:mm a)
  */
 export function formatearFechaHora(fecha: Date): string {
-  return format(fecha, "d 'de' MMMM 'del' yyyy, h:mm a", { locale: es });
+  return format(fecha, "d 'de' MMMM 'de' yyyy, hh:mm a", { locale: es });
 }
 
 /**

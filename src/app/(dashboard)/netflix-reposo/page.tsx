@@ -281,15 +281,28 @@ function NetflixReposoPageContent() {
       ),
     },
     {
-      key: 'fechaFinReposo',
+      key: 'fechaVencimiento',
       header: 'Fecha Fin',
+      sortable: true,
+      align: 'center',
+      render: (item) => (
+        <span className="text-sm text-white">
+          {item.fechaVencimiento
+            ? format(new Date(item.fechaVencimiento), "dd 'de' MMMM 'del' yyyy", { locale: es })
+            : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'fechaFinReposo',
+      header: 'Fecha Fin Reposo',
       sortable: true,
       align: 'center',
       render: (item) => (
         <span className="text-sm text-white">
           {item.fechaFinReposo
             ? format(new Date(item.fechaFinReposo), "dd 'de' MMMM 'del' yyyy", { locale: es })
-            : '—'}
+            : '-'}
         </span>
       ),
     },

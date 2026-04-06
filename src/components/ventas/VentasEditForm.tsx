@@ -22,8 +22,8 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { CalendarIcon, ChevronDown, ChevronUp, Eye, Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { CalendarIcon, ChevronDown, ChevronUp, Eye, Loader2, Search } from 'lucide-react';
+import { cn, normalizeSearchText } from '@/lib/utils';
 import { COLLECTIONS, queryDocuments, update, adjustServiciosActivos } from '@/lib/firebase/firestore';
 import { upsertVentaPronostico } from '@/lib/services/dashboardStatsService';
 import { useCategoriasStore } from '@/store/categoriasStore';
@@ -159,6 +159,7 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
   const [fechasInicializadas, setFechasInicializadas] = useState(false);
   const [perfilPage, setPerfilPage] = useState(0);
   const [perfilSearch, setPerfilSearch] = useState(venta.perfilNumero ? String(venta.perfilNumero) : '');
+  const [searchCliente, setSearchCliente] = useState('');
 
   // Efecto inicial: solo cargar datos que no dependen de selección
   useEffect(() => {
@@ -216,7 +217,21 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
   const estadoValue = watch('estado');
   const notasValue = watch('notas');
 
-  const clientes = useMemo(() => usuarios.filter((u) => u.tipo === 'cliente'), [usuarios]);
+  const usuariosOrdenados = useMemo(() => {
+    return [...usuarios].sort((a, b) => {
+      const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return bDate - aDate;
+    });
+  }, [usuarios]);
+  const usuariosFiltrados = useMemo(() => {
+    if (!searchCliente) return usuariosOrdenados;
+    const search = normalizeSearchText(searchCliente);
+    return usuariosOrdenados.filter((usuario) => {
+      const nombreCompleto = normalizeSearchText(`${usuario.nombre} ${usuario.apellido || ''}`);
+      return nombreCompleto.includes(search);
+    });
+  }, [usuariosOrdenados, searchCliente]);
   const metodosPagoOrdenados = useMemo(() => {
     const pendientes = metodosPago.filter((metodo) => isPendingUserPaymentMethodId(metodo.id));
     const restantes = metodosPago
@@ -225,7 +240,7 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
 
     return [...pendientes, ...restantes];
   }, [metodosPago]);
-  const clienteSeleccionado = clientes.find((c) => c.id === clienteIdValue);
+  const clienteSeleccionado = usuariosOrdenados.find((usuario) => usuario.id === clienteIdValue);
   const metodoPagoSeleccionado = metodosPagoOrdenados.find((m) => m.id === metodoPagoIdValue);
 
   // Efecto para cargar servicios cuando se selecciona una categoría
@@ -891,33 +906,73 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
         <TabsContent value="datos" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <Label>Cliente</Label>
+              <Label>Cliente / Revendedor</Label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" type="button" className="w-full justify-between">
-                    {clienteSeleccionado ? `${clienteSeleccionado.nombre} ${clienteSeleccionado.apellido}` : 'Seleccionar cliente'}
+                    {clienteSeleccionado ? (
+                      <span>
+                        {clienteSeleccionado.nombre} {clienteSeleccionado.apellido}
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          ({clienteSeleccionado.tipo === 'cliente' ? 'Cliente' : 'Revendedor'})
+                        </span>
+                      </span>
+                    ) : (
+                      'Seleccionar usuario'
+                    )}
                     <ChevronDown className="h-4 w-4 opacity-50" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                  {clientes.map((cliente) => (
-                    <DropdownMenuItem
-                      key={cliente.id}
-                      onClick={() => {
-                        setValue('clienteId', cliente.id);
-                        setValue(
-                          'metodoPagoId',
-                          isPendingUserPaymentMethodId(cliente.metodoPagoId)
-                            ? PENDING_USER_PAYMENT_ID
-                            : cliente.metodoPagoId
-                        );
-                        clearErrors('clienteId');
-                        clearErrors('metodoPagoId');
-                      }}
-                    >
-                      {cliente.nombre} {cliente.apellido}
-                    </DropdownMenuItem>
-                  ))}
+                <DropdownMenuContent
+                  align="start"
+                  className="w-[var(--radix-dropdown-menu-trigger-width)]"
+                  onCloseAutoFocus={(e) => e.preventDefault()}
+                >
+                  <div className="border-b p-2" onKeyDown={(e) => e.stopPropagation()}>
+                    <div className="relative">
+                      <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar usuario..."
+                        value={searchCliente}
+                        onChange={(e) => setSearchCliente(e.target.value)}
+                        onKeyDown={(e) => e.stopPropagation()}
+                        className="h-8 pl-8"
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+                  <div className="max-h-[300px] overflow-y-auto">
+                    {usuariosFiltrados.length === 0 ? (
+                      <div className="p-4 text-center text-sm text-muted-foreground">
+                        No se encontraron usuarios
+                      </div>
+                    ) : (
+                      usuariosFiltrados.map((usuario) => (
+                        <DropdownMenuItem
+                          key={usuario.id}
+                          onClick={() => {
+                            setValue('clienteId', usuario.id);
+                            setValue(
+                              'metodoPagoId',
+                              isPendingUserPaymentMethodId(usuario.metodoPagoId)
+                                ? PENDING_USER_PAYMENT_ID
+                                : usuario.metodoPagoId
+                            );
+                            clearErrors('clienteId');
+                            clearErrors('metodoPagoId');
+                            setSearchCliente('');
+                          }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span>{usuario.nombre} {usuario.apellido}</span>
+                            <span className="text-xs text-muted-foreground">
+                              ({usuario.tipo === 'cliente' ? 'Cliente' : 'Revendedor'})
+                            </span>
+                          </div>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                  </div>
                 </DropdownMenuContent>
               </DropdownMenu>
               {errors.clienteId && <p className="text-sm text-red-500">{errors.clienteId.message}</p>}

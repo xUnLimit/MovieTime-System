@@ -20,7 +20,6 @@ import { toast } from 'sonner';
 import { useVentasPorUsuarios } from '@/hooks/use-ventas-por-usuarios';
 import { getUsuarioMetodoPagoNombre } from '@/lib/utils/usuarioMetodoPago';
 
-// Tipo para display en la tabla
 interface UsuarioDisplay {
   id: string;
   nombre: string;
@@ -33,6 +32,11 @@ interface UsuarioDisplay {
   original: Usuario;
 }
 
+interface MetodoPagoFilterOption {
+  value: string;
+  label: string;
+}
+
 interface TodosUsuariosTableProps {
   usuarios: Usuario[];
   onEdit: (usuario: Usuario) => void;
@@ -43,6 +47,9 @@ interface TodosUsuariosTableProps {
   searchQuery: string;
   onSearchChange: (value: string) => void;
   onRefresh: () => void;
+  metodoPagoFilter: string;
+  onMetodoPagoFilterChange: (value: string) => void;
+  metodoPagoOptions: MetodoPagoFilterOption[];
 }
 
 export function TodosUsuariosTable({
@@ -55,19 +62,17 @@ export function TodosUsuariosTable({
   searchQuery,
   onSearchChange,
   onRefresh,
+  metodoPagoFilter,
+  onMetodoPagoFilterChange,
+  metodoPagoOptions,
 }: TodosUsuariosTableProps) {
   const { deleteUsuario } = useUsuariosStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [usuarioToDelete, setUsuarioToDelete] = useState<UsuarioDisplay | null>(null);
-  const [metodoPagoFilter, setMetodoPagoFilter] = useState('todos');
-  // IDs de todos los usuarios (clientes Y revendedores) de la página actual (máx 10) para la query de ventas
-  const usuarioIds = useMemo(
-    () => usuarios.map(u => u.id),
-    [usuarios]
-  );
+
+  const usuarioIds = useMemo(() => usuarios.map((u) => u.id), [usuarios]);
   const { stats: ventasPorUsuario } = useVentasPorUsuarios(usuarioIds, { enabled: !isLoading });
 
-  // Mapear usuarios a formato display
   const usuariosDisplay: UsuarioDisplay[] = useMemo(() => {
     return usuarios.map((u) => ({
       id: u.id,
@@ -82,18 +87,8 @@ export function TodosUsuariosTable({
     }));
   }, [usuarios, ventasPorUsuario]);
 
-  // Obtener métodos de pago únicos
-  const metodosPagoUnicos = useMemo(() => {
-    const metodos = new Set(usuariosDisplay.map((u) => u.metodoPagoNombre));
-    return Array.from(metodos).filter(Boolean);
-  }, [usuariosDisplay]);
-
-  // Filtrar usuarios por método de pago (la búsqueda por nombre/teléfono la maneja el page)
-  const filteredUsuarios = useMemo(() => {
-    return usuariosDisplay.filter((usuario) =>
-      metodoPagoFilter === 'todos' || usuario.metodoPagoNombre === metodoPagoFilter
-    );
-  }, [usuariosDisplay, metodoPagoFilter]);
+  const selectedMetodoPagoLabel =
+    metodoPagoOptions.find((option) => option.value === metodoPagoFilter)?.label ?? 'Todos los métodos';
 
   const handleDelete = (usuario: UsuarioDisplay) => {
     setUsuarioToDelete(usuario);
@@ -109,12 +104,16 @@ export function TodosUsuariosTable({
           createdAt: usuarioToDelete.original.createdAt,
           serviciosActivos: usuarioToDelete.original.serviciosActivos,
         });
-        toast.success(`${usuarioToDelete.tipo} eliminado`, { description: 'El usuario ha sido eliminado correctamente del sistema.' });
+        toast.success(`${usuarioToDelete.tipo} eliminado`, {
+          description: 'El usuario ha sido eliminado correctamente del sistema.',
+        });
         setDeleteDialogOpen(false);
         setUsuarioToDelete(null);
         onRefresh();
       } catch (error) {
-        toast.error(`Error al eliminar ${usuarioToDelete.tipo.toLowerCase()}`, { description: error instanceof Error ? error.message : undefined });
+        toast.error(`Error al eliminar ${usuarioToDelete.tipo.toLowerCase()}`, {
+          description: error instanceof Error ? error.message : undefined,
+        });
       }
     }
   };
@@ -236,19 +235,19 @@ export function TodosUsuariosTable({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="w-[180px] justify-between font-normal">
-                {metodoPagoFilter === 'todos' ? 'Todos los métodos' : metodoPagoFilter}
+                {selectedMetodoPagoLabel}
                 <svg className="h-4 w-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-[180px]">
-              {[{ value: 'todos', label: 'Todos los métodos' }, ...metodosPagoUnicos.map(m => ({ value: m, label: m }))].map(op => (
+              {metodoPagoOptions.map((option) => (
                 <DropdownMenuItem
-                  key={op.value}
-                  onClick={() => setMetodoPagoFilter(op.value)}
+                  key={option.value}
+                  onClick={() => onMetodoPagoFilterChange(option.value)}
                   className="flex items-center justify-between"
                 >
-                  {op.label}
-                  {metodoPagoFilter === op.value && <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>}
+                  {option.label}
+                  {metodoPagoFilter === option.value && <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -256,7 +255,7 @@ export function TodosUsuariosTable({
         </div>
 
         <DataTable
-          data={filteredUsuarios as unknown as Record<string, unknown>[]}
+          data={usuariosDisplay as unknown as Record<string, unknown>[]}
           columns={columns as unknown as Column<Record<string, unknown>>[]}
           loading={isLoading}
           pagination={false}

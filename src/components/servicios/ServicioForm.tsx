@@ -33,6 +33,7 @@ import {
   PROFILE_PREVIEW_FULL_RENDER_LIMIT,
   getProfilePreviewSample,
 } from '@/lib/utils/perfiles';
+import { getServicioMetodoPagoNombre } from '@/lib/utils/servicioMetodoPago';
 
 const servicioSchema = z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
@@ -488,7 +489,7 @@ export function ServicioForm({ servicio, returnTo = '/servicios' }: ServicioForm
     ? metodosPago.find(m => m.id === metodoPagoIdValue)
     : null;
 
-  const metodoPagoNombre = metodoPagoSeleccionado?.nombre || 'Seleccionar método de pago';
+  const metodoPagoDisplayName = getServicioMetodoPagoNombre(metodoPagoSeleccionado);
 
   const getSimboloMoneda = (moneda?: string, pais?: string): string => {
     if (!moneda) return '$';
@@ -620,7 +621,7 @@ export function ServicioForm({ servicio, returnTo = '/servicios' }: ServicioForm
                     className="w-full justify-between"
                     type="button"
                   >
-                    {metodoPagoNombre}
+                    {metodoPagoDisplayName}
                     <ChevronDown className="h-4 w-4 opacity-50" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -630,7 +631,7 @@ export function ServicioForm({ servicio, returnTo = '/servicios' }: ServicioForm
                       key={metodo.id}
                       onClick={() => setValue('metodoPagoId', metodo.id)}
                     >
-                      {metodo.nombre}
+                      {getServicioMetodoPagoNombre(metodo)}
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
@@ -1017,7 +1018,7 @@ export function ServicioForm({ servicio, returnTo = '/servicios' }: ServicioForm
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <span className="text-xs text-muted-foreground block mb-1">Método de pago</span>
-                    <span className="font-medium">{metodoPagoNombre}</span>
+                    <span className="font-medium">{metodoPagoDisplayName}</span>
                   </div>
                   <div>
                     <span className="text-xs text-muted-foreground block mb-1">Ciclo de facturación</span>

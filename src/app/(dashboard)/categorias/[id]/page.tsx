@@ -11,6 +11,7 @@ import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { toast } from 'sonner';
 import { getById, COLLECTIONS } from '@/lib/firebase/firestore';
+import { formatearFechaHora } from '@/lib/utils/calculations';
 import { Categoria } from '@/types';
 
 function VerCategoriaPageContent() {
@@ -179,13 +180,13 @@ function VerCategoriaPageContent() {
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Fecha de creación:</span>
               <span className="text-sm font-medium">
-                {new Date(categoria.createdAt).toLocaleDateString('es-PA', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
+                {formatearFechaHora(new Date(categoria.createdAt))}
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Última actualización:</span>
               <span className="text-sm font-medium">
-                {new Date(categoria.updatedAt).toLocaleDateString('es-PA', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
+                {formatearFechaHora(new Date(categoria.updatedAt))}
               </span>
             </div>
           </div>

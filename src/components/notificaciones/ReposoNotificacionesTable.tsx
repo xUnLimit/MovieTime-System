@@ -179,6 +179,12 @@ export function ReposoNotificacionesTable() {
                   Correo
                 </TableHead>
                 <TableHead className="h-12 px-4 text-center text-muted-foreground">
+                  Fecha Inicio
+                </TableHead>
+                <TableHead className="h-12 px-4 text-center text-muted-foreground">
+                  Fecha Fin
+                </TableHead>
+                <TableHead className="h-12 px-4 text-center text-muted-foreground">
                   Fecha Fin Reposo
                 </TableHead>
                 <TableHead className="h-12 px-4 text-center text-muted-foreground">
@@ -192,7 +198,7 @@ export function ReposoNotificacionesTable() {
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                     No hay notificaciones de Netflix en reposo
                   </TableCell>
                 </TableRow>
@@ -230,6 +236,20 @@ export function ReposoNotificacionesTable() {
                       {/* Correo */}
                       <TableCell className="p-4 text-center text-sm">
                         {notif.correo ?? '—'}
+                      </TableCell>
+
+                      {/* Fecha Inicio */}
+                      <TableCell className="p-4 text-center text-sm">
+                        {notif.fechaInicio
+                          ? formatearFecha(notif.fechaInicio instanceof Date ? notif.fechaInicio.toISOString() : String(notif.fechaInicio))
+                          : '-'}
+                      </TableCell>
+
+                      {/* Fecha Fin */}
+                      <TableCell className="p-4 text-center text-sm">
+                        {notif.fechaFin
+                          ? formatearFecha(notif.fechaFin instanceof Date ? notif.fechaFin.toISOString() : String(notif.fechaFin))
+                          : '-'}
                       </TableCell>
 
                       {/* Fecha Fin Reposo */}

@@ -109,6 +109,8 @@ export interface NotificacionReposo extends NotificacionBase {
   servicioNombre: string;
   categoriaNombre: string;
   correo: string;
+  fechaInicio?: Date;
+  fechaFin?: Date;
   diasReposo: number;
   fechaInicioReposo: Date;
   fechaFinReposo: Date;
