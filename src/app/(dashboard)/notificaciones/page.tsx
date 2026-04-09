@@ -73,9 +73,9 @@ function NotificacionesPageContent() {
   useEffect(() => {
     const init = async () => {
       try {
-        await fetchNotificaciones();
-        await fetchCounts();
         await sincronizarNotificaciones();
+        await fetchNotificaciones(true);
+        await fetchCounts();
       } catch (error) {
         console.error('Error initializing notifications:', error);
         toast.error('Error al cargar notificaciones', { description: 'No se pudieron obtener las notificaciones. Intenta nuevamente.' });

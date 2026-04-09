@@ -232,45 +232,40 @@ export const useUsuariosStore = create<UsuariosState>()(
           await update(COLLECTIONS.USUARIOS, id, updates);
 
           // Si cambió nombre o teléfono, sincronizar campos denormalizados en ventas
-          // y refrescar notificaciones derivadas de esas ventas.
+          // y refrescar notificaciones derivadas de esas ventas antes de resolver el guardado.
           if ((nombreChanged || telefonoChanged) && oldUsuario) {
             const nuevoNombre = `${updates.nombre ?? oldUsuario.nombre} ${updates.apellido ?? oldUsuario.apellido}`;
             const nuevoTelefono = updates.telefono ?? oldUsuario.telefono;
+            const [ventasDelCliente, pagosDelCliente] = await Promise.all([
+              queryDocuments<{ id: string }>(COLLECTIONS.VENTAS, [{ field: 'clienteId', operator: '==', value: id }]),
+              nombreChanged
+                ? queryDocuments<{ id: string }>(COLLECTIONS.PAGOS_VENTA, [{ field: 'clienteId', operator: '==', value: id }])
+                : Promise.resolve([] as { id: string }[]),
+            ]);
+            const ventaUpdates: Record<string, unknown> = {};
 
-            void (async () => {
-              const [ventasDelCliente, pagosDelCliente] = await Promise.all([
-                queryDocuments<{ id: string }>(COLLECTIONS.VENTAS, [{ field: 'clienteId', operator: '==', value: id }]),
-                nombreChanged
-                  ? queryDocuments<{ id: string }>(COLLECTIONS.PAGOS_VENTA, [{ field: 'clienteId', operator: '==', value: id }])
-                  : Promise.resolve([] as { id: string }[]),
-              ]);
-              const ventaUpdates: Record<string, unknown> = {};
+            if (nombreChanged) {
+              ventaUpdates.clienteNombre = nuevoNombre;
+            }
 
-              if (nombreChanged) {
-                ventaUpdates.clienteNombre = nuevoNombre;
-              }
+            if (telefonoChanged) {
+              ventaUpdates.clienteTelefono = nuevoTelefono;
+            }
 
-              if (telefonoChanged) {
-                ventaUpdates.clienteTelefono = nuevoTelefono;
-              }
+            await Promise.all([
+              ...ventasDelCliente.map(v => update(COLLECTIONS.VENTAS, v.id, ventaUpdates)),
+              ...pagosDelCliente.map(p => update(COLLECTIONS.PAGOS_VENTA, p.id, { clienteNombre: nuevoNombre })),
+            ]);
 
-              await Promise.all([
-                ...ventasDelCliente.map(v => update(COLLECTIONS.VENTAS, v.id, ventaUpdates)),
-                ...pagosDelCliente.map(p => update(COLLECTIONS.PAGOS_VENTA, p.id, { clienteNombre: nuevoNombre })),
-              ]);
+            if (ventasDelCliente.length > 0) {
+              await sincronizarNotificacionesForzado();
+              const { useNotificacionesStore } = await import('@/store/notificacionesStore');
+              await useNotificacionesStore.getState().fetchNotificaciones(true);
+            }
 
-              if (ventasDelCliente.length > 0) {
-                await sincronizarNotificacionesForzado();
-                const { useNotificacionesStore } = await import('@/store/notificacionesStore');
-                await useNotificacionesStore.getState().fetchNotificaciones(true);
-              }
-
-              if (typeof window !== 'undefined') {
-                window.dispatchEvent(new Event('usuario-nombre-updated'));
-              }
-            })().catch((error) => {
-              console.error('[UsuariosStore] Error syncing cliente denormalized fields:', error);
-            });
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new Event('usuario-nombre-updated'));
+            }
           }
 
           set((state) => {
