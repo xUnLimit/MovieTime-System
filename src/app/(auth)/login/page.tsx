@@ -13,19 +13,22 @@ import { Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, isAuthenticated, isLoading } = useAuthStore();
+  const { login, isAuthenticated, isLoading, isHydrated } = useAuthStore();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('auth-remember') === 'true';
+  });
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     // Si ya está autenticado, redirigir al dashboard
-    if (isAuthenticated) {
+    if (isHydrated && isAuthenticated) {
       router.push('/dashboard');
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, isHydrated, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,7 +106,7 @@ export default function LoginPage() {
               <Checkbox
                 id="remember"
                 checked={rememberMe}
-                onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                onCheckedChange={(checked) => setRememberMe(checked === true)}
               />
               <label
                 htmlFor="remember"

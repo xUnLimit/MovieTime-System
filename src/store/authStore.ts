@@ -5,6 +5,7 @@ import { signIn, signOut as firebaseSignOut, onAuthStateChange, convertFirebaseU
 
 const STORAGE_KEY = 'auth-storage';
 const REMEMBER_KEY = 'auth-remember';
+let authListenerInitialized = false;
 
 /**
  * Returns the active storage based on the "Recordarme" flag.
@@ -109,6 +110,8 @@ export const useAuthStore = create<AuthState>()(
         },
 
         initAuth: () => {
+          if (authListenerInitialized) return;
+          authListenerInitialized = true;
           onAuthStateChange((firebaseUser) => {
             if (firebaseUser) {
               const user = convertFirebaseUser(firebaseUser);

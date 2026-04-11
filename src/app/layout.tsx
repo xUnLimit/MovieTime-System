@@ -1,6 +1,7 @@
 ﻿import type { Metadata } from "next";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/layout/ThemeProvider";
+import { AuthInitializer } from "@/components/auth/AuthInitializer";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -27,6 +28,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <AuthInitializer />
           {children}
           <Toaster position="bottom-right" />
         </ThemeProvider>
