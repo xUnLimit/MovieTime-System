@@ -4,6 +4,7 @@ import { Servicio, MetodoPago, VentaDoc } from '@/types';
 import { getAll, getById, getCount, create as createDoc, update, remove, COLLECTIONS, logCacheHit, adjustCategoriaGastos, queryDocuments } from '@/lib/firebase/firestore';
 import { adjustGastosStats, getMesKeyFromDate, getDiaKeyFromDate, upsertServicioPronostico } from '@/lib/services/dashboardStatsService';
 import { currencyService } from '@/lib/services/currencyService';
+import { resyncServiciosDenormalizedData, syncServicioDependencias } from '@/lib/services/servicioSyncService';
 import type { ServicioPronostico } from '@/types/dashboard';
 
 function toServicioPronostico(s: Servicio): ServicioPronostico | null {
@@ -59,6 +60,7 @@ interface ServiciosState {
   getServiciosDisponibles: () => Servicio[];
   updatePerfilOcupado: (id: string, shouldIncrement: boolean) => Promise<void>;
   resyncPerfilesDisponiblesTotal: () => Promise<{ categoriasActualizadas: number }>;
+  resyncServicioReferencias: () => Promise<{ serviciosRevisados: number; ventasActualizadas: number }>;
 }
 
 const CACHE_TIMEOUT = 5 * 60 * 1000;
@@ -265,6 +267,8 @@ export const useServiciosStore = create<ServiciosState>()(
             const nextEnReposo = !!(finalUpdates.enReposo ?? servicio.enReposo);
             const prevActivo = !!servicio.activo;
             const nextActivo = !!(finalUpdates.activo ?? servicio.activo);
+            const prevCategoriaId = servicio.categoriaId;
+            const nextCategoriaId = finalUpdates.categoriaId ?? servicio.categoriaId;
             const prevContable = !prevEnReposo;
             const nextContable = !nextEnReposo;
             const prevActivoContable = prevContable && prevActivo;
@@ -277,27 +281,68 @@ export const useServiciosStore = create<ServiciosState>()(
             const perfilesLibresNext = nextActivoContable
               ? Math.max((nextPerfilesDisponibles || 0) - (nextPerfilesOcupados || 0), 0)
               : 0;
-            const deltaTotalServicios = (nextContable ? 1 : 0) - (prevContable ? 1 : 0);
-            const deltaServiciosActivos = (nextActivoContable ? 1 : 0) - (prevActivoContable ? 1 : 0);
-            const deltaPerfilesDisponibles = perfilesLibresNext - perfilesLibresPrev;
+            if (prevCategoriaId !== nextCategoriaId) {
+              const categoriaAnteriorRef = firestoreDoc(db, COLLECTIONS.CATEGORIAS, prevCategoriaId);
+              const categoriaNuevaRef = firestoreDoc(db, COLLECTIONS.CATEGORIAS, nextCategoriaId);
 
-            if (deltaTotalServicios !== 0 || deltaServiciosActivos !== 0 || deltaPerfilesDisponibles !== 0) {
-              const categoriaRef = firestoreDoc(db, COLLECTIONS.CATEGORIAS, servicio.categoriaId);
-              await updateDoc(categoriaRef, {
-                totalServicios: increment(deltaTotalServicios),
-                serviciosActivos: increment(deltaServiciosActivos),
-                perfilesDisponiblesTotal: increment(deltaPerfilesDisponibles),
-              });
+              await Promise.all([
+                updateDoc(categoriaAnteriorRef, {
+                  totalServicios: increment(prevContable ? -1 : 0),
+                  serviciosActivos: increment(prevActivoContable ? -1 : 0),
+                  perfilesDisponiblesTotal: increment(-perfilesLibresPrev),
+                }),
+                updateDoc(categoriaNuevaRef, {
+                  totalServicios: increment(nextContable ? 1 : 0),
+                  serviciosActivos: increment(nextActivoContable ? 1 : 0),
+                  perfilesDisponiblesTotal: increment(perfilesLibresNext),
+                }),
+              ]);
+            } else {
+              const deltaTotalServicios = (nextContable ? 1 : 0) - (prevContable ? 1 : 0);
+              const deltaServiciosActivos = (nextActivoContable ? 1 : 0) - (prevActivoContable ? 1 : 0);
+              const deltaPerfilesDisponibles = perfilesLibresNext - perfilesLibresPrev;
+
+              if (deltaTotalServicios !== 0 || deltaServiciosActivos !== 0 || deltaPerfilesDisponibles !== 0) {
+                const categoriaRef = firestoreDoc(db, COLLECTIONS.CATEGORIAS, servicio.categoriaId);
+                await updateDoc(categoriaRef, {
+                  totalServicios: increment(deltaTotalServicios),
+                  serviciosActivos: increment(deltaServiciosActivos),
+                  perfilesDisponiblesTotal: increment(deltaPerfilesDisponibles),
+                });
+              }
             }
           }
+
+          const servicioActualizado = {
+            ...servicio,
+            ...finalUpdates,
+          } as Servicio;
+
+          await syncServicioDependencias(
+            {
+              id: servicio.id,
+              nombre: servicio.nombre,
+              correo: servicio.correo,
+              contrasena: servicio.contrasena,
+              categoriaId: servicio.categoriaId,
+              categoriaNombre: servicio.categoriaNombre,
+            },
+            {
+              id: servicioActualizado.id,
+              nombre: servicioActualizado.nombre,
+              correo: servicioActualizado.correo,
+              contrasena: servicioActualizado.contrasena,
+              categoriaId: servicioActualizado.categoriaId,
+              categoriaNombre: servicioActualizado.categoriaNombre,
+            }
+          );
 
           // Sync dashboard forecast when activo/enReposo changes
           if (
             (updates.activo !== undefined && updates.activo !== servicio.activo) ||
             (updates.enReposo !== undefined && updates.enReposo !== servicio.enReposo)
           ) {
-            const updatedServicio = { ...servicio, ...finalUpdates };
-            const servicioPronostico = toServicioPronostico(updatedServicio as Servicio);
+            const servicioPronostico = toServicioPronostico(servicioActualizado);
 
             // Update local dashboard state immediately + invalidate cache
             import('./dashboardStore').then(({ useDashboardStore }) => {
@@ -332,6 +377,10 @@ export const useServiciosStore = create<ServiciosState>()(
                 ? { ...s, ...finalUpdates, updatedAt: new Date() }
                 : s
             ),
+            selectedServicio:
+              state.selectedServicio?.id === id
+                ? { ...state.selectedServicio, ...finalUpdates, updatedAt: new Date() }
+                : state.selectedServicio,
             error: null
           }));
 
@@ -598,6 +647,17 @@ export const useServiciosStore = create<ServiciosState>()(
         }
 
         return { categoriasActualizadas: categoriaUpdates.length, serviciosCorregidos: servicioUpdates.length };
+      },
+
+      resyncServicioReferencias: async () => {
+        try {
+          return await resyncServiciosDenormalizedData();
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Error al resincronizar referencias de servicios';
+          set({ error: errorMessage });
+          console.error('[ServiciosStore] Error resyncing servicio references:', error);
+          throw error;
+        }
       },
     }),
     { name: 'servicios-store' }

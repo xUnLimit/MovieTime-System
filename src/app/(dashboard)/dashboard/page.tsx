@@ -99,7 +99,7 @@ import Link from 'next/link';
 export default function DashboardPage() {
   const { fetchDashboard, recalculateDashboard, isRecalculating } = useDashboardStore();
   const { fetchNotificaciones } = useNotificacionesStore();
-  const { resyncPerfilesDisponiblesTotal } = useServiciosStore();
+  const { resyncPerfilesDisponiblesTotal, resyncServicioReferencias } = useServiciosStore();
   const { fetchCategorias, resyncContadoresCategorias } = useCategoriasStore();
   const { resyncServiciosActivos } = useUsuariosStore();
   const toastShown = useRef(false);
@@ -207,6 +207,7 @@ export default function DashboardPage() {
     try {
       // 1. Resync contadores de perfiles disponibles en categorías
       await resyncPerfilesDisponiblesTotal();
+      const { serviciosRevisados, ventasActualizadas } = await resyncServicioReferencias();
       const { usuariosReparados } = await resyncServiciosActivos();
       // 2. Resync contadores de ventas, ingresos y gastos por categoría
       await resyncContadoresCategorias();
@@ -216,9 +217,14 @@ export default function DashboardPage() {
       await fetchCategorias(true);
       toast.success('Sistema sincronizado correctamente', {
         id: toastId,
-        description: usuariosReparados > 0
-          ? `Se repararon ${usuariosReparados} usuario(s) con servicios activos desfasados.`
-          : 'No se encontraron usuarios desfasados en servicios activos.',
+        description: [
+          ventasActualizadas > 0
+            ? `${ventasActualizadas} venta(s) resincronizadas desde ${serviciosRevisados} servicio(s).`
+            : `No se encontraron ventas desfasadas en ${serviciosRevisados} servicio(s).`,
+          usuariosReparados > 0
+            ? `${usuariosReparados} usuario(s) reparados en servicios activos.`
+            : 'Sin desfases en servicios activos de usuarios.',
+        ].join(' '),
       });
     } catch {
       toast.error('Error al sincronizar el sistema', { id: toastId });

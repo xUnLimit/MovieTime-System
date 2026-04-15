@@ -17,6 +17,22 @@ interface CachedVentas {
 
 const ventasCache = new Map<string, CachedVentas>();
 
+function shouldInvalidateUsuarioVentasCache(cachedTs: number): boolean {
+  if (typeof window === 'undefined') return false;
+
+  for (const key of ['venta-deleted', 'venta-created', 'venta-updated', 'servicio-updated']) {
+    const value = window.localStorage.getItem(key);
+    if (!value) continue;
+
+    const updatedAt = parseInt(value, 10);
+    if (!Number.isNaN(updatedAt) && updatedAt > cachedTs) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 /**
  * Venta tal como la devuelve Firestore, con timestamps
  * convertidos a Date para consumo directo en componentes.
@@ -67,7 +83,7 @@ export function useVentasUsuario(usuarioId: string) {
 
     // Cache hit
     const cached = ventasCache.get(usuarioId);
-    if (cached && Date.now() - cached.ts < CACHE_TTL) {
+    if (cached && Date.now() - cached.ts < CACHE_TTL && !shouldInvalidateUsuarioVentasCache(cached.ts)) {
       if (process.env.NODE_ENV === 'development') {
         console.log(
           '%c[VentasUsuarioCache]%c HIT · user ' + usuarioId.slice(0, 8) + ' · age ' + Math.round((Date.now() - cached.ts) / 1000) + 's',
@@ -171,6 +187,79 @@ export function useVentasUsuario(usuarioId: string) {
 
     load();
     return () => { cancelled = true; };
+  }, [usuarioId]);
+
+  useEffect(() => {
+    const reloadFromServicioUpdate = async () => {
+      if (!usuarioId) return;
+
+      ventasCache.delete(usuarioId);
+      setIsLoading(true);
+
+      try {
+        const ventasBase = await queryDocuments<VentaDoc>(COLLECTIONS.VENTAS, [
+          { field: 'clienteId', operator: '==', value: usuarioId }
+        ]);
+        const ventasConDatos = await getVentasConUltimoPago(ventasBase);
+
+        const mapped: VentaUsuarioDoc[] = ventasConDatos.map((venta) => ({
+          id:              venta.id,
+          clienteId:       venta.clienteId || '',
+          categoriaId:     venta.categoriaId,
+          categoriaNombre: venta.categoriaNombre || 'Sin categorÃ­a',
+          servicioId:      venta.servicioId,
+          servicioNombre:  venta.servicioNombre,
+          servicioCorreo:  venta.servicioCorreo || 'â€”',
+          perfilNumero:    venta.perfilNumero ?? null,
+          cicloPago:       venta.cicloPago,
+          fechaInicio:     venta.fechaInicio ?? null,
+          fechaFin:        venta.fechaFin ?? null,
+          precio:          venta.precio ?? 0,
+          precioFinal:     venta.precioFinal ?? venta.precio ?? 0,
+          estado:          venta.estado ?? 'activo',
+          moneda:          venta.moneda,
+        }));
+
+        const ventaIds = mapped.map((v) => v.id).filter(Boolean);
+        let renovaciones: Record<string, number> = {};
+
+        if (ventaIds.length > 0) {
+          const chunks: string[][] = [];
+          for (let i = 0; i < ventaIds.length; i += 10) {
+            chunks.push(ventaIds.slice(i, i + 10));
+          }
+
+          const allPagos = await Promise.all(
+            chunks.map((chunk) =>
+              queryDocuments<Record<string, unknown>>(COLLECTIONS.PAGOS_VENTA, [
+                { field: 'ventaId', operator: 'in', value: chunk },
+              ])
+            )
+          );
+
+          const pagos = allPagos.flat();
+          const renovacionesMap: Record<string, number> = {};
+
+          pagos.forEach((pago) => {
+            const ventaId = pago.ventaId as string;
+            if (!ventaId || pago.isPagoInicial === true) return;
+            renovacionesMap[ventaId] = (renovacionesMap[ventaId] || 0) + 1;
+          });
+          renovaciones = renovacionesMap;
+        }
+
+        ventasCache.set(usuarioId, { data: mapped, renovaciones, ts: Date.now() });
+        setVentas(mapped);
+        setRenovacionesByServicio(renovaciones);
+      } catch (error) {
+        console.error('[useVentasUsuario] Error reloading after servicio update:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    window.addEventListener('servicio-updated', reloadFromServicioUpdate);
+    return () => window.removeEventListener('servicio-updated', reloadFromServicioUpdate);
   }, [usuarioId]);
 
   /* ── 2. Eliminar venta ──────────────────────────── */
