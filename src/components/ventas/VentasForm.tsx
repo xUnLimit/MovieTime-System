@@ -23,7 +23,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Card } from '@/components/ui/card';
-import { cn, normalizeSearchText } from '@/lib/utils';
+import { cn, normalizePhoneSearch, normalizeSearchText } from '@/lib/utils';
 import { CalendarIcon, ChevronDown, ChevronUp, Eye, Loader2, MessageCircle, Plus, Search, Trash2, User } from 'lucide-react';
 import { useCategoriasStore } from '@/store/categoriasStore';
 import { useServiciosStore } from '@/store/serviciosStore';
@@ -300,9 +300,11 @@ export function VentasForm() {
   const usuariosFiltrados = useMemo(() => {
     if (!searchCliente) return usuariosOrdenados;
     const search = normalizeSearchText(searchCliente);
+    const phoneQuery = normalizePhoneSearch(searchCliente);
     return usuariosOrdenados.filter((u) => {
       const nombreCompleto = normalizeSearchText(`${u.nombre} ${u.apellido || ''}`);
-      return nombreCompleto.includes(search);
+      const telefono = normalizePhoneSearch(u.telefono);
+      return nombreCompleto.includes(search) || (phoneQuery.length > 0 && telefono.includes(phoneQuery));
     });
   }, [usuariosOrdenados, searchCliente]);
 
@@ -976,6 +978,11 @@ export function VentasForm() {
                       {clienteSeleccionado ? (
                         <span>
                           {clienteSeleccionado.nombre} {clienteSeleccionado.apellido}
+                          {clienteSeleccionado.telefono ? (
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              {clienteSeleccionado.telefono}
+                            </span>
+                          ) : null}
                           <span className="text-xs text-muted-foreground ml-2">
                             ({clienteSeleccionado.tipo === 'cliente' ? 'Cliente' : 'Revendedor'})
                           </span>
@@ -1022,6 +1029,12 @@ export function VentasForm() {
                           >
                             <div className="flex items-center gap-2">
                               <span>{usuario.nombre} {usuario.apellido}</span>
+                              {usuario.telefono ? (
+                                <span className="text-xs">
+                                  <span className="text-foreground"> - </span>
+                                  <span className="text-green-400">{usuario.telefono}</span>
+                                </span>
+                              ) : null}
                               <span className="text-xs text-muted-foreground">
                                 ({usuario.tipo === 'cliente' ? 'Cliente' : 'Revendedor'})
                               </span>

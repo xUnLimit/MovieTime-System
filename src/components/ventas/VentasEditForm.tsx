@@ -23,7 +23,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { CalendarIcon, ChevronDown, ChevronUp, Eye, Loader2, Search } from 'lucide-react';
-import { cn, normalizeSearchText } from '@/lib/utils';
+import { cn, normalizePhoneSearch, normalizeSearchText } from '@/lib/utils';
 import { COLLECTIONS, queryDocuments, update, adjustServiciosActivos } from '@/lib/firebase/firestore';
 import { upsertVentaPronostico } from '@/lib/services/dashboardStatsService';
 import { useCategoriasStore } from '@/store/categoriasStore';
@@ -219,9 +219,11 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
   const usuariosFiltrados = useMemo(() => {
     if (!searchCliente) return usuariosOrdenados;
     const search = normalizeSearchText(searchCliente);
+    const phoneQuery = normalizePhoneSearch(searchCliente);
     return usuariosOrdenados.filter((usuario) => {
       const nombreCompleto = normalizeSearchText(`${usuario.nombre} ${usuario.apellido || ''}`);
-      return nombreCompleto.includes(search);
+      const telefono = normalizePhoneSearch(usuario.telefono);
+      return nombreCompleto.includes(search) || (phoneQuery.length > 0 && telefono.includes(phoneQuery));
     });
   }, [usuariosOrdenados, searchCliente]);
   const categoriasOrdenadas = useMemo(
@@ -875,6 +877,11 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
                     {clienteSeleccionado ? (
                       <span>
                         {clienteSeleccionado.nombre} {clienteSeleccionado.apellido}
+                        {clienteSeleccionado.telefono ? (
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            {clienteSeleccionado.telefono}
+                          </span>
+                        ) : null}
                         <span className="ml-2 text-xs text-muted-foreground">
                           ({clienteSeleccionado.tipo === 'cliente' ? 'Cliente' : 'Revendedor'})
                         </span>
@@ -927,6 +934,12 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
                         >
                           <div className="flex items-center gap-2">
                             <span>{usuario.nombre} {usuario.apellido}</span>
+                            {usuario.telefono ? (
+                              <span className="text-xs">
+                                <span className="text-foreground"> - </span>
+                                <span className="text-green-400">{usuario.telefono}</span>
+                              </span>
+                            ) : null}
                             <span className="text-xs text-muted-foreground">
                               ({usuario.tipo === 'cliente' ? 'Cliente' : 'Revendedor'})
                             </span>
