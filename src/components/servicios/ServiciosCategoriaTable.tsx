@@ -15,6 +15,7 @@ import { Search, MoreVertical, Users, Eye, Edit } from 'lucide-react';
 import { Servicio } from '@/types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { calcularDiasRelativosCalendario } from '@/lib/utils/calculations';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,11 +40,7 @@ export function ServiciosCategoriaTable({ servicios }: ServiciosCategoriaTablePr
   );
 
   const calcularDiasRestantes = (fechaVencimiento?: Date) => {
-    if (!fechaVencimiento) return 0;
-    const hoy = new Date();
-    const vencimiento = new Date(fechaVencimiento);
-    const diff = vencimiento.getTime() - hoy.getTime();
-    return Math.ceil(diff / (1000 * 3600 * 24));
+    return calcularDiasRelativosCalendario(fechaVencimiento) ?? 0;
   };
 
   const getBadgeColor = (dias: number) => {

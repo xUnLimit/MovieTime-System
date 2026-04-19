@@ -30,7 +30,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { getCurrencySymbol } from '@/lib/constants';
-import { formatearFecha, formatearFechaHora, sumInUSD, formatAggregateInUSD } from '@/lib/utils/calculations';
+import { calcularDiasRelativosCalendario, formatearFecha, formatearFechaHora, sumInUSD, formatAggregateInUSD } from '@/lib/utils/calculations';
 import { currencyService } from '@/lib/services/currencyService';
 import { usePagosServicio } from '@/hooks/use-pagos-servicio';
 import { crearPagoRenovacion } from '@/lib/services/pagosServicioService';
@@ -752,7 +752,8 @@ function ServicioDetallePageContent() {
                     </Badge>
                   </div>
                   {servicio.fechaVencimiento && (() => {
-                    const dias = Math.ceil((new Date(servicio.fechaVencimiento).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                    const dias = calcularDiasRelativosCalendario(servicio.fechaVencimiento);
+                    if (dias === null) return null;
                     let badgeClass: string;
                     let texto: string;
                     if (dias < 0) {
@@ -882,8 +883,9 @@ function ServicioDetallePageContent() {
                 {visiblePerfiles.map((perfil) => {
                   const venta = perfil.venta;
                   const ventaCurrency = getCurrencySymbol(venta?.moneda || metodoPago?.moneda);
-                  const diasRestantes =
-                    venta?.fechaFin ? Math.ceil((new Date(venta.fechaFin).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
+                  const diasRestantes = venta?.fechaFin
+                    ? calcularDiasRelativosCalendario(venta.fechaFin)
+                    : null;
                   return (
                   <div
                     key={perfil.numero}

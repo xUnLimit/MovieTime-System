@@ -31,6 +31,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CURRENCY_SYMBOLS } from '@/lib/constants';
+import { calcularDiasRelativosCalendario } from '@/lib/utils/calculations';
 import { PROFILE_ICON_LIMIT, getProfileIndicatorStates } from '@/lib/utils/perfiles';
 
 interface ServiciosCategoriaTableDetalleProps {
@@ -118,11 +119,7 @@ export const ServiciosCategoriaTableDetalle = memo(function ServiciosCategoriaTa
   };
 
   const calcularDiasRestantes = (fechaVencimiento?: Date) => {
-    if (!fechaVencimiento) return 0;
-    const hoy = new Date();
-    const vencimiento = new Date(fechaVencimiento);
-    const diff = vencimiento.getTime() - hoy.getTime();
-    return Math.ceil(diff / (1000 * 3600 * 24));
+    return calcularDiasRelativosCalendario(fechaVencimiento) ?? 0;
   };
 
   const getEstadoBadge = (dias: number): { className: string; text: string } => {

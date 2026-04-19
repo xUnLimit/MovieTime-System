@@ -1,4 +1,4 @@
-import { addMonths, differenceInDays, differenceInCalendarDays, format } from 'date-fns';
+import { addMonths, differenceInCalendarDays, format } from 'date-fns';
 import { es } from 'date-fns/locale';
 type CicloPago = 'mensual' | 'trimestral' | 'semestral' | 'anual';
 type EstadoSuscripcion = 'activa' | 'suspendida' | 'inactiva' | 'vencida';
@@ -74,22 +74,31 @@ export function calcularEstadoSuscripcion(fechaVencimiento: Date): EstadoSuscrip
   return hoy > fechaVencimiento ? 'vencida' : 'activa';
 }
 
+export function calcularDiasRelativosCalendario(
+  fecha: Date | string | null | undefined
+): number | null {
+  if (!fecha) return null;
+
+  const fechaNormalizada = fecha instanceof Date ? fecha : new Date(fecha);
+  if (Number.isNaN(fechaNormalizada.getTime())) return null;
+
+  return differenceInCalendarDays(fechaNormalizada, new Date());
+}
+
 /**
  * Calcula los días de retraso de una suscripción vencida
  */
 export function calcularDiasRetraso(fechaVencimiento: Date): number {
-  const hoy = new Date();
-  const dias = differenceInDays(hoy, fechaVencimiento);
-  return Math.max(0, dias);
+  const dias = calcularDiasRelativosCalendario(fechaVencimiento);
+  return Math.max(0, Math.abs(Math.min(dias ?? 0, 0)));
 }
 
 /**
  * Calcula días restantes hasta el vencimiento
  */
 export function calcularDiasRestantes(fechaVencimiento: Date): number {
-  const hoy = new Date();
-  const dias = differenceInDays(fechaVencimiento, hoy);
-  return Math.max(0, dias);
+  const dias = calcularDiasRelativosCalendario(fechaVencimiento);
+  return Math.max(0, dias ?? 0);
 }
 
 /**

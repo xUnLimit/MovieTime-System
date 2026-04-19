@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Monitor, CalendarDays, Users } from 'lucide-react';
 import { Servicio } from '@/types';
+import { calcularDiasRelativosCalendario } from '@/lib/utils/calculations';
 
 interface ServicioDetailMetricsProps {
   servicios: Servicio[];
@@ -15,15 +16,9 @@ export function ServicioDetailMetrics({ servicios }: ServicioDetailMetricsProps)
   const perfilesDisponibles = totalPerfiles - perfilesOcupados;
 
   // Calcular próximos pagos (servicios con 7 días restantes o menos)
-  const hoy = new Date();
-  hoy.setHours(0, 0, 0, 0);
-  const msDia = 1000 * 60 * 60 * 24;
-
   const proximosPagos = servicios.filter(s => {
-    if (!s.fechaVencimiento) return false;
-    const fechaVenc = new Date(s.fechaVencimiento);
-    fechaVenc.setHours(0, 0, 0, 0);
-    const diffDias = Math.ceil((fechaVenc.getTime() - hoy.getTime()) / msDia);
+    const diffDias = calcularDiasRelativosCalendario(s.fechaVencimiento);
+    if (diffDias === null) return false;
     return diffDias >= 0 && diffDias <= 7;
   }).length;
 
