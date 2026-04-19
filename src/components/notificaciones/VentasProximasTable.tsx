@@ -28,7 +28,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { BellRing, BellOff, Search, MoreHorizontal, MessageSquare, XCircle, RefreshCw, User, Scissors, AlertTriangle, ChevronDown, ShoppingCart, Tv2, Copy } from 'lucide-react';
+import { BellRing, BellOff, Search, MoreHorizontal, MessageSquare, XCircle, RefreshCw, User, Scissors, AlertTriangle, ChevronDown, ShoppingCart, Tv2, Copy, Eye, EyeOff } from 'lucide-react';
 import { useNotificacionesStore } from '@/store/notificacionesStore';
 import { esNotificacionVenta } from '@/types/notificaciones';
 import type { NotificacionVenta } from '@/types/notificaciones';
@@ -172,6 +172,7 @@ export function VentasProximasTable() {
   const [estadoFilter, setEstadoFilter] = useState<string>('todos');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
   const [renovarDialogOpen, setRenovarDialogOpen] = useState(false);
   const [accionesDialogOpen, setAccionesDialogOpen] = useState(false);
   const [notifSeleccionada, setNotifSeleccionada] = useState<(NotificacionVenta & { id: string }) | null>(null);
@@ -239,6 +240,18 @@ export function VentasProximasTable() {
     } catch {
       toast.error('Error al copiar', { description: `No se pudo copiar ${label} al portapapeles.` });
     }
+  };
+
+  const togglePasswordVisibility = (notifId: string) => {
+    setVisiblePasswords((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(notifId)) {
+        newSet.delete(notifId);
+      } else {
+        newSet.add(notifId);
+      }
+      return newSet;
+    });
   };
 
   /**
@@ -680,6 +693,9 @@ export function VentasProximasTable() {
                     <TableHead className="h-12 px-4 text-center text-muted-foreground">
                       Email
                     </TableHead>
+                    <TableHead className="h-12 w-[160px] px-4 text-center text-muted-foreground">
+                      Contraseña
+                    </TableHead>
                     <TableHead className="h-12 px-4 text-center text-muted-foreground">
                       Fecha de Inicio
                     </TableHead>
@@ -764,6 +780,41 @@ export function VentasProximasTable() {
                                 className="h-6 w-6 flex-shrink-0"
                                 onClick={() => copyToClipboard(notif.servicioCorreo!, 'Email')}
                                 title="Copiar email"
+                              >
+                                <Copy className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            '-'
+                          )}
+                        </TableCell>
+
+                        {/* Contraseña */}
+                        <TableCell className="w-[160px] p-4 text-center">
+                          {notif.servicioContrasena ? (
+                            <div className="grid w-full grid-cols-[1fr_auto_auto] items-center gap-1">
+                              <span className="min-w-0 break-all text-center font-medium leading-tight">
+                                {visiblePasswords.has(notif.id) ? notif.servicioContrasena : '••••••••'}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 flex-shrink-0"
+                                onClick={() => togglePasswordVisibility(notif.id)}
+                                title={visiblePasswords.has(notif.id) ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                              >
+                                {visiblePasswords.has(notif.id) ? (
+                                  <EyeOff className="h-3 w-3" />
+                                ) : (
+                                  <Eye className="h-3 w-3" />
+                                )}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 flex-shrink-0"
+                                onClick={() => copyToClipboard(notif.servicioContrasena!, 'Contraseña')}
+                                title="Copiar contraseña"
                               >
                                 <Copy className="h-3 w-3" />
                               </Button>

@@ -506,7 +506,7 @@ export function ServiciosProximosTable() {
                     <TableHead className="h-12 px-4 text-center text-muted-foreground">
                       Email
                     </TableHead>
-                    <TableHead className="h-12 px-4 text-center text-muted-foreground">
+                    <TableHead className="h-12 w-[160px] px-4 text-center text-muted-foreground">
                       Contraseña
                     </TableHead>
                     <TableHead className="h-12 px-4 text-center text-muted-foreground">
@@ -591,9 +591,9 @@ export function ServiciosProximosTable() {
                         </TableCell>
 
                         {/* Contraseña */}
-                        <TableCell className="p-4 text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            <span className="font-medium">
+                        <TableCell className="w-[160px] p-4 text-center">
+                          <div className="grid w-full grid-cols-[1fr_auto_auto] items-center gap-1">
+                            <span className="min-w-0 break-all text-center font-medium leading-tight">
                               {visiblePasswords.has(notif.id) ? notif.contrasena : '••••••••'}
                             </span>
                             <Button
