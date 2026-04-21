@@ -419,8 +419,12 @@ export function VentasForm() {
   const getSlotsDisponibles = (servicioIdValue: string) => {
     const servicio = serviciosCategoria.find((s) => s.id === servicioIdValue);
     if (!servicio) return 0;
-    const ocupadosActual = servicio.perfilesOcupados || 0;
     const ocupadosEnVenta = perfilesUsados[servicioIdValue]?.size || 0;
+    const ocupadosReales = perfilesOcupadosVenta[servicioIdValue];
+    if (ocupadosReales !== undefined) {
+      return Math.max((servicio.perfilesDisponibles || 0) - ocupadosReales.size - ocupadosEnVenta, 0);
+    }
+    const ocupadosActual = servicio.perfilesOcupados || 0;
     return Math.max((servicio.perfilesDisponibles || 0) - ocupadosActual - ocupadosEnVenta, 0);
   };
 

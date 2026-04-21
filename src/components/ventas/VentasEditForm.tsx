@@ -411,6 +411,7 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
         docs.forEach((doc) => {
           const estado = (doc.estado as string | undefined) ?? 'activo';
           if (estado === 'inactivo') return;
+          if (doc.id === venta.id) return; // excluir la venta actual para que su perfil aparezca disponible
           const perfil = (doc.perfilNumero as number | null | undefined) ?? null;
           if (!perfil) return;
           ocupados.add(perfil);
@@ -436,9 +437,13 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
   const getSlotsDisponibles = useCallback((servicioId: string) => {
     const servicio = serviciosCategoria.find((item) => item.id === servicioId);
     if (!servicio) return 0;
+    const ocupadosReales = perfilesOcupadosVenta[servicioId];
+    if (ocupadosReales !== undefined) {
+      return Math.max((servicio.perfilesDisponibles || 0) - ocupadosReales.size, 0);
+    }
     const ocupadosActual = servicio.perfilesOcupados || 0;
     return Math.max((servicio.perfilesDisponibles || 0) - ocupadosActual, 0);
-  }, [serviciosCategoria]);
+  }, [serviciosCategoria, perfilesOcupadosVenta]);
 
   const perfilesDropdown = useMemo(() => {
     if (!servicioIdValue) return [];
