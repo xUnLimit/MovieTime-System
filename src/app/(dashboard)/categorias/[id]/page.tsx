@@ -5,14 +5,20 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Edit, Trash2, ChevronDown, DollarSign } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, ChevronDown, DollarSign, Tag } from 'lucide-react';
 import { useCategoriasStore } from '@/store/categoriasStore';
 import { ModuleErrorBoundary } from '@/components/shared/ModuleErrorBoundary';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { toast } from 'sonner';
 import { getById, COLLECTIONS } from '@/lib/firebase/firestore';
 import { formatearFechaHora } from '@/lib/utils/calculations';
-import { Categoria } from '@/types';
+import { Categoria, Plan } from '@/types';
+
+// Legacy type IDs for backwards compatibility display
+const LEGACY_LABELS: Record<string, string> = {
+  cuenta_completa: 'Cuenta Completa',
+  perfiles: 'Perfiles',
+};
 
 function VerCategoriaPageContent() {
   const params = useParams();
@@ -27,7 +33,6 @@ function VerCategoriaPageContent() {
     const loadCategoria = async () => {
       const id = Array.isArray(params.id) ? params.id[0] : params.id;
       if (!id) return;
-
       setIsLoading(true);
       try {
         const data = await getById<Categoria>(COLLECTIONS.CATEGORIAS, id);
@@ -39,7 +44,6 @@ function VerCategoriaPageContent() {
         setIsLoading(false);
       }
     };
-
     loadCategoria();
   }, [params.id]);
 
@@ -82,6 +86,8 @@ function VerCategoriaPageContent() {
     }
   };
 
+
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -118,8 +124,62 @@ function VerCategoriaPageContent() {
     );
   }
 
-  const planesCuentaCompleta = categoria.planes?.filter(p => p.tipoPlan === 'cuenta_completa') || [];
-  const planesPerfiles = categoria.planes?.filter(p => p.tipoPlan === 'perfiles') || [];
+  const tiposPlanes = categoria.tiposPlanes || [];
+  const planes = categoria.planes || [];
+
+  // Group plans: new system by tiposPlanes, legacy by fixed types
+  const getPlanesPorTipo = (tipoPlanId: string): Plan[] =>
+    planes.filter(p => p.tipoPlan === tipoPlanId);
+
+  // Detect legacy plans (those with cuenta_completa or perfiles)
+  const tiposLegacy = Array.from(
+    new Set(planes.filter(p => p.tipoPlan === 'cuenta_completa' || p.tipoPlan === 'perfiles').map(p => p.tipoPlan))
+  );
+
+  // All groups to render: custom tiposPlanes first, then legacy groups if any
+  const gruposCustom = tiposPlanes.filter(t => getPlanesPorTipo(t.id).length > 0);
+
+  const PlanCard = ({ plan, tipoPlanNombre, accentColor }: { plan: Plan; tipoPlanNombre: string; accentColor: string }) => {
+    const isOpen = expandedPlan === plan.id;
+    return (
+      <div
+        className={`rounded-lg border overflow-hidden cursor-pointer ${accentColor}`}
+        onClick={() => setExpandedPlan(isOpen ? null : plan.id)}
+      >
+        <div className="flex items-center gap-3 px-4 py-3">
+          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+            <DollarSign className="h-3.5 w-3.5 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium">{plan.nombre || 'Plan sin nombre'}</p>
+          </div>
+          <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+        </div>
+
+        {isOpen && (
+          <div className="px-4 pb-3 pt-0 border-t mt-0">
+            <div className="pt-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Tipo de plan</span>
+                <span className="text-xs font-medium text-primary">{tipoPlanNombre}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Ciclo de pago</span>
+                <span className="text-xs font-medium">{getCicloPagoLabel(plan.cicloPago).label}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Precio</span>
+                <span className="text-xs font-bold">
+                  ${plan.precio.toFixed(2)}
+                  <span className="font-normal text-muted-foreground">/{getCicloPagoLabel(plan.cicloPago).short}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-5">
@@ -154,16 +214,13 @@ function VerCategoriaPageContent() {
         </div>
       </div>
 
-      {/* Fila superior: Información + Notas lado a lado */}
+      {/* Info + Notas */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
-        {/* Información de la Categoría (2/3) */}
         <div className="lg:col-span-2 rounded-lg border bg-card p-6">
           <div className="mb-5">
             <h2 className="text-lg font-semibold">Información de la Categoría</h2>
             <p className="text-xs text-muted-foreground mt-0.5">Datos básicos de la categoría</p>
           </div>
-
           <div className="space-y-3.5">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Nombre:</span>
@@ -177,22 +234,30 @@ function VerCategoriaPageContent() {
               <span className="text-sm text-muted-foreground">Tipo de Categoría:</span>
               <Badge variant="outline" className="text-xs">{getTipoCategoriaLabel(categoria.tipoCategoria || '')}</Badge>
             </div>
+            {tiposPlanes.length > 0 && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Tipos de Plan:</span>
+                <div className="flex flex-wrap gap-1 justify-end">
+                  {tiposPlanes.map(t => (
+                    <Badge key={t.id} variant="secondary" className="text-xs gap-1">
+                      <Tag className="h-3 w-3" />
+                      {t.nombre}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Fecha de creación:</span>
-              <span className="text-sm font-medium">
-                {formatearFechaHora(new Date(categoria.createdAt))}
-              </span>
+              <span className="text-sm font-medium">{formatearFechaHora(new Date(categoria.createdAt))}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Última actualización:</span>
-              <span className="text-sm font-medium">
-                {formatearFechaHora(new Date(categoria.updatedAt))}
-              </span>
+              <span className="text-sm font-medium">{formatearFechaHora(new Date(categoria.updatedAt))}</span>
             </div>
           </div>
         </div>
 
-        {/* Notas (1/3) */}
         <div className="rounded-lg border bg-card p-6 flex flex-col">
           <div className="mb-4">
             <h2 className="text-lg font-semibold">Notas</h2>
@@ -208,132 +273,64 @@ function VerCategoriaPageContent() {
         </div>
       </div>
 
-      {/* Planes lado a lado */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-      {/* Cuenta Completa */}
-      {planesCuentaCompleta.length > 0 && (
-        <div className="rounded-lg border bg-card overflow-hidden">
-          <div className="px-5 py-4">
-            <h3 className="text-sm font-semibold">Cuenta Completa</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">{planesCuentaCompleta.length} plan{planesCuentaCompleta.length !== 1 ? 'es' : ''} registrado{planesCuentaCompleta.length !== 1 ? 's' : ''}</p>
-          </div>
-
-          <div className="px-4 pb-4 space-y-2">
-            {planesCuentaCompleta.map((plan, index) => {
-              const isOpen = expandedPlan === plan.id;
+      {/* Planes — grouped by tiposPlanes (new) then legacy */}
+      {(gruposCustom.length > 0 || tiposLegacy.length > 0) && (
+        <div className="space-y-3">
+          <h2 className="text-base font-semibold">Planes</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Custom tipo groups */}
+            {gruposCustom.map((tipo) => {
+              const planesDelTipo = getPlanesPorTipo(tipo.id);
               return (
-                <div
-                  key={plan.id}
-                  className="rounded-lg border border-emerald-900/40 bg-emerald-950/30 overflow-hidden cursor-pointer"
-                  onClick={() => setExpandedPlan(isOpen ? null : plan.id)}
-                >
-                  <div className="flex items-center gap-3 px-4 py-3">
-                    <div className="w-8 h-8 rounded-full bg-emerald-900/40 flex items-center justify-center shrink-0">
-                      <DollarSign className="h-3.5 w-3.5 text-emerald-400" />
+                <div key={tipo.id} className="rounded-lg border bg-card overflow-hidden">
+                  <div className="px-5 py-4 flex items-center gap-2">
+                    <Tag className="h-4 w-4 text-primary shrink-0" />
+                    <div>
+                      <h3 className="text-sm font-semibold">{tipo.nombre}</h3>
+                      <p className="text-xs text-muted-foreground">
+                        {planesDelTipo.length} plan{planesDelTipo.length !== 1 ? 'es' : ''} registrado{planesDelTipo.length !== 1 ? 's' : ''}
+                      </p>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{plan.nombre || `Plan ${index + 1}`}</p>
-                    </div>
-                    <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
                   </div>
+                  <div className="px-4 pb-4 space-y-2">
+                    {planesDelTipo.map(plan => (
+                      <PlanCard key={plan.id} plan={plan} tipoPlanNombre={tipo.nombre} accentColor="border-border" />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
 
-                  {isOpen && (
-                    <div className="px-4 pb-3 pt-0 border-t border-emerald-900/30 mt-0">
-                      <div className="pt-3 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">Tipo de plan</span>
-                          <span className="text-xs font-medium text-emerald-400">Cuenta Completa</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">Ciclo de pago</span>
-                          <span className="text-xs font-medium">{getCicloPagoLabel(plan.cicloPago).label}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">Precio</span>
-                          <span className="text-xs font-bold">${plan.precio.toFixed(2)}<span className="font-normal text-muted-foreground">/{getCicloPagoLabel(plan.cicloPago).short}</span></span>
-                        </div>
+            {/* Legacy groups */}
+            {tiposLegacy.map((legacyId) => {
+              const planesDelTipo = getPlanesPorTipo(legacyId);
+              const legacyLabel = LEGACY_LABELS[legacyId] || legacyId;
+              return (
+                <div key={legacyId} className="rounded-lg border border-amber-500/30 bg-card overflow-hidden">
+                  <div className="px-5 py-4 flex items-center gap-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-semibold">{legacyLabel}</h3>
+                        <Badge variant="outline" className="text-xs border-amber-500/50 text-amber-500 bg-amber-500/5 px-1.5 py-0">
+                          Legacy
+                        </Badge>
                       </div>
+                      <p className="text-xs text-muted-foreground">
+                        {planesDelTipo.length} plan{planesDelTipo.length !== 1 ? 'es' : ''} · Edita la categoría para actualizar al nuevo sistema
+                      </p>
                     </div>
-                  )}
+                  </div>
+                  <div className="px-4 pb-4 space-y-2">
+                    {planesDelTipo.map(plan => (
+                      <PlanCard key={plan.id} plan={plan} tipoPlanNombre={legacyLabel} accentColor="border-border" />
+                    ))}
+                  </div>
                 </div>
               );
             })}
           </div>
-
-          <div className="flex items-center justify-between px-5 py-2.5 border-t">
-            <div className="flex items-center gap-3">
-              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" /> Cuenta Completa
-              </span>
-            </div>
-            <span className="text-xs text-muted-foreground">{planesCuentaCompleta.length} de {planesCuentaCompleta.length} planes</span>
-          </div>
         </div>
       )}
-
-      {/* Planes: Perfiles */}
-      {planesPerfiles.length > 0 && (
-        <div className="rounded-lg border bg-card overflow-hidden">
-          <div className="px-5 py-4">
-            <h3 className="text-sm font-semibold">Perfiles</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">{planesPerfiles.length} plan{planesPerfiles.length !== 1 ? 'es' : ''} registrado{planesPerfiles.length !== 1 ? 's' : ''}</p>
-          </div>
-
-          <div className="px-4 pb-4 space-y-2">
-            {planesPerfiles.map((plan, index) => {
-              const isOpen = expandedPlan === plan.id;
-              return (
-                <div
-                  key={plan.id}
-                  className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-900/40 dark:bg-blue-950/30 overflow-hidden cursor-pointer"
-                  onClick={() => setExpandedPlan(isOpen ? null : plan.id)}
-                >
-                  <div className="flex items-center gap-3 px-4 py-3">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center shrink-0">
-                      <DollarSign className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{plan.nombre || `Plan ${index + 1}`}</p>
-                    </div>
-                    <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
-                  </div>
-
-                  {isOpen && (
-                    <div className="px-4 pb-3 pt-0 border-t border-blue-200 dark:border-blue-900/30 mt-0">
-                      <div className="pt-3 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">Tipo de plan</span>
-                          <span className="text-xs font-medium text-blue-600 dark:text-blue-400">Perfiles</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">Ciclo de pago</span>
-                          <span className="text-xs font-medium">{getCicloPagoLabel(plan.cicloPago).label}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">Precio</span>
-                          <span className="text-xs font-bold">${plan.precio.toFixed(2)}<span className="font-normal text-muted-foreground">/{getCicloPagoLabel(plan.cicloPago).short}</span></span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="flex items-center justify-between px-5 py-2.5 border-t">
-            <div className="flex items-center gap-3">
-              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span className="w-2 h-2 rounded-full bg-blue-500" /> Perfiles
-              </span>
-            </div>
-            <span className="text-xs text-muted-foreground">{planesPerfiles.length} de {planesPerfiles.length} planes</span>
-          </div>
-        </div>
-      )}
-
-      </div>
 
       <ConfirmDialog
         open={deleteDialogOpen}

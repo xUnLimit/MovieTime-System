@@ -7,7 +7,11 @@ export interface Servicio {
   categoriaId: string;
   categoriaNombre: string;
   nombre: string;
-  tipo: 'cuenta_completa' | 'perfiles';
+  /**
+   * ID del tipo de plan (tipoPlanConfig.id) o valor legacy ('cuenta_completa' | 'perfiles').
+   */
+  tipo: string;
+  tipoNombre?: string; // Denormalizado para display
   correo: string;
   contrasena: string;
   perfilesDisponibles: number;
@@ -62,7 +66,7 @@ export interface PagoServicio {
 export interface ServicioFormData {
   categoriaId: string;
   nombre: string;
-  tipo: 'cuenta_completa' | 'perfiles';
+  tipo: string;
   correo: string;
   contrasena: string;
   perfilesDisponibles: number;

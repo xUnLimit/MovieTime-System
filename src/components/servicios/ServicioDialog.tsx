@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -30,7 +30,7 @@ import { toast } from 'sonner';
 const servicioSchema = z.object({
   categoriaId: z.string().min(1, 'La categoría es requerida'),
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  tipo: z.enum(['cuenta_completa', 'perfiles']),
+  tipo: z.string().min(1, 'El tipo de plan es requerido'),
   correo: z.string().email('Correo electrónico inválido'),
   contrasena: z.string().min(4, 'La contraseña debe tener al menos 4 caracteres'),
   perfilesDisponibles: z.number().min(1, 'Debe haber al menos 1 perfil'),
@@ -84,9 +84,7 @@ export function ServicioDialog({
   const categoriaIdValue = watch('categoriaId');
 
   // Calculate total cost
-  const costoTotal = tipoValue === 'cuenta_completa'
-    ? costoServicioValue
-    : costoServicioValue * perfilesDisponiblesValue;
+  const costoTotal = costoServicioValue * perfilesDisponiblesValue;
 
   useEffect(() => {
     if (servicio) {
@@ -115,12 +113,16 @@ export function ServicioDialog({
     }
   }, [servicio, reset]);
 
-  // Auto-set perfiles to 1 for cuenta_completa type
-  useEffect(() => {
-    if (tipoValue === 'cuenta_completa') {
-      setValue('perfilesDisponibles', 1);
-    }
-  }, [tipoValue, setValue]);
+  // Tipos de plan dinámicos según la categoría seleccionada (con fallback legacy)
+  const tiposPlanesDinamicos = useMemo(() => {
+    const cat = categorias.find(c => c.id === categoriaIdValue);
+    const custom = cat?.tiposPlanes || [];
+    if (custom.length > 0) return custom;
+    return [
+      { id: 'perfiles', nombre: 'Perfiles' },
+      { id: 'cuenta_completa', nombre: 'Cuenta Completa' },
+    ];
+  }, [categorias, categoriaIdValue]);
 
   const onSubmit = async (data: ServicioFormData) => {
     try {
@@ -207,8 +209,11 @@ export function ServicioDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="cuenta_completa">Cuenta Completa (1 perfil)</SelectItem>
-                <SelectItem value="perfiles">Perfiles (múltiples perfiles)</SelectItem>
+                {tiposPlanesDinamicos.map((tipo) => (
+                  <SelectItem key={tipo.id} value={tipo.id}>
+                    {tipo.nombre}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -249,7 +254,7 @@ export function ServicioDialog({
                 type="number"
                 min="1"
                 {...register('perfilesDisponibles', { valueAsNumber: true })}
-                disabled={tipoValue === 'cuenta_completa'}
+                disabled={false}
               />
               {errors.perfilesDisponibles && (
                 <p className="text-sm text-red-500">

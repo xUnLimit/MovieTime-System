@@ -82,7 +82,7 @@ export interface NotificacionServicio extends NotificacionBase {
   // Denormalized from Servicio
   servicioNombre: string; // Name of the streaming service
   categoriaNombre: string; // Category name
-  tipoServicio: 'cuenta_completa' | 'perfiles'; // Service type
+  tipoServicio: string; // Service type: tipoPlanConfig.id or legacy ('cuenta_completa' | 'perfiles')
   correo: string; // Email del servicio
   contrasena: string; // Contraseña del servicio
   metodoPagoNombre: string; // Payment method name

@@ -38,9 +38,7 @@ import { getServicioMetodoPagoNombre } from '@/lib/utils/servicioMetodoPago';
 const servicioSchema = z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   categoriaId: z.string().min(1, 'Debe seleccionar una categoría'),
-  tipoPlan: z.enum(['cuenta_completa', 'perfiles'], {
-    message: 'Debe seleccionar un tipo de plan',
-  }),
+  tipoPlan: z.string().min(1, 'Debe seleccionar un tipo de plan'),
   correo: z.string().email('Por favor ingrese un correo electrónico válido'),
   contrasena: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
   metodoPagoId: z.string().min(1, 'Debe seleccionar un método de pago'),
@@ -455,19 +453,32 @@ export function ServicioForm({ servicio, returnTo = '/servicios' }: ServicioForm
     }
   };
 
-  const categoriaNombre = categoriaIdValue
-    ? categorias.find(c => c.id === categoriaIdValue)?.nombre
-    : 'Seleccionar categoría';
+  const categoriaSeleccionada = useMemo(
+    () => categorias.find(c => c.id === categoriaIdValue),
+    [categorias, categoriaIdValue]
+  );
 
-  const getTipoPlanLabel = (tipo: string) => {
-    switch (tipo) {
-      case 'cuenta_completa':
-        return 'Cuenta Completa';
-      case 'perfiles':
-        return 'Perfiles';
-      default:
-        return 'Seleccionar tipo';
-    }
+  const categoriaNombre = categoriaSeleccionada?.nombre ?? 'Seleccionar categoría';
+
+  // Tipos de plan dinámicos según la categoría seleccionada
+  const tiposPlanesDinamicos = useMemo(() => {
+    const custom = categoriaSeleccionada?.tiposPlanes || [];
+    if (custom.length > 0) return custom;
+    // Legacy fallback: si la categoría no tiene tiposPlanes, mostrar los fijos
+    return [
+      { id: 'perfiles', nombre: 'Perfiles' },
+      { id: 'cuenta_completa', nombre: 'Cuenta Completa' },
+    ];
+  }, [categoriaSeleccionada]);
+
+  const getTipoPlanLabel = (tipoId: string) => {
+    if (!tipoId) return 'Seleccionar tipo';
+    const found = tiposPlanesDinamicos.find(t => t.id === tipoId);
+    if (found) return found.nombre;
+    // Legacy display
+    if (tipoId === 'cuenta_completa') return 'Cuenta Completa';
+    if (tipoId === 'perfiles') return 'Perfiles';
+    return tipoId;
   };
 
   const esNetflix = categoriaNombre?.toLowerCase().includes('netflix') ?? false;
@@ -698,12 +709,15 @@ export function ServicioForm({ servicio, returnTo = '/servicios' }: ServicioForm
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                  <DropdownMenuItem onClick={() => setValue('tipoPlan', 'perfiles')}>
-                    Perfiles
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setValue('tipoPlan', 'cuenta_completa')}>
-                    Cuenta Completa
-                  </DropdownMenuItem>
+                  {tiposPlanesDinamicos.length === 0 ? (
+                    <DropdownMenuItem disabled>Selecciona primero una categoría</DropdownMenuItem>
+                  ) : (
+                    tiposPlanesDinamicos.map((tipo) => (
+                      <DropdownMenuItem key={tipo.id} onClick={() => setValue('tipoPlan', tipo.id)}>
+                        {tipo.nombre}
+                      </DropdownMenuItem>
+                    ))
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
               {errors.tipoPlan && (

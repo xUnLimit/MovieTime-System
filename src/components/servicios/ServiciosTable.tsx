@@ -76,11 +76,23 @@ export function ServiciosTable({ servicios, onEdit }: ServiciosTableProps) {
       key: 'tipo',
       header: 'Tipo',
       sortable: true,
-      render: (item) => (
-        <Badge variant={item.tipo === 'cuenta_completa' ? 'default' : 'secondary'}>
-          {item.tipo === 'cuenta_completa' ? 'Cuenta Completa' : 'Perfiles'}
-        </Badge>
-      ),
+      render: (item) => {
+        const isLegacy = item.tipo === 'cuenta_completa' || item.tipo === 'perfiles';
+        const label = item.tipoNombre
+          || (item.tipo === 'cuenta_completa' ? 'Cuenta Completa' : null)
+          || (item.tipo === 'perfiles' ? 'Perfiles' : null)
+          || item.tipo;
+        return (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Badge variant="secondary">{label}</Badge>
+            {isLegacy && (
+              <Badge variant="outline" className="text-xs border-amber-500/50 text-amber-500 bg-amber-500/5 px-1.5 py-0">
+                Legacy
+              </Badge>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'perfiles',

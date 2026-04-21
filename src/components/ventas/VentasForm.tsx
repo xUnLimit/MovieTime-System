@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { WheelEvent } from 'react';
@@ -328,15 +328,17 @@ export function VentasForm() {
 
   const tipoItem = useMemo<TipoItem | null>(() => {
     if (!servicioSeleccionado?.tipo) return null;
+    // Legacy: 'cuenta_completa' = cuenta (1 slot per servicio)
+    // New system & legacy 'perfiles': 'perfil' (numbered slots)
     return servicioSeleccionado.tipo === 'cuenta_completa' ? 'cuenta' : 'perfil';
   }, [servicioSeleccionado?.tipo]);
 
   const planesDisponibles = useMemo(() => {
     if (!categoriaSeleccionada?.planes || !servicioSeleccionado?.tipo) return [];
+    const tipoServicio = servicioSeleccionado.tipo;
     return categoriaSeleccionada.planes.filter((plan) =>
-      servicioSeleccionado.tipo === 'cuenta_completa'
-        ? plan.tipoPlan === 'cuenta_completa'
-        : plan.tipoPlan === 'perfiles'
+      // Retrocompatibilidad: soporta IDs personalizados y los valores legacy
+      plan.tipoPlan === tipoServicio
     );
   }, [categoriaSeleccionada, servicioSeleccionado?.tipo]);
 

@@ -2,12 +2,26 @@
 // CATEGORIA TYPES
 // ===========================
 
+/**
+ * Tipo de plan personalizado dentro de una categoría.
+ * El usuario define sus propios tipos (ej: "Pantalla Completa", "Por Perfil").
+ */
+export interface TipoPlanConfig {
+  id: string;
+  nombre: string;
+}
+
 export interface Plan {
   id: string;
   nombre: string;
   precio: number;
   cicloPago: 'mensual' | 'trimestral' | 'semestral' | 'anual';
-  tipoPlan: 'cuenta_completa' | 'perfiles';
+  /**
+   * ID del tipo de plan al que pertenece este plan.
+   * Puede ser un ID de TipoPlanConfig (nuevo) o un valor legacy
+   * ('cuenta_completa' | 'perfiles') para datos existentes.
+   */
+  tipoPlan: string;
 }
 
 export interface Categoria {
@@ -15,6 +29,11 @@ export interface Categoria {
   nombre: string;
   tipo: 'cliente' | 'revendedor' | 'ambos';
   tipoCategoria?: 'plataforma_streaming' | 'otros';
+  /**
+   * Tipos de plan personalizados de esta categoría.
+   * Define las etiquetas que aparecen al crear servicios y planes.
+   */
+  tiposPlanes?: TipoPlanConfig[];
   planes?: Plan[];
   notas?: string;
   iconUrl?: string;
