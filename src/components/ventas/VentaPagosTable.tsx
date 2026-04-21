@@ -136,7 +136,7 @@ export const VentaPagosTable = memo(function VentaPagosTable({
                         </DropdownMenuContent>
                       </DropdownMenu>
                     ) : (
-                      <span className="text-muted-foreground">—</span>
+                      <div className="h-7 flex items-center justify-center text-muted-foreground">—</div>
                     )}
                   </td>
                 </tr>

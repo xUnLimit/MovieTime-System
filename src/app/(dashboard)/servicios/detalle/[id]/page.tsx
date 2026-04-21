@@ -1167,7 +1167,7 @@ function ServicioDetallePageContent() {
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               ) : (
-                                <span className="text-muted-foreground">-</span>
+                                <div className="h-8 flex items-center justify-center text-muted-foreground">-</div>
                               )}
                             </td>
                           </tr>
