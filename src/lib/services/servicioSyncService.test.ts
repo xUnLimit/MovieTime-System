@@ -100,63 +100,129 @@ describe('servicioSyncService', () => {
   });
 
   it('resincroniza todos los servicios y fuerza notificaciones una sola vez al final', async () => {
-    getAllMock.mockResolvedValue([
-      {
-        id: 'servicio-1',
-        nombre: 'Netflix',
-        correo: 'a@demo.com',
-        contrasena: '1234',
-        categoriaId: 'cat-1',
-        categoriaNombre: 'Streaming',
-      },
-      {
-        id: 'servicio-2',
-        nombre: 'Disney',
-        correo: 'b@demo.com',
-        contrasena: '5678',
-        categoriaId: 'cat-2',
-        categoriaNombre: 'Kids',
-      },
-    ]);
-    queryDocumentsMock
-      .mockResolvedValueOnce([{ id: 'venta-1' }])
-      .mockResolvedValueOnce([{ id: 'venta-2' }, { id: 'venta-3' }]);
+    getAllMock
+      .mockResolvedValueOnce([
+        // SERVICIOS
+        {
+          id: 'servicio-1',
+          nombre: 'Netflix',
+          correo: 'a@demo.com',
+          contrasena: '1234',
+          categoriaId: 'cat-1',
+          categoriaNombre: 'Streaming',
+        },
+        {
+          id: 'servicio-2',
+          nombre: 'Disney',
+          correo: 'b@demo.com',
+          contrasena: '5678',
+          categoriaId: 'cat-2',
+          categoriaNombre: 'Kids',
+        },
+      ])
+      .mockResolvedValueOnce([
+        // VENTAS (getAll — new implementation)
+        {
+          id: 'venta-1',
+          servicioId: 'servicio-1',
+          servicioNombre: 'Netflix VIEJO', // outdated — will be updated
+          servicioCorreo: 'a@demo.com',
+          servicioContrasena: '1234',
+          categoriaId: 'cat-1',
+          categoriaNombre: 'Streaming',
+        },
+        {
+          id: 'venta-2',
+          servicioId: 'servicio-2',
+          servicioNombre: 'Disney VIEJO', // outdated — will be updated
+          servicioCorreo: 'b@demo.com',
+          servicioContrasena: '5678',
+          categoriaId: 'cat-2',
+          categoriaNombre: 'Kids',
+        },
+        {
+          id: 'venta-3',
+          servicioId: 'servicio-2',
+          servicioNombre: 'Disney VIEJO', // outdated — will be updated
+          servicioCorreo: 'b@demo.com',
+          servicioContrasena: '5678',
+          categoriaId: 'cat-2',
+          categoriaNombre: 'Kids',
+        },
+      ]);
 
     const { resyncServiciosDenormalizedData } = await import('./servicioSyncService');
 
     const result = await resyncServiciosDenormalizedData();
 
+    // New implementation: fetches servicios + all ventas once (2 getAll calls)
     expect(getAllMock).toHaveBeenCalledWith('servicios');
-    expect(queryDocumentsMock).toHaveBeenNthCalledWith(1, 'ventas', [
-      { field: 'servicioId', operator: '==', value: 'servicio-1' },
-    ]);
-    expect(queryDocumentsMock).toHaveBeenNthCalledWith(2, 'ventas', [
-      { field: 'servicioId', operator: '==', value: 'servicio-2' },
-    ]);
-    expect(updateMock).toHaveBeenNthCalledWith(1, 'ventas', 'venta-1', {
+    expect(getAllMock).toHaveBeenCalledWith('ventas');
+
+    // Should NOT use queryDocuments (old per-service approach)
+    expect(queryDocumentsMock).not.toHaveBeenCalledWith('ventas', expect.anything());
+
+    // All 3 ventas have outdated snapshots → 3 updates
+    expect(updateMock).toHaveBeenCalledWith('ventas', 'venta-1', {
       servicioNombre: 'Netflix',
       servicioCorreo: 'a@demo.com',
       servicioContrasena: '1234',
       categoriaId: 'cat-1',
       categoriaNombre: 'Streaming',
     });
-    expect(updateMock).toHaveBeenNthCalledWith(2, 'ventas', 'venta-2', {
+    expect(updateMock).toHaveBeenCalledWith('ventas', 'venta-2', {
       servicioNombre: 'Disney',
       servicioCorreo: 'b@demo.com',
       servicioContrasena: '5678',
       categoriaId: 'cat-2',
       categoriaNombre: 'Kids',
     });
-    expect(updateMock).toHaveBeenNthCalledWith(3, 'ventas', 'venta-3', {
+    expect(updateMock).toHaveBeenCalledWith('ventas', 'venta-3', {
       servicioNombre: 'Disney',
       servicioCorreo: 'b@demo.com',
       servicioContrasena: '5678',
       categoriaId: 'cat-2',
       categoriaNombre: 'Kids',
     });
+
     expect(result).toEqual({ serviciosRevisados: 2, ventasActualizadas: 3 });
     expect(syncNotificacionesMock).toHaveBeenCalledTimes(1);
     expect(fetchNotificacionesMock).toHaveBeenCalledWith(true);
     expect(fetchCountsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('omite la escritura en ventas cuyo snapshot ya está actualizado', async () => {
+    getAllMock
+      .mockResolvedValueOnce([
+        // SERVICIOS
+        {
+          id: 'servicio-1',
+          nombre: 'Netflix',
+          correo: 'a@demo.com',
+          contrasena: '1234',
+          categoriaId: 'cat-1',
+          categoriaNombre: 'Streaming',
+        },
+      ])
+      .mockResolvedValueOnce([
+        // VENTAS — snapshot ya actualizado, sin diferencias
+        {
+          id: 'venta-1',
+          servicioId: 'servicio-1',
+          servicioNombre: 'Netflix',
+          servicioCorreo: 'a@demo.com',
+          servicioContrasena: '1234',
+          categoriaId: 'cat-1',
+          categoriaNombre: 'Streaming',
+        },
+      ]);
+
+    const { resyncServiciosDenormalizedData } = await import('./servicioSyncService');
+
+    const result = await resyncServiciosDenormalizedData();
+
+    // venta-1 is already up-to-date → no writes
+    expect(updateMock).not.toHaveBeenCalled();
+    expect(result).toEqual({ serviciosRevisados: 1, ventasActualizadas: 0 });
   });
 });

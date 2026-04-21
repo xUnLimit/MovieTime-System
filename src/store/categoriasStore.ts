@@ -40,7 +40,7 @@ interface CategoriasState {
   setSelectedCategoria: (categoria: Categoria | null) => void;
   getCategoria: (id: string) => Categoria | undefined;
   getCategoriasByTipo: (tipo: 'cliente' | 'revendedor' | 'ambos') => Categoria[];
-  resyncContadoresCategorias: () => Promise<void>;
+  resyncContadoresCategorias: (preFetchedData?: { servicios?: Servicio[]; ventas?: VentaDoc[]; pagosVenta?: PagoVenta[]; pagosServicio?: PagoServicio[] }) => Promise<void>;
 }
 
 const CACHE_TIMEOUT = 5 * 60 * 1000;
@@ -253,14 +253,26 @@ export const useCategoriasStore = create<CategoriasState>()(
         );
       },
 
-      resyncContadoresCategorias: async () => {
-        // 1. Cargar toda la data necesaria en paralelo
-        const [servicios, ventas, pagosVenta, pagosServicio] = await Promise.all([
-          getAll<Servicio>(COLLECTIONS.SERVICIOS),
-          getAll<VentaDoc>(COLLECTIONS.VENTAS),
-          getAll<PagoVenta>(COLLECTIONS.PAGOS_VENTA),
-          queryDocuments<PagoServicio>(COLLECTIONS.PAGOS_SERVICIO, []),
-        ]);
+      resyncContadoresCategorias: async (preFetchedData?: { 
+        servicios?: Servicio[], 
+        ventas?: VentaDoc[], 
+        pagosVenta?: PagoVenta[], 
+        pagosServicio?: PagoServicio[] 
+      }) => {
+        // 1. Cargar toda la data necesaria en paralelo (solo si no se provee)
+        const [servicios, ventas, pagosVenta, pagosServicio] = preFetchedData 
+          ? [
+              preFetchedData.servicios || await getAll<Servicio>(COLLECTIONS.SERVICIOS),
+              preFetchedData.ventas || await getAll<VentaDoc>(COLLECTIONS.VENTAS),
+              preFetchedData.pagosVenta || await getAll<PagoVenta>(COLLECTIONS.PAGOS_VENTA),
+              preFetchedData.pagosServicio || await queryDocuments<PagoServicio>(COLLECTIONS.PAGOS_SERVICIO, []),
+            ]
+          : await Promise.all([
+              getAll<Servicio>(COLLECTIONS.SERVICIOS),
+              getAll<VentaDoc>(COLLECTIONS.VENTAS),
+              getAll<PagoVenta>(COLLECTIONS.PAGOS_VENTA),
+              queryDocuments<PagoServicio>(COLLECTIONS.PAGOS_SERVICIO, []),
+            ]);
 
         // 2. Agrupar por categoría
         const contadores = new Map<string, {

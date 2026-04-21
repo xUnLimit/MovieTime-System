@@ -130,30 +130,53 @@ export async function syncServicioDependencias(
   return { ventasActualizadas };
 }
 
-export async function resyncServiciosDenormalizedData(): Promise<{
+export async function resyncServiciosDenormalizedData(preFetchedData?: {
+  servicios?: Servicio[];
+  ventas?: VentaDoc[];
+}): Promise<{
   serviciosRevisados: number;
   ventasActualizadas: number;
 }> {
-  const servicios = await getAll<Servicio>(COLLECTIONS.SERVICIOS);
+  const servicios = preFetchedData?.servicios || await getAll<Servicio>(COLLECTIONS.SERVICIOS);
+  const todasLasVentas = preFetchedData?.ventas || await getAll<VentaDoc>(COLLECTIONS.VENTAS);
   let ventasActualizadas = 0;
 
+  // Build a map of ventas by servicioId for O(n) access
+  const ventasPorServicio = new Map<string, VentaDoc[]>();
+  for (const v of todasLasVentas) {
+    if (!v.servicioId) continue;
+    if (!ventasPorServicio.has(v.servicioId)) {
+      ventasPorServicio.set(v.servicioId, []);
+    }
+    ventasPorServicio.get(v.servicioId)!.push(v);
+  }
+
   for (const servicio of servicios) {
-    const ventasDelServicio = await queryDocuments<{ id: string }>(COLLECTIONS.VENTAS, [
-      { field: 'servicioId', operator: '==', value: servicio.id },
-    ]);
+    const ventasDelServicio = ventasPorServicio.get(servicio.id) || [];
 
     if (ventasDelServicio.length === 0) {
       continue;
     }
 
-    const ventaUpdates = buildServicioVentaSnapshotUpdates(servicio);
+    const updates = buildServicioVentaSnapshotUpdates(servicio);
+    const ventasParaActualizar = ventasDelServicio.filter((v) => {
+      return (
+        v.servicioNombre !== updates.servicioNombre ||
+        v.servicioCorreo !== updates.servicioCorreo ||
+        v.servicioContrasena !== updates.servicioContrasena ||
+        v.categoriaId !== updates.categoriaId ||
+        v.categoriaNombre !== updates.categoriaNombre
+      );
+    });
 
-    await Promise.all(
-      ventasDelServicio.map((venta) => update(COLLECTIONS.VENTAS, venta.id, ventaUpdates))
-    );
+    if (ventasParaActualizar.length > 0) {
+      await Promise.all(
+        ventasParaActualizar.map((venta) => update(COLLECTIONS.VENTAS, venta.id, updates))
+      );
 
-    updateVentasStoreFromServicioSync(servicio.id, ventaUpdates);
-    ventasActualizadas += ventasDelServicio.length;
+      updateVentasStoreFromServicioSync(servicio.id, updates);
+      ventasActualizadas += ventasParaActualizar.length;
+    }
   }
 
   await sincronizarNotificacionesForzado();

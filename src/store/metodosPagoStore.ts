@@ -148,8 +148,22 @@ export const useMetodosPagoStore = create<MetodosPagoState>()(
         try {
           const oldMetodo = get().metodosPago.find(m => m.id === id);
           const cambioAsociado = oldMetodo && updates.asociadoA && oldMetodo.asociadoA !== updates.asociadoA;
+          const cambioNombre = oldMetodo && updates.nombre !== undefined && oldMetodo.nombre !== updates.nombre;
+          const cambioMoneda = oldMetodo && updates.moneda !== undefined && oldMetodo.moneda !== updates.moneda;
 
           await update(COLLECTIONS.METODOS_PAGO, id, updates);
+
+          // Si cambió el nombre o la moneda, sincronizar en cascada todas las entidades que usan este método
+          if ((cambioNombre || cambioMoneda) && oldMetodo) {
+            const { syncMetodoPagoDependencias } = await import('@/lib/services/metodoPagoSyncService');
+            await syncMetodoPagoDependencias({
+              id,
+              nombre: updates.nombre,
+              moneda: updates.moneda,
+              nombreAnterior: oldMetodo.nombre,
+              monedaAnterior: oldMetodo.moneda,
+            });
+          }
 
           // Detectar cambios para el log
           const cambios = oldMetodo ? detectarCambios('metodo_pago', oldMetodo, {

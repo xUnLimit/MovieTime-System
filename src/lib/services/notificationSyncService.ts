@@ -401,11 +401,6 @@ async function limpiarNotificacionesHuerfanas(
  *
  * Performance: ~2-3 seconds for 50+ items
  * Firebase cost: 2 queries + N updates (where N = changed items)
- *
- * @example
- * useEffect(() => {
- *   sincronizarNotificaciones().catch(error => console.error(error));
- * }, []);
  */
 export async function sincronizarNotificaciones(forzarActualizacion = false): Promise<void> {
   // Check if already synced today (skip check when forcing)
@@ -413,35 +408,29 @@ export async function sincronizarNotificaciones(forzarActualizacion = false): Pr
     return;
   }
 
-  // Prevent concurrent executions: layout.tsx and notificaciones/page.tsx
-  // both mount at the same time and both pass debesSincronizar() before
-  // either writes marcarSincronizado(), causing duplicate notifications.
+  // Prevent concurrent executions
   if (sincronizandoEnCurso) {
     return;
   }
   sincronizandoEnCurso = true;
 
-  // Mark as synced immediately to prevent a second caller (e.g., notificaciones/page.tsx)
-  // from passing debesSincronizar() before this run finishes and creating duplicates.
-  if (!forzarActualizacion) {
-    marcarSincronizado();
-  }
-
   try {
-    // ✅ OPTIMIZED: Single query per entity (not two separate ones)
-    // This query includes both próximas AND vencidas because:
-    // vencidas (fechaFin < today) are a subset of próximas (fechaFin <= today + 7 days)
+    // Mark as synced to prevent second caller
+    if (!forzarActualizacion) {
+      marcarSincronizado();
+    }
 
+    // ✅ OPTIMIZED: Single query per entity (not two separate ones)
     const fechaLimite = addDays(new Date(), 7);
 
-    // 1️⃣ Query ventas with single optimized query
+    // 1️⃣ Query ventas
     const ventasProximas = (await queryDocuments(COLLECTIONS.VENTAS, [
       { field: 'estado', operator: '==', value: 'activo' },
       { field: 'fechaFin', operator: '<=', value: fechaLimite },
     ])) as VentaDoc[];
 
-    // Process each venta
     let huboFallosParciales = false;
+
     for (const venta of ventasProximas) {
       try {
         await procesarNotificacionVenta(venta, forzarActualizacion);
@@ -451,13 +440,12 @@ export async function sincronizarNotificaciones(forzarActualizacion = false): Pr
       }
     }
 
-    // 2️⃣ Query servicios with single optimized query
+    // 2️⃣ Query servicios
     const serviciosProximos = (await queryDocuments(COLLECTIONS.SERVICIOS, [
       { field: 'activo', operator: '==', value: true },
       { field: 'fechaVencimiento', operator: '<=', value: fechaLimite },
     ])) as Servicio[];
 
-    // Process each servicio
     for (const servicio of serviciosProximos) {
       try {
         await procesarNotificacionServicio(servicio, forzarActualizacion);
@@ -467,12 +455,11 @@ export async function sincronizarNotificaciones(forzarActualizacion = false): Pr
       }
     }
 
-    // 3️⃣ Query Netflix reposo services
+    // 3️⃣ Query Netflix reposo
     const serviciosReposo = (await queryDocuments(COLLECTIONS.SERVICIOS, [
       { field: 'enReposo', operator: '==', value: true },
     ])) as Servicio[];
 
-    // Process each reposo service
     for (const servicio of serviciosReposo) {
       try {
         await procesarNotificacionReposo(servicio, forzarActualizacion);
@@ -488,10 +475,9 @@ export async function sincronizarNotificaciones(forzarActualizacion = false): Pr
       console.warn('[NotificationSync] Partial failures detected — sync will retry on next load.');
     }
 
-    // 4️⃣ Cleanup orphan notifications (venta/servicio deleted but notification remains)
+    // 4️⃣ Cleanup orphan notifications
     await limpiarNotificacionesHuerfanas(ventasProximas, serviciosProximos, serviciosReposo);
   } catch (error) {
-    // Revert the early marcarSincronizado() so the sync can retry later today
     if (!forzarActualizacion && typeof window !== 'undefined') {
       localStorage.removeItem('lastNotificationSync');
     }
@@ -508,10 +494,35 @@ export async function sincronizarNotificaciones(forzarActualizacion = false): Pr
  * Also removes orphan notifications for deleted ventas/servicios.
  */
 export async function sincronizarNotificacionesForzado(): Promise<void> {
-  // Reset daily cache and in-memory flag so sincronizarNotificaciones runs unconditionally
+  // OPTIMIZACIÓN DE CHECKSUM (Velocidad "Instantánea")
+  // Si ya sincronizamos hoy (las fechas están correctas), verificamos si el número 
+  // total de notificaciones ha cambiado en el servidor antes de hacer el trabajo pesado.
   if (typeof window !== 'undefined') {
+    const lastSync = localStorage.getItem('lastNotificationSync');
+    const today = new Date().toDateString();
+    
+    if (lastSync === today) {
+      try {
+        const { getCount } = await import('@/lib/firebase/firestore');
+        const { useNotificacionesStore } = await import('@/store/notificacionesStore');
+        const localTotal = useNotificacionesStore.getState().totalNotificaciones;
+        
+        if (localTotal > 0) {
+          const remoteTotal = await getCount(COLLECTIONS.NOTIFICACIONES);
+          if (remoteTotal === localTotal) {
+            console.log('[NotificationSync] Checksum (Count) matches. Skipping rebuild, returning instantly.');
+            return; // Retorna al instante. El botón hará un fetch normal que es muy rápido.
+          }
+        }
+      } catch (e) {
+        console.warn('[NotificationSync] Checksum check failed, proceeding with full rebuild.', e);
+      }
+    }
+
+    // Reset daily cache and in-memory flag so sincronizarNotificaciones runs unconditionally
     localStorage.removeItem('lastNotificationSync');
   }
+  
   sincronizandoEnCurso = false;
 
   // Run full sync with forzarActualizacion=true: updates every notification

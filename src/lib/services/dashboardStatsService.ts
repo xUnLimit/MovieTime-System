@@ -3,8 +3,10 @@ import { db } from '@/lib/firebase/config';
 import { currencyService } from '@/lib/services/currencyService';
 import { format } from 'date-fns';
 import type { DashboardStats, UsuariosMes, IngresosMes, IngresoCategoria, IngresoCategoriaMes, IngresosDia, UsuariosDia, VentaPronostico, ServicioPronostico } from '@/types/dashboard';
-import type { VentaDoc } from '@/types/ventas';
-import type { Servicio } from '@/types/servicios';
+import type { VentaDoc, PagoVenta } from '@/types/ventas';
+import type { Servicio, PagoServicio } from '@/types/servicios';
+import type { Usuario } from '@/types/clientes';
+import type { Gasto } from '@/types/gastos';
 
 const STATS_DOC_ID = 'dashboard_stats';
 const CONFIG_COLLECTION = 'config';
@@ -455,24 +457,36 @@ export async function upsertServicioPronostico(servicio: ServicioPronostico | nu
  *
  * Use this to sync historical data or fix inconsistencies.
  * This is an expensive operation — call only on user demand.
+ * 
+ * @param preFetchedData - Optional data already loaded from Firestore to avoid redundant reads
  */
-export async function rebuildDashboardStats(): Promise<void> {
+export async function rebuildDashboardStats(preFetchedData?: {
+  ventas?: VentaDoc[];
+  pagosVenta?: PagoVenta[];
+  pagosServicio?: PagoServicio[];
+  usuarios?: Usuario[];
+  servicios?: Servicio[];
+  gastosManuales?: Gasto[];
+}): Promise<void> {
   const { getAll, COLLECTIONS } = await import('@/lib/firebase/firestore');
-  type VentaDocType = import('@/types/ventas').VentaDoc;
-  type PagoVentaType = import('@/types/ventas').PagoVenta;
-  type PagoServicioType = import('@/types/servicios').PagoServicio;
-  type UsuarioType = import('@/types/clientes').Usuario;
-  type ServicioType = import('@/types/servicios').Servicio;
-  type GastoType = import('@/types/gastos').Gasto;
 
-  const [ventas, pagosVenta, pagosServicio, usuarios, servicios, gastosManuales] = await Promise.all([
-    getAll<VentaDocType>(COLLECTIONS.VENTAS),
-    getAll<PagoVentaType>(COLLECTIONS.PAGOS_VENTA),
-    getAll<PagoServicioType>(COLLECTIONS.PAGOS_SERVICIO),
-    getAll<UsuarioType>(COLLECTIONS.USUARIOS),
-    getAll<ServicioType>(COLLECTIONS.SERVICIOS),
-    getAll<GastoType>(COLLECTIONS.GASTOS),
-  ]);
+  const [ventas, pagosVenta, pagosServicio, usuarios, servicios, gastosManuales] = preFetchedData 
+    ? [
+        preFetchedData.ventas || await getAll<VentaDoc>(COLLECTIONS.VENTAS),
+        preFetchedData.pagosVenta || await getAll<PagoVenta>(COLLECTIONS.PAGOS_VENTA),
+        preFetchedData.pagosServicio || await getAll<PagoServicio>(COLLECTIONS.PAGOS_SERVICIO),
+        preFetchedData.usuarios || await getAll<Usuario>(COLLECTIONS.USUARIOS),
+        preFetchedData.servicios || await getAll<Servicio>(COLLECTIONS.SERVICIOS),
+        preFetchedData.gastosManuales || await getAll<Gasto>(COLLECTIONS.GASTOS),
+      ]
+    : await Promise.all([
+        getAll<VentaDoc>(COLLECTIONS.VENTAS),
+        getAll<PagoVenta>(COLLECTIONS.PAGOS_VENTA),
+        getAll<PagoServicio>(COLLECTIONS.PAGOS_SERVICIO),
+        getAll<Usuario>(COLLECTIONS.USUARIOS),
+        getAll<Servicio>(COLLECTIONS.SERVICIOS),
+        getAll<Gasto>(COLLECTIONS.GASTOS),
+      ]);
 
   // Ensure exchange rates are loaded
   await currencyService.ensureRatesLoaded();
@@ -669,7 +683,7 @@ export async function rebuildDashboardStats(): Promise<void> {
 
   // ---------- PRONÓSTICO ----------
   // Group pagosVenta by ventaId, pick the most recent (highest fechaVencimiento) per venta
-  const pagosPorVentaMap = new Map<string, PagoVentaType>();
+  const pagosPorVentaMap = new Map<string, PagoVenta>();
   for (const pago of pagosVenta) {
     const existing = pagosPorVentaMap.get(pago.ventaId);
     const pagoFecha = pago.fechaVencimiento

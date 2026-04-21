@@ -72,25 +72,6 @@ service cloud.firestore {
     }
 
     // ============================================================================
-    // LEGACY COLLECTIONS (read-only)
-    // ============================================================================
-
-    match /clientes/{docId} {
-      allow read: if isAuthenticated();
-      allow write: if false;
-    }
-
-    match /revendedores/{docId} {
-      allow read: if isAuthenticated();
-      allow write: if false;
-    }
-
-    match /suscripciones/{docId} {
-      allow read: if isAuthenticated();
-      allow write: if false;
-    }
-
-    // ============================================================================
     // DENY ALL OTHER COLLECTIONS
     // ============================================================================
 

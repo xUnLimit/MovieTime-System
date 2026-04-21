@@ -80,7 +80,7 @@ describe('useUsuariosStore.updateUsuario', () => {
   });
 
   it('espera la sincronizacion de ventas y notificaciones cuando cambia el telefono', async () => {
-    const { useUsuariosStore } = await import('./usuariosStore');
+    const { useUsuariosStore } = await import('@/store/usuariosStore');
 
     useUsuariosStore.setState({
       usuarios: [

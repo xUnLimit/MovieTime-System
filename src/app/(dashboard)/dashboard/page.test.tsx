@@ -4,17 +4,12 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fetchDashboardMock = vi.fn();
-const recalculateDashboardMock = vi.fn();
 const fetchNotificacionesMock = vi.fn();
 const fetchCategoriasMock = vi.fn();
-const resyncContadoresCategoriasMock = vi.fn();
-const resyncPerfilesDisponiblesTotalMock = vi.fn();
-const resyncServicioReferenciasMock = vi.fn();
-const resyncServiciosActivosMock = vi.fn();
+const performGlobalSyncMock = vi.fn();
 const toastLoadingMock = vi.fn();
 const toastSuccessMock = vi.fn();
 const toastErrorMock = vi.fn();
-const callOrder: string[] = [];
 
 vi.mock('next/dynamic', () => ({
   default: () => () => null,
@@ -62,12 +57,24 @@ vi.mock('@/components/ui/skeleton', () => ({
   Skeleton: () => <div>Skeleton</div>,
 }));
 
-vi.mock('@/store/dashboardStore', () => ({
-  useDashboardStore: () => ({
+const dashboardStoreHook = Object.assign(
+  vi.fn(() => ({
     fetchDashboard: fetchDashboardMock,
-    recalculateDashboard: recalculateDashboardMock,
     isRecalculating: false,
-  }),
+  })),
+  {
+    // Used by: `await import('@/store/dashboardStore')` inside handleRecalculate
+    getState: () => ({ fetchDashboard: fetchDashboardMock }),
+  }
+);
+
+vi.mock('@/store/dashboardStore', () => ({
+  useDashboardStore: dashboardStoreHook,
+}));
+
+// Mock the dynamic import of centralSyncService used inside handleRecalculate
+vi.mock('@/lib/services/centralSyncService', () => ({
+  performGlobalSync: performGlobalSyncMock,
 }));
 
 const useNotificacionesStoreMock = Object.assign(
@@ -86,23 +93,17 @@ vi.mock('@/store/notificacionesStore', () => ({
 }));
 
 vi.mock('@/store/serviciosStore', () => ({
-  useServiciosStore: () => ({
-    resyncPerfilesDisponiblesTotal: resyncPerfilesDisponiblesTotalMock,
-    resyncServicioReferencias: resyncServicioReferenciasMock,
-  }),
+  useServiciosStore: () => ({}),
 }));
 
 vi.mock('@/store/categoriasStore', () => ({
   useCategoriasStore: () => ({
     fetchCategorias: fetchCategoriasMock,
-    resyncContadoresCategorias: resyncContadoresCategoriasMock,
   }),
 }));
 
 vi.mock('@/store/usuariosStore', () => ({
-  useUsuariosStore: () => ({
-    resyncServiciosActivos: resyncServiciosActivosMock,
-  }),
+  useUsuariosStore: () => ({}),
 }));
 
 vi.mock('@/types/notificaciones', () => ({
@@ -123,33 +124,19 @@ vi.mock('sonner', () => ({
 describe('Dashboard sync button', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    callOrder.length = 0;
 
     fetchDashboardMock.mockResolvedValue(undefined);
     fetchNotificacionesMock.mockResolvedValue(undefined);
     toastLoadingMock.mockReturnValue('toast-1');
 
-    resyncPerfilesDisponiblesTotalMock.mockImplementation(async () => {
-      callOrder.push('perfiles');
-      return { categoriasActualizadas: 0 };
+    performGlobalSyncMock.mockResolvedValue({
+      usuariosReparados: 1,
+      serviciosCorregidos: 0,
+      serviciosRevisados: 3,
+      ventasActualizadas: 2,
     });
-    resyncServicioReferenciasMock.mockImplementation(async () => {
-      callOrder.push('servicios');
-      return { serviciosRevisados: 3, ventasActualizadas: 2 };
-    });
-    resyncServiciosActivosMock.mockImplementation(async () => {
-      callOrder.push('usuarios');
-      return { usuariosReparados: 1 };
-    });
-    resyncContadoresCategoriasMock.mockImplementation(async () => {
-      callOrder.push('categorias');
-    });
-    recalculateDashboardMock.mockImplementation(async () => {
-      callOrder.push('dashboard');
-    });
-    fetchCategoriasMock.mockImplementation(async () => {
-      callOrder.push('fetchCategorias');
-    });
+
+    fetchCategoriasMock.mockResolvedValue(undefined);
   });
 
   it('dispara la resincronizacion de servicios al hacer click en Sincronizar sistema', async () => {
@@ -161,22 +148,9 @@ describe('Dashboard sync button', () => {
     await userEvent.click(button);
 
     await waitFor(() => {
-      expect(resyncPerfilesDisponiblesTotalMock).toHaveBeenCalledTimes(1);
-      expect(resyncServicioReferenciasMock).toHaveBeenCalledTimes(1);
-      expect(resyncServiciosActivosMock).toHaveBeenCalledTimes(1);
-      expect(resyncContadoresCategoriasMock).toHaveBeenCalledTimes(1);
-      expect(recalculateDashboardMock).toHaveBeenCalledTimes(1);
+      expect(performGlobalSyncMock).toHaveBeenCalledTimes(1);
       expect(fetchCategoriasMock).toHaveBeenCalledWith(true);
     });
-
-    expect(callOrder).toEqual([
-      'perfiles',
-      'servicios',
-      'usuarios',
-      'categorias',
-      'dashboard',
-      'fetchCategorias',
-    ]);
 
     expect(toastSuccessMock).toHaveBeenCalledWith(
       'Sistema sincronizado correctamente',

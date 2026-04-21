@@ -59,7 +59,7 @@ interface ServiciosState {
   getServiciosByCategoria: (categoriaId: string) => Servicio[];
   getServiciosDisponibles: () => Servicio[];
   updatePerfilOcupado: (id: string, shouldIncrement: boolean) => Promise<void>;
-  resyncPerfilesDisponiblesTotal: () => Promise<{ categoriasActualizadas: number }>;
+  resyncPerfilesDisponiblesTotal: (preFetchedData?: { ventas?: VentaDoc[]; servicios?: Servicio[]; categorias?: { id: string }[] }) => Promise<{ categoriasActualizadas: number; serviciosCorregidos: number }>;
   resyncServicioReferencias: () => Promise<{ serviciosRevisados: number; ventasActualizadas: number }>;
 }
 
@@ -588,11 +588,13 @@ export const useServiciosStore = create<ServiciosState>()(
         }
       },
 
-      resyncPerfilesDisponiblesTotal: async () => {
+      resyncPerfilesDisponiblesTotal: async (preFetchedData?: { ventas?: VentaDoc[], servicios?: Servicio[], categorias?: { id: string }[] }) => {
         // 1. Contar ventas activas (no inactivas) por servicioId desde la fuente de verdad
-        const ventasActivas = await queryDocuments<VentaDoc>(COLLECTIONS.VENTAS, [
-          { field: 'estado', operator: '!=', value: 'inactivo' },
-        ]);
+        const ventasActivas = preFetchedData?.ventas 
+          ? preFetchedData.ventas.filter(v => v.estado !== 'inactivo')
+          : await queryDocuments<VentaDoc>(COLLECTIONS.VENTAS, [
+            { field: 'estado', operator: '!=', value: 'inactivo' },
+          ]);
 
         // Contar perfiles ocupados reales por servicioId (solo ventas con perfilNumero asignado)
         const ocupadosPorServicio = new Map<string, number>();
@@ -603,7 +605,7 @@ export const useServiciosStore = create<ServiciosState>()(
         }
 
         // 2. Leer todos los servicios y corregir perfilesOcupados donde no coincida
-        const servicios = await getAll<Servicio>(COLLECTIONS.SERVICIOS);
+        const servicios = preFetchedData?.servicios || await getAll<Servicio>(COLLECTIONS.SERVICIOS);
         const servicioUpdates: Promise<void>[] = [];
 
         for (const s of servicios) {
@@ -626,7 +628,7 @@ export const useServiciosStore = create<ServiciosState>()(
         }
 
         // Sobrescribir el campo en cada categoría afectada
-        const categorias = await getAll<{ id: string }>(COLLECTIONS.CATEGORIAS);
+        const categorias = preFetchedData?.categorias || await getAll<{ id: string }>(COLLECTIONS.CATEGORIAS);
         const categoriaUpdates = categorias.map((categoria) => {
           const total = totalPorCategoria.get(categoria.id) ?? 0;
           const ref = firestoreDoc(db, COLLECTIONS.CATEGORIAS, categoria.id);

@@ -75,7 +75,10 @@ export interface VentaDoc {
   descuento?: number;
   precioFinal?: number;
   totalVenta?: number;
-  /** @deprecated Payments are stored in the `pagosVenta` collection. Use `getVentaConUltimoPago()` from ventaSyncService instead. */
+  /** 
+   * @deprecated DO NOT USE. Payments are now stored in the `pagosVenta` collection.
+   * Use the `usePagosVenta` hook or `pagosVentaService` to fetch payments for a sale.
+   */
   pagos?: VentaPago[];
 
   createdAt?: Date;

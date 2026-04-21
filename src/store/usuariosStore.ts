@@ -33,7 +33,7 @@ interface UsuariosState {
   // Actions
   fetchUsuarios: (force?: boolean) => Promise<void>;
   fetchCounts: () => Promise<void>;
-  resyncServiciosActivos: () => Promise<{ usuariosReparados: number }>;
+  resyncServiciosActivos: (preFetchedData?: { usuarios?: Usuario[]; ventas?: VentaDoc[] }) => Promise<{ usuariosReparados: number }>;
   createUsuario: (usuario: Omit<Usuario, 'id' | 'createdAt' | 'updatedAt' | 'serviciosActivos' | 'suscripcionesTotales'>) => Promise<void>;
   updateUsuario: (id: string, updates: Partial<Usuario>) => Promise<void>;
   deleteUsuario: (id: string, usuarioData?: { tipo: 'cliente' | 'revendedor'; nombre?: string; createdAt?: Date; serviciosActivos?: number }) => Promise<void>;
@@ -102,12 +102,17 @@ export const useUsuariosStore = create<UsuariosState>()(
         }
       },
 
-      resyncServiciosActivos: async () => {
+      resyncServiciosActivos: async (preFetchedData?: { usuarios?: Usuario[], ventas?: VentaDoc[] }) => {
         try {
-          const [usuarios, ventas] = await Promise.all([
-            getAll<Usuario>(COLLECTIONS.USUARIOS),
-            getAll<VentaDoc>(COLLECTIONS.VENTAS),
-          ]);
+          const [usuarios, ventas] = preFetchedData 
+            ? [
+                preFetchedData.usuarios || await getAll<Usuario>(COLLECTIONS.USUARIOS),
+                preFetchedData.ventas || await getAll<VentaDoc>(COLLECTIONS.VENTAS)
+              ]
+            : await Promise.all([
+                getAll<Usuario>(COLLECTIONS.USUARIOS),
+                getAll<VentaDoc>(COLLECTIONS.VENTAS),
+              ]);
 
           const conteoVentasActivas = new Map<string, number>();
 

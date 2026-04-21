@@ -209,16 +209,7 @@ function VentaDetallePageContent() {
       });
     }
 
-    // Fallback: Si no hay pagos en la colección pero hay en el array legacy
-    if (venta.pagos && venta.pagos.length > 0) {
-      return [...venta.pagos].sort((a, b) => {
-        const aTime = a.fecha ? new Date(a.fecha).getTime() : 0;
-        const bTime = b.fecha ? new Date(b.fecha).getTime() : 0;
-        return bTime - aTime;
-      });
-    }
-
-    // Si no hay pagos en ningún lado, crear uno sintético
+    // Si no hay pagos en la colección (ej. venta recién creada sin refresh), crear uno sintético
     return [
       {
         id: 'synthetic-initial',

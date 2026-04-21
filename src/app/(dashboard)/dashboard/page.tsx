@@ -87,9 +87,7 @@ import { UserMenu } from '@/components/layout/UserMenu';
 import { NotificationBell } from '@/components/notificaciones/NotificationBell';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { useNotificacionesStore } from '@/store/notificacionesStore';
-import { useServiciosStore } from '@/store/serviciosStore';
 import { useCategoriasStore } from '@/store/categoriasStore';
-import { useUsuariosStore } from '@/store/usuariosStore';
 import { esNotificacionVenta, esNotificacionServicio } from '@/types/notificaciones';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Bell, ArrowRight } from 'lucide-react';
@@ -97,11 +95,9 @@ import { toast } from 'sonner';
 import Link from 'next/link';
 
 export default function DashboardPage() {
-  const { fetchDashboard, recalculateDashboard, isRecalculating } = useDashboardStore();
+  const { fetchDashboard, isRecalculating } = useDashboardStore();
   const { fetchNotificaciones } = useNotificacionesStore();
-  const { resyncPerfilesDisponiblesTotal, resyncServicioReferencias } = useServiciosStore();
-  const { fetchCategorias, resyncContadoresCategorias } = useCategoriasStore();
-  const { resyncServiciosActivos } = useUsuariosStore();
+  const { fetchCategorias } = useCategoriasStore();
   const toastShown = useRef(false);
 
   useEffect(() => {
@@ -205,16 +201,19 @@ export default function DashboardPage() {
   const handleRecalculate = async () => {
     const toastId = toast.loading('Sincronizando sistema...');
     try {
-      // 1. Resync contadores de perfiles disponibles en categorías
-      await resyncPerfilesDisponiblesTotal();
-      const { serviciosRevisados, ventasActualizadas } = await resyncServicioReferencias();
-      const { usuariosReparados } = await resyncServiciosActivos();
-      // 2. Resync contadores de ventas, ingresos y gastos por categoría
-      await resyncContadoresCategorias();
-      // 3. Recalcular métricas del dashboard (rebuild desde Firestore)
-      await recalculateDashboard();
-      // 4. Refrescar categorías para reflejar los contadores actualizados
+      const { performGlobalSync } = await import('@/lib/services/centralSyncService');
+      const { 
+        usuariosReparados, 
+        serviciosCorregidos, 
+        serviciosRevisados, 
+        ventasActualizadas 
+      } = await performGlobalSync();
+
+      // Refrescar stores locales para reflejar cambios
+      const { useDashboardStore } = await import('@/store/dashboardStore');
+      await useDashboardStore.getState().fetchDashboard(true);
       await fetchCategorias(true);
+
       toast.success('Sistema sincronizado correctamente', {
         id: toastId,
         description: [
@@ -224,9 +223,13 @@ export default function DashboardPage() {
           usuariosReparados > 0
             ? `${usuariosReparados} usuario(s) reparados en servicios activos.`
             : 'Sin desfases en servicios activos de usuarios.',
-        ].join(' '),
+          serviciosCorregidos > 0
+            ? `${serviciosCorregidos} servicio(s) con perfiles corregidos.`
+            : '',
+        ].filter(Boolean).join(' '),
       });
-    } catch {
+    } catch (error) {
+      console.error('Error during global sync:', error);
       toast.error('Error al sincronizar el sistema', { id: toastId });
     }
   };

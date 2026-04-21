@@ -235,30 +235,67 @@ export const useVentasStore = create<VentasState>()(
 
           await update(COLLECTIONS.VENTAS, id, finalUpdates);
 
-          // Actualizar contadores de categoría si cambió el precio o la categoría
+          // Actualizar contadores de categoría y usuario si cambió el estado, precio o la categoría
           const ventaAnterior = ventaActual || await getById<VentaDoc>(COLLECTIONS.VENTAS, id);
           if (ventaAnterior) {
             const precioAnterior = ventaAnterior.precioFinal || 0;
             const precioNuevo = updates.precioFinal !== undefined ? updates.precioFinal : precioAnterior;
             const categoriaAnterior = ventaAnterior.categoriaId;
             const categoriaNueva = updates.categoriaId || categoriaAnterior;
+            const estadoAnterior = ventaAnterior.estado || 'activo';
+            const estadoNuevo = updates.estado || estadoAnterior;
 
-            // Si cambió la categoría
-            if (updates.categoriaId && categoriaAnterior !== categoriaNueva) {
-              // Restar de la categoría anterior
-              if (categoriaAnterior) {
-                await adjustCategoriaSuscripciones(categoriaAnterior, -1, -precioAnterior);
-              }
-              // Sumar a la nueva categoría
-              if (categoriaNueva) {
-                await adjustCategoriaSuscripciones(categoriaNueva, 1, precioNuevo);
+            // 1. Sincronizar serviciosActivos del USUARIO si cambió el estado
+            if (updates.estado !== undefined && estadoAnterior !== estadoNuevo) {
+              const clienteId = ventaAnterior.clienteId;
+              if (clienteId) {
+                if (estadoNuevo === 'inactivo') {
+                  // Pasó de activo a inactivo -> restar 1
+                  await adjustServiciosActivos(clienteId, -1);
+                } else if (estadoAnterior === 'inactivo') {
+                  // Pasó de inactivo a activo -> sumar 1
+                  await adjustServiciosActivos(clienteId, 1);
+                }
               }
             }
-            // Si solo cambió el precio (misma categoría)
-            else if (updates.precioFinal !== undefined && precioAnterior !== precioNuevo) {
-              const diferencia = precioNuevo - precioAnterior;
-              if (categoriaAnterior && diferencia !== 0) {
-                await adjustCategoriaSuscripciones(categoriaAnterior, 0, diferencia);
+
+            // 2. Sincronizar perfilesOcupados del SERVICIO si cambió el estado
+            if (updates.estado !== undefined && estadoAnterior !== estadoNuevo && ventaAnterior.servicioId) {
+              // NOTE: Dynamic import is intentional to avoid a circular module dependency.
+              // serviciosStore → (via syncServicioDependencias) → ventasStore creates a cycle.
+              // Lazy import breaks this cycle by deferring resolution until runtime.
+              const { useServiciosStore } = await import('./serviciosStore');
+              if (estadoNuevo === 'inactivo') {
+                await useServiciosStore.getState().updatePerfilOcupado(ventaAnterior.servicioId, false);
+              } else if (estadoAnterior === 'inactivo') {
+                await useServiciosStore.getState().updatePerfilOcupado(ventaAnterior.servicioId, true);
+              }
+            }
+
+            // 3. Sincronizar contadores de la CATEGORÍA
+            if (updates.categoriaId && categoriaAnterior !== categoriaNueva) {
+              // Si cambió la categoría: restar de la anterior y sumar a la nueva
+              if (categoriaAnterior) {
+                const precioUSD = await currencyService.convertToUSD(precioAnterior, ventaAnterior.moneda ?? 'USD');
+                await adjustCategoriaSuscripciones(categoriaAnterior, -1, -precioUSD);
+              }
+              if (categoriaNueva) {
+                const precioUSD = await currencyService.convertToUSD(precioNuevo, updates.moneda ?? ventaAnterior.moneda ?? 'USD');
+                await adjustCategoriaSuscripciones(categoriaNueva, 1, precioUSD);
+              }
+            } else if (estadoAnterior !== estadoNuevo) {
+              // Si cambió el estado (misma categoría): sumar/restar 1 venta e ingresos
+              if (categoriaAnterior) {
+                const precioUSD = await currencyService.convertToUSD(precioNuevo, updates.moneda ?? ventaAnterior.moneda ?? 'USD');
+                const delta = estadoNuevo === 'inactivo' ? -1 : 1;
+                await adjustCategoriaSuscripciones(categoriaAnterior, delta, delta * precioUSD);
+              }
+            } else if (updates.precioFinal !== undefined && precioAnterior !== precioNuevo) {
+              // Si solo cambió el precio (misma categoría, mismo estado): ajustar solo ingresos
+              const diffOriginal = precioNuevo - precioAnterior;
+              const diffUSD = await currencyService.convertToUSD(diffOriginal, updates.moneda ?? ventaAnterior.moneda ?? 'USD');
+              if (categoriaAnterior && diffUSD !== 0) {
+                await adjustCategoriaSuscripciones(categoriaAnterior, 0, diffUSD);
               }
             }
           }
