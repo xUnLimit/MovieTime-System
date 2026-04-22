@@ -24,7 +24,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Card } from '@/components/ui/card';
 import { cn, normalizePhoneSearch, normalizeSearchText } from '@/lib/utils';
-import { CalendarIcon, ChevronDown, ChevronUp, Eye, Loader2, MessageCircle, Plus, Search, Trash2, User } from 'lucide-react';
+import { CalendarIcon, ChevronDown, ChevronUp, Eye, Loader2, MessageCircle, Plus, Search, Trash2, User, Pencil } from 'lucide-react';
 import { useCategoriasStore } from '@/store/categoriasStore';
 import { useServiciosStore } from '@/store/serviciosStore';
 import { useUsuariosStore } from '@/store/usuariosStore';
@@ -65,6 +65,7 @@ interface VentaItem {
   id: string;
   itemId: string;
   tipo: TipoItem;
+  planId: string;
   categoriaId: string;
   categoriaNombre: string; // <- Denormalizar nombre de categoría
   servicioId: string;
@@ -248,15 +249,7 @@ export function VentasForm() {
     loadServiciosCategoria();
   }, [categoriaId]);
 
-  useEffect(() => {
-    setPlanId('');
-    setPrecio('');
-    setDescuento('');
-    setPerfilNumero('');
-    setPerfilNombre('');
-    setNotasItem('');
-    setItemErrors({});
-  }, [servicioId]);
+
 
   useEffect(() => {
     const loadPerfilesOcupados = async () => {
@@ -347,21 +340,7 @@ export function VentasForm() {
     [planesDisponibles, planId]
   );
 
-  useEffect(() => {
-    if (!planSeleccionado) return;
-    setPrecio(planSeleccionado.precio.toFixed(2));
-    setItemErrors((prev) => ({
-      ...prev,
-      plan: undefined,
-      precio: undefined,
-    }));
-  }, [planSeleccionado]);
 
-  useEffect(() => {
-    if (!planSeleccionado || !fechaInicioValue) return;
-    const meses = MESES_POR_CICLO[planSeleccionado.cicloPago] ?? 1;
-    setValue('fechaFin', addMonths(new Date(fechaInicioValue), meses));
-  }, [planSeleccionado, fechaInicioValue, setValue]);
 
   // Ordenar servicios por fecha de creación (más recientes primero)
   const serviciosOrdenados = useMemo(() => {
@@ -757,6 +736,7 @@ export function VentasForm() {
       id: `${servicioId}-${plan.id}-${Date.now()}`,
       itemId,
       tipo: tipoItem,
+      planId: plan.id,
       categoriaId: categoria.id,
       categoriaNombre: categoria.nombre, // <- Denormalizar nombre
         servicioId,
@@ -790,6 +770,25 @@ export function VentasForm() {
 
   const handleRemoveItem = (id: string) => {
     setItems((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const handleEditItem = (item: VentaItem) => {
+    handleRemoveItem(item.id);
+    
+    setCategoriaId(item.categoriaId);
+    setServicioId(item.servicioId);
+    setPlanId(item.planId);
+    setPrecio(item.precio.toString());
+    setDescuento(item.descuento.toString());
+    
+    if (item.perfilNumero) setPerfilNumero(item.perfilNumero.toString());
+    if (item.perfilNombre) setPerfilNombre(item.perfilNombre);
+    setValue('codigo', item.codigo || '');
+    setNotasItem(item.notas || '');
+    if (item.fechaInicio) setValue('fechaInicio', item.fechaInicio);
+    if (item.fechaFin) setValue('fechaFin', item.fechaFin);
+    
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleNext = async () => {
@@ -1110,6 +1109,8 @@ export function VentasForm() {
                             setPrecio('');
                             setDescuento('');
                             setPerfilNumero('');
+                            setPerfilNombre('');
+                            setNotasItem('');
                             setItemErrors((prev) => ({ ...prev, categoria: undefined }));
                           }}
                         >
@@ -1200,7 +1201,12 @@ export function VentasForm() {
                                   key={servicio.id}
                                   onClick={() => {
                                     setServicioId(servicio.id);
+                                    setPlanId('');
+                                    setPrecio('');
+                                    setDescuento('');
                                     setPerfilNumero('');
+                                    setPerfilNombre('');
+                                    setNotasItem('');
                                     setItemErrors((prev) => ({ ...prev, servicio: undefined }));
                                   }}
                                   className="group flex h-8 min-h-8 items-center gap-0 py-0 pr-1 leading-none"
@@ -1294,7 +1300,12 @@ export function VentasForm() {
                           key={plan.id}
                           onClick={() => {
                             setPlanId(plan.id);
-                            setItemErrors((prev) => ({ ...prev, plan: undefined }));
+                            setPrecio(plan.precio.toFixed(2));
+                            setItemErrors((prev) => ({ ...prev, plan: undefined, precio: undefined }));
+                            if (fechaInicioValue) {
+                              const meses = MESES_POR_CICLO[plan.cicloPago] ?? 1;
+                              setValue('fechaFin', addMonths(new Date(fechaInicioValue), meses));
+                            }
                           }}
                         >
                           {plan.nombre}
@@ -1438,6 +1449,10 @@ export function VentasForm() {
                       onSelect={(date) => {
                         setValue('fechaInicio', date || new Date());
                         clearErrors('fechaInicio');
+                        if (planSeleccionado && date) {
+                          const meses = MESES_POR_CICLO[planSeleccionado.cicloPago] ?? 1;
+                          setValue('fechaFin', addMonths(date, meses));
+                        }
                       }}
                         defaultMonth={fechaInicioValue ?? new Date()}
                         locale={es}
@@ -1561,13 +1576,10 @@ export function VentasForm() {
 
               {items.length > 0 && (
                 <Card className="p-4">
-                  <div className="flex items-center justify-between mb-0">
+                  <div className="mb-2">
                     <div className="text-sm font-medium">
                       Items Agregados ({items.length})
                     </div>
-                    <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
-                      Total: {simboloMoneda} {totalFinal.toFixed(2)}
-                    </span>
                   </div>
 
                   <div className="space-y-0.5">
@@ -1595,9 +1607,17 @@ export function VentasForm() {
                           )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <span className="font-medium">{simboloMoneda} {item.precioFinal.toFixed(2)}</span>
-                          <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)} className="text-red-500 hover:text-red-600">
+                        <div className="flex items-center gap-2">
+                          <div className="text-right flex flex-col mr-2">
+                            {item.descuento > 0 && (
+                              <span className="text-[10px] text-red-400 line-through leading-none">{simboloMoneda} {item.precio.toFixed(2)}</span>
+                            )}
+                            <span className="font-medium leading-tight">{simboloMoneda} {item.precioFinal.toFixed(2)}</span>
+                          </div>
+                          <Button type="button" variant="ghost" size="icon" onClick={() => handleEditItem(item)} className="h-8 w-8 text-blue-500 hover:text-blue-600 hover:bg-blue-500/10">
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)} className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-500/10">
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
@@ -1605,13 +1625,21 @@ export function VentasForm() {
                     ))}
                   </div>
 
-                  <div className="mt-2 pt-2 border-t flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Subtotal original:</span>
-                    <span className="text-sm font-semibold">{simboloMoneda} {subtotal.toFixed(2)}</span>
-                  </div>
-                  <div className="mt-2 flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Total final:</span>
-                    <span className="text-sm font-semibold text-green-500">{simboloMoneda} {totalFinal.toFixed(2)}</span>
+                  <div className="mt-4 pt-3 border-t space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Subtotal original:</span>
+                      <span className="font-semibold">{simboloMoneda} {subtotal.toFixed(2)}</span>
+                    </div>
+                    {(subtotal - totalFinal) > 0 && (
+                      <div className="flex items-center justify-between text-sm text-red-400">
+                        <span>Descuento aplicado:</span>
+                        <span className="font-semibold">-{simboloMoneda} {(subtotal - totalFinal).toFixed(2)}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between pt-1 border-t mt-1">
+                      <span className="text-sm text-muted-foreground font-medium">Total final:</span>
+                      <span className="text-sm font-bold text-green-500">{simboloMoneda} {totalFinal.toFixed(2)}</span>
+                    </div>
                   </div>
                 </Card>
               )}
