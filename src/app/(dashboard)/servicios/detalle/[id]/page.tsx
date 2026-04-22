@@ -234,7 +234,7 @@ function ServicioDetallePageContent() {
   };
 
   const handleEdit = () => {
-    router.push(`/servicios/${id}/editar?from=/servicios/detalle/${id}`);
+    router.push(`/servicios/${id}/editar?from=${encodeURIComponent(`/servicios/detalle/${id}`)}`);
   };
 
   // Lazy load de métodos de pago (solo cuando se necesita renovar)

@@ -45,6 +45,7 @@ import {
   PROFILE_ICON_LIMIT,
   getProfileIndicatorStates,
 } from "@/lib/utils/perfiles";
+import { usePathname } from "next/navigation";
 
 interface ServiciosCategoriaTableDetalleProps {
   servicios: Servicio[];
@@ -91,6 +92,7 @@ export const ServiciosCategoriaTableDetalle = memo(
   }: ServiciosCategoriaTableDetalleProps) {
     const { deleteServicio, fetchCounts } = useServiciosStore();
     const { fetchCategorias } = useCategoriasStore();
+    const pathname = usePathname();
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [servicioToDelete, setServicioToDelete] = useState<Servicio | null>(
       null,
@@ -411,14 +413,14 @@ export const ServiciosCategoriaTableDetalle = memo(
                     <DropdownMenuContent align="end">
                       {onView && (
                         <DropdownMenuItem asChild>
-                          <Link href={`/servicios/detalle/${servicio.id}`}>
+                          <Link href={`/servicios/detalle/${servicio.id}?from=${encodeURIComponent(pathname)}`}>
                             <Eye className="h-4 w-4 mr-2" />
                             Ver detalles
                           </Link>
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuItem asChild>
-                        <Link href={`/servicios/${servicio.id}/editar`}>
+                        <Link href={`/servicios/${servicio.id}/editar?from=${encodeURIComponent(pathname)}`}>
                           <Edit className="h-4 w-4 mr-2" />
                           Editar
                         </Link>
