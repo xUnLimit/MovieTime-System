@@ -1,36 +1,40 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { MetodoPago } from '@/types';
-import { useMetodosPagoStore } from '@/store/metodosPagoStore';
-import { toast } from 'sonner';
+} from "@/components/ui/select";
+import { MetodoPago } from "@/types";
+import { useMetodosPagoStore } from "@/store/metodosPagoStore";
+import { toast } from "sonner";
 
 const metodoPagoSchema = z.object({
-  nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  tipo: z.enum(['banco', 'yappy', 'paypal', 'binance', 'efectivo']),
-  titular: z.string().min(2, 'El titular es requerido'),
-  identificador: z.string().min(4, 'El identificador debe tener al menos 4 caracteres'),
-  tipoCuenta: z.enum(['ahorro', 'corriente', 'telefono', 'wallet', 'email']).optional(),
+  nombre: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
+  tipo: z.enum(["banco", "yappy", "paypal", "binance", "efectivo"]),
+  titular: z.string().min(2, "El titular es requerido"),
+  identificador: z
+    .string()
+    .min(4, "El identificador debe tener al menos 4 caracteres"),
+  tipoCuenta: z
+    .enum(["ahorro", "corriente", "telefono", "wallet", "email"])
+    .optional(),
   banco: z.string().optional(),
   pais: z.string(),
   moneda: z.string(),
@@ -60,19 +64,19 @@ export function MetodoPagoDialog({
   } = useForm<MetodoPagoFormData>({
     resolver: zodResolver(metodoPagoSchema),
     defaultValues: {
-      nombre: '',
-      tipo: 'banco',
-      titular: '',
-      identificador: '',
-      tipoCuenta: 'ahorro',
-      banco: '',
-      pais: 'Panamá',
-      moneda: 'USD',
+      nombre: "",
+      tipo: "banco",
+      titular: "",
+      identificador: "",
+      tipoCuenta: "ahorro",
+      banco: "",
+      pais: "Panamá",
+      moneda: "USD",
     },
   });
 
-  const tipoValue = watch('tipo');
-  const tipoCuentaValue = watch('tipoCuenta');
+  const tipoValue = watch("tipo");
+  const tipoCuentaValue = watch("tipoCuenta");
 
   useEffect(() => {
     if (metodoPago) {
@@ -81,33 +85,44 @@ export function MetodoPagoDialog({
         tipo: metodoPago.tipo,
         titular: metodoPago.titular,
         identificador: metodoPago.identificador,
-        tipoCuenta: (metodoPago.tipoCuenta && ['ahorro', 'corriente', 'wallet', 'telefono', 'email'].includes(metodoPago.tipoCuenta)) ? metodoPago.tipoCuenta as 'ahorro' | 'corriente' | 'wallet' | 'telefono' | 'email' : 'ahorro',
-        banco: metodoPago.banco || '',
-        pais: metodoPago.pais || 'Panamá',
-        moneda: metodoPago.moneda || 'USD',
+        tipoCuenta:
+          metodoPago.tipoCuenta &&
+          ["ahorro", "corriente", "wallet", "telefono", "email"].includes(
+            metodoPago.tipoCuenta,
+          )
+            ? (metodoPago.tipoCuenta as
+                | "ahorro"
+                | "corriente"
+                | "wallet"
+                | "telefono"
+                | "email")
+            : "ahorro",
+        banco: metodoPago.banco || "",
+        pais: metodoPago.pais || "Panamá",
+        moneda: metodoPago.moneda || "USD",
       });
     } else {
       reset({
-        nombre: '',
-        tipo: 'banco',
-        titular: '',
-        identificador: '',
-        tipoCuenta: 'ahorro',
-        banco: '',
-        pais: 'Panamá',
-        moneda: 'USD',
+        nombre: "",
+        tipo: "banco",
+        titular: "",
+        identificador: "",
+        tipoCuenta: "ahorro",
+        banco: "",
+        pais: "Panamá",
+        moneda: "USD",
       });
     }
   }, [metodoPago, reset]);
 
   // Auto-set tipoCuenta based on tipo
   useEffect(() => {
-    if (tipoValue === 'yappy') {
-      setValue('tipoCuenta', 'telefono');
-    } else if (tipoValue === 'binance') {
-      setValue('tipoCuenta', 'wallet');
-    } else if (tipoValue === 'banco' && !tipoCuentaValue) {
-      setValue('tipoCuenta', 'ahorro');
+    if (tipoValue === "yappy") {
+      setValue("tipoCuenta", "telefono");
+    } else if (tipoValue === "binance") {
+      setValue("tipoCuenta", "wallet");
+    } else if (tipoValue === "banco" && !tipoCuentaValue) {
+      setValue("tipoCuenta", "ahorro");
     }
   }, [tipoValue, tipoCuentaValue, setValue]);
 
@@ -115,20 +130,28 @@ export function MetodoPagoDialog({
     try {
       const metodoPagoData = {
         ...data,
-        pais: data.pais || 'Panamá',
+        pais: data.pais || "Panamá",
         activo: metodoPago?.activo ?? true,
       };
 
       if (metodoPago) {
         await updateMetodoPago(metodoPago.id, metodoPagoData);
-        toast.success('Método de pago actualizado', { description: 'Los datos del método de pago han sido guardados correctamente.' });
+        toast.success("Método de pago actualizado", {
+          description:
+            "Los datos del método de pago han sido guardados correctamente.",
+        });
       } else {
         await createMetodoPago(metodoPagoData);
-        toast.success('Método de pago creado', { description: 'El nuevo método de pago ha sido registrado correctamente.' });
+        toast.success("Método de pago creado", {
+          description:
+            "El nuevo método de pago ha sido registrado correctamente.",
+        });
       }
       onOpenChange(false);
     } catch (error) {
-      toast.error('Error al guardar método de pago', { description: error instanceof Error ? error.message : undefined });
+      toast.error("Error al guardar método de pago", {
+        description: error instanceof Error ? error.message : undefined,
+      });
     }
   };
 
@@ -137,7 +160,7 @@ export function MetodoPagoDialog({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            {metodoPago ? 'Editar' : 'Nuevo'} Método de Pago
+            {metodoPago ? "Editar" : "Nuevo"} Método de Pago
           </DialogTitle>
         </DialogHeader>
 
@@ -147,7 +170,7 @@ export function MetodoPagoDialog({
               <Label htmlFor="nombre">Nombre</Label>
               <Input
                 id="nombre"
-                {...register('nombre')}
+                {...register("nombre")}
                 placeholder="Ej: Cuenta BAC"
               />
               {errors.nombre && (
@@ -157,7 +180,12 @@ export function MetodoPagoDialog({
 
             <div className="space-y-2">
               <Label htmlFor="tipo">Tipo</Label>
-              <Select value={tipoValue} onValueChange={(value) => setValue('tipo', value as MetodoPago['tipo'])}>
+              <Select
+                value={tipoValue}
+                onValueChange={(value) =>
+                  setValue("tipo", value as MetodoPago["tipo"])
+                }
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -175,13 +203,13 @@ export function MetodoPagoDialog({
             </div>
           </div>
 
-          {tipoValue === 'banco' && (
+          {tipoValue === "banco" && (
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="banco">Banco</Label>
                 <Input
                   id="banco"
-                  {...register('banco')}
+                  {...register("banco")}
                   placeholder="Ej: BAC, Banistmo"
                 />
               </div>
@@ -190,7 +218,17 @@ export function MetodoPagoDialog({
                 <Label htmlFor="tipoCuenta">Tipo de Cuenta</Label>
                 <Select
                   value={tipoCuentaValue}
-                  onValueChange={(value) => setValue('tipoCuenta', value as 'ahorro' | 'corriente' | 'wallet' | 'telefono' | 'email')}
+                  onValueChange={(value) =>
+                    setValue(
+                      "tipoCuenta",
+                      value as
+                        | "ahorro"
+                        | "corriente"
+                        | "wallet"
+                        | "telefono"
+                        | "email",
+                    )
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -204,14 +242,10 @@ export function MetodoPagoDialog({
             </div>
           )}
 
-          {(tipoValue === 'yappy' || tipoValue === 'binance') && (
+          {(tipoValue === "yappy" || tipoValue === "binance") && (
             <div className="space-y-2">
               <Label htmlFor="pais">País</Label>
-              <Input
-                id="pais"
-                {...register('pais')}
-                placeholder="Ej: Panamá"
-              />
+              <Input id="pais" {...register("pais")} placeholder="Ej: Panamá" />
             </div>
           )}
 
@@ -219,7 +253,7 @@ export function MetodoPagoDialog({
             <Label htmlFor="titular">Titular</Label>
             <Input
               id="titular"
-              {...register('titular')}
+              {...register("titular")}
               placeholder="Nombre completo del titular"
             />
             {errors.titular && (
@@ -229,23 +263,25 @@ export function MetodoPagoDialog({
 
           <div className="space-y-2">
             <Label htmlFor="identificador">
-              {tipoValue === 'banco' && 'Número de Cuenta'}
-              {tipoValue === 'yappy' && 'Número de Teléfono'}
-              {tipoValue === 'binance' && 'Wallet Address'}
+              {tipoValue === "banco" && "Número de Cuenta"}
+              {tipoValue === "yappy" && "Número de Teléfono"}
+              {tipoValue === "binance" && "Wallet Address"}
             </Label>
             <Input
               id="identificador"
-              {...register('identificador')}
+              {...register("identificador")}
               placeholder={
-                tipoValue === 'banco'
-                  ? '1234567890'
-                  : tipoValue === 'yappy'
-                  ? '+507 6000-0000'
-                  : '0x...'
+                tipoValue === "banco"
+                  ? "1234567890"
+                  : tipoValue === "yappy"
+                    ? "+507 6000-0000"
+                    : "0x..."
               }
             />
             {errors.identificador && (
-              <p className="text-sm text-red-500">{errors.identificador.message}</p>
+              <p className="text-sm text-red-500">
+                {errors.identificador.message}
+              </p>
             )}
           </div>
 
@@ -258,7 +294,7 @@ export function MetodoPagoDialog({
               Cancelar
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Guardando...' : 'Guardar'}
+              {isSubmitting ? "Guardando..." : "Guardar"}
             </Button>
           </DialogFooter>
         </form>

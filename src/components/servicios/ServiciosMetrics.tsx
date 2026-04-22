@@ -1,13 +1,18 @@
-'use client';
+"use client";
 
-import { memo, useEffect } from 'react';
-import { MetricCard } from '@/components/shared/MetricCard';
-import { Tag, Monitor, CheckCircle, ShoppingBag } from 'lucide-react';
-import { useServiciosStore } from '@/store/serviciosStore';
-import { useVentasStore } from '@/store/ventasStore';
+import { memo, useEffect } from "react";
+import { MetricCard } from "@/components/shared/MetricCard";
+import { Tag, Monitor, CheckCircle, ShoppingBag } from "lucide-react";
+import { useServiciosStore } from "@/store/serviciosStore";
+import { useVentasStore } from "@/store/ventasStore";
 
 export const ServiciosMetrics = memo(function ServiciosMetrics() {
-  const { totalServicios, serviciosActivos, totalCategoriasActivas, fetchCounts } = useServiciosStore();
+  const {
+    totalServicios,
+    serviciosActivos,
+    totalCategoriasActivas,
+    fetchCounts,
+  } = useServiciosStore();
   const { totalVentas, fetchCounts: fetchVentasCounts } = useVentasStore();
 
   useEffect(() => {

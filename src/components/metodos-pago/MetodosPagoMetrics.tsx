@@ -1,12 +1,13 @@
-'use client';
+"use client";
 
-import { memo, useEffect } from 'react';
-import { MetricCard } from '@/components/shared/MetricCard';
-import { useMetodosPagoStore } from '@/store/metodosPagoStore';
-import { CreditCard, Users, Package } from 'lucide-react';
+import { memo, useEffect } from "react";
+import { MetricCard } from "@/components/shared/MetricCard";
+import { useMetodosPagoStore } from "@/store/metodosPagoStore";
+import { CreditCard, Users, Package } from "lucide-react";
 
 export const MetodosPagoMetrics = memo(function MetodosPagoMetrics() {
-  const { totalMetodos, metodosUsuarios, metodosServicios, fetchCounts } = useMetodosPagoStore();
+  const { totalMetodos, metodosUsuarios, metodosServicios, fetchCounts } =
+    useMetodosPagoStore();
 
   useEffect(() => {
     fetchCounts();

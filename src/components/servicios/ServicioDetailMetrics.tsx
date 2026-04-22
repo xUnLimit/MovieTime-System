@@ -1,22 +1,30 @@
-'use client';
+"use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Monitor, CalendarDays, Users } from 'lucide-react';
-import { Servicio } from '@/types';
-import { calcularDiasRelativosCalendario } from '@/lib/utils/calculations';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Monitor, CalendarDays, Users } from "lucide-react";
+import { Servicio } from "@/types";
+import { calcularDiasRelativosCalendario } from "@/lib/utils/calculations";
 
 interface ServicioDetailMetricsProps {
   servicios: Servicio[];
 }
 
-export function ServicioDetailMetrics({ servicios }: ServicioDetailMetricsProps) {
-  const serviciosActivos = servicios.filter(s => s.activo);
-  const totalPerfiles = servicios.reduce((sum, s) => sum + s.perfilesDisponibles, 0);
-  const perfilesOcupados = servicios.reduce((sum, s) => sum + (s.perfilesOcupados || 0), 0);
+export function ServicioDetailMetrics({
+  servicios,
+}: ServicioDetailMetricsProps) {
+  const serviciosActivos = servicios.filter((s) => s.activo);
+  const totalPerfiles = servicios.reduce(
+    (sum, s) => sum + s.perfilesDisponibles,
+    0,
+  );
+  const perfilesOcupados = servicios.reduce(
+    (sum, s) => sum + (s.perfilesOcupados || 0),
+    0,
+  );
   const perfilesDisponibles = totalPerfiles - perfilesOcupados;
 
   // Calcular próximos pagos (servicios con 7 días restantes o menos)
-  const proximosPagos = servicios.filter(s => {
+  const proximosPagos = servicios.filter((s) => {
     const diffDias = calcularDiasRelativosCalendario(s.fechaVencimiento);
     if (diffDias === null) return false;
     return diffDias >= 0 && diffDias <= 7;
@@ -24,22 +32,22 @@ export function ServicioDetailMetrics({ servicios }: ServicioDetailMetricsProps)
 
   const metrics = [
     {
-      title: 'Servicios Activos',
+      title: "Servicios Activos",
       value: `${serviciosActivos.length}/${servicios.length}`,
       icon: Monitor,
-      color: 'text-blue-600',
+      color: "text-blue-600",
     },
     {
-      title: 'Próximos Pagos (7 días)',
+      title: "Próximos Pagos (7 días)",
       value: proximosPagos.toString(),
       icon: CalendarDays,
-      color: 'text-yellow-600',
+      color: "text-yellow-600",
     },
     {
-      title: 'Perfiles',
+      title: "Perfiles",
       value: `${perfilesDisponibles}/${totalPerfiles} disponibles`,
       icon: Users,
-      color: 'text-green-600',
+      color: "text-green-600",
     },
   ];
 

@@ -1,12 +1,17 @@
-'use client';
+"use client";
 
-import { memo, useEffect } from 'react';
-import { MetricCard } from '@/components/shared/MetricCard';
-import { useCategoriasStore } from '@/store/categoriasStore';
-import { FolderOpen, Users, Store } from 'lucide-react';
+import { memo, useEffect } from "react";
+import { MetricCard } from "@/components/shared/MetricCard";
+import { useCategoriasStore } from "@/store/categoriasStore";
+import { FolderOpen, Users, Store } from "lucide-react";
 
 export const CategoriasMetrics = memo(function CategoriasMetrics() {
-  const { totalCategorias, categoriasClientes, categoriasRevendedores, fetchCounts } = useCategoriasStore();
+  const {
+    totalCategorias,
+    categoriasClientes,
+    categoriasRevendedores,
+    fetchCounts,
+  } = useCategoriasStore();
 
   useEffect(() => {
     fetchCounts();

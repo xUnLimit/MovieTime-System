@@ -1,33 +1,33 @@
-'use client';
+"use client";
 
-import { useState, useMemo } from 'react';
-import { Categoria } from '@/types';
-import { DataTable, Column } from '@/components/shared/DataTable';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { useState, useMemo } from "react";
+import { Categoria } from "@/types";
+import { DataTable, Column } from "@/components/shared/DataTable";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Search, MoreHorizontal, Eye, Edit, Trash2 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { useCategoriasStore } from '@/store/categoriasStore';
-import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
-import { toast } from 'sonner';
-import { useRouter } from 'next/navigation';
+} from "@/components/ui/dropdown-menu";
+import { Search, MoreHorizontal, Eye, Edit, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { useCategoriasStore } from "@/store/categoriasStore";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { toast } from "sonner";
+import Link from "next/link";
 
 const tipoLabels: Record<string, string> = {
-  cliente: 'Cliente',
-  revendedor: 'Revendedor',
-  ambos: 'Cliente',
+  cliente: "Cliente",
+  revendedor: "Revendedor",
+  ambos: "Cliente",
 };
 
 const tipoCategoriaLabels: Record<string, string> = {
-  plataforma_streaming: 'Plataforma de Streaming',
-  otros: 'Otros',
+  plataforma_streaming: "Plataforma de Streaming",
+  otros: "Otros",
 };
 
 interface TodasCategoriasTableProps {
@@ -35,19 +35,28 @@ interface TodasCategoriasTableProps {
   title?: string;
 }
 
-export function TodasCategoriasTable({ categorias, title = 'Todas las categorías' }: TodasCategoriasTableProps) {
-  const router = useRouter();
-  const { deleteCategoria } = useCategoriasStore();
+export function TodasCategoriasTable({
+  categorias,
+  title = "Todas las categorías",
+}: TodasCategoriasTableProps) {
+    const { deleteCategoria } = useCategoriasStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [categoriaToDelete, setCategoriaToDelete] = useState<Categoria | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [tipoFilter, setTipoFilter] = useState('todos');
+  const [categoriaToDelete, setCategoriaToDelete] = useState<Categoria | null>(
+    null,
+  );
+  const [searchQuery, setSearchQuery] = useState("");
+  const [tipoFilter, setTipoFilter] = useState("todos");
 
   // Filtrar y ordenar categorías
   const filteredCategorias = useMemo(() => {
     const filtered = categorias.filter((categoria) => {
-      const matchesSearch = categoria.nombre.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesTipo = tipoFilter === 'todos' || categoria.tipo === tipoFilter || categoria.tipo === 'ambos';
+      const matchesSearch = categoria.nombre
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase());
+      const matchesTipo =
+        tipoFilter === "todos" ||
+        categoria.tipo === tipoFilter ||
+        categoria.tipo === "ambos";
       return matchesSearch && matchesTipo;
     });
     // Ordenar alfabéticamente por nombre
@@ -63,58 +72,74 @@ export function TodasCategoriasTable({ categorias, title = 'Todas las categoría
     if (categoriaToDelete) {
       try {
         await deleteCategoria(categoriaToDelete.id);
-        toast.success('Categoría eliminada', { description: 'La categoría ha sido eliminada correctamente.' });
+        toast.success("Categoría eliminada", {
+          description: "La categoría ha sido eliminada correctamente.",
+        });
       } catch (error) {
-        toast.error('Error al eliminar categoría', { description: error instanceof Error ? error.message : undefined });
+        toast.error("Error al eliminar categoría", {
+          description: error instanceof Error ? error.message : undefined,
+        });
       }
     }
   };
 
-  const columns: Column<Categoria>[] = useMemo(() => [
-    {
-      key: 'nombre',
-      header: 'Nombre',
-      sortable: true,
-      width: '15%',
-      render: (item) => (
-        <span className="font-medium">{item.nombre}</span>
-      ),
-    },
-    {
-      key: 'tipo',
-      header: 'Asociado a',
-      sortable: true,
-      align: 'center',
-      width: '25%',
-      render: (item) => {
-        // Para "ambos", mostrar ambos tipos
-        if (item.tipo === 'ambos') {
-          return <span>Cliente, Revendedor</span>;
-        }
-        return <span>{tipoLabels[item.tipo]}</span>;
+  const columns: Column<Categoria>[] = useMemo(
+    () => [
+      {
+        key: "nombre",
+        header: "Nombre",
+        sortable: true,
+        width: "15%",
+        render: (item) => <span className="font-medium">{item.nombre}</span>,
       },
-    },
-    {
-      key: 'categoria',
-      header: 'Tipo de Categoría',
-      sortable: false,
-      align: 'center',
-      width: '25%',
-      render: (item) => <span>{tipoCategoriaLabels[item.tipoCategoria ?? ''] ?? 'No definido'}</span>,
-    },
-    {
-      key: 'estado',
-      header: 'Estado',
-      sortable: true,
-      align: 'center',
-      width: '30%',
-      render: (item) => (
-        <Badge variant="outline" className={item.activo ? 'border-green-500/50 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300'}>
-          {item.activo ? 'Activo' : 'Inactivo'}
-        </Badge>
-      ),
-    },
-  ], []);
+      {
+        key: "tipo",
+        header: "Asociado a",
+        sortable: true,
+        align: "center",
+        width: "25%",
+        render: (item) => {
+          // Para "ambos", mostrar ambos tipos
+          if (item.tipo === "ambos") {
+            return <span>Cliente, Revendedor</span>;
+          }
+          return <span>{tipoLabels[item.tipo]}</span>;
+        },
+      },
+      {
+        key: "categoria",
+        header: "Tipo de Categoría",
+        sortable: false,
+        align: "center",
+        width: "25%",
+        render: (item) => (
+          <span>
+            {tipoCategoriaLabels[item.tipoCategoria ?? ""] ?? "No definido"}
+          </span>
+        ),
+      },
+      {
+        key: "estado",
+        header: "Estado",
+        sortable: true,
+        align: "center",
+        width: "30%",
+        render: (item) => (
+          <Badge
+            variant="outline"
+            className={
+              item.activo
+                ? "border-green-500/50 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300"
+                : "border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300"
+            }
+          >
+            {item.activo ? "Activo" : "Inactivo"}
+          </Badge>
+        ),
+      },
+    ],
+    [],
+  );
 
   return (
     <>
@@ -132,29 +157,60 @@ export function TodasCategoriasTable({ categorias, title = 'Todas las categoría
           </div>
           {(() => {
             const opciones = [
-              { value: 'todos', label: 'Todos los tipos' },
-              { value: 'cliente', label: 'Cliente' },
-              { value: 'revendedor', label: 'Revendedor' },
-              { value: 'ambos', label: 'Ambos' },
+              { value: "todos", label: "Todos los tipos" },
+              { value: "cliente", label: "Cliente" },
+              { value: "revendedor", label: "Revendedor" },
+              { value: "ambos", label: "Ambos" },
             ];
-            const labelActual = opciones.find(o => o.value === tipoFilter)?.label ?? 'Todos los tipos';
+            const labelActual =
+              opciones.find((o) => o.value === tipoFilter)?.label ??
+              "Todos los tipos";
             return (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-[200px] justify-between font-normal">
+                  <Button
+                    variant="outline"
+                    className="w-[200px] justify-between font-normal"
+                  >
                     {labelActual}
-                    <svg className="h-4 w-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    <svg
+                      className="h-4 w-4 opacity-50"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-[200px]">
-                  {opciones.map(op => (
+                  {opciones.map((op) => (
                     <DropdownMenuItem
                       key={op.value}
                       onClick={() => setTipoFilter(op.value)}
                       className="flex items-center justify-between"
                     >
                       {op.label}
-                      {tipoFilter === op.value && <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>}
+                      {tipoFilter === op.value && (
+                        <svg
+                          className="h-4 w-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2.5}
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      )}
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
@@ -178,13 +234,17 @@ export function TodasCategoriasTable({ categorias, title = 'Todas las categoría
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => router.push(`/categorias/${categoria.id}`)}>
-                    <Eye className="h-4 w-4 mr-2" />
-                    Ver detalles
+                  <DropdownMenuItem asChild>
+                    <Link href={`/categorias/${categoria.id}`}>
+                      <Eye className="h-4 w-4 mr-2" />
+                      Ver detalles
+                    </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => router.push(`/categorias/${categoria.id}/editar`)}>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Editar
+                  <DropdownMenuItem asChild>
+                    <Link href={`/categorias/${categoria.id}/editar`}>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Editar
+                    </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => handleDelete(categoria)}

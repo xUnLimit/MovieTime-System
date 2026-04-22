@@ -1,34 +1,34 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Categoria } from '@/types';
-import { useCategoriasStore } from '@/store/categoriasStore';
-import { toast } from 'sonner';
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Categoria } from "@/types";
+import { useCategoriasStore } from "@/store/categoriasStore";
+import { toast } from "sonner";
 
 const categoriaSchema = z.object({
-  nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  tipo: z.enum(['cliente', 'revendedor', 'ambos']),
+  nombre: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
+  tipo: z.enum(["cliente", "revendedor", "ambos"]),
   iconUrl: z.string().optional(),
   color: z.string().optional(),
   activo: z.boolean(),
@@ -58,32 +58,32 @@ export function CategoriaDialog({
   } = useForm<CategoriaFormData>({
     resolver: zodResolver(categoriaSchema),
     defaultValues: {
-      nombre: '',
-      tipo: 'cliente',
-      iconUrl: '',
-      color: '#000000',
+      nombre: "",
+      tipo: "cliente",
+      iconUrl: "",
+      color: "#000000",
       activo: true,
     },
   });
 
-  const tipoValue = watch('tipo');
-  const activoValue = watch('activo');
+  const tipoValue = watch("tipo");
+  const activoValue = watch("activo");
 
   useEffect(() => {
     if (categoria) {
       reset({
         nombre: categoria.nombre,
         tipo: categoria.tipo,
-        iconUrl: categoria.iconUrl || '',
-        color: categoria.color || '#000000',
+        iconUrl: categoria.iconUrl || "",
+        color: categoria.color || "#000000",
         activo: categoria.activo,
       });
     } else {
       reset({
-        nombre: '',
-        tipo: 'cliente',
-        iconUrl: '',
-        color: '#000000',
+        nombre: "",
+        tipo: "cliente",
+        iconUrl: "",
+        color: "#000000",
         activo: true,
       });
     }
@@ -93,7 +93,10 @@ export function CategoriaDialog({
     try {
       if (categoria) {
         await updateCategoria(categoria.id, data);
-        toast.success('Categoría actualizada', { description: 'Los cambios en la categoría han sido guardados correctamente.' });
+        toast.success("Categoría actualizada", {
+          description:
+            "Los cambios en la categoría han sido guardados correctamente.",
+        });
       } else {
         // Inicializar campos denormalizados para nueva categoría
         await createCategoria({
@@ -105,11 +108,15 @@ export function CategoriaDialog({
           ingresosTotales: 0,
           gastosTotal: 0,
         });
-        toast.success('Categoría creada', { description: 'La nueva categoría ha sido registrada correctamente.' });
+        toast.success("Categoría creada", {
+          description: "La nueva categoría ha sido registrada correctamente.",
+        });
       }
       onOpenChange(false);
     } catch (error) {
-      toast.error('Error al guardar categoría', { description: error instanceof Error ? error.message : undefined });
+      toast.error("Error al guardar categoría", {
+        description: error instanceof Error ? error.message : undefined,
+      });
     }
   };
 
@@ -117,9 +124,7 @@ export function CategoriaDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>
-            {categoria ? 'Editar' : 'Nueva'} Categoría
-          </DialogTitle>
+          <DialogTitle>{categoria ? "Editar" : "Nueva"} Categoría</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -127,7 +132,7 @@ export function CategoriaDialog({
             <Label htmlFor="nombre">Nombre</Label>
             <Input
               id="nombre"
-              {...register('nombre')}
+              {...register("nombre")}
               placeholder="Ej: Netflix, Spotify"
             />
             {errors.nombre && (
@@ -137,7 +142,12 @@ export function CategoriaDialog({
 
           <div className="space-y-2">
             <Label htmlFor="tipo">Tipo</Label>
-            <Select value={tipoValue} onValueChange={(value) => setValue('tipo', value as 'cliente' | 'revendedor' | 'ambos')}>
+            <Select
+              value={tipoValue}
+              onValueChange={(value) =>
+                setValue("tipo", value as "cliente" | "revendedor" | "ambos")
+              }
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -156,7 +166,7 @@ export function CategoriaDialog({
             <Label htmlFor="iconUrl">Ícono (opcional)</Label>
             <Input
               id="iconUrl"
-              {...register('iconUrl')}
+              {...register("iconUrl")}
               placeholder="Ej: 📺, 🎵, 🎮"
             />
           </div>
@@ -167,11 +177,11 @@ export function CategoriaDialog({
               <Input
                 id="color"
                 type="color"
-                {...register('color')}
+                {...register("color")}
                 className="w-20"
               />
               <Input
-                {...register('color')}
+                {...register("color")}
                 placeholder="#000000"
                 className="flex-1"
               />
@@ -183,7 +193,7 @@ export function CategoriaDialog({
             <Switch
               id="activo"
               checked={activoValue}
-              onCheckedChange={(checked) => setValue('activo', checked)}
+              onCheckedChange={(checked) => setValue("activo", checked)}
             />
           </div>
 
@@ -196,7 +206,7 @@ export function CategoriaDialog({
               Cancelar
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Guardando...' : 'Guardar'}
+              {isSubmitting ? "Guardando..." : "Guardar"}
             </Button>
           </DialogFooter>
         </form>

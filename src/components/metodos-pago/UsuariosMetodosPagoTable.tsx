@@ -1,23 +1,23 @@
-'use client';
+"use client";
 
-import { useState, useMemo } from 'react';
-import { MetodoPago } from '@/types';
-import { DataTable, Column } from '@/components/shared/DataTable';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { useState, useMemo } from "react";
+import { MetodoPago } from "@/types";
+import { DataTable, Column } from "@/components/shared/DataTable";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Search, MoreHorizontal, Edit, Trash2, Eye } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { useMetodosPagoStore } from '@/store/metodosPagoStore';
-import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
-import { toast } from 'sonner';
-import { useRouter } from 'next/navigation';
+} from "@/components/ui/dropdown-menu";
+import { Search, MoreHorizontal, Edit, Trash2, Eye } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { useMetodosPagoStore } from "@/store/metodosPagoStore";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { toast } from "sonner";
+import Link from "next/link";
 
 interface UsuariosMetodosPagoTableProps {
   metodosPago: MetodoPago[];
@@ -25,20 +25,23 @@ interface UsuariosMetodosPagoTableProps {
   title?: string;
 }
 
-export function UsuariosMetodosPagoTable({ metodosPago, onEdit, title = 'Métodos de pago de Usuarios' }: UsuariosMetodosPagoTableProps) {
-  const router = useRouter();
-  const { deleteMetodoPago, fetchCounts } = useMetodosPagoStore();
+export function UsuariosMetodosPagoTable({
+  metodosPago,
+  onEdit,
+  title = "Métodos de pago de Usuarios",
+}: UsuariosMetodosPagoTableProps) {
+    const { deleteMetodoPago, fetchCounts } = useMetodosPagoStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [metodoToDelete, setMetodoToDelete] = useState<MetodoPago | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [paisFilter, setPaisFilter] = useState('todos');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [paisFilter, setPaisFilter] = useState("todos");
 
   // Filtrar solo métodos de usuario
   const metodosUsuarios = useMemo(() => {
     return metodosPago.filter((m) => {
       // Si tiene asociadoA, usarlo directamente
       if (m.asociadoA) {
-        return m.asociadoA === 'usuario';
+        return m.asociadoA === "usuario";
       }
       // Si no tiene asociadoA, inferir por tipoCuenta (legacy)
       // Si tiene tipoCuenta, es usuario. Si no tiene, es servicio.
@@ -59,17 +62,14 @@ export function UsuariosMetodosPagoTable({ metodosPago, onEdit, title = 'Método
         metodo.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
         metodo.titular.toLowerCase().includes(searchQuery.toLowerCase()) ||
         metodo.identificador.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesPais = paisFilter === 'todos' || metodo.pais === paisFilter;
+      const matchesPais = paisFilter === "todos" || metodo.pais === paisFilter;
       return matchesSearch && matchesPais;
     });
     // Ordenar alfabéticamente por nombre
     return filtered.sort((a, b) => a.nombre.localeCompare(b.nombre));
   }, [metodosUsuarios, searchQuery, paisFilter]);
 
-  const handleViewDetails = (metodo: MetodoPago) => {
-    router.push(`/metodos-pago/${metodo.id}`);
-  };
-
+  
   const handleDelete = (metodo: MetodoPago) => {
     setMetodoToDelete(metodo);
     setDeleteDialogOpen(true);
@@ -80,75 +80,81 @@ export function UsuariosMetodosPagoTable({ metodosPago, onEdit, title = 'Método
       try {
         await deleteMetodoPago(metodoToDelete.id);
         await fetchCounts(); // Actualizar métricas
-        toast.success('Método de pago eliminado');
+        toast.success("Método de pago eliminado");
       } catch (error) {
-        toast.error('Error al eliminar método de pago', { description: error instanceof Error ? error.message : undefined });
+        toast.error("Error al eliminar método de pago", {
+          description: error instanceof Error ? error.message : undefined,
+        });
       }
     }
   };
 
   const tipoCuentaLabels: Record<string, string> = {
-    ahorro: 'Ahorro',
-    corriente: 'Corriente',
-    wallet: 'Wallet',
-    telefono: 'Teléfono',
-    email: 'Email',
+    ahorro: "Ahorro",
+    corriente: "Corriente",
+    wallet: "Wallet",
+    telefono: "Teléfono",
+    email: "Email",
   };
 
   const columns: Column<MetodoPago>[] = [
     {
-      key: 'nombre',
-      header: 'Método',
+      key: "nombre",
+      header: "Método",
       sortable: true,
-      width: '15%',
-      render: (item) => <span className="font-medium">{item.banco || item.nombre}</span>,
+      width: "15%",
+      render: (item) => (
+        <span className="font-medium">{item.banco || item.nombre}</span>
+      ),
     },
     {
-      key: 'pais',
-      header: 'País',
+      key: "pais",
+      header: "País",
       sortable: true,
-      align: 'center',
-      width: '12%',
+      align: "center",
+      width: "12%",
     },
     {
-      key: 'titular',
-      header: 'Titular',
+      key: "titular",
+      header: "Titular",
       sortable: true,
-      align: 'center',
-      width: '18%',
+      align: "center",
+      width: "18%",
     },
     {
-      key: 'tipoCuenta',
-      header: 'Tipo Cuenta',
+      key: "tipoCuenta",
+      header: "Tipo Cuenta",
       sortable: false,
-      align: 'center',
-      width: '15%',
-      render: (item) => <span>{item.tipoCuenta ? tipoCuentaLabels[item.tipoCuenta] : '-'}</span>,
+      align: "center",
+      width: "15%",
+      render: (item) => (
+        <span>{item.tipoCuenta ? tipoCuentaLabels[item.tipoCuenta] : "-"}</span>
+      ),
     },
     {
-      key: 'identificador',
-      header: 'Identificador',
+      key: "identificador",
+      header: "Identificador",
       sortable: false,
-      align: 'center',
-      width: '18%',
+      align: "center",
+      width: "18%",
       render: (item) => <span className="text-sm">{item.identificador}</span>,
     },
     {
-      key: 'activo',
-      header: 'Estado',
+      key: "activo",
+      header: "Estado",
       sortable: true,
-      align: 'center',
-      width: '15%',
+      align: "center",
+      width: "15%",
       render: (item) => (
         <Badge
           variant="outline"
           className={
             item.activo
-              ? 'text-xs border-green-500/50 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300'
-              : 'text-xs border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300'
+              ? "text-xs border-green-500/50 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300"
+              : "text-xs border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300"
           }
         >
-          {item.activo ? 'Activo' : 'Inactivo'}
+          {item.activo ? "Activo" : "Inactivo"}
         </Badge>
       ),
     },
@@ -170,20 +176,52 @@ export function UsuariosMetodosPagoTable({ metodosPago, onEdit, title = 'Método
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="w-[200px] justify-between font-normal">
-                {paisFilter === 'todos' ? 'Todos los países' : paisFilter}
-                <svg className="h-4 w-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+              <Button
+                variant="outline"
+                className="w-[200px] justify-between font-normal"
+              >
+                {paisFilter === "todos" ? "Todos los países" : paisFilter}
+                <svg
+                  className="h-4 w-4 opacity-50"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-[200px]">
-              {[{ value: 'todos', label: 'Todos los países' }, ...paisesUnicos.map(p => ({ value: p, label: p }))].map(op => (
+              {[
+                { value: "todos", label: "Todos los países" },
+                ...paisesUnicos.map((p) => ({ value: p, label: p })),
+              ].map((op) => (
                 <DropdownMenuItem
                   key={op.value}
                   onClick={() => setPaisFilter(op.value)}
                   className="flex items-center justify-between"
                 >
                   {op.label}
-                  {paisFilter === op.value && <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>}
+                  {paisFilter === op.value && (
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2.5}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  )}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -192,7 +230,9 @@ export function UsuariosMetodosPagoTable({ metodosPago, onEdit, title = 'Método
 
         {filteredMetodos.length === 0 ? (
           <div className="border border-border rounded-md p-12 text-center">
-            <p className="text-sm text-muted-foreground">No se encontraron métodos de pago</p>
+            <p className="text-sm text-muted-foreground">
+              No se encontraron métodos de pago
+            </p>
           </div>
         ) : (
           <DataTable
@@ -210,9 +250,11 @@ export function UsuariosMetodosPagoTable({ metodosPago, onEdit, title = 'Método
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => handleViewDetails(metodo)}>
-                      <Eye className="h-4 w-4 mr-2" />
-                      Ver detalles
+                    <DropdownMenuItem asChild>
+                      <Link href={`/metodos-pago/${metodo.id}`}>
+                        <Eye className="h-4 w-4 mr-2" />
+                        Ver detalles
+                      </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onEdit(metodo)}>
                       <Edit className="h-4 w-4 mr-2" />

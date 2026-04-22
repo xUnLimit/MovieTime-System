@@ -1,27 +1,27 @@
-'use client';
+"use client";
 
-import { useState, useMemo } from 'react';
-import { Categoria } from '@/types';
-import { DataTable, Column } from '@/components/shared/DataTable';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { useState, useMemo } from "react";
+import { Categoria } from "@/types";
+import { DataTable, Column } from "@/components/shared/DataTable";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Search, MoreHorizontal, Eye, Edit, Trash2 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { useCategoriasStore } from '@/store/categoriasStore';
-import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
-import { toast } from 'sonner';
-import { useRouter } from 'next/navigation';
+} from "@/components/ui/dropdown-menu";
+import { Search, MoreHorizontal, Eye, Edit, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { useCategoriasStore } from "@/store/categoriasStore";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { toast } from "sonner";
+import Link from "next/link";
 
 const tipoCategoriaLabels: Record<string, string> = {
-  plataforma_streaming: 'Plataforma de Streaming',
-  otros: 'Otros',
+  plataforma_streaming: "Plataforma de Streaming",
+  otros: "Otros",
 };
 
 interface RevendedoresCategoriasTableProps {
@@ -29,16 +29,22 @@ interface RevendedoresCategoriasTableProps {
   title?: string;
 }
 
-export function RevendedoresCategoriasTable({ categorias, title = 'Categorías de Revendedores' }: RevendedoresCategoriasTableProps) {
-  const router = useRouter();
-  const { deleteCategoria } = useCategoriasStore();
+export function RevendedoresCategoriasTable({
+  categorias,
+  title = "Categorías de Revendedores",
+}: RevendedoresCategoriasTableProps) {
+    const { deleteCategoria } = useCategoriasStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [categoriaToDelete, setCategoriaToDelete] = useState<Categoria | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [categoriaToDelete, setCategoriaToDelete] = useState<Categoria | null>(
+    null,
+  );
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Filtrar solo categorías de revendedores
   const categoriasRevendedores = useMemo(() => {
-    return categorias.filter((c) => c.tipo === 'revendedor' || c.tipo === 'ambos');
+    return categorias.filter(
+      (c) => c.tipo === "revendedor" || c.tipo === "ambos",
+    );
   }, [categorias]);
 
   // Aplicar filtros y ordenar alfabéticamente
@@ -59,40 +65,53 @@ export function RevendedoresCategoriasTable({ categorias, title = 'Categorías d
     if (categoriaToDelete) {
       try {
         await deleteCategoria(categoriaToDelete.id);
-        toast.success('Categoría eliminada', { description: 'La categoría ha sido eliminada correctamente.' });
+        toast.success("Categoría eliminada", {
+          description: "La categoría ha sido eliminada correctamente.",
+        });
       } catch (error) {
-        toast.error('Error al eliminar categoría', { description: error instanceof Error ? error.message : undefined });
+        toast.error("Error al eliminar categoría", {
+          description: error instanceof Error ? error.message : undefined,
+        });
       }
     }
   };
 
   const columns: Column<Categoria>[] = [
     {
-      key: 'nombre',
-      header: 'Nombre',
+      key: "nombre",
+      header: "Nombre",
       sortable: true,
-      width: '35%',
+      width: "35%",
+      render: (item) => <span className="font-medium">{item.nombre}</span>,
+    },
+    {
+      key: "categoria",
+      header: "Tipo de Categoría",
+      sortable: false,
+      align: "center",
+      width: "35%",
       render: (item) => (
-        <span className="font-medium">{item.nombre}</span>
+        <span>
+          {tipoCategoriaLabels[item.tipoCategoria ?? ""] ?? "No definido"}
+        </span>
       ),
     },
     {
-      key: 'categoria',
-      header: 'Tipo de Categoría',
-      sortable: false,
-      align: 'center',
-      width: '35%',
-      render: (item) => <span>{tipoCategoriaLabels[item.tipoCategoria ?? ''] ?? 'No definido'}</span>,
-    },
-    {
-      key: 'estado',
-      header: 'Estado',
+      key: "estado",
+      header: "Estado",
       sortable: true,
-      align: 'center',
-      width: '20%',
+      align: "center",
+      width: "20%",
       render: (item) => (
-        <Badge variant="outline" className={item.activo ? 'border-green-500/50 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300'}>
-          {item.activo ? 'Activo' : 'Inactivo'}
+        <Badge
+          variant="outline"
+          className={
+            item.activo
+              ? "border-green-500/50 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300"
+              : "border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300"
+          }
+        >
+          {item.activo ? "Activo" : "Inactivo"}
         </Badge>
       ),
     },
@@ -129,13 +148,17 @@ export function RevendedoresCategoriasTable({ categorias, title = 'Categorías d
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => router.push(`/categorias/${categoria.id}`)}>
-                    <Eye className="h-4 w-4 mr-2" />
-                    Ver detalles
+                  <DropdownMenuItem asChild>
+                    <Link href={`/categorias/${categoria.id}`}>
+                      <Eye className="h-4 w-4 mr-2" />
+                      Ver detalles
+                    </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => router.push(`/categorias/${categoria.id}/editar`)}>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Editar
+                  <DropdownMenuItem asChild>
+                    <Link href={`/categorias/${categoria.id}/editar`}>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Editar
+                    </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => handleDelete(categoria)}

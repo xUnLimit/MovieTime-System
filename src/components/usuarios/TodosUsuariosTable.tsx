@@ -1,24 +1,36 @@
-'use client';
+"use client";
 
-import { useMemo, useState } from 'react';
-import { Usuario } from '@/types';
-import { DataTable, Column } from '@/components/shared/DataTable';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { useMemo, useState } from "react";
+import { Usuario } from "@/types";
+import { DataTable, Column } from "@/components/shared/DataTable";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Search, MoreHorizontal, Edit, Trash2, MessageCircle, Monitor, Eye } from 'lucide-react';
-import { useUsuariosStore } from '@/store/usuariosStore';
-import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
-import { PaginationFooter, PaginationFooterProps } from '@/components/shared/PaginationFooter';
-import { toast } from 'sonner';
-import { useVentasPorUsuarios } from '@/hooks/use-ventas-por-usuarios';
-import { getUsuarioMetodoPagoNombre } from '@/lib/utils/usuarioMetodoPago';
+} from "@/components/ui/dropdown-menu";
+import {
+  Search,
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  MessageCircle,
+  Monitor,
+  Eye,
+} from "lucide-react";
+import { useUsuariosStore } from "@/store/usuariosStore";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import {
+  PaginationFooter,
+  PaginationFooterProps,
+} from "@/components/shared/PaginationFooter";
+import { toast } from "sonner";
+import { useVentasPorUsuarios } from "@/hooks/use-ventas-por-usuarios";
+import { getUsuarioMetodoPagoNombre } from "@/lib/utils/usuarioMetodoPago";
+import Link from "next/link";
 
 interface UsuarioDisplay {
   id: string;
@@ -26,7 +38,7 @@ interface UsuarioDisplay {
   apellido: string;
   telefono: string;
   metodoPagoNombre: string;
-  tipo: 'Cliente' | 'Revendedor';
+  tipo: "Cliente" | "Revendedor";
   serviciosActivos: number;
   montoSinConsumir: number;
   original: Usuario;
@@ -54,9 +66,8 @@ interface TodosUsuariosTableProps {
 
 export function TodosUsuariosTable({
   usuarios,
-  onEdit,
   onView,
-  title = 'Todos los usuarios',
+  title = "Todos los usuarios",
   isLoading = false,
   pagination,
   searchQuery,
@@ -68,10 +79,14 @@ export function TodosUsuariosTable({
 }: TodosUsuariosTableProps) {
   const { deleteUsuario } = useUsuariosStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [usuarioToDelete, setUsuarioToDelete] = useState<UsuarioDisplay | null>(null);
+  const [usuarioToDelete, setUsuarioToDelete] = useState<UsuarioDisplay | null>(
+    null,
+  );
 
   const usuarioIds = useMemo(() => usuarios.map((u) => u.id), [usuarios]);
-  const { stats: ventasPorUsuario } = useVentasPorUsuarios(usuarioIds, { enabled: !isLoading });
+  const { stats: ventasPorUsuario } = useVentasPorUsuarios(usuarioIds, {
+    enabled: !isLoading,
+  });
 
   const usuariosDisplay: UsuarioDisplay[] = useMemo(() => {
     return usuarios.map((u) => ({
@@ -79,8 +94,11 @@ export function TodosUsuariosTable({
       nombre: u.nombre,
       apellido: u.apellido,
       telefono: u.telefono,
-      metodoPagoNombre: getUsuarioMetodoPagoNombre(u.metodoPagoId, u.metodoPagoNombre),
-      tipo: u.tipo === 'cliente' ? 'Cliente' : 'Revendedor',
+      metodoPagoNombre: getUsuarioMetodoPagoNombre(
+        u.metodoPagoId,
+        u.metodoPagoNombre,
+      ),
+      tipo: u.tipo === "cliente" ? "Cliente" : "Revendedor",
       serviciosActivos: u.serviciosActivos ?? 0,
       montoSinConsumir: ventasPorUsuario[u.id]?.montoSinConsumir ?? 0,
       original: u,
@@ -88,7 +106,8 @@ export function TodosUsuariosTable({
   }, [usuarios, ventasPorUsuario]);
 
   const selectedMetodoPagoLabel =
-    metodoPagoOptions.find((option) => option.value === metodoPagoFilter)?.label ?? 'Todos los métodos';
+    metodoPagoOptions.find((option) => option.value === metodoPagoFilter)
+      ?.label ?? "Todos los métodos";
 
   const handleDelete = (usuario: UsuarioDisplay) => {
     setUsuarioToDelete(usuario);
@@ -105,7 +124,8 @@ export function TodosUsuariosTable({
           serviciosActivos: usuarioToDelete.original.serviciosActivos,
         });
         toast.success(`${usuarioToDelete.tipo} eliminado`, {
-          description: 'El usuario ha sido eliminado correctamente del sistema.',
+          description:
+            "El usuario ha sido eliminado correctamente del sistema.",
         });
         setDeleteDialogOpen(false);
         setUsuarioToDelete(null);
@@ -118,58 +138,54 @@ export function TodosUsuariosTable({
     }
   };
 
-  const handleEdit = (usuario: UsuarioDisplay) => {
-    onEdit(usuario.original);
-  };
-
-  const handleView = (usuario: UsuarioDisplay) => {
-    if (onView) {
-      onView(usuario.original);
-    }
-  };
-
+  
+  
   const handleWhatsApp = (usuario: UsuarioDisplay) => {
-    const phone = usuario.telefono.replace(/\D/g, '');
-    window.open(`https://web.whatsapp.com/send?phone=${phone}`, '_blank');
+    const phone = usuario.telefono.replace(/\D/g, "");
+    window.open(`https://web.whatsapp.com/send?phone=${phone}`, "_blank");
   };
 
   const columns: Column<UsuarioDisplay>[] = [
     {
-      key: 'nombre',
-      header: 'Nombre',
+      key: "nombre",
+      header: "Nombre",
       sortable: true,
-      width: '14%',
-      render: (item) => <div className="font-medium">{item.nombre} {item.apellido}</div>,
+      width: "14%",
+      render: (item) => (
+        <div className="font-medium">
+          {item.nombre} {item.apellido}
+        </div>
+      ),
     },
     {
-      key: 'tipo',
-      header: 'Tipo',
+      key: "tipo",
+      header: "Tipo",
       sortable: false,
-      align: 'center',
-      width: '16%',
+      align: "center",
+      width: "16%",
       render: (item) => <span>{item.tipo}</span>,
     },
     {
-      key: 'metodoPagoNombre',
-      header: 'Método de Pago',
+      key: "metodoPagoNombre",
+      header: "Método de Pago",
       sortable: false,
-      align: 'center',
-      width: '16%',
+      align: "center",
+      width: "16%",
     },
     {
-      key: 'serviciosActivos',
-      header: 'Servicios Activos',
+      key: "serviciosActivos",
+      header: "Servicios Activos",
       sortable: true,
-      align: 'center',
-      width: '16%',
+      align: "center",
+      width: "16%",
       render: (item) => {
         const isActive = item.serviciosActivos > 0;
         return (
           <div className="flex items-center justify-center gap-2">
             <Monitor
-              className={`h-4 w-4 ${isActive ? 'text-green-500' : 'text-muted-foreground'}`}
+              className={`h-4 w-4 ${isActive ? "text-green-500" : "text-muted-foreground"}`}
             />
-            <span className={isActive ? '' : 'text-muted-foreground'}>
+            <span className={isActive ? "" : "text-muted-foreground"}>
               {item.serviciosActivos}
             </span>
           </div>
@@ -177,19 +193,27 @@ export function TodosUsuariosTable({
       },
     },
     {
-      key: 'montoSinConsumir',
-      header: 'Monto Sin Consumir',
+      key: "montoSinConsumir",
+      header: "Monto Sin Consumir",
       sortable: true,
-      align: 'center',
-      width: '16%',
+      align: "center",
+      width: "16%",
       render: (item) => {
         const isActive = item.serviciosActivos > 0;
         return (
           <div className="flex items-center justify-center gap-1">
-            <span className={isActive ? 'text-green-500 font-medium' : 'text-muted-foreground'}>
+            <span
+              className={
+                isActive
+                  ? "text-green-500 font-medium"
+                  : "text-muted-foreground"
+              }
+            >
               $
             </span>
-            <span className={isActive ? 'font-medium' : 'text-muted-foreground'}>
+            <span
+              className={isActive ? "font-medium" : "text-muted-foreground"}
+            >
               {item.montoSinConsumir.toFixed(2)}
             </span>
           </div>
@@ -197,10 +221,10 @@ export function TodosUsuariosTable({
       },
     },
     {
-      key: 'contacto',
-      header: 'Contacto',
-      align: 'center',
-      width: '16%',
+      key: "contacto",
+      header: "Contacto",
+      align: "center",
+      width: "16%",
       render: (item) => (
         <Button
           variant="ghost"
@@ -234,9 +258,24 @@ export function TodosUsuariosTable({
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="w-[180px] justify-between font-normal">
+              <Button
+                variant="outline"
+                className="w-[180px] justify-between font-normal"
+              >
                 {selectedMetodoPagoLabel}
-                <svg className="h-4 w-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                <svg
+                  className="h-4 w-4 opacity-50"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-[180px]">
@@ -247,7 +286,21 @@ export function TodosUsuariosTable({
                   className="flex items-center justify-between"
                 >
                   {option.label}
-                  {metodoPagoFilter === option.value && <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>}
+                  {metodoPagoFilter === option.value && (
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2.5}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  )}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -270,14 +323,18 @@ export function TodosUsuariosTable({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   {onView && (
-                    <DropdownMenuItem onClick={() => handleView(usuario)}>
-                      <Eye className="h-4 w-4 mr-2" />
-                      Ver detalles
+                    <DropdownMenuItem asChild>
+                      <Link href={`/usuarios/${usuario.id}`}>
+                        <Eye className="h-4 w-4 mr-2" />
+                        Ver detalles
+                      </Link>
                     </DropdownMenuItem>
                   )}
-                  <DropdownMenuItem onClick={() => handleEdit(usuario)}>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Editar
+                  <DropdownMenuItem asChild>
+                    <Link href={`/usuarios/editar/${usuario.id}`}>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Editar
+                    </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => handleDelete(usuario)}
@@ -298,7 +355,7 @@ export function TodosUsuariosTable({
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
         onConfirm={handleConfirmDelete}
-        title={`Eliminar ${usuarioToDelete?.tipo || 'Usuario'}`}
+        title={`Eliminar ${usuarioToDelete?.tipo || "Usuario"}`}
         description={`¿Estás seguro de que quieres eliminar a "${usuarioToDelete?.nombre}"? Esta acción no se puede deshacer.`}
         confirmText="Eliminar"
         variant="danger"

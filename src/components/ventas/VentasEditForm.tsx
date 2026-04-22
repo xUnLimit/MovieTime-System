@@ -1,64 +1,89 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { WheelEvent } from 'react';
-import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { addMonths } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { WheelEvent } from "react";
+import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { addMonths } from "date-fns";
+import { es } from "date-fns/locale";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { CalendarIcon, ChevronDown, ChevronUp, Eye, Loader2, Search } from 'lucide-react';
-import { cn, normalizePhoneSearch, normalizeSearchText } from '@/lib/utils';
-import { COLLECTIONS, queryDocuments, update, adjustServiciosActivos } from '@/lib/firebase/firestore';
-import { upsertVentaPronostico } from '@/lib/services/dashboardStatsService';
-import { useCategoriasStore } from '@/store/categoriasStore';
-import { useMetodosPagoStore } from '@/store/metodosPagoStore';
-import { useServiciosStore } from '@/store/serviciosStore';
-import { useUsuariosStore } from '@/store/usuariosStore';
-import { MetodoPago, PagoVenta, Servicio } from '@/types';
-import type { VentaDoc } from '@/types/ventas';
-import { toast } from 'sonner';
-import { getCurrencySymbol } from '@/lib/constants';
-import { calculateDiscountedAmount, formatearFecha, roundToDecimals } from '@/lib/utils/calculations';
-import { syncUsuarioMetodoPago } from '@/lib/services/usuarioMetodoPagoSyncService';
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  CalendarIcon,
+  ChevronDown,
+  ChevronUp,
+  Eye,
+  Loader2,
+  Search,
+} from "lucide-react";
+import { cn, normalizePhoneSearch, normalizeSearchText } from "@/lib/utils";
+import {
+  COLLECTIONS,
+  queryDocuments,
+  update,
+  adjustServiciosActivos,
+} from "@/lib/firebase/firestore";
+import { upsertVentaPronostico } from "@/lib/services/dashboardStatsService";
+import { useCategoriasStore } from "@/store/categoriasStore";
+import { useMetodosPagoStore } from "@/store/metodosPagoStore";
+import { useServiciosStore } from "@/store/serviciosStore";
+import { useUsuariosStore } from "@/store/usuariosStore";
+import { MetodoPago, PagoVenta, Servicio } from "@/types";
+import type { VentaDoc } from "@/types/ventas";
+import { toast } from "sonner";
+import { getCurrencySymbol } from "@/lib/constants";
+import {
+  calculateDiscountedAmount,
+  formatearFecha,
+  roundToDecimals,
+} from "@/lib/utils/calculations";
+import { syncUsuarioMetodoPago } from "@/lib/services/usuarioMetodoPagoSyncService";
 import {
   getUsuarioMetodoPagoMoneda,
   getUsuarioMetodoPagoNombre,
   isPendingUserPaymentMethodId,
   PENDING_USER_PAYMENT_ID,
   withPendingUserPaymentMethod,
-} from '@/lib/utils/usuarioMetodoPago';
-import { PROFILE_PAGE_SIZE } from '@/lib/utils/perfiles';
+} from "@/lib/utils/usuarioMetodoPago";
+import { PROFILE_PAGE_SIZE } from "@/lib/utils/perfiles";
 
 const ventaEditSchema = z.object({
-  clienteId: z.string().min(1, 'Seleccione un cliente'),
-  metodoPagoId: z.string().min(1, 'Seleccione un método de pago'),
-  categoriaId: z.string().min(1, 'Seleccione una categoría'),
-  servicioId: z.string().min(1, 'Seleccione un servicio'),
-  planId: z.string().min(1, 'Seleccione un plan'),
+  clienteId: z.string().min(1, "Seleccione un cliente"),
+  metodoPagoId: z.string().min(1, "Seleccione un método de pago"),
+  categoriaId: z.string().min(1, "Seleccione una categoría"),
+  servicioId: z.string().min(1, "Seleccione un servicio"),
+  planId: z.string().min(1, "Seleccione un plan"),
   perfilNumero: z.string().optional(),
   perfilNombre: z.string().optional(),
-  precio: z.string().min(1, 'Ingrese un precio válido'),
+  precio: z.string().min(1, "Ingrese un precio válido"),
   descuento: z.string().optional(),
   fechaInicio: z.date(),
   fechaFin: z.date(),
   codigo: z.string().optional(),
-  estado: z.enum(['activo', 'inactivo']),
+  estado: z.enum(["activo", "inactivo"]),
   notas: z.string().optional(),
 });
 
@@ -73,7 +98,7 @@ interface PerfilDetalleOcupado {
 
 interface PerfilDetalleVisual {
   numero: number;
-  estado: 'disponible' | 'ocupado' | 'pendiente';
+  estado: "disponible" | "ocupado" | "pendiente";
   perfilNombre: string;
   clienteNombre?: string;
 }
@@ -100,26 +125,25 @@ export interface VentaEditData {
   servicioCorreo: string;
   perfilNumero?: number | null;
   perfilNombre?: string;
-  cicloPago?: 'mensual' | 'trimestral' | 'semestral' | 'anual';
+  cicloPago?: "mensual" | "trimestral" | "semestral" | "anual";
   fechaInicio: Date;
   fechaFin: Date;
   codigo?: string;
-  estado?: 'activo' | 'inactivo';
+  estado?: "activo" | "inactivo";
   precio: number;
   descuento: number;
   precioFinal: number;
   notas?: string;
 }
 
-
 const getCicloPagoLabel = (ciclo?: string) => {
   const labels: Record<string, string> = {
-    mensual: 'Mensual',
-    trimestral: 'Trimestral',
-    semestral: 'Semestral',
-    anual: 'Anual',
+    mensual: "Mensual",
+    trimestral: "Trimestral",
+    semestral: "Semestral",
+    anual: "Anual",
   };
-  return ciclo ? labels[ciclo] || ciclo : '—';
+  return ciclo ? labels[ciclo] || ciclo : "—";
 };
 
 interface VentasEditFormProps {
@@ -139,19 +163,25 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
   const [serviciosCategoria, setServiciosCategoria] = useState<Servicio[]>([]);
   const [loadingServicios, setLoadingServicios] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<'datos' | 'preview'>('datos');
+  const [activeTab, setActiveTab] = useState<"datos" | "preview">("datos");
   const [isDatosTabComplete, setIsDatosTabComplete] = useState(false);
   const [fechaInicioOpen, setFechaInicioOpen] = useState(false);
   const [fechaFinOpen, setFechaFinOpen] = useState(false);
-  const [perfilesOcupadosVenta, setPerfilesOcupadosVenta] = useState<Record<string, Set<number>>>({});
+  const [perfilesOcupadosVenta, setPerfilesOcupadosVenta] = useState<
+    Record<string, Set<number>>
+  >({});
   const [perfilDetalleOpen, setPerfilDetalleOpen] = useState(false);
   const [servicioDetalle, setServicioDetalle] = useState<Servicio | null>(null);
-  const [perfilesOcupadosDetalle, setPerfilesOcupadosDetalle] = useState<PerfilDetalleOcupado[]>([]);
+  const [perfilesOcupadosDetalle, setPerfilesOcupadosDetalle] = useState<
+    PerfilDetalleOcupado[]
+  >([]);
   const [loadingPerfilesDetalle, setLoadingPerfilesDetalle] = useState(false);
-  const [errorPerfilesDetalle, setErrorPerfilesDetalle] = useState<string | null>(null);
+  const [errorPerfilesDetalle, setErrorPerfilesDetalle] = useState<
+    string | null
+  >(null);
   const [serviciosWindowStart, setServiciosWindowStart] = useState(0);
   const [fechasInicializadas, setFechasInicializadas] = useState(false);
-  const [searchCliente, setSearchCliente] = useState('');
+  const [searchCliente, setSearchCliente] = useState("");
 
   // Efecto inicial: solo cargar datos que no dependen de selección
   useEffect(() => {
@@ -181,33 +211,33 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
       metodoPagoId: venta.metodoPagoId || PENDING_USER_PAYMENT_ID,
       categoriaId: venta.categoriaId,
       servicioId: venta.servicioId,
-      planId: '',
-      perfilNumero: venta.perfilNumero ? String(venta.perfilNumero) : '',
-      perfilNombre: venta.perfilNombre || '',
+      planId: "",
+      perfilNumero: venta.perfilNumero ? String(venta.perfilNumero) : "",
+      perfilNombre: venta.perfilNombre || "",
       precio: venta.precio.toFixed(2),
-      descuento: venta.descuento?.toFixed(2) ?? '',
+      descuento: venta.descuento?.toFixed(2) ?? "",
       fechaInicio: venta.fechaInicio,
       fechaFin: venta.fechaFin,
-      codigo: venta.codigo || '',
-      estado: venta.estado || 'activo',
-      notas: venta.notas || '',
+      codigo: venta.codigo || "",
+      estado: venta.estado || "activo",
+      notas: venta.notas || "",
     },
   });
 
-  const clienteIdValue = watch('clienteId');
-  const metodoPagoIdValue = watch('metodoPagoId');
-  const categoriaIdValue = watch('categoriaId');
-  const servicioIdValue = watch('servicioId');
-  const planIdValue = watch('planId');
-  const perfilNumeroValue = watch('perfilNumero');
-  const perfilNombreValue = watch('perfilNombre');
-  const fechaInicioValue = watch('fechaInicio');
-  const fechaFinValue = watch('fechaFin');
-  const precioValue = watch('precio');
-  const descuentoValue = watch('descuento');
-  const codigoValue = watch('codigo');
-  const estadoValue = watch('estado');
-  const notasValue = watch('notas');
+  const clienteIdValue = watch("clienteId");
+  const metodoPagoIdValue = watch("metodoPagoId");
+  const categoriaIdValue = watch("categoriaId");
+  const servicioIdValue = watch("servicioId");
+  const planIdValue = watch("planId");
+  const perfilNumeroValue = watch("perfilNumero");
+  const perfilNombreValue = watch("perfilNombre");
+  const fechaInicioValue = watch("fechaInicio");
+  const fechaFinValue = watch("fechaFin");
+  const precioValue = watch("precio");
+  const descuentoValue = watch("descuento");
+  const codigoValue = watch("codigo");
+  const estadoValue = watch("estado");
+  const notasValue = watch("notas");
 
   const usuariosOrdenados = useMemo(() => {
     return [...usuarios].sort((a, b) => {
@@ -221,25 +251,37 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
     const search = normalizeSearchText(searchCliente);
     const phoneQuery = normalizePhoneSearch(searchCliente);
     return usuariosOrdenados.filter((usuario) => {
-      const nombreCompleto = normalizeSearchText(`${usuario.nombre} ${usuario.apellido || ''}`);
+      const nombreCompleto = normalizeSearchText(
+        `${usuario.nombre} ${usuario.apellido || ""}`,
+      );
       const telefono = normalizePhoneSearch(usuario.telefono);
-      return nombreCompleto.includes(search) || (phoneQuery.length > 0 && telefono.includes(phoneQuery));
+      return (
+        nombreCompleto.includes(search) ||
+        (phoneQuery.length > 0 && telefono.includes(phoneQuery))
+      );
     });
   }, [usuariosOrdenados, searchCliente]);
   const categoriasOrdenadas = useMemo(
-    () => [...categorias].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
-    [categorias]
+    () =>
+      [...categorias].sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
+    [categorias],
   );
   const metodosPagoOrdenados = useMemo(() => {
-    const pendientes = metodosPago.filter((metodo) => isPendingUserPaymentMethodId(metodo.id));
+    const pendientes = metodosPago.filter((metodo) =>
+      isPendingUserPaymentMethodId(metodo.id),
+    );
     const restantes = metodosPago
       .filter((metodo) => !isPendingUserPaymentMethodId(metodo.id))
-      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 
     return [...pendientes, ...restantes];
   }, [metodosPago]);
-  const clienteSeleccionado = usuariosOrdenados.find((usuario) => usuario.id === clienteIdValue);
-  const metodoPagoSeleccionado = metodosPagoOrdenados.find((m) => m.id === metodoPagoIdValue);
+  const clienteSeleccionado = usuariosOrdenados.find(
+    (usuario) => usuario.id === clienteIdValue,
+  );
+  const metodoPagoSeleccionado = metodosPagoOrdenados.find(
+    (m) => m.id === metodoPagoIdValue,
+  );
 
   // Efecto para cargar servicios cuando se selecciona una categoría
   useEffect(() => {
@@ -251,12 +293,13 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
     const loadServiciosCategoria = async () => {
       setLoadingServicios(true);
       try {
-        const servicios = await queryDocuments<Servicio>(COLLECTIONS.SERVICIOS, [
-          { field: 'categoriaId', operator: '==', value: categoriaIdValue },
-        ]);
+        const servicios = await queryDocuments<Servicio>(
+          COLLECTIONS.SERVICIOS,
+          [{ field: "categoriaId", operator: "==", value: categoriaIdValue }],
+        );
         setServiciosCategoria(servicios);
       } catch (error) {
-        console.error('Error cargando servicios:', error);
+        console.error("Error cargando servicios:", error);
         setServiciosCategoria([]);
       } finally {
         setLoadingServicios(false);
@@ -267,7 +310,7 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
 
   const categoriaSeleccionada = useMemo(
     () => categorias.find((c) => c.id === categoriaIdValue),
-    [categorias, categoriaIdValue]
+    [categorias, categoriaIdValue],
   );
 
   const serviciosOrdenados = useMemo(() => {
@@ -277,7 +320,9 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
         if (servicio.id === venta.servicioId) return true;
         // Solo mostrar servicios activos con perfiles disponibles (excluir en reposo)
         if (!servicio.activo || servicio.enReposo) return false;
-        const disponibles = (servicio.perfilesDisponibles || 0) - (servicio.perfilesOcupados || 0);
+        const disponibles =
+          (servicio.perfilesDisponibles || 0) -
+          (servicio.perfilesOcupados || 0);
         return disponibles > 0;
       })
       .sort((a, b) => {
@@ -288,33 +333,37 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
   }, [serviciosCategoria, venta.servicioId]);
 
   const maxServiciosWindowStart = useMemo(
-    () => Math.max(serviciosOrdenados.length - SERVICIOS_DROPDOWN_VISIBLE_ROWS, 0),
-    [serviciosOrdenados.length]
+    () =>
+      Math.max(serviciosOrdenados.length - SERVICIOS_DROPDOWN_VISIBLE_ROWS, 0),
+    [serviciosOrdenados.length],
   );
 
   const serviciosVentana = useMemo(
     () =>
       serviciosOrdenados.slice(
         serviciosWindowStart,
-        serviciosWindowStart + SERVICIOS_DROPDOWN_VISIBLE_ROWS
+        serviciosWindowStart + SERVICIOS_DROPDOWN_VISIBLE_ROWS,
       ),
-    [serviciosOrdenados, serviciosWindowStart]
+    [serviciosOrdenados, serviciosWindowStart],
   );
 
-  const servicioSeleccionado = serviciosCategoria.find((s) => s.id === servicioIdValue);
+  const servicioSeleccionado = serviciosCategoria.find(
+    (s) => s.id === servicioIdValue,
+  );
 
   const planesDisponibles = useMemo(() => {
-    if (!categoriaSeleccionada?.planes || !servicioSeleccionado?.tipo) return [];
+    if (!categoriaSeleccionada?.planes || !servicioSeleccionado?.tipo)
+      return [];
     return categoriaSeleccionada.planes.filter((plan) =>
-      servicioSeleccionado.tipo === 'cuenta_completa'
-        ? plan.tipoPlan === 'cuenta_completa'
-        : plan.tipoPlan === 'perfiles'
+      servicioSeleccionado.tipo === "cuenta_completa"
+        ? plan.tipoPlan === "cuenta_completa"
+        : plan.tipoPlan === "perfiles",
     );
   }, [categoriaSeleccionada, servicioSeleccionado?.tipo]);
 
   const planSeleccionado = useMemo(
     () => planesDisponibles.find((plan) => plan.id === planIdValue),
-    [planesDisponibles, planIdValue]
+    [planesDisponibles, planIdValue],
   );
 
   // Track if the form has been manually initialized to avoid overwriting custom prices
@@ -329,7 +378,7 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
   // Inicializar el precio desde la venta una sola vez
   useEffect(() => {
     if (!precioInicializado && venta.precio > 0) {
-      setValue('precio', venta.precio.toFixed(2));
+      setValue("precio", venta.precio.toFixed(2));
       setPrecioInicializado(true);
     }
   }, [venta.precio, precioInicializado, setValue]);
@@ -345,12 +394,14 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
     // Si el plan cambió manualmente, actualizar el precio
     // Si aún no está inicializado, también actualizar (primera vez)
     if (planCambio || !precioInicializado) {
-      setValue('precio', planSeleccionado.precio.toFixed(2));
+      setValue("precio", planSeleccionado.precio.toFixed(2));
     }
   }, [planSeleccionado, setValue, precioInicializado, planIdValue, lastPlanId]);
 
   // Track last fechaInicio to detect manual changes
-  const [lastFechaInicioTime, setLastFechaInicioTime] = useState<number | null>(null);
+  const [lastFechaInicioTime, setLastFechaInicioTime] = useState<number | null>(
+    null,
+  );
 
   // Marcar las fechas como inicializadas una vez que se cargan desde la venta
   useEffect(() => {
@@ -367,59 +418,85 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
     // Detectar si el plan cambió manualmente
     const planCambio = lastPlanId !== null && lastPlanId !== planIdValue;
     // Detectar si la fecha de inicio cambió manualmente
-    const fechaInicioCambio = lastFechaInicioTime !== null && lastFechaInicioTime !== fechaInicioValue.getTime();
+    const fechaInicioCambio =
+      lastFechaInicioTime !== null &&
+      lastFechaInicioTime !== fechaInicioValue.getTime();
 
     // Si el plan o la fecha de inicio cambiaron, recalcular
     if (planCambio || fechaInicioCambio) {
       const meses = MESES_POR_CICLO[planSeleccionado.cicloPago] ?? 1;
       const fechaCalculada = addMonths(new Date(fechaInicioValue), meses);
-      setValue('fechaFin', fechaCalculada);
+      setValue("fechaFin", fechaCalculada);
     }
 
     // Actualizar tracking
     if (planCambio) setLastPlanId(planIdValue);
     if (fechaInicioCambio) setLastFechaInicioTime(fechaInicioValue.getTime());
-  }, [planSeleccionado, fechaInicioValue, setValue, planIdValue, lastPlanId, fechasInicializadas, lastFechaInicioTime]);
+  }, [
+    planSeleccionado,
+    fechaInicioValue,
+    setValue,
+    planIdValue,
+    lastPlanId,
+    fechasInicializadas,
+    lastFechaInicioTime,
+  ]);
 
   // Efecto para pre-seleccionar el plan cuando los planes están disponibles (solo una vez)
   useEffect(() => {
     // Solo ejecutar si NO ha sido inicializado y hay planes disponibles y la venta tiene un cicloPago definido
     if (!planInicializado && planesDisponibles.length > 0 && venta.cicloPago) {
       // Buscar el plan que coincida con el cicloPago de la venta
-      const match = planesDisponibles.find((p) => p.cicloPago === venta.cicloPago);
+      const match = planesDisponibles.find(
+        (p) => p.cicloPago === venta.cicloPago,
+      );
       if (match) {
-        setValue('planId', match.id);
+        setValue("planId", match.id);
         setLastPlanId(match.id);
         setPlanInicializado(true);
       } else if (!planIdValue) {
         // Si no hay coincidencia exacta y no hay plan seleccionado, seleccionar el primero
-        setValue('planId', planesDisponibles[0].id);
+        setValue("planId", planesDisponibles[0].id);
         setLastPlanId(planesDisponibles[0].id);
         setPlanInicializado(true);
       }
     }
-  }, [planesDisponibles, planIdValue, setValue, venta.cicloPago, planInicializado]);
+  }, [
+    planesDisponibles,
+    planIdValue,
+    setValue,
+    venta.cicloPago,
+    planInicializado,
+  ]);
 
   useEffect(() => {
     const loadPerfilesOcupados = async () => {
       if (!servicioIdValue) return;
       try {
-        const docs = await queryDocuments<Record<string, unknown>>(COLLECTIONS.VENTAS, [
-          { field: 'servicioId', operator: '==', value: servicioIdValue },
-        ]);
+        const docs = await queryDocuments<Record<string, unknown>>(
+          COLLECTIONS.VENTAS,
+          [{ field: "servicioId", operator: "==", value: servicioIdValue }],
+        );
         const ocupados = new Set<number>();
         docs.forEach((doc) => {
-          const estado = (doc.estado as string | undefined) ?? 'activo';
-          if (estado === 'inactivo') return;
+          const estado = (doc.estado as string | undefined) ?? "activo";
+          if (estado === "inactivo") return;
           if (doc.id === venta.id) return; // excluir la venta actual para que su perfil aparezca disponible
-          const perfil = (doc.perfilNumero as number | null | undefined) ?? null;
+          const perfil =
+            (doc.perfilNumero as number | null | undefined) ?? null;
           if (!perfil) return;
           ocupados.add(perfil);
         });
-        setPerfilesOcupadosVenta((prev) => ({ ...prev, [servicioIdValue]: ocupados }));
+        setPerfilesOcupadosVenta((prev) => ({
+          ...prev,
+          [servicioIdValue]: ocupados,
+        }));
       } catch (error) {
-        console.error('Error cargando perfiles ocupados por ventas:', error);
-        setPerfilesOcupadosVenta((prev) => ({ ...prev, [servicioIdValue]: new Set() }));
+        console.error("Error cargando perfiles ocupados por ventas:", error);
+        setPerfilesOcupadosVenta((prev) => ({
+          ...prev,
+          [servicioIdValue]: new Set(),
+        }));
       }
     };
 
@@ -434,16 +511,24 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
     setServiciosWindowStart(0);
   }, [categoriaIdValue]);
 
-  const getSlotsDisponibles = useCallback((servicioId: string) => {
-    const servicio = serviciosCategoria.find((item) => item.id === servicioId);
-    if (!servicio) return 0;
-    const ocupadosReales = perfilesOcupadosVenta[servicioId];
-    if (ocupadosReales !== undefined) {
-      return Math.max((servicio.perfilesDisponibles || 0) - ocupadosReales.size, 0);
-    }
-    const ocupadosActual = servicio.perfilesOcupados || 0;
-    return Math.max((servicio.perfilesDisponibles || 0) - ocupadosActual, 0);
-  }, [serviciosCategoria, perfilesOcupadosVenta]);
+  const getSlotsDisponibles = useCallback(
+    (servicioId: string) => {
+      const servicio = serviciosCategoria.find(
+        (item) => item.id === servicioId,
+      );
+      if (!servicio) return 0;
+      const ocupadosReales = perfilesOcupadosVenta[servicioId];
+      if (ocupadosReales !== undefined) {
+        return Math.max(
+          (servicio.perfilesDisponibles || 0) - ocupadosReales.size,
+          0,
+        );
+      }
+      const ocupadosActual = servicio.perfilesOcupados || 0;
+      return Math.max((servicio.perfilesDisponibles || 0) - ocupadosActual, 0);
+    },
+    [serviciosCategoria, perfilesOcupadosVenta],
+  );
 
   const perfilesDropdown = useMemo(() => {
     if (!servicioIdValue) return [];
@@ -451,7 +536,8 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
     const totalPerfiles = servicioSeleccionado?.perfilesDisponibles || 0;
     if (totalPerfiles <= 0) return [];
 
-    const ocupadosEnVentas = perfilesOcupadosVenta[servicioIdValue] ?? new Set<number>();
+    const ocupadosEnVentas =
+      perfilesOcupadosVenta[servicioIdValue] ?? new Set<number>();
     const isDisponible = (numero: number) => !ocupadosEnVentas.has(numero);
 
     if (totalPerfiles <= PROFILE_PAGE_SIZE) {
@@ -482,29 +568,42 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
     }
 
     return [];
-  }, [perfilesOcupadosVenta, servicioIdValue, servicioSeleccionado?.perfilesDisponibles]);
+  }, [
+    perfilesOcupadosVenta,
+    servicioIdValue,
+    servicioSeleccionado?.perfilesDisponibles,
+  ]);
 
-  const getDisponiblesColorClass = useCallback((disponibles: number, total: number) => {
-    if (total <= 0) return 'text-muted-foreground';
-    const ratio = disponibles / total;
-    if (ratio <= 0.25) return 'text-[#ff1744]';
-    if (ratio <= 0.5) return 'text-[#ffea00]';
-    return 'text-[#00ff85]';
-  }, []);
+  const getDisponiblesColorClass = useCallback(
+    (disponibles: number, total: number) => {
+      if (total <= 0) return "text-muted-foreground";
+      const ratio = disponibles / total;
+      if (ratio <= 0.25) return "text-[#ff1744]";
+      if (ratio <= 0.5) return "text-[#ffea00]";
+      return "text-[#00ff85]";
+    },
+    [],
+  );
 
-  const scrollServiciosDropdown = useCallback((direction: 'up' | 'down') => {
-    setServiciosWindowStart((prev) => {
-      if (direction === 'up') return Math.max(prev - 1, 0);
-      return Math.min(prev + 1, maxServiciosWindowStart);
-    });
-  }, [maxServiciosWindowStart]);
+  const scrollServiciosDropdown = useCallback(
+    (direction: "up" | "down") => {
+      setServiciosWindowStart((prev) => {
+        if (direction === "up") return Math.max(prev - 1, 0);
+        return Math.min(prev + 1, maxServiciosWindowStart);
+      });
+    },
+    [maxServiciosWindowStart],
+  );
 
-  const handleServiciosDropdownWheel = useCallback((event: WheelEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (event.deltaY === 0) return;
-    scrollServiciosDropdown(event.deltaY > 0 ? 'down' : 'up');
-  }, [scrollServiciosDropdown]);
+  const handleServiciosDropdownWheel = useCallback(
+    (event: WheelEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.deltaY === 0) return;
+      scrollServiciosDropdown(event.deltaY > 0 ? "down" : "up");
+    },
+    [scrollServiciosDropdown],
+  );
 
   const handleOpenPerfilDetalle = useCallback(async (servicio: Servicio) => {
     setServicioDetalle(servicio);
@@ -513,25 +612,29 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
     setErrorPerfilesDetalle(null);
     try {
       const ventas = await queryDocuments<VentaDoc>(COLLECTIONS.VENTAS, [
-        { field: 'servicioId', operator: '==', value: servicio.id },
+        { field: "servicioId", operator: "==", value: servicio.id },
       ]);
 
       const ocupadosPorPerfil = new Map<number, PerfilDetalleOcupado>();
       ventas.forEach((ventaItem) => {
-        const estado = ventaItem.estado ?? 'activo';
-        if (estado === 'inactivo') return;
+        const estado = ventaItem.estado ?? "activo";
+        if (estado === "inactivo") return;
 
         const perfilNumero = ventaItem.perfilNumero ?? null;
         if (!perfilNumero) return;
 
         const existente = ocupadosPorPerfil.get(perfilNumero);
-        const actualMs = ventaItem.createdAt ? new Date(ventaItem.createdAt).getTime() : 0;
-        const existenteMs = existente?.createdAt ? new Date(existente.createdAt).getTime() : 0;
+        const actualMs = ventaItem.createdAt
+          ? new Date(ventaItem.createdAt).getTime()
+          : 0;
+        const existenteMs = existente?.createdAt
+          ? new Date(existente.createdAt).getTime()
+          : 0;
 
         if (!existente || actualMs >= existenteMs) {
           ocupadosPorPerfil.set(perfilNumero, {
             perfilNumero,
-            clienteNombre: ventaItem.clienteNombre || 'Cliente sin nombre',
+            clienteNombre: ventaItem.clienteNombre || "Cliente sin nombre",
             perfilNombre: ventaItem.perfilNombre || `Perfil ${perfilNumero}`,
             createdAt: ventaItem.createdAt,
           });
@@ -540,9 +643,9 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
 
       setPerfilesOcupadosDetalle(Array.from(ocupadosPorPerfil.values()));
     } catch (error) {
-      console.error('Error cargando detalle de perfiles:', error);
+      console.error("Error cargando detalle de perfiles:", error);
       setPerfilesOcupadosDetalle([]);
-      setErrorPerfilesDetalle('No se pudo cargar el detalle de perfiles.');
+      setErrorPerfilesDetalle("No se pudo cargar el detalle de perfiles.");
     } finally {
       setLoadingPerfilesDetalle(false);
     }
@@ -550,13 +653,16 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
 
   const clienteDetalleNombre = useMemo(() => {
     if (clienteSeleccionado) {
-      return `${clienteSeleccionado.nombre} ${clienteSeleccionado.apellido || ''}`.trim();
+      return `${clienteSeleccionado.nombre} ${clienteSeleccionado.apellido || ""}`.trim();
     }
-    return venta.clienteNombre || 'Cliente pendiente';
+    return venta.clienteNombre || "Cliente pendiente";
   }, [clienteSeleccionado, venta.clienteNombre]);
 
   const perfilesPendientesDetalle = useMemo(() => {
-    const map = new Map<number, { clienteNombre: string; perfilNombre: string }>();
+    const map = new Map<
+      number,
+      { clienteNombre: string; perfilNombre: string }
+    >();
     if (!servicioDetalle || servicioDetalle.id !== servicioIdValue) return map;
 
     const numero = Number(perfilNumeroValue);
@@ -568,7 +674,13 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
     });
 
     return map;
-  }, [clienteDetalleNombre, perfilNombreValue, perfilNumeroValue, servicioDetalle, servicioIdValue]);
+  }, [
+    clienteDetalleNombre,
+    perfilNombreValue,
+    perfilNumeroValue,
+    servicioDetalle,
+    servicioIdValue,
+  ]);
 
   const perfilesOcupadosDetalleMap = useMemo(() => {
     const map = new Map<number, PerfilDetalleOcupado>();
@@ -578,10 +690,13 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
     return map;
   }, [perfilesOcupadosDetalle]);
 
-  const totalPerfilesDetalle = Math.max(servicioDetalle?.perfilesDisponibles || 0, 0);
+  const totalPerfilesDetalle = Math.max(
+    servicioDetalle?.perfilesDisponibles || 0,
+    0,
+  );
   const detallePerfilNumbers = useMemo(
     () => Array.from({ length: totalPerfilesDetalle }, (_, index) => index + 1),
-    [totalPerfilesDetalle]
+    [totalPerfilesDetalle],
   );
   const perfilesDetalleVisual = useMemo<PerfilDetalleVisual[]>(() => {
     return detallePerfilNumbers.map((numero) => {
@@ -591,7 +706,7 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
       if (pendiente) {
         return {
           numero,
-          estado: 'pendiente',
+          estado: "pendiente",
           perfilNombre: pendiente.perfilNombre,
           clienteNombre: pendiente.clienteNombre,
         };
@@ -600,7 +715,7 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
       if (ocupado) {
         return {
           numero,
-          estado: 'ocupado',
+          estado: "ocupado",
           perfilNombre: ocupado.perfilNombre || `Perfil ${numero}`,
           clienteNombre: ocupado.clienteNombre,
         };
@@ -608,25 +723,41 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
 
       return {
         numero,
-        estado: 'disponible',
+        estado: "disponible",
         perfilNombre: `Perfil ${numero}`,
       };
     });
-  }, [detallePerfilNumbers, perfilesOcupadosDetalleMap, perfilesPendientesDetalle]);
+  }, [
+    detallePerfilNumbers,
+    perfilesOcupadosDetalleMap,
+    perfilesPendientesDetalle,
+  ]);
 
   const resumenPerfilesDetalle = useMemo(() => {
     const pendientes = Array.from(perfilesPendientesDetalle.keys());
-    const ocupados = Array.from(perfilesOcupadosDetalleMap.keys()).filter((numero) => !perfilesPendientesDetalle.has(numero));
+    const ocupados = Array.from(perfilesOcupadosDetalleMap.keys()).filter(
+      (numero) => !perfilesPendientesDetalle.has(numero),
+    );
     return {
       total: totalPerfilesDetalle,
       pendientes: pendientes.length,
       ocupados: ocupados.length,
-      disponibles: Math.max(totalPerfilesDetalle - pendientes.length - ocupados.length, 0),
+      disponibles: Math.max(
+        totalPerfilesDetalle - pendientes.length - ocupados.length,
+        0,
+      ),
     };
-  }, [perfilesOcupadosDetalleMap, perfilesPendientesDetalle, totalPerfilesDetalle]);
+  }, [
+    perfilesOcupadosDetalleMap,
+    perfilesPendientesDetalle,
+    totalPerfilesDetalle,
+  ]);
 
   const simboloMoneda = getCurrencySymbol(
-    getUsuarioMetodoPagoMoneda(metodoPagoIdValue, metodoPagoSeleccionado?.moneda || venta.moneda)
+    getUsuarioMetodoPagoMoneda(
+      metodoPagoIdValue,
+      metodoPagoSeleccionado?.moneda || venta.moneda,
+    ),
   );
   const precioBase = roundToDecimals(Number(precioValue) || 0);
   const descuentoNumero = roundToDecimals(Number(descuentoValue) || 0);
@@ -637,20 +768,32 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
     if (metodoPagoIdValue !== venta.metodoPagoId) return true;
     if (categoriaIdValue !== venta.categoriaId) return true;
     if (servicioIdValue !== venta.servicioId) return true;
-    if (planIdValue && planIdValue !== '') {
-      const planActual = planSeleccionado?.id || '';
+    if (planIdValue && planIdValue !== "") {
+      const planActual = planSeleccionado?.id || "";
       if (planActual !== planIdValue) return true;
     }
-    const perfilActual = venta.perfilNumero ? String(venta.perfilNumero) : '';
-    if ((perfilNumeroValue || '') !== perfilActual) return true;
-    if ((perfilNombreValue || '') !== (venta.perfilNombre || '')) return true;
-    if ((precioValue || '') !== venta.precio.toFixed(2)) return true;
-    if ((descuentoValue || '') !== (venta.descuento?.toFixed(2) ?? '')) return true;
-    if ((codigoValue || '') !== (venta.codigo || '')) return true;
-    if ((estadoValue || 'activo') !== (venta.estado || 'activo')) return true;
-    if ((notasValue || '') !== (venta.notas || '')) return true;
-    if (fechaInicioValue && venta.fechaInicio && new Date(fechaInicioValue).getTime() !== new Date(venta.fechaInicio).getTime()) return true;
-    if (fechaFinValue && venta.fechaFin && new Date(fechaFinValue).getTime() !== new Date(venta.fechaFin).getTime()) return true;
+    const perfilActual = venta.perfilNumero ? String(venta.perfilNumero) : "";
+    if ((perfilNumeroValue || "") !== perfilActual) return true;
+    if ((perfilNombreValue || "") !== (venta.perfilNombre || "")) return true;
+    if ((precioValue || "") !== venta.precio.toFixed(2)) return true;
+    if ((descuentoValue || "") !== (venta.descuento?.toFixed(2) ?? ""))
+      return true;
+    if ((codigoValue || "") !== (venta.codigo || "")) return true;
+    if ((estadoValue || "activo") !== (venta.estado || "activo")) return true;
+    if ((notasValue || "") !== (venta.notas || "")) return true;
+    if (
+      fechaInicioValue &&
+      venta.fechaInicio &&
+      new Date(fechaInicioValue).getTime() !==
+        new Date(venta.fechaInicio).getTime()
+    )
+      return true;
+    if (
+      fechaFinValue &&
+      venta.fechaFin &&
+      new Date(fechaFinValue).getTime() !== new Date(venta.fechaFin).getTime()
+    )
+      return true;
     return false;
   }, [
     clienteIdValue,
@@ -674,45 +817,66 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
   const handleNext = async () => {
     let isValid = true;
     if (!clienteIdValue) {
-      setError('clienteId', { type: 'manual', message: 'Seleccione un cliente' });
+      setError("clienteId", {
+        type: "manual",
+        message: "Seleccione un cliente",
+      });
       isValid = false;
     }
     if (!metodoPagoIdValue) {
-      setError('metodoPagoId', { type: 'manual', message: 'Seleccione un método de pago' });
+      setError("metodoPagoId", {
+        type: "manual",
+        message: "Seleccione un método de pago",
+      });
       isValid = false;
     }
     if (!categoriaIdValue) {
-      setError('categoriaId', { type: 'manual', message: 'Seleccione una categoría' });
+      setError("categoriaId", {
+        type: "manual",
+        message: "Seleccione una categoría",
+      });
       isValid = false;
     }
     if (!servicioIdValue) {
-      setError('servicioId', { type: 'manual', message: 'Seleccione un servicio' });
+      setError("servicioId", {
+        type: "manual",
+        message: "Seleccione un servicio",
+      });
       isValid = false;
     }
     if (!planIdValue) {
-      setError('planId', { type: 'manual', message: 'Seleccione un plan' });
+      setError("planId", { type: "manual", message: "Seleccione un plan" });
       isValid = false;
     }
     if (!perfilNumeroValue) {
-      setError('perfilNumero', { type: 'manual', message: 'Seleccione un perfil' });
+      setError("perfilNumero", {
+        type: "manual",
+        message: "Seleccione un perfil",
+      });
       isValid = false;
     }
     if (!fechaInicioValue) {
-      setError('fechaInicio', { type: 'manual', message: 'Seleccione fecha de inicio' });
+      setError("fechaInicio", {
+        type: "manual",
+        message: "Seleccione fecha de inicio",
+      });
       isValid = false;
     }
     if (!fechaFinValue) {
-      setError('fechaFin', { type: 'manual', message: 'Seleccione fecha de fin' });
+      setError("fechaFin", {
+        type: "manual",
+        message: "Seleccione fecha de fin",
+      });
       isValid = false;
     }
     if (!isValid) return;
 
     setIsDatosTabComplete(true);
-    setActiveTab('preview');
+    setActiveTab("preview");
   };
 
   const handleTabChange = async (value: string) => {
-    if (value === 'preview' && !isDatosTabComplete) {
+    if (value === "preview" && !isDatosTabComplete) {
       await handleNext();
       return;
     }
@@ -727,23 +891,31 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
       const precio = roundToDecimals(Number(data.precio) || 0);
       const descuento = roundToDecimals(Number(data.descuento) || 0);
       const precioFinalValue = calculateDiscountedAmount(precio, descuento);
-      const metodoPagoNombre = getUsuarioMetodoPagoNombre(data.metodoPagoId, metodoPagoSeleccionado?.nombre || venta.metodoPagoNombre);
-      const monedaMetodoPago = getUsuarioMetodoPagoMoneda(data.metodoPagoId, metodoPagoSeleccionado?.moneda || venta.moneda);
+      const metodoPagoNombre = getUsuarioMetodoPagoNombre(
+        data.metodoPagoId,
+        metodoPagoSeleccionado?.nombre || venta.metodoPagoNombre,
+      );
+      const monedaMetodoPago = getUsuarioMetodoPagoMoneda(
+        data.metodoPagoId,
+        metodoPagoSeleccionado?.moneda || venta.moneda,
+      );
 
       // Actualizar SOLO metadatos en VentaDoc + campos denormalizados para notificaciones
       await update(COLLECTIONS.VENTAS, venta.id, {
         clienteId: data.clienteId,
-        clienteNombre: clienteSeleccionado ? `${clienteSeleccionado.nombre} ${clienteSeleccionado.apellido}` : venta.clienteNombre,
-        clienteTelefono: clienteSeleccionado?.telefono || '',  // For WhatsApp notifications
+        clienteNombre: clienteSeleccionado
+          ? `${clienteSeleccionado.nombre} ${clienteSeleccionado.apellido}`
+          : venta.clienteNombre,
+        clienteTelefono: clienteSeleccionado?.telefono || "", // For WhatsApp notifications
         categoriaId: data.categoriaId,
         servicioId: data.servicioId,
         servicioNombre: servicio?.nombre || venta.servicioNombre,
         servicioCorreo: servicio?.correo || venta.servicioCorreo,
         perfilNumero: Number(data.perfilNumero) || null,
-        perfilNombre: data.perfilNombre?.trim() || '',
-        codigo: data.codigo || '',
-        estado: data.estado || 'activo',
-        notas: data.notas || '',
+        perfilNombre: data.perfilNombre?.trim() || "",
+        codigo: data.codigo || "",
+        estado: data.estado || "activo",
+        notas: data.notas || "",
         // ✅ DENORMALIZED FIELDS (for notifications sync)
         fechaInicio: data.fechaInicio,
         fechaFin: data.fechaFin,
@@ -757,9 +929,10 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
       });
 
       // Actualizar el pago más reciente (fuente de verdad para datos de pago)
-      const todosLosPagos = await queryDocuments<PagoVenta>(COLLECTIONS.PAGOS_VENTA, [
-        { field: 'ventaId', operator: '==', value: venta.id }
-      ]);
+      const todosLosPagos = await queryDocuments<PagoVenta>(
+        COLLECTIONS.PAGOS_VENTA,
+        [{ field: "ventaId", operator: "==", value: venta.id }],
+      );
 
       if (todosLosPagos.length > 0) {
         // Ordenar por fecha descendente para encontrar el más reciente
@@ -793,9 +966,13 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
           moneda: monedaMetodoPago,
         });
       } catch (syncError) {
-        console.error('Error sincronizando método de pago del usuario:', syncError);
-        toast.warning('Venta actualizada con advertencia', {
-          description: 'La venta se guardó, pero no se pudo actualizar el método de pago en usuarios.',
+        console.error(
+          "Error sincronizando método de pago del usuario:",
+          syncError,
+        );
+        toast.warning("Venta actualizada con advertencia", {
+          description:
+            "La venta se guardó, pero no se pudo actualizar el método de pago en usuarios.",
         });
       }
 
@@ -803,21 +980,27 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
       const nextPerfil = Number(data.perfilNumero) || null;
       const prevServicioId = venta.servicioId;
       const nextServicioId = data.servicioId;
-      const prevActivo = (venta.estado ?? 'activo') !== 'inactivo' && !!prevPerfil;
-      const nextActivo = (data.estado ?? 'activo') !== 'inactivo' && !!nextPerfil;
+      const prevActivo =
+        (venta.estado ?? "activo") !== "inactivo" && !!prevPerfil;
+      const nextActivo =
+        (data.estado ?? "activo") !== "inactivo" && !!nextPerfil;
 
       if (prevActivo && !nextActivo) {
         await updatePerfilOcupado(prevServicioId, false);
       } else if (!prevActivo && nextActivo) {
         await updatePerfilOcupado(nextServicioId, true);
-      } else if (prevActivo && nextActivo && prevServicioId !== nextServicioId) {
+      } else if (
+        prevActivo &&
+        nextActivo &&
+        prevServicioId !== nextServicioId
+      ) {
         await updatePerfilOcupado(prevServicioId, false);
         await updatePerfilOcupado(nextServicioId, true);
       }
 
       // Ajustar ventasActivas si el estado cambió entre activo e inactivo
-      const prevEstadoActivo = (venta.estado ?? 'activo') !== 'inactivo';
-      const nextEstadoActivo = (data.estado ?? 'activo') !== 'inactivo';
+      const prevEstadoActivo = (venta.estado ?? "activo") !== "inactivo";
+      const nextEstadoActivo = (data.estado ?? "activo") !== "inactivo";
       if (prevEstadoActivo && !nextEstadoActivo) {
         adjustServiciosActivos(venta.clienteId, -1);
       } else if (!prevEstadoActivo && nextEstadoActivo) {
@@ -830,31 +1013,47 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
           ? {
               id: venta.id,
               categoriaId: data.categoriaId,
-              fechaInicio: data.fechaInicio instanceof Date ? data.fechaInicio.toISOString() : String(data.fechaInicio),
-              fechaFin: data.fechaFin instanceof Date ? data.fechaFin.toISOString() : String(data.fechaFin),
-              cicloPago: plan?.cicloPago || venta.cicloPago || 'mensual',
+              fechaInicio:
+                data.fechaInicio instanceof Date
+                  ? data.fechaInicio.toISOString()
+                  : String(data.fechaInicio),
+              fechaFin:
+                data.fechaFin instanceof Date
+                  ? data.fechaFin.toISOString()
+                  : String(data.fechaFin),
+              cicloPago: plan?.cicloPago || venta.cicloPago || "mensual",
               precioFinal: precioFinalValue,
               moneda: monedaMetodoPago,
             }
           : null;
         upsertVentaPronostico(ventaPronostico, venta.id).catch(() => {});
         // Invalidate dashboard cache so it re-fetches on next visit
-        import('@/store/dashboardStore').then(({ useDashboardStore }) => {
-          useDashboardStore.getState().invalidateCache();
-        }).catch(() => {});
+        import("@/store/dashboardStore")
+          .then(({ useDashboardStore }) => {
+            useDashboardStore.getState().invalidateCache();
+          })
+          .catch(() => {});
       }
 
-      toast.success('Venta actualizada', { description: 'Los datos de la venta han sido guardados correctamente.' });
+      toast.success("Venta actualizada", {
+        description: "Los datos de la venta han sido guardados correctamente.",
+      });
       router.push(`/ventas/${venta.id}`);
     } catch (error) {
-      console.error('Error actualizando venta:', error);
-      toast.error('Error al actualizar la venta', { description: error instanceof Error ? error.message : undefined });
+      console.error("Error actualizando venta:", error);
+      toast.error("Error al actualizar la venta", {
+        description: error instanceof Error ? error.message : undefined,
+      });
     }
   };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+      <Tabs
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className="w-full"
+      >
         <TabsList className="mb-8 bg-transparent rounded-none p-0 h-auto inline-flex border-b border-border">
           <TabsTrigger
             value="datos"
@@ -865,7 +1064,7 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
           <TabsTrigger
             value="preview"
             className={`rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2 text-sm ${
-              !isDatosTabComplete ? 'cursor-not-allowed opacity-50' : ''
+              !isDatosTabComplete ? "cursor-not-allowed opacity-50" : ""
             }`}
           >
             Vista previa
@@ -878,21 +1077,30 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
               <Label>Cliente / Revendedor</Label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" type="button" className="w-full justify-between">
+                  <Button
+                    variant="outline"
+                    type="button"
+                    className="w-full justify-between"
+                  >
                     {clienteSeleccionado ? (
                       <span>
-                        {clienteSeleccionado.nombre} {clienteSeleccionado.apellido}
+                        {clienteSeleccionado.nombre}{" "}
+                        {clienteSeleccionado.apellido}
                         {clienteSeleccionado.telefono ? (
                           <span className="ml-2 text-xs text-muted-foreground">
                             {clienteSeleccionado.telefono}
                           </span>
                         ) : null}
                         <span className="ml-2 text-xs text-muted-foreground">
-                          ({clienteSeleccionado.tipo === 'cliente' ? 'Cliente' : 'Revendedor'})
+                          (
+                          {clienteSeleccionado.tipo === "cliente"
+                            ? "Cliente"
+                            : "Revendedor"}
+                          )
                         </span>
                       </span>
                     ) : (
-                      'Seleccionar usuario'
+                      "Seleccionar usuario"
                     )}
                     <ChevronDown className="h-4 w-4 opacity-50" />
                   </Button>
@@ -902,7 +1110,10 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
                   className="w-[var(--radix-dropdown-menu-trigger-width)]"
                   onCloseAutoFocus={(e) => e.preventDefault()}
                 >
-                  <div className="border-b p-2" onKeyDown={(e) => e.stopPropagation()}>
+                  <div
+                    className="border-b p-2"
+                    onKeyDown={(e) => e.stopPropagation()}
+                  >
                     <div className="relative">
                       <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       <Input
@@ -925,28 +1136,36 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
                         <DropdownMenuItem
                           key={usuario.id}
                           onClick={() => {
-                            setValue('clienteId', usuario.id);
+                            setValue("clienteId", usuario.id);
                             setValue(
-                              'metodoPagoId',
+                              "metodoPagoId",
                               isPendingUserPaymentMethodId(usuario.metodoPagoId)
                                 ? PENDING_USER_PAYMENT_ID
-                                : usuario.metodoPagoId
+                                : usuario.metodoPagoId,
                             );
-                            clearErrors('clienteId');
-                            clearErrors('metodoPagoId');
-                            setSearchCliente('');
+                            clearErrors("clienteId");
+                            clearErrors("metodoPagoId");
+                            setSearchCliente("");
                           }}
                         >
                           <div className="flex items-center gap-2">
-                            <span>{usuario.nombre} {usuario.apellido}</span>
+                            <span>
+                              {usuario.nombre} {usuario.apellido}
+                            </span>
                             {usuario.telefono ? (
                               <span className="text-xs">
                                 <span className="text-foreground"> - </span>
-                                <span className="text-green-400">{usuario.telefono}</span>
+                                <span className="text-green-400">
+                                  {usuario.telefono}
+                                </span>
                               </span>
                             ) : null}
                             <span className="text-xs text-muted-foreground">
-                              ({usuario.tipo === 'cliente' ? 'Cliente' : 'Revendedor'})
+                              (
+                              {usuario.tipo === "cliente"
+                                ? "Cliente"
+                                : "Revendedor"}
+                              )
                             </span>
                           </div>
                         </DropdownMenuItem>
@@ -955,27 +1174,41 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
-              {errors.clienteId && <p className="text-sm text-red-500">{errors.clienteId.message}</p>}
+              {errors.clienteId && (
+                <p className="text-sm text-red-500">
+                  {errors.clienteId.message}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label>Método de pago</Label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <Button variant="outline" type="button" className="w-full justify-between">
+                  <Button
+                    variant="outline"
+                    type="button"
+                    className="w-full justify-between"
+                  >
                     {metodoPagoIdValue
-                      ? getUsuarioMetodoPagoNombre(metodoPagoIdValue, metodoPagoSeleccionado?.nombre)
-                      : 'Seleccionar método de pago'}
+                      ? getUsuarioMetodoPagoNombre(
+                          metodoPagoIdValue,
+                          metodoPagoSeleccionado?.nombre,
+                        )
+                      : "Seleccionar método de pago"}
                     <ChevronDown className="h-4 w-4 opacity-50" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                <DropdownMenuContent
+                  align="start"
+                  className="w-[var(--radix-dropdown-menu-trigger-width)]"
+                >
                   {metodosPagoOrdenados.map((metodo) => (
                     <DropdownMenuItem
                       key={metodo.id}
                       onClick={() => {
-                        setValue('metodoPagoId', metodo.id);
-                        clearErrors('metodoPagoId');
+                        setValue("metodoPagoId", metodo.id);
+                        clearErrors("metodoPagoId");
                       }}
                     >
                       {metodo.nombre}
@@ -983,7 +1216,11 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              {errors.metodoPagoId && <p className="text-sm text-red-500">{errors.metodoPagoId.message}</p>}
+              {errors.metodoPagoId && (
+                <p className="text-sm text-red-500">
+                  {errors.metodoPagoId.message}
+                </p>
+              )}
             </div>
           </div>
 
@@ -992,21 +1229,30 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
               <Label>Categoría</Label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" type="button" className="w-full justify-between">
-                    {categoriaSeleccionada ? categoriaSeleccionada.nombre : 'Seleccionar categoría'}
+                  <Button
+                    variant="outline"
+                    type="button"
+                    className="w-full justify-between"
+                  >
+                    {categoriaSeleccionada
+                      ? categoriaSeleccionada.nombre
+                      : "Seleccionar categoría"}
                     <ChevronDown className="h-4 w-4 opacity-50" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                <DropdownMenuContent
+                  align="start"
+                  className="w-[var(--radix-dropdown-menu-trigger-width)]"
+                >
                   {categoriasOrdenadas.map((categoria) => (
                     <DropdownMenuItem
                       key={categoria.id}
                       onClick={() => {
-                        setValue('categoriaId', categoria.id);
-                        setValue('servicioId', '');
-                        setValue('planId', '');
-                        setValue('perfilNumero', '');
-                        clearErrors('categoriaId');
+                        setValue("categoriaId", categoria.id);
+                        setValue("servicioId", "");
+                        setValue("planId", "");
+                        setValue("perfilNumero", "");
+                        clearErrors("categoriaId");
                       }}
                     >
                       {categoria.nombre}
@@ -1014,7 +1260,11 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              {errors.categoriaId && <p className="text-sm text-red-500">{errors.categoriaId.message}</p>}
+              {errors.categoriaId && (
+                <p className="text-sm text-red-500">
+                  {errors.categoriaId.message}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -1030,12 +1280,12 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
                     >
                       <span className="truncate">
                         {loadingServicios
-                          ? 'Cargando servicios...'
+                          ? "Cargando servicios..."
                           : servicioIdValue
-                          ? `${servicioSeleccionado?.nombre} - ${servicioSeleccionado?.correo}`
-                          : categoriaIdValue
-                            ? 'Seleccionar servicio'
-                            : 'Primero selecciona categoria'}
+                            ? `${servicioSeleccionado?.nombre} - ${servicioSeleccionado?.correo}`
+                            : categoriaIdValue
+                              ? "Seleccionar servicio"
+                              : "Primero selecciona categoria"}
                       </span>
                     </Button>
                   </DropdownMenuTrigger>
@@ -1064,7 +1314,8 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
                 >
                   {serviciosOrdenados.length > 0 ? (
                     <>
-                      {serviciosOrdenados.length > SERVICIOS_DROPDOWN_VISIBLE_ROWS && (
+                      {serviciosOrdenados.length >
+                        SERVICIOS_DROPDOWN_VISIBLE_ROWS && (
                         <button
                           type="button"
                           className="flex h-6 w-full items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
@@ -1075,7 +1326,7 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
                           onClick={(event) => {
                             event.preventDefault();
                             event.stopPropagation();
-                            scrollServiciosDropdown('up');
+                            scrollServiciosDropdown("up");
                           }}
                           aria-label="Subir en la lista de servicios"
                         >
@@ -1086,19 +1337,22 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
                       <div
                         onWheel={handleServiciosDropdownWheel}
                         className="overflow-hidden"
-                        style={{ overscrollBehavior: 'contain' }}
+                        style={{ overscrollBehavior: "contain" }}
                       >
                         {serviciosVentana.map((servicio) => {
-                          const perfilesDisponibles = getSlotsDisponibles(servicio.id);
-                          const totalPerfiles = servicio.perfilesDisponibles || 0;
+                          const perfilesDisponibles = getSlotsDisponibles(
+                            servicio.id,
+                          );
+                          const totalPerfiles =
+                            servicio.perfilesDisponibles || 0;
 
                           return (
                             <DropdownMenuItem
                               key={servicio.id}
                               onClick={() => {
-                                setValue('servicioId', servicio.id);
-                                setValue('perfilNumero', '');
-                                clearErrors('servicioId');
+                                setValue("servicioId", servicio.id);
+                                setValue("perfilNumero", "");
+                                clearErrors("servicioId");
                               }}
                               className="group flex h-8 min-h-8 items-center gap-0 py-0 pr-1 leading-none"
                             >
@@ -1106,10 +1360,18 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
                                 {servicio.nombre} - {servicio.correo}
                               </span>
                               <span className="w-[112px] shrink-0 whitespace-nowrap pr-1 text-right text-xs tabular-nums text-foreground">
-                                <span className={cn('font-extrabold', getDisponiblesColorClass(perfilesDisponibles, totalPerfiles))}>
+                                <span
+                                  className={cn(
+                                    "font-extrabold",
+                                    getDisponiblesColorClass(
+                                      perfilesDisponibles,
+                                      totalPerfiles,
+                                    ),
+                                  )}
+                                >
                                   {perfilesDisponibles}
-                                </span>{' '}
-                                Disponible{perfilesDisponibles === 1 ? '' : 's'}
+                                </span>{" "}
+                                Disponible{perfilesDisponibles === 1 ? "" : "s"}
                               </span>
                               <Button
                                 type="button"
@@ -1134,7 +1396,8 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
                         })}
                       </div>
 
-                      {serviciosOrdenados.length > SERVICIOS_DROPDOWN_VISIBLE_ROWS && (
+                      {serviciosOrdenados.length >
+                        SERVICIOS_DROPDOWN_VISIBLE_ROWS && (
                         <button
                           type="button"
                           className="flex h-6 w-full items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
@@ -1145,7 +1408,7 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
                           onClick={(event) => {
                             event.preventDefault();
                             event.stopPropagation();
-                            scrollServiciosDropdown('down');
+                            scrollServiciosDropdown("down");
                           }}
                           aria-label="Bajar en la lista de servicios"
                         >
@@ -1154,13 +1417,20 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
                       )}
                     </>
                   ) : (
-                    <DropdownMenuItem disabled className="text-muted-foreground">
+                    <DropdownMenuItem
+                      disabled
+                      className="text-muted-foreground"
+                    >
                       No hay servicios disponibles
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
-              {errors.servicioId && <p className="text-sm text-red-500">{errors.servicioId.message}</p>}
+              {errors.servicioId && (
+                <p className="text-sm text-red-500">
+                  {errors.servicioId.message}
+                </p>
+              )}
             </div>
           </div>
 
@@ -1169,22 +1439,30 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
               <Label>Plan</Label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" type="button" className="w-full justify-between" disabled={!categoriaIdValue}>
+                  <Button
+                    variant="outline"
+                    type="button"
+                    className="w-full justify-between"
+                    disabled={!categoriaIdValue}
+                  >
                     {planSeleccionado
                       ? planSeleccionado.nombre
                       : categoriaIdValue
-                        ? 'Seleccionar plan'
-                        : 'Primero selecciona categoría'}
+                        ? "Seleccionar plan"
+                        : "Primero selecciona categoría"}
                     <ChevronDown className="h-4 w-4 opacity-50" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                <DropdownMenuContent
+                  align="start"
+                  className="w-[var(--radix-dropdown-menu-trigger-width)]"
+                >
                   {planesDisponibles.map((plan) => (
                     <DropdownMenuItem
                       key={plan.id}
                       onClick={() => {
-                        setValue('planId', plan.id);
-                        clearErrors('planId');
+                        setValue("planId", plan.id);
+                        clearErrors("planId");
                       }}
                     >
                       {plan.nombre}
@@ -1192,7 +1470,9 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              {errors.planId && <p className="text-sm text-red-500">{errors.planId.message}</p>}
+              {errors.planId && (
+                <p className="text-sm text-red-500">{errors.planId.message}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -1203,29 +1483,39 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
                     variant="outline"
                     type="button"
                     className="w-full justify-between"
-                    disabled={!servicioIdValue || getSlotsDisponibles(servicioIdValue) <= 0}
+                    disabled={
+                      !servicioIdValue ||
+                      getSlotsDisponibles(servicioIdValue) <= 0
+                    }
                   >
                     {perfilNumeroValue
                       ? `Perfil ${perfilNumeroValue}`
                       : getSlotsDisponibles(servicioIdValue) > 0
-                        ? 'Seleccionar perfil'
-                        : 'No hay perfiles disponibles'}
+                        ? "Seleccionar perfil"
+                        : "No hay perfiles disponibles"}
                     <ChevronDown className="h-4 w-4 opacity-50" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)] p-0">
+                <DropdownMenuContent
+                  align="start"
+                  className="w-[var(--radix-dropdown-menu-trigger-width)] p-0"
+                >
                   <div className="p-1">
                     {getSlotsDisponibles(servicioIdValue) <= 0 ? (
-                      <p className="px-2 py-3 text-xs text-muted-foreground">No hay perfiles disponibles.</p>
+                      <p className="px-2 py-3 text-xs text-muted-foreground">
+                        No hay perfiles disponibles.
+                      </p>
                     ) : perfilesDropdown.length === 0 ? (
-                      <p className="px-2 py-3 text-xs text-muted-foreground">No hay perfiles libres.</p>
+                      <p className="px-2 py-3 text-xs text-muted-foreground">
+                        No hay perfiles libres.
+                      </p>
                     ) : (
                       perfilesDropdown.map((numero) => (
                         <DropdownMenuItem
                           key={numero}
                           onClick={() => {
-                            setValue('perfilNumero', String(numero));
-                            clearErrors('perfilNumero');
+                            setValue("perfilNumero", String(numero));
+                            clearErrors("perfilNumero");
                           }}
                         >
                           Perfil {numero}
@@ -1235,7 +1525,11 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
-              {errors.perfilNumero && <p className="text-sm text-red-500">{errors.perfilNumero.message}</p>}
+              {errors.perfilNumero && (
+                <p className="text-sm text-red-500">
+                  {errors.perfilNumero.message}
+                </p>
+              )}
             </div>
           </div>
 
@@ -1250,15 +1544,21 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
                   type="text"
                   inputMode="decimal"
                   className="pl-10"
-                  {...register('precio')}
+                  {...register("precio")}
                 />
               </div>
-              {errors.precio && <p className="text-sm text-red-500">{errors.precio.message}</p>}
+              {errors.precio && (
+                <p className="text-sm text-red-500">{errors.precio.message}</p>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label>Descuento %</Label>
-              <Input type="text" inputMode="decimal" {...register('descuento')} />
+              <Input
+                type="text"
+                inputMode="decimal"
+                {...register("descuento")}
+              />
             </div>
           </div>
 
@@ -1270,23 +1570,34 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
                   <Button
                     variant="outline"
                     type="button"
-                    className={cn('w-full justify-start text-left font-normal', !fechaInicioValue && 'text-muted-foreground')}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !fechaInicioValue && "text-muted-foreground",
+                    )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {fechaInicioValue ? formatearFecha(fechaInicioValue) : 'Seleccionar fecha'}
+                    {fechaInicioValue
+                      ? formatearFecha(fechaInicioValue)
+                      : "Seleccionar fecha"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
                     selected={fechaInicioValue}
-                    onSelect={(date) => setValue('fechaInicio', date || new Date())}
+                    onSelect={(date) =>
+                      setValue("fechaInicio", date || new Date())
+                    }
                     defaultMonth={fechaInicioValue ?? new Date()}
                     locale={es}
                   />
                 </PopoverContent>
               </Popover>
-              {errors.fechaInicio && <p className="text-sm text-red-500">{errors.fechaInicio.message}</p>}
+              {errors.fechaInicio && (
+                <p className="text-sm text-red-500">
+                  {errors.fechaInicio.message}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -1296,23 +1607,34 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
                   <Button
                     variant="outline"
                     type="button"
-                    className={cn('w-full justify-start text-left font-normal', !fechaFinValue && 'text-muted-foreground')}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !fechaFinValue && "text-muted-foreground",
+                    )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {fechaFinValue ? formatearFecha(fechaFinValue) : 'Seleccionar fecha'}
+                    {fechaFinValue
+                      ? formatearFecha(fechaFinValue)
+                      : "Seleccionar fecha"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
                     selected={fechaFinValue}
-                    onSelect={(date) => setValue('fechaFin', date || new Date())}
+                    onSelect={(date) =>
+                      setValue("fechaFin", date || new Date())
+                    }
                     defaultMonth={fechaFinValue ?? new Date()}
                     locale={es}
                   />
                 </PopoverContent>
               </Popover>
-              {errors.fechaFin && <p className="text-sm text-red-500">{errors.fechaFin.message}</p>}
+              {errors.fechaFin && (
+                <p className="text-sm text-red-500">
+                  {errors.fechaFin.message}
+                </p>
+              )}
             </div>
           </div>
 
@@ -1321,7 +1643,7 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
               <Label>Nombre del Perfil</Label>
               <Input
                 type="text"
-                {...register('perfilNombre')}
+                {...register("perfilNombre")}
                 placeholder="Ej: Perfil Kids"
               />
             </div>
@@ -1331,11 +1653,21 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
               <Input
                 type="text"
                 inputMode="numeric"
-                {...register('codigo')}
+                {...register("codigo")}
                 onKeyDown={(e) => {
                   const char = e.key;
                   if (
-                    ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(char)
+                    [
+                      "Backspace",
+                      "Delete",
+                      "Tab",
+                      "Escape",
+                      "Enter",
+                      "ArrowLeft",
+                      "ArrowRight",
+                      "ArrowUp",
+                      "ArrowDown",
+                    ].includes(char)
                   ) {
                     return;
                   }
@@ -1371,14 +1703,29 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
               <Label>Estado</Label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" type="button" className="w-full justify-between">
-                    {estadoValue === 'inactivo' ? 'Inactivo' : 'Activo'}
+                  <Button
+                    variant="outline"
+                    type="button"
+                    className="w-full justify-between"
+                  >
+                    {estadoValue === "inactivo" ? "Inactivo" : "Activo"}
                     <ChevronDown className="h-4 w-4 opacity-50" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                  <DropdownMenuItem onClick={() => setValue('estado', 'activo')}>Activo</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setValue('estado', 'inactivo')}>Inactivo</DropdownMenuItem>
+                <DropdownMenuContent
+                  align="start"
+                  className="w-[var(--radix-dropdown-menu-trigger-width)]"
+                >
+                  <DropdownMenuItem
+                    onClick={() => setValue("estado", "activo")}
+                  >
+                    Activo
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setValue("estado", "inactivo")}
+                  >
+                    Inactivo
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -1386,7 +1733,11 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
 
           <div className="space-y-2">
             <Label>Notas</Label>
-            <Textarea rows={4} {...register('notas')} placeholder="Notas adicionales" />
+            <Textarea
+              rows={4}
+              {...register("notas")}
+              placeholder="Notas adicionales"
+            />
           </div>
         </TabsContent>
 
@@ -1394,20 +1745,31 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
           <div className="space-y-4">
             <div className="flex items-start justify-between gap-6">
               <div className="space-y-0">
-                <h2 className="text-lg font-semibold">Vista previa de la venta</h2>
-                <p className="-mt-1 text-sm text-muted-foreground">Resumen general antes de guardar.</p>
+                <h2 className="text-lg font-semibold">
+                  Vista previa de la venta
+                </h2>
+                <p className="-mt-1 text-sm text-muted-foreground">
+                  Resumen general antes de guardar.
+                </p>
               </div>
             </div>
 
             <div className="mt-0 grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="rounded-lg border bg-background/40 p-4">
                 <p className="text-xs text-muted-foreground">Cliente</p>
-                <p className="text-sm font-medium">{clienteSeleccionado ? `${clienteSeleccionado.nombre} ${clienteSeleccionado.apellido}` : venta.clienteNombre}</p>
+                <p className="text-sm font-medium">
+                  {clienteSeleccionado
+                    ? `${clienteSeleccionado.nombre} ${clienteSeleccionado.apellido}`
+                    : venta.clienteNombre}
+                </p>
               </div>
               <div className="rounded-lg border bg-background/40 p-4">
                 <p className="text-xs text-muted-foreground">Método de pago</p>
                 <p className="text-sm font-medium">
-                  {getUsuarioMetodoPagoNombre(metodoPagoIdValue, metodoPagoSeleccionado?.nombre || venta.metodoPagoNombre)}
+                  {getUsuarioMetodoPagoNombre(
+                    metodoPagoIdValue,
+                    metodoPagoSeleccionado?.nombre || venta.metodoPagoNombre,
+                  )}
                 </p>
               </div>
             </div>
@@ -1422,56 +1784,76 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
                 <div className="rounded-lg border bg-background/40 p-4 w-full md:w-[280px] md:flex-[0_0_auto]">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-medium">{servicioSeleccionado?.nombre || venta.servicioNombre}</p>
+                      <p className="font-medium">
+                        {servicioSeleccionado?.nombre || venta.servicioNombre}
+                      </p>
                       <p className="text-xs text-muted-foreground">
-                        {getCicloPagoLabel(planSeleccionado?.cicloPago || venta.cicloPago)}
+                        {getCicloPagoLabel(
+                          planSeleccionado?.cicloPago || venta.cicloPago,
+                        )}
                       </p>
                     </div>
-                    <span className="text-green-500 font-semibold">{simboloMoneda} {precioFinal.toFixed(2)}</span>
+                    <span className="text-green-500 font-semibold">
+                      {simboloMoneda} {precioFinal.toFixed(2)}
+                    </span>
                   </div>
 
                   <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-muted-foreground">
                     <div>
                       <p>Fecha de inicio</p>
                       <p className="text-foreground font-medium">
-                        {fechaInicioValue ? formatearFecha(fechaInicioValue) : '—'}
+                        {fechaInicioValue
+                          ? formatearFecha(fechaInicioValue)
+                          : "—"}
                       </p>
                     </div>
                     <div>
                       <p>Fecha de fin</p>
                       <p className="text-foreground font-medium">
-                        {fechaFinValue ? formatearFecha(fechaFinValue) : '—'}
+                        {fechaFinValue ? formatearFecha(fechaFinValue) : "—"}
                       </p>
                     </div>
                     <div>
                       <p>Precio</p>
-                      <p className="text-foreground font-medium">{simboloMoneda} {precioBase.toFixed(2)}</p>
+                      <p className="text-foreground font-medium">
+                        {simboloMoneda} {precioBase.toFixed(2)}
+                      </p>
                     </div>
                     <div>
                       <p>Descuento</p>
-                      <p className="text-foreground font-medium">{descuentoNumero.toFixed(2)}%</p>
+                      <p className="text-foreground font-medium">
+                        {descuentoNumero.toFixed(2)}%
+                      </p>
                     </div>
                   </div>
 
                   <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-muted-foreground">
                     <div>
                       <p>Nombre del perfil</p>
-                      <p className="text-foreground font-medium">{perfilNombreValue?.trim() ? perfilNombreValue : '—'}</p>
+                      <p className="text-foreground font-medium">
+                        {perfilNombreValue?.trim() ? perfilNombreValue : "—"}
+                      </p>
                     </div>
                     <div>
                       <p>Codigo</p>
-                      <p className="text-foreground font-medium">{codigoValue || '—'}</p>
+                      <p className="text-foreground font-medium">
+                        {codigoValue || "—"}
+                      </p>
                     </div>
                   </div>
 
                   <div className="mt-3 text-xs text-muted-foreground">
                     <p>Precio final</p>
-                    <p className="text-foreground font-medium">{simboloMoneda} {precioFinal.toFixed(2)}</p>
+                    <p className="text-foreground font-medium">
+                      {simboloMoneda} {precioFinal.toFixed(2)}
+                    </p>
                   </div>
 
                   <div className="mt-3 text-xs text-muted-foreground">
                     <p>Notas</p>
-                    <p className="text-foreground font-medium">{watch('notas') || 'Sin notas'}</p>
+                    <p className="text-foreground font-medium">
+                      {watch("notas") || "Sin notas"}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -1479,14 +1861,17 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
 
             <div className="mt-1 rounded-lg bg-muted/50 p-3 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-lg font-semibold text-foreground">Total de la venta</span>
-                <span className="text-xl font-semibold text-green-500">{simboloMoneda} {precioFinal.toFixed(2)}</span>
+                <span className="text-lg font-semibold text-foreground">
+                  Total de la venta
+                </span>
+                <span className="text-xl font-semibold text-green-500">
+                  {simboloMoneda} {precioFinal.toFixed(2)}
+                </span>
               </div>
               <div className="mt-0 text-sm text-muted-foreground">
                 El total corresponde a la suma de todos los items agregados.
               </div>
             </div>
-
           </div>
         </TabsContent>
       </Tabs>
@@ -1504,14 +1889,16 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
           <DialogHeader className="border-b px-6 pb-2 pt-5 pr-20">
             <DialogTitle className="flex items-start justify-between gap-3">
               <span className="min-w-0 pr-2 text-base leading-tight whitespace-normal break-words">
-                Perfiles de {servicioDetalle?.nombre || 'Servicio'}
+                Perfiles de {servicioDetalle?.nombre || "Servicio"}
               </span>
               <span className="shrink-0 text-xs font-normal text-muted-foreground sm:text-sm">
                 {resumenPerfilesDetalle.total} perfiles registrados
               </span>
             </DialogTitle>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              {servicioDetalle?.correo || 'Sin correo'} - {resumenPerfilesDetalle.disponibles} de {resumenPerfilesDetalle.total} Disponibles
+              {servicioDetalle?.correo || "Sin correo"} -{" "}
+              {resumenPerfilesDetalle.disponibles} de{" "}
+              {resumenPerfilesDetalle.total} Disponibles
             </p>
           </DialogHeader>
 
@@ -1532,38 +1919,52 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
                     <div
                       key={perfil.numero}
                       className={cn(
-                        'rounded-md border px-3 py-2',
-                        'min-h-[64px]',
-                        perfil.estado === 'ocupado' && 'border-green-900/50 bg-green-950/30',
-                        perfil.estado === 'disponible' && 'border-border bg-muted/50',
-                        perfil.estado === 'pendiente' && 'border-purple-500/30 bg-purple-500/10'
+                        "rounded-md border px-3 py-2",
+                        "min-h-[64px]",
+                        perfil.estado === "ocupado" &&
+                          "border-green-900/50 bg-green-950/30",
+                        perfil.estado === "disponible" &&
+                          "border-border bg-muted/50",
+                        perfil.estado === "pendiente" &&
+                          "border-purple-500/30 bg-purple-500/10",
                       )}
                     >
                       <div className="flex min-h-[40px] items-start justify-between gap-4">
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">{perfil.perfilNombre}</p>
-                          <p className="text-xs text-muted-foreground">Perfil {perfil.numero}</p>
+                          <p className="truncate text-sm font-medium">
+                            {perfil.perfilNombre}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Perfil {perfil.numero}
+                          </p>
                           {perfil.clienteNombre && (
-                            <p className="mt-1 truncate text-xs text-foreground/90">{perfil.clienteNombre}</p>
+                            <p className="mt-1 truncate text-xs text-foreground/90">
+                              {perfil.clienteNombre}
+                            </p>
                           )}
                         </div>
                         <div className="flex min-h-[40px] shrink-0 flex-col items-end justify-between gap-2 self-stretch">
                           <span
                             className={cn(
-                              'whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold',
-                              perfil.estado === 'ocupado' && 'bg-green-600/20 text-green-300',
-                              perfil.estado === 'disponible' && 'bg-blue-600/20 text-blue-300',
-                              perfil.estado === 'pendiente' && 'bg-purple-500/20 text-purple-300'
+                              "whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold",
+                              perfil.estado === "ocupado" &&
+                                "bg-green-600/20 text-green-300",
+                              perfil.estado === "disponible" &&
+                                "bg-blue-600/20 text-blue-300",
+                              perfil.estado === "pendiente" &&
+                                "bg-purple-500/20 text-purple-300",
                             )}
                           >
-                            {perfil.estado === 'ocupado'
-                              ? 'En uso'
-                              : perfil.estado === 'pendiente'
-                              ? 'Pendiente'
-                              : 'Disponible'}
+                            {perfil.estado === "ocupado"
+                              ? "En uso"
+                              : perfil.estado === "pendiente"
+                                ? "Pendiente"
+                                : "Disponible"}
                           </span>
-                          {perfil.estado === 'pendiente' && (
-                            <p className="text-right text-xs text-purple-300">Pendiente en esta edicion</p>
+                          {perfil.estado === "pendiente" && (
+                            <p className="text-right text-xs text-purple-300">
+                              Pendiente en esta edicion
+                            </p>
                           )}
                         </div>
                       </div>
@@ -1587,7 +1988,8 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
                     </span>
                   </div>
                   <span>
-                    {resumenPerfilesDetalle.disponibles} de {resumenPerfilesDetalle.total} Disponibles
+                    {resumenPerfilesDetalle.disponibles} de{" "}
+                    {resumenPerfilesDetalle.total} Disponibles
                   </span>
                 </div>
               </>
@@ -1597,9 +1999,13 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
       </Dialog>
 
       <div className="flex justify-end gap-3">
-        {activeTab === 'preview' ? (
+        {activeTab === "preview" ? (
           <>
-            <Button type="button" variant="outline" onClick={() => setActiveTab('datos')}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setActiveTab("datos")}
+            >
               Anterior
             </Button>
             <Button type="submit" disabled={isSubmitting || !hasChanges}>
@@ -1608,7 +2014,11 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
           </>
         ) : (
           <>
-            <Button type="button" variant="outline" onClick={() => router.push(`/ventas/${venta.id}`)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.push(`/ventas/${venta.id}`)}
+            >
               Cancelar
             </Button>
             <Button
@@ -1626,4 +2036,3 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
     </form>
   );
 }
-

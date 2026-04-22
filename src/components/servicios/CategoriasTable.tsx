@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { memo, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useVentasPorCategorias } from '@/hooks/use-ventas-por-categorias';
+import { memo, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useVentasPorCategorias } from "@/hooks/use-ventas-por-categorias";
 import {
   Table,
   TableBody,
@@ -10,19 +10,30 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+} from "@/components/ui/table";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Monitor, Users, ShoppingCart, Eye, Search, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, ChevronDown } from 'lucide-react';
-import { Categoria } from '@/types';
-import { useServiciosStore } from '@/store/serviciosStore';
+} from "@/components/ui/dropdown-menu";
+import {
+  Monitor,
+  Users,
+  ShoppingCart,
+  Eye,
+  Search,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  TrendingUp,
+  ChevronDown,
+} from "lucide-react";
+import { Categoria } from "@/types";
+import { useServiciosStore } from "@/store/serviciosStore";
 
 interface CategoriasTableProps {
   categorias: Categoria[];
@@ -43,27 +54,37 @@ interface CategoriaRow {
 
 export const CategoriasTable = memo(function CategoriasTable({
   categorias,
-  title = 'Todas las categorías',
+  title = "Todas las categorías",
 }: CategoriasTableProps) {
   const router = useRouter();
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [sortKey, setSortKey] = useState<keyof CategoriaRow | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc" | null>(
+    null,
+  );
   const { servicios } = useServiciosStore();
   const handleViewCategoria = (categoriaId: string) => {
     router.push(`/servicios/${categoriaId}`);
   };
 
   const categoriaIds = useMemo(
-    () => categorias.filter(c => c.activo).map(c => c.id),
-    [categorias]
+    () => categorias.filter((c) => c.activo).map((c) => c.id),
+    [categorias],
   );
-  const { stats: ventasPorCategoria, isLoading: isLoadingVentas } = useVentasPorCategorias(categoriaIds);
+  const { stats: ventasPorCategoria, isLoading: isLoadingVentas } =
+    useVentasPorCategorias(categoriaIds);
 
   const countersByCategoria = useMemo(() => {
-    const counters = new Map<string, { totalServicios: number; serviciosActivos: number; perfilesDisponibles: number }>();
+    const counters = new Map<
+      string,
+      {
+        totalServicios: number;
+        serviciosActivos: number;
+        perfilesDisponibles: number;
+      }
+    >();
 
     for (const servicio of servicios) {
       if (servicio.enReposo) continue;
@@ -77,7 +98,11 @@ export const CategoriasTable = memo(function CategoriasTable({
       current.totalServicios += 1;
       if (servicio.activo) {
         current.serviciosActivos += 1;
-        const libres = Math.max((servicio.perfilesDisponibles || 0) - (servicio.perfilesOcupados || 0), 0);
+        const libres = Math.max(
+          (servicio.perfilesDisponibles || 0) -
+            (servicio.perfilesOcupados || 0),
+          0,
+        );
         current.perfilesDisponibles += libres;
       }
 
@@ -89,8 +114,8 @@ export const CategoriasTable = memo(function CategoriasTable({
 
   const rows = useMemo(() => {
     const categoriaData: CategoriaRow[] = categorias
-      .filter(cat => cat.activo)
-      .map(categoria => {
+      .filter((cat) => cat.activo)
+      .map((categoria) => {
         // Leer métricas directamente de los campos denormalizados
         const counters = countersByCategoria.get(categoria.id);
         const totalServicios = counters?.totalServicios ?? 0;
@@ -102,7 +127,8 @@ export const CategoriasTable = memo(function CategoriasTable({
         const ingresoTotal = categoria.ingresosTotales ?? 0;
         const suscripcionesTotales = categoria.ventasTotales ?? 0;
         const gananciaTotal = ingresoTotal - gastosTotal;
-        const montoSinConsumir = ventasPorCategoria[categoria.id]?.montoSinConsumir ?? 0;
+        const montoSinConsumir =
+          ventasPorCategoria[categoria.id]?.montoSinConsumir ?? 0;
 
         return {
           categoria,
@@ -122,8 +148,8 @@ export const CategoriasTable = memo(function CategoriasTable({
 
   // Filtrar por búsqueda
   const filteredRows = useMemo(() => {
-    return rows.filter(row =>
-      row.categoria.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+    return rows.filter((row) =>
+      row.categoria.nombre.toLowerCase().includes(searchTerm.toLowerCase()),
     );
   }, [rows, searchTerm]);
 
@@ -131,12 +157,15 @@ export const CategoriasTable = memo(function CategoriasTable({
   const sortedRows = useMemo(() => {
     if (!sortKey || !sortDirection) {
       return [...filteredRows].sort((a, b) =>
-        a.categoria.nombre.localeCompare(b.categoria.nombre, 'es')
+        a.categoria.nombre.localeCompare(b.categoria.nombre, "es"),
       );
     }
 
-    const getSortValue = (row: CategoriaRow, key: keyof CategoriaRow): string | number => {
-      if (key === 'categoria') return row.categoria.nombre;
+    const getSortValue = (
+      row: CategoriaRow,
+      key: keyof CategoriaRow,
+    ): string | number => {
+      if (key === "categoria") return row.categoria.nombre;
       return row[key];
     };
 
@@ -146,23 +175,23 @@ export const CategoriasTable = memo(function CategoriasTable({
 
       if (aValue === bValue) return 0;
       const comparison = aValue < bValue ? -1 : 1;
-      return sortDirection === 'asc' ? comparison : -comparison;
+      return sortDirection === "asc" ? comparison : -comparison;
     });
   }, [filteredRows, sortKey, sortDirection]);
 
   const handleSort = (key: keyof CategoriaRow) => {
     if (sortKey === key) {
-      if (sortDirection === 'asc') {
-        setSortDirection('desc');
-      } else if (sortDirection === 'desc') {
+      if (sortDirection === "asc") {
+        setSortDirection("desc");
+      } else if (sortDirection === "desc") {
         setSortDirection(null);
         setSortKey(null);
       } else {
-        setSortDirection('asc');
+        setSortDirection("asc");
       }
     } else {
       setSortKey(key);
-      setSortDirection('asc');
+      setSortDirection("asc");
     }
     setCurrentPage(1);
   };
@@ -171,7 +200,7 @@ export const CategoriasTable = memo(function CategoriasTable({
     if (sortKey !== columnKey) {
       return <ArrowUpDown className="h-3 w-3 text-muted-foreground" />;
     }
-    if (sortDirection === 'asc') {
+    if (sortDirection === "asc") {
       return <ArrowUp className="h-3 w-3" />;
     }
     return <ArrowDown className="h-3 w-3" />;
@@ -181,7 +210,7 @@ export const CategoriasTable = memo(function CategoriasTable({
   const totalPages = Math.ceil(sortedRows.length / itemsPerPage);
   const paginatedRows = sortedRows.slice(
     (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+    currentPage * itemsPerPage,
   );
 
   const getProgressPercentage = (activos: number, total: number) => {
@@ -211,100 +240,105 @@ export const CategoriasTable = memo(function CategoriasTable({
               <TableHead className="pl-6">
                 <Button
                   variant="ghost"
-                  onClick={() => handleSort('categoria')}
-                  className={`h-8 -ml-3 ${sortKey === 'categoria' ? 'text-primary hover:text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                  onClick={() => handleSort("categoria")}
+                  className={`h-8 -ml-3 ${sortKey === "categoria" ? "text-primary hover:text-primary" : "text-muted-foreground hover:text-foreground"}`}
                 >
                   Categoría
-                  {getSortIcon('categoria')}
+                  {getSortIcon("categoria")}
                 </Button>
               </TableHead>
               <TableHead className="text-center">
                 <Button
                   variant="ghost"
-                  onClick={() => handleSort('totalServicios')}
-                  className={`h-8 w-full justify-center ${sortKey === 'totalServicios' ? 'text-primary hover:text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                  onClick={() => handleSort("totalServicios")}
+                  className={`h-8 w-full justify-center ${sortKey === "totalServicios" ? "text-primary hover:text-primary" : "text-muted-foreground hover:text-foreground"}`}
                 >
                   Total Servicios
-                  {getSortIcon('totalServicios')}
+                  {getSortIcon("totalServicios")}
                 </Button>
               </TableHead>
               <TableHead className="text-center">
                 <Button
                   variant="ghost"
-                  onClick={() => handleSort('serviciosActivos')}
-                  className={`h-8 w-full justify-center ${sortKey === 'serviciosActivos' ? 'text-primary hover:text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                  onClick={() => handleSort("serviciosActivos")}
+                  className={`h-8 w-full justify-center ${sortKey === "serviciosActivos" ? "text-primary hover:text-primary" : "text-muted-foreground hover:text-foreground"}`}
                 >
                   Servicios Activos
-                  {getSortIcon('serviciosActivos')}
+                  {getSortIcon("serviciosActivos")}
                 </Button>
               </TableHead>
               <TableHead className="text-center">
                 <Button
                   variant="ghost"
-                  onClick={() => handleSort('perfilesDisponibles')}
-                  className={`h-8 w-full justify-center ${sortKey === 'perfilesDisponibles' ? 'text-primary hover:text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                  onClick={() => handleSort("perfilesDisponibles")}
+                  className={`h-8 w-full justify-center ${sortKey === "perfilesDisponibles" ? "text-primary hover:text-primary" : "text-muted-foreground hover:text-foreground"}`}
                 >
                   Perfiles Disponibles
-                  {getSortIcon('perfilesDisponibles')}
+                  {getSortIcon("perfilesDisponibles")}
                 </Button>
               </TableHead>
               <TableHead className="text-center">
                 <Button
                   variant="ghost"
-                  onClick={() => handleSort('suscripcionesTotales')}
-                  className={`h-8 w-full justify-center ${sortKey === 'suscripcionesTotales' ? 'text-primary hover:text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                  onClick={() => handleSort("suscripcionesTotales")}
+                  className={`h-8 w-full justify-center ${sortKey === "suscripcionesTotales" ? "text-primary hover:text-primary" : "text-muted-foreground hover:text-foreground"}`}
                 >
                   Suscripciones Totales
-                  {getSortIcon('suscripcionesTotales')}
+                  {getSortIcon("suscripcionesTotales")}
                 </Button>
               </TableHead>
               <TableHead className="text-center">
                 <Button
                   variant="ghost"
-                  onClick={() => handleSort('ingresoTotal')}
-                  className={`h-8 w-full justify-center ${sortKey === 'ingresoTotal' ? 'text-primary hover:text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                  onClick={() => handleSort("ingresoTotal")}
+                  className={`h-8 w-full justify-center ${sortKey === "ingresoTotal" ? "text-primary hover:text-primary" : "text-muted-foreground hover:text-foreground"}`}
                 >
                   Ingreso Total
-                  {getSortIcon('ingresoTotal')}
+                  {getSortIcon("ingresoTotal")}
                 </Button>
               </TableHead>
               <TableHead className="text-center">
                 <Button
                   variant="ghost"
-                  onClick={() => handleSort('gastosTotal')}
-                  className={`h-8 w-full justify-center ${sortKey === 'gastosTotal' ? 'text-primary hover:text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                  onClick={() => handleSort("gastosTotal")}
+                  className={`h-8 w-full justify-center ${sortKey === "gastosTotal" ? "text-primary hover:text-primary" : "text-muted-foreground hover:text-foreground"}`}
                 >
                   Gastos Totales
-                  {getSortIcon('gastosTotal')}
+                  {getSortIcon("gastosTotal")}
                 </Button>
               </TableHead>
               <TableHead className="text-center">
                 <Button
                   variant="ghost"
-                  onClick={() => handleSort('gananciaTotal')}
-                  className={`h-8 w-full justify-center ${sortKey === 'gananciaTotal' ? 'text-primary hover:text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                  onClick={() => handleSort("gananciaTotal")}
+                  className={`h-8 w-full justify-center ${sortKey === "gananciaTotal" ? "text-primary hover:text-primary" : "text-muted-foreground hover:text-foreground"}`}
                 >
                   Ganancia Total
-                  {getSortIcon('gananciaTotal')}
+                  {getSortIcon("gananciaTotal")}
                 </Button>
               </TableHead>
               <TableHead className="text-center">
                 <Button
                   variant="ghost"
-                  onClick={() => handleSort('montoSinConsumir')}
-                  className={`h-8 w-full justify-center ${sortKey === 'montoSinConsumir' ? 'text-primary hover:text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                  onClick={() => handleSort("montoSinConsumir")}
+                  className={`h-8 w-full justify-center ${sortKey === "montoSinConsumir" ? "text-primary hover:text-primary" : "text-muted-foreground hover:text-foreground"}`}
                 >
                   Monto Sin Consumir
-                  {getSortIcon('montoSinConsumir')}
+                  {getSortIcon("montoSinConsumir")}
                 </Button>
               </TableHead>
-              <TableHead className="text-center pr-6 text-muted-foreground">Acciones</TableHead>
+              <TableHead className="text-center pr-6 text-muted-foreground">
+                Acciones
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {paginatedRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center text-muted-foreground h-24">
+                <TableCell
+                  colSpan={10}
+                  className="text-center text-muted-foreground h-24"
+                >
                   No se encontraron categorías
                 </TableCell>
               </TableRow>
@@ -312,25 +346,39 @@ export const CategoriasTable = memo(function CategoriasTable({
               paginatedRows.map((row) => {
                 const progressPercentage = getProgressPercentage(
                   row.serviciosActivos,
-                  row.totalServicios
+                  row.totalServicios,
                 );
 
                 return (
                   <TableRow key={row.categoria.id}>
                     <TableCell className="pl-6">
-                      <span className="font-medium">{row.categoria.nombre}</span>
+                      <span className="font-medium">
+                        {row.categoria.nombre}
+                      </span>
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center gap-2">
-                        <Monitor className={`h-4 w-4 ${row.serviciosActivos > 0 ? 'text-green-500' : 'text-muted-foreground'}`} />
-                        <span className={`font-medium ${row.serviciosActivos > 0 ? '' : 'text-muted-foreground'}`}>{row.totalServicios}</span>
+                        <Monitor
+                          className={`h-4 w-4 ${row.serviciosActivos > 0 ? "text-green-500" : "text-muted-foreground"}`}
+                        />
+                        <span
+                          className={`font-medium ${row.serviciosActivos > 0 ? "" : "text-muted-foreground"}`}
+                        >
+                          {row.totalServicios}
+                        </span>
                       </div>
                     </TableCell>
                     <TableCell className="text-center py-2">
                       <div className="space-y-0.5">
                         <div className="flex items-center justify-center gap-1">
-                          <TrendingUp className={`h-3 w-3 ${row.serviciosActivos > 0 ? 'text-green-500' : 'text-muted-foreground'}`} />
-                          <span className={`font-medium text-sm ${row.serviciosActivos > 0 ? '' : 'text-muted-foreground'}`}>{row.serviciosActivos} / {row.totalServicios}</span>
+                          <TrendingUp
+                            className={`h-3 w-3 ${row.serviciosActivos > 0 ? "text-green-500" : "text-muted-foreground"}`}
+                          />
+                          <span
+                            className={`font-medium text-sm ${row.serviciosActivos > 0 ? "" : "text-muted-foreground"}`}
+                          >
+                            {row.serviciosActivos} / {row.totalServicios}
+                          </span>
                         </div>
                         <div className="bg-neutral-700 rounded-full h-1.5 overflow-hidden">
                           <div
@@ -342,32 +390,68 @@ export const CategoriasTable = memo(function CategoriasTable({
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center gap-2">
-                        <Users className={`h-4 w-4 ${row.perfilesDisponibles > 0 ? 'text-green-500' : 'text-muted-foreground'}`} />
-                        <span className={`font-medium ${row.perfilesDisponibles > 0 ? '' : 'text-muted-foreground'}`}>{row.perfilesDisponibles}</span>
+                        <Users
+                          className={`h-4 w-4 ${row.perfilesDisponibles > 0 ? "text-green-500" : "text-muted-foreground"}`}
+                        />
+                        <span
+                          className={`font-medium ${row.perfilesDisponibles > 0 ? "" : "text-muted-foreground"}`}
+                        >
+                          {row.perfilesDisponibles}
+                        </span>
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center gap-2">
-                        <ShoppingCart className={`h-4 w-4 ${row.suscripcionesTotales > 0 ? 'text-purple-500' : 'text-muted-foreground'}`} />
-                        <span className={`font-medium ${row.suscripcionesTotales > 0 ? '' : 'text-muted-foreground'}`}>{row.suscripcionesTotales}</span>
+                        <ShoppingCart
+                          className={`h-4 w-4 ${row.suscripcionesTotales > 0 ? "text-purple-500" : "text-muted-foreground"}`}
+                        />
+                        <span
+                          className={`font-medium ${row.suscripcionesTotales > 0 ? "" : "text-muted-foreground"}`}
+                        >
+                          {row.suscripcionesTotales}
+                        </span>
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center gap-1">
-                          <span className={`${row.ingresoTotal === 0 ? 'text-muted-foreground' : 'text-blue-500'}`}>$</span>
-                          <span className={`${row.ingresoTotal === 0 ? 'text-muted-foreground' : ''}`}>{row.ingresoTotal.toFixed(2)}</span>
-                        </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <span className={`${row.gastosTotal === 0 ? 'text-muted-foreground' : 'text-red-500'}`}>$</span>
-                        <span className={`${row.gastosTotal === 0 ? 'text-muted-foreground' : ''}`}>{row.gastosTotal.toFixed(2)}</span>
+                        <span
+                          className={`${row.ingresoTotal === 0 ? "text-muted-foreground" : "text-blue-500"}`}
+                        >
+                          $
+                        </span>
+                        <span
+                          className={`${row.ingresoTotal === 0 ? "text-muted-foreground" : ""}`}
+                        >
+                          {row.ingresoTotal.toFixed(2)}
+                        </span>
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <span className={`${row.gananciaTotal < 0 ? 'text-red-500' : row.gananciaTotal === 0 ? 'text-muted-foreground' : 'text-green-500'}`}>$</span>
-                        <span className={`${row.gananciaTotal < 0 ? 'text-red-500' : row.gananciaTotal === 0 ? 'text-muted-foreground' : ''}`}>{row.gananciaTotal.toFixed(2)}</span>
+                        <span
+                          className={`${row.gastosTotal === 0 ? "text-muted-foreground" : "text-red-500"}`}
+                        >
+                          $
+                        </span>
+                        <span
+                          className={`${row.gastosTotal === 0 ? "text-muted-foreground" : ""}`}
+                        >
+                          {row.gastosTotal.toFixed(2)}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <span
+                          className={`${row.gananciaTotal < 0 ? "text-red-500" : row.gananciaTotal === 0 ? "text-muted-foreground" : "text-green-500"}`}
+                        >
+                          $
+                        </span>
+                        <span
+                          className={`${row.gananciaTotal < 0 ? "text-red-500" : row.gananciaTotal === 0 ? "text-muted-foreground" : ""}`}
+                        >
+                          {row.gananciaTotal.toFixed(2)}
+                        </span>
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
@@ -377,8 +461,16 @@ export const CategoriasTable = memo(function CategoriasTable({
                         </div>
                       ) : (
                         <div className="flex items-center justify-center gap-1">
-                          <span className={`${row.montoSinConsumir === 0 ? 'text-muted-foreground' : 'text-orange-500'}`}>$</span>
-                          <span className={`${row.montoSinConsumir === 0 ? 'text-muted-foreground' : ''}`}>{row.montoSinConsumir.toFixed(2)}</span>
+                          <span
+                            className={`${row.montoSinConsumir === 0 ? "text-muted-foreground" : "text-orange-500"}`}
+                          >
+                            $
+                          </span>
+                          <span
+                            className={`${row.montoSinConsumir === 0 ? "text-muted-foreground" : ""}`}
+                          >
+                            {row.montoSinConsumir.toFixed(2)}
+                          </span>
                         </div>
                       )}
                     </TableCell>
@@ -405,7 +497,11 @@ export const CategoriasTable = memo(function CategoriasTable({
           <span className="text-sm text-muted-foreground">Mostrar</span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 w-[70px] px-2 justify-between">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 w-[70px] px-2 justify-between"
+              >
                 {itemsPerPage}
                 <ChevronDown className="h-3.5 w-3.5 opacity-50" />
               </Button>
@@ -414,8 +510,11 @@ export const CategoriasTable = memo(function CategoriasTable({
               {[10, 25, 50].map((size) => (
                 <DropdownMenuItem
                   key={size}
-                  onClick={() => { setItemsPerPage(size); setCurrentPage(1); }}
-                  className={itemsPerPage === size ? 'bg-accent' : ''}
+                  onClick={() => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                  className={itemsPerPage === size ? "bg-accent" : ""}
                 >
                   {size}
                 </DropdownMenuItem>
@@ -432,7 +531,7 @@ export const CategoriasTable = memo(function CategoriasTable({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
             >
               Anterior
@@ -440,7 +539,7 @@ export const CategoriasTable = memo(function CategoriasTable({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages || totalPages === 0}
             >
               Siguiente

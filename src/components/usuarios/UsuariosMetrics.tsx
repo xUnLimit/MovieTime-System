@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { memo } from 'react';
-import { MetricCard } from '@/components/shared/MetricCard';
-import { Users, Store, UserCheck, UserPlus } from 'lucide-react';
+import { memo } from "react";
+import { MetricCard } from "@/components/shared/MetricCard";
+import { Users, Store, UserCheck, UserPlus } from "lucide-react";
 
 interface UsuariosMetricsProps {
   totalClientes: number;
@@ -11,7 +11,12 @@ interface UsuariosMetricsProps {
   totalNuevosHoy: number;
 }
 
-export const UsuariosMetrics = memo(function UsuariosMetrics({ totalClientes, totalRevendedores, usuariosActivos, totalNuevosHoy }: UsuariosMetricsProps) {
+export const UsuariosMetrics = memo(function UsuariosMetrics({
+  totalClientes,
+  totalRevendedores,
+  usuariosActivos,
+  totalNuevosHoy,
+}: UsuariosMetricsProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <MetricCard

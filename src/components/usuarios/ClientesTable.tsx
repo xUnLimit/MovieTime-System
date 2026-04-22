@@ -1,24 +1,36 @@
-'use client';
+"use client";
 
-import { useState, useMemo, useCallback } from 'react';
-import { Usuario } from '@/types';
-import { DataTable, Column } from '@/components/shared/DataTable';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { useState, useMemo, useCallback } from "react";
+import { Usuario } from "@/types";
+import { DataTable, Column } from "@/components/shared/DataTable";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Search, MoreHorizontal, Edit, Trash2, MessageCircle, Monitor, Eye } from 'lucide-react';
-import { useUsuariosStore } from '@/store/usuariosStore';
-import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
-import { PaginationFooter, PaginationFooterProps } from '@/components/shared/PaginationFooter';
-import { toast } from 'sonner';
-import { useVentasPorUsuarios } from '@/hooks/use-ventas-por-usuarios';
-import { getUsuarioMetodoPagoNombre } from '@/lib/utils/usuarioMetodoPago';
+} from "@/components/ui/dropdown-menu";
+import Link from "next/link";
+import {
+  Search,
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  MessageCircle,
+  Monitor,
+  Eye,
+} from "lucide-react";
+import { useUsuariosStore } from "@/store/usuariosStore";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import {
+  PaginationFooter,
+  PaginationFooterProps,
+} from "@/components/shared/PaginationFooter";
+import { toast } from "sonner";
+import { useVentasPorUsuarios } from "@/hooks/use-ventas-por-usuarios";
+import { getUsuarioMetodoPagoNombre } from "@/lib/utils/usuarioMetodoPago";
 
 interface MetodoPagoFilterOption {
   value: string;
@@ -42,9 +54,8 @@ interface ClientesTableProps {
 
 export function ClientesTable({
   clientes,
-  onEdit,
   onView,
-  title = 'Clientes',
+  title = "Clientes",
   isLoading = false,
   pagination,
   searchQuery,
@@ -59,10 +70,13 @@ export function ClientesTable({
   const [clienteToDelete, setClienteToDelete] = useState<Usuario | null>(null);
 
   const clienteIds = useMemo(() => clientes.map((c) => c.id), [clientes]);
-  const { stats: ventasPorUsuario } = useVentasPorUsuarios(clienteIds, { enabled: !isLoading });
+  const { stats: ventasPorUsuario } = useVentasPorUsuarios(clienteIds, {
+    enabled: !isLoading,
+  });
 
   const selectedMetodoPagoLabel =
-    metodoPagoOptions.find((option) => option.value === metodoPagoFilter)?.label ?? 'Todos los métodos';
+    metodoPagoOptions.find((option) => option.value === metodoPagoFilter)
+      ?.label ?? "Todos los métodos";
 
   const handleDelete = (cliente: Usuario) => {
     setClienteToDelete(cliente);
@@ -78,14 +92,15 @@ export function ClientesTable({
           createdAt: clienteToDelete.createdAt,
           serviciosActivos: clienteToDelete.serviciosActivos,
         });
-        toast.success('Cliente eliminado', {
-          description: 'El cliente ha sido eliminado correctamente del sistema.',
+        toast.success("Cliente eliminado", {
+          description:
+            "El cliente ha sido eliminado correctamente del sistema.",
         });
         setDeleteDialogOpen(false);
         setClienteToDelete(null);
         onRefresh();
       } catch (error) {
-        toast.error('Error al eliminar cliente', {
+        toast.error("Error al eliminar cliente", {
           description: error instanceof Error ? error.message : undefined,
         });
       }
@@ -93,91 +108,113 @@ export function ClientesTable({
   };
 
   const handleWhatsApp = useCallback((cliente: Usuario) => {
-    const phone = cliente.telefono.replace(/\D/g, '');
-    window.open(`https://wa.me/${phone}`, '_blank');
+    const phone = cliente.telefono.replace(/\D/g, "");
+    window.open(`https://wa.me/${phone}`, "_blank");
   }, []);
 
-  const columns: Column<Usuario>[] = useMemo(() => [
-    {
-      key: 'nombre',
-      header: 'Nombre',
-      sortable: true,
-      width: '14%',
-      render: (item) => (
-        <div className="font-medium">{item.nombre} {item.apellido}</div>
-      ),
-    },
-    {
-      key: 'tipo',
-      header: 'Tipo',
-      sortable: false,
-      align: 'center',
-      width: '16%',
-      render: () => <span>Cliente</span>,
-    },
-    {
-      key: 'metodoPagoNombre',
-      header: 'Método de Pago',
-      sortable: false,
-      align: 'center',
-      width: '16%',
-      render: (item) => getUsuarioMetodoPagoNombre(item.metodoPagoId, item.metodoPagoNombre),
-    },
-    {
-      key: 'serviciosActivos',
-      header: 'Servicios Activos',
-      sortable: true,
-      align: 'center',
-      width: '16%',
-      render: (item) => {
-        const serviciosActivos = item.serviciosActivos ?? 0;
-        const isActive = serviciosActivos > 0;
-        return (
-          <div className="flex items-center justify-center gap-2">
-            <Monitor className={`h-4 w-4 ${isActive ? 'text-green-500' : 'text-muted-foreground'}`} />
-            <span className={isActive ? '' : 'text-muted-foreground'}>{serviciosActivos}</span>
+  const columns: Column<Usuario>[] = useMemo(
+    () => [
+      {
+        key: "nombre",
+        header: "Nombre",
+        sortable: true,
+        width: "14%",
+        render: (item) => (
+          <div className="font-medium">
+            {item.nombre} {item.apellido}
           </div>
-        );
+        ),
       },
-    },
-    {
-      key: 'montoSinConsumir',
-      header: 'Monto Sin Consumir',
-      sortable: true,
-      align: 'center',
-      width: '16%',
-      render: (item) => {
-        const isActive = (item.serviciosActivos ?? 0) > 0;
-        const monto = ventasPorUsuario[item.id]?.montoSinConsumir ?? 0;
-        return (
-          <div className="flex items-center justify-center gap-1">
-            <span className={isActive ? 'text-green-500 font-medium' : 'text-muted-foreground'}>$</span>
-            <span className={isActive ? 'font-medium' : 'text-muted-foreground'}>{monto.toFixed(2)}</span>
-          </div>
-        );
+      {
+        key: "tipo",
+        header: "Tipo",
+        sortable: false,
+        align: "center",
+        width: "16%",
+        render: () => <span>Cliente</span>,
       },
-    },
-    {
-      key: 'contacto',
-      header: 'Contacto',
-      align: 'center',
-      width: '16%',
-      render: (item) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleWhatsApp(item);
-          }}
-          className="text-green-500 hover:text-green-400 p-0 h-auto"
-        >
-          <MessageCircle className="h-4 w-4 mr-1" />
-          WhatsApp
-        </Button>
-      ),
-    },
-  ], [ventasPorUsuario, handleWhatsApp]);
+      {
+        key: "metodoPagoNombre",
+        header: "Método de Pago",
+        sortable: false,
+        align: "center",
+        width: "16%",
+        render: (item) =>
+          getUsuarioMetodoPagoNombre(item.metodoPagoId, item.metodoPagoNombre),
+      },
+      {
+        key: "serviciosActivos",
+        header: "Servicios Activos",
+        sortable: true,
+        align: "center",
+        width: "16%",
+        render: (item) => {
+          const serviciosActivos = item.serviciosActivos ?? 0;
+          const isActive = serviciosActivos > 0;
+          return (
+            <div className="flex items-center justify-center gap-2">
+              <Monitor
+                className={`h-4 w-4 ${isActive ? "text-green-500" : "text-muted-foreground"}`}
+              />
+              <span className={isActive ? "" : "text-muted-foreground"}>
+                {serviciosActivos}
+              </span>
+            </div>
+          );
+        },
+      },
+      {
+        key: "montoSinConsumir",
+        header: "Monto Sin Consumir",
+        sortable: true,
+        align: "center",
+        width: "16%",
+        render: (item) => {
+          const isActive = (item.serviciosActivos ?? 0) > 0;
+          const monto = ventasPorUsuario[item.id]?.montoSinConsumir ?? 0;
+          return (
+            <div className="flex items-center justify-center gap-1">
+              <span
+                className={
+                  isActive
+                    ? "text-green-500 font-medium"
+                    : "text-muted-foreground"
+                }
+              >
+                $
+              </span>
+              <span
+                className={isActive ? "font-medium" : "text-muted-foreground"}
+              >
+                {monto.toFixed(2)}
+              </span>
+            </div>
+          );
+        },
+      },
+      {
+        key: "contacto",
+        header: "Contacto",
+        align: "center",
+        width: "16%",
+        render: (item) => (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleWhatsApp(item);
+            }}
+            className="text-green-500 hover:text-green-400 p-0 h-auto"
+          >
+            <MessageCircle className="h-4 w-4 mr-1" />
+            WhatsApp
+          </Button>
+        ),
+      },
+    ],
+    [ventasPorUsuario, handleWhatsApp],
+  );
 
   return (
     <>
@@ -195,9 +232,24 @@ export function ClientesTable({
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="w-[180px] justify-between font-normal">
+              <Button
+                variant="outline"
+                className="w-[180px] justify-between font-normal"
+              >
                 {selectedMetodoPagoLabel}
-                <svg className="h-4 w-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                <svg
+                  className="h-4 w-4 opacity-50"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-[180px]">
@@ -208,7 +260,21 @@ export function ClientesTable({
                   className="flex items-center justify-between"
                 >
                   {option.label}
-                  {metodoPagoFilter === option.value && <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>}
+                  {metodoPagoFilter === option.value && (
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2.5}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  )}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -232,14 +298,18 @@ export function ClientesTable({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     {onView && (
-                      <DropdownMenuItem onClick={() => onView(usuario)}>
-                        <Eye className="h-4 w-4 mr-2" />
-                        Ver detalles
+                      <DropdownMenuItem asChild>
+                        <Link href={`/usuarios/${usuario.id}`}>
+                          <Eye className="h-4 w-4 mr-2" />
+                          Ver detalles
+                        </Link>
                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuItem onClick={() => onEdit(usuario)}>
-                      <Edit className="h-4 w-4 mr-2" />
-                      Editar
+                    <DropdownMenuItem asChild>
+                      <Link href={`/usuarios/editar/${usuario.id}`}>
+                        <Edit className="h-4 w-4 mr-2" />
+                        Editar
+                      </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => handleDelete(usuario)}

@@ -1,18 +1,18 @@
-'use client';
+"use client";
 
-import { useState, useMemo, useCallback } from 'react';
-import { Servicio } from '@/types';
-import { DataTable, Column } from '@/components/shared/DataTable';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
-import { Edit, Trash2, Copy } from 'lucide-react';
-import { useServiciosStore } from '@/store/serviciosStore';
-import { useCategoriasStore } from '@/store/categoriasStore';
-import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
-import { toast } from 'sonner';
+import { useState, useMemo, useCallback } from "react";
+import { Servicio } from "@/types";
+import { DataTable, Column } from "@/components/shared/DataTable";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Edit, Trash2, Copy } from "lucide-react";
+import { useServiciosStore } from "@/store/serviciosStore";
+import { useCategoriasStore } from "@/store/categoriasStore";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { toast } from "sonner";
 
 interface ServiciosTableProps {
   servicios: Servicio[];
@@ -23,7 +23,9 @@ export function ServiciosTable({ servicios, onEdit }: ServiciosTableProps) {
   const { deleteServicio, fetchCounts } = useServiciosStore();
   const { fetchCategorias } = useCategoriasStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [servicioToDelete, setServicioToDelete] = useState<Servicio | null>(null);
+  const [servicioToDelete, setServicioToDelete] = useState<Servicio | null>(
+    null,
+  );
   const [deletePayments, setDeletePayments] = useState(false);
 
   const handleDelete = (servicio: Servicio) => {
@@ -38,9 +40,15 @@ export function ServiciosTable({ servicios, onEdit }: ServiciosTableProps) {
         await deleteServicio(servicioToDelete.id, deletePayments);
 
         if (deletePayments) {
-          toast.success('Servicio eliminado', { description: 'El servicio y todos sus registros de pago han sido eliminados.' });
+          toast.success("Servicio eliminado", {
+            description:
+              "El servicio y todos sus registros de pago han sido eliminados.",
+          });
         } else {
-          toast.success('Servicio eliminado', { description: 'El servicio fue eliminado. Los registros de pago se conservaron.' });
+          toast.success("Servicio eliminado", {
+            description:
+              "El servicio fue eliminado. Los registros de pago se conservaron.",
+          });
         }
 
         // Refrescar categorías y contadores de servicios para actualizar widgets
@@ -49,7 +57,9 @@ export function ServiciosTable({ servicios, onEdit }: ServiciosTableProps) {
           fetchCounts(true), // Force refresh para actualizar inmediatamente
         ]);
       } catch (error) {
-        toast.error('Error al eliminar servicio', { description: error instanceof Error ? error.message : undefined });
+        toast.error("Error al eliminar servicio", {
+          description: error instanceof Error ? error.message : undefined,
+        });
       }
     }
   };
@@ -57,108 +67,139 @@ export function ServiciosTable({ servicios, onEdit }: ServiciosTableProps) {
   const handleCopyCredentials = useCallback((servicio: Servicio) => {
     const text = `Correo: ${servicio.correo}\nContraseña: ${servicio.contrasena}`;
     navigator.clipboard.writeText(text);
-    toast.success('Credenciales copiadas', { description: 'El correo y contraseña han sido copiados al portapapeles.' });
+    toast.success("Credenciales copiadas", {
+      description: "El correo y contraseña han sido copiados al portapapeles.",
+    });
   }, []);
 
-  const columns: Column<Servicio>[] = useMemo(() => [
-    {
-      key: 'nombre',
-      header: 'Servicio',
-      sortable: true,
-      render: (item) => (
-        <div>
-          <div className="font-medium">{item.nombre}</div>
-          <div className="text-sm text-muted-foreground">{item.categoriaNombre}</div>
-        </div>
-      ),
-    },
-    {
-      key: 'tipo',
-      header: 'Tipo',
-      sortable: true,
-      render: (item) => {
-        const isLegacy = item.tipo === 'cuenta_completa' || item.tipo === 'perfiles';
-        const label = item.tipoNombre
-          || (item.tipo === 'cuenta_completa' ? 'Cuenta Completa' : null)
-          || (item.tipo === 'perfiles' ? 'Perfiles' : null)
-          || item.tipo;
-        return (
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Badge variant="secondary">{label}</Badge>
-            {isLegacy && (
-              <Badge variant="outline" className="text-xs border-amber-500/50 text-amber-500 bg-amber-500/5 px-1.5 py-0">
-                Legacy
-              </Badge>
-            )}
-          </div>
-        );
-      },
-    },
-    {
-      key: 'perfiles',
-      header: 'Perfiles',
-      render: (item) => {
-        // Si el servicio está inactivo, mostrar barra vacía y 0 disponibles
-        const ocupados = !item.activo ? 0 : item.perfilesOcupados;
-        const porcentaje = !item.activo ? 0 : ((item.perfilesOcupados / item.perfilesDisponibles) * 100);
-        return (
-          <div className="w-32">
-            <div className="flex justify-between text-sm mb-1">
-              <span className={!item.activo ? 'text-gray-600' : ''}>{ocupados}</span>
-              <span className={!item.activo ? 'text-gray-600' : 'text-muted-foreground'}>de {item.perfilesDisponibles}</span>
+  const columns: Column<Servicio>[] = useMemo(
+    () => [
+      {
+        key: "nombre",
+        header: "Servicio",
+        sortable: true,
+        render: (item) => (
+          <div>
+            <div className="font-medium">{item.nombre}</div>
+            <div className="text-sm text-muted-foreground">
+              {item.categoriaNombre}
             </div>
-            <Progress
-              value={porcentaje}
-              className={`h-2 ${!item.activo ? 'opacity-50' : ''}`}
-            />
           </div>
-        );
+        ),
       },
-    },
-    {
-      key: 'correo',
-      header: 'Credenciales',
-      render: (item) => (
-        <div className="flex items-center gap-2">
-          <div className="text-sm">
-            <div className="text-sm">{item.correo}</div>
+      {
+        key: "tipo",
+        header: "Tipo",
+        sortable: true,
+        render: (item) => {
+          const isLegacy =
+            item.tipo === "cuenta_completa" || item.tipo === "perfiles";
+          const label =
+            item.tipoNombre ||
+            (item.tipo === "cuenta_completa" ? "Cuenta Completa" : null) ||
+            (item.tipo === "perfiles" ? "Perfiles" : null) ||
+            item.tipo;
+          return (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Badge variant="secondary">{label}</Badge>
+              {isLegacy && (
+                <Badge
+                  variant="outline"
+                  className="text-xs border-amber-500/50 text-amber-500 bg-amber-500/5 px-1.5 py-0"
+                >
+                  Legacy
+                </Badge>
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        key: "perfiles",
+        header: "Perfiles",
+        render: (item) => {
+          // Si el servicio está inactivo, mostrar barra vacía y 0 disponibles
+          const ocupados = !item.activo ? 0 : item.perfilesOcupados;
+          const porcentaje = !item.activo
+            ? 0
+            : (item.perfilesOcupados / item.perfilesDisponibles) * 100;
+          return (
+            <div className="w-32">
+              <div className="flex justify-between text-sm mb-1">
+                <span className={!item.activo ? "text-gray-600" : ""}>
+                  {ocupados}
+                </span>
+                <span
+                  className={
+                    !item.activo ? "text-gray-600" : "text-muted-foreground"
+                  }
+                >
+                  de {item.perfilesDisponibles}
+                </span>
+              </div>
+              <Progress
+                value={porcentaje}
+                className={`h-2 ${!item.activo ? "opacity-50" : ""}`}
+              />
+            </div>
+          );
+        },
+      },
+      {
+        key: "correo",
+        header: "Credenciales",
+        render: (item) => (
+          <div className="flex items-center gap-2">
+            <div className="text-sm">
+              <div className="text-sm">{item.correo}</div>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCopyCredentials(item);
+              }}
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleCopyCredentials(item);
-            }}
+        ),
+      },
+      {
+        key: "costoServicio",
+        header: "Costo",
+        sortable: true,
+        render: (item) => (
+          <div>
+            <div className="font-medium">
+              ${(item.costoServicio * item.perfilesDisponibles).toFixed(2)}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              ${item.costoServicio.toFixed(2)}/perfil
+            </div>
+          </div>
+        ),
+      },
+      {
+        key: "activo",
+        header: "Estado",
+        render: (item) => (
+          <Badge
+            variant="outline"
+            className={
+              item.activo
+                ? "border-green-500/50 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300"
+                : "border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300"
+            }
           >
-            <Copy className="h-4 w-4" />
-          </Button>
-        </div>
-      ),
-    },
-    {
-      key: 'costoServicio',
-      header: 'Costo',
-      sortable: true,
-      render: (item) => (
-        <div>
-          <div className="font-medium">${(item.costoServicio * item.perfilesDisponibles).toFixed(2)}</div>
-          <div className="text-sm text-muted-foreground">
-            ${item.costoServicio.toFixed(2)}/perfil
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: 'activo',
-      header: 'Estado',
-      render: (item) => (
-        <Badge variant="outline" className={item.activo ? 'border-green-500/50 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'border-red-500/50 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300'}>
-          {item.activo ? 'Activo' : 'Inactivo'}
-        </Badge>
-      ),
-    },
-  ], [handleCopyCredentials]);
+            {item.activo ? "Activo" : "Inactivo"}
+          </Badge>
+        ),
+      },
+    ],
+    [handleCopyCredentials],
+  );
 
   return (
     <>
@@ -169,7 +210,11 @@ export function ServiciosTable({ servicios, onEdit }: ServiciosTableProps) {
           const servicio = item as unknown as Servicio;
           return (
             <div className="flex gap-2">
-              <Button variant="ghost" size="icon" onClick={() => onEdit(servicio)}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onEdit(servicio)}
+              >
                 <Edit className="h-4 w-4" />
               </Button>
               <Button
@@ -207,7 +252,9 @@ export function ServiciosTable({ servicios, onEdit }: ServiciosTableProps) {
               Eliminar también los registros de pago
             </Label>
             <p className="text-sm text-muted-foreground">
-              Al marcar esta opción, se eliminarán todos los registros de pago de la base de datos. Si no se marca, se conservarán para historial.
+              Al marcar esta opción, se eliminarán todos los registros de pago
+              de la base de datos. Si no se marca, se conservarán para
+              historial.
             </p>
           </div>
         </div>

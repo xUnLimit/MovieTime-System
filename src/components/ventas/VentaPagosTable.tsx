@@ -1,17 +1,21 @@
-'use client';
+"use client";
 
-import { memo, useEffect, useState } from 'react';
-import { Edit, MoreHorizontal, Trash2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { memo, useEffect, useState } from "react";
+import { Edit, MoreHorizontal, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { getCurrencySymbol } from '@/lib/constants';
-import { formatearFecha, sumInUSD, formatAggregateInUSD } from '@/lib/utils/calculations';
-import { VentaPago } from '@/types';
+} from "@/components/ui/dropdown-menu";
+import { getCurrencySymbol } from "@/lib/constants";
+import {
+  formatearFecha,
+  sumInUSD,
+  formatAggregateInUSD,
+} from "@/lib/utils/calculations";
+import { VentaPago } from "@/types";
 
 interface VentaPagosTableProps {
   pagos: VentaPago[];
@@ -23,12 +27,12 @@ interface VentaPagosTableProps {
 
 const getCicloPagoLabel = (ciclo?: string | null) => {
   const labels: Record<string, string> = {
-    mensual: 'Mensual',
-    trimestral: 'Trimestral',
-    semestral: 'Semestral',
-    anual: 'Anual',
+    mensual: "Mensual",
+    trimestral: "Trimestral",
+    semestral: "Semestral",
+    anual: "Anual",
   };
-  return ciclo ? labels[ciclo] || ciclo : '—';
+  return ciclo ? labels[ciclo] || ciclo : "—";
 };
 
 export const VentaPagosTable = memo(function VentaPagosTable({
@@ -46,14 +50,14 @@ export const VentaPagosTable = memo(function VentaPagosTable({
       setIsCalculatingTotal(true);
       try {
         const total = await sumInUSD(
-          pagos.map(p => ({
+          pagos.map((p) => ({
             monto: p.total ?? 0,
-            moneda: p.moneda || moneda || 'USD'
-          }))
+            moneda: p.moneda || moneda || "USD",
+          })),
         );
         setTotalIngresosUSD(total);
       } catch (error) {
-        console.error('[VentaPagosTable] Error calculating total:', error);
+        console.error("[VentaPagosTable] Error calculating total:", error);
         setTotalIngresosUSD(0);
       } finally {
         setIsCalculatingTotal(false);
@@ -67,23 +71,31 @@ export const VentaPagosTable = memo(function VentaPagosTable({
       <div className="overflow-x-auto">
         <table className="w-full table-fixed">
           <colgroup>
-            <col style={{ width: '16%' }} />
-            <col style={{ width: '12%' }} />
-            <col style={{ width: '14%' }} />
-            <col style={{ width: '16%' }} />
-            <col style={{ width: '14%' }} />
-            <col style={{ width: '14%' }} />
-            <col style={{ width: '11%' }} />
-            <col style={{ width: '7%' }} />
-            <col style={{ width: '8%' }} />
+            <col style={{ width: "16%" }} />
+            <col style={{ width: "12%" }} />
+            <col style={{ width: "14%" }} />
+            <col style={{ width: "16%" }} />
+            <col style={{ width: "14%" }} />
+            <col style={{ width: "14%" }} />
+            <col style={{ width: "11%" }} />
+            <col style={{ width: "7%" }} />
+            <col style={{ width: "8%" }} />
           </colgroup>
           <thead>
             <tr className="border-b text-sm text-muted-foreground">
-              <th className="text-left py-3 font-medium whitespace-nowrap">Fecha de Pago</th>
+              <th className="text-left py-3 font-medium whitespace-nowrap">
+                Fecha de Pago
+              </th>
               <th className="text-left py-3 font-medium">Descripción</th>
-              <th className="text-left py-3 font-medium">Ciclo de facturación</th>
-              <th className="text-left py-3 font-medium whitespace-nowrap">Fecha de Inicio</th>
-              <th className="text-left py-3 font-medium whitespace-nowrap">Fecha de Fin</th>
+              <th className="text-left py-3 font-medium">
+                Ciclo de facturación
+              </th>
+              <th className="text-left py-3 font-medium whitespace-nowrap">
+                Fecha de Inicio
+              </th>
+              <th className="text-left py-3 font-medium whitespace-nowrap">
+                Fecha de Fin
+              </th>
               <th className="text-center py-3 font-medium">Precio</th>
               <th className="text-center py-3 font-medium">Descuento</th>
               <th className="text-center py-3 font-medium">Total</th>
@@ -93,31 +105,52 @@ export const VentaPagosTable = memo(function VentaPagosTable({
           <tbody>
             {pagos.map((pago, index) => {
               const rowCurrency = getCurrencySymbol(pago.moneda || moneda);
-              const esInicial = (pago.isPagoInicial ?? false) || pago.descripcion.toLowerCase() === 'pago inicial';
+              const esInicial =
+                (pago.isPagoInicial ?? false) ||
+                pago.descripcion.toLowerCase() === "pago inicial";
               const esUltimo = index === 0;
               const puedeGestionar = canManagePagos && esUltimo && !esInicial;
 
               return (
-                <tr key={`${pago.descripcion}-${index}`} className="border-b text-sm">
+                <tr
+                  key={`${pago.descripcion}-${index}`}
+                  className="border-b text-sm"
+                >
                   <td className="py-3 whitespace-nowrap">
-                    {pago.fecha ? formatearFecha(new Date(pago.fecha)) : '—'}
+                    {pago.fecha ? formatearFecha(new Date(pago.fecha)) : "—"}
                   </td>
                   <td className="py-3 font-medium">{pago.descripcion}</td>
                   <td className="py-3">{getCicloPagoLabel(pago.cicloPago)}</td>
                   <td className="py-3 whitespace-nowrap">
-                    {pago.fechaInicio ? formatearFecha(new Date(pago.fechaInicio)) : '—'}
+                    {pago.fechaInicio
+                      ? formatearFecha(new Date(pago.fechaInicio))
+                      : "—"}
                   </td>
                   <td className="py-3 whitespace-nowrap">
-                    {pago.fechaVencimiento ? formatearFecha(new Date(pago.fechaVencimiento)) : '—'}
+                    {pago.fechaVencimiento
+                      ? formatearFecha(new Date(pago.fechaVencimiento))
+                      : "—"}
                   </td>
-                  <td className="py-3 text-center">{rowCurrency} {pago.precio.toFixed(2)}</td>
-                  <td className="py-3 text-center text-red-500">{pago.descuento > 0 ? `% ${pago.descuento.toFixed(2)}` : `% 0.00`}</td>
-                  <td className="py-3 text-center font-semibold">{rowCurrency} {pago.total.toFixed(2)}</td>
+                  <td className="py-3 text-center">
+                    {rowCurrency} {pago.precio.toFixed(2)}
+                  </td>
+                  <td className="py-3 text-center text-red-500">
+                    {pago.descuento > 0
+                      ? `% ${pago.descuento.toFixed(2)}`
+                      : `% 0.00`}
+                  </td>
+                  <td className="py-3 text-center font-semibold">
+                    {rowCurrency} {pago.total.toFixed(2)}
+                  </td>
                   <td className="py-3 text-center">
                     {puedeGestionar ? (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                          >
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -136,7 +169,9 @@ export const VentaPagosTable = memo(function VentaPagosTable({
                         </DropdownMenuContent>
                       </DropdownMenu>
                     ) : (
-                      <div className="h-7 flex items-center justify-center text-muted-foreground">—</div>
+                      <div className="h-7 flex items-center justify-center text-muted-foreground">
+                        —
+                      </div>
                     )}
                   </td>
                 </tr>

@@ -1,24 +1,36 @@
-'use client';
+"use client";
 
-import { useState, useMemo } from 'react';
-import { Usuario } from '@/types';
-import { DataTable, Column } from '@/components/shared/DataTable';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { useState, useMemo } from "react";
+import { Usuario } from "@/types";
+import { DataTable, Column } from "@/components/shared/DataTable";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Search, MoreHorizontal, Edit, Trash2, MessageCircle, Monitor, Eye } from 'lucide-react';
-import { useUsuariosStore } from '@/store/usuariosStore';
-import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
-import { PaginationFooter, PaginationFooterProps } from '@/components/shared/PaginationFooter';
-import { toast } from 'sonner';
-import { useVentasPorUsuarios } from '@/hooks/use-ventas-por-usuarios';
-import { getUsuarioMetodoPagoNombre } from '@/lib/utils/usuarioMetodoPago';
+} from "@/components/ui/dropdown-menu";
+import Link from "next/link";
+import {
+  Search,
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  MessageCircle,
+  Monitor,
+  Eye,
+} from "lucide-react";
+import { useUsuariosStore } from "@/store/usuariosStore";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import {
+  PaginationFooter,
+  PaginationFooterProps,
+} from "@/components/shared/PaginationFooter";
+import { toast } from "sonner";
+import { useVentasPorUsuarios } from "@/hooks/use-ventas-por-usuarios";
+import { getUsuarioMetodoPagoNombre } from "@/lib/utils/usuarioMetodoPago";
 
 interface MetodoPagoFilterOption {
   value: string;
@@ -42,9 +54,8 @@ interface RevendedoresTableProps {
 
 export function RevendedoresTable({
   revendedores,
-  onEdit,
   onView,
-  title = 'Revendedores',
+  title = "Revendedores",
   isLoading = false,
   pagination,
   searchQuery,
@@ -56,13 +67,21 @@ export function RevendedoresTable({
 }: RevendedoresTableProps) {
   const { deleteUsuario } = useUsuariosStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [revendedorToDelete, setRevendedorToDelete] = useState<Usuario | null>(null);
+  const [revendedorToDelete, setRevendedorToDelete] = useState<Usuario | null>(
+    null,
+  );
 
-  const revendedorIds = useMemo(() => revendedores.map((r) => r.id), [revendedores]);
-  const { stats: ventasPorUsuario } = useVentasPorUsuarios(revendedorIds, { enabled: !isLoading });
+  const revendedorIds = useMemo(
+    () => revendedores.map((r) => r.id),
+    [revendedores],
+  );
+  const { stats: ventasPorUsuario } = useVentasPorUsuarios(revendedorIds, {
+    enabled: !isLoading,
+  });
 
   const selectedMetodoPagoLabel =
-    metodoPagoOptions.find((option) => option.value === metodoPagoFilter)?.label ?? 'Todos los métodos';
+    metodoPagoOptions.find((option) => option.value === metodoPagoFilter)
+      ?.label ?? "Todos los métodos";
 
   const handleDelete = (revendedor: Usuario) => {
     setRevendedorToDelete(revendedor);
@@ -78,14 +97,15 @@ export function RevendedoresTable({
           createdAt: revendedorToDelete.createdAt,
           serviciosActivos: revendedorToDelete.serviciosActivos,
         });
-        toast.success('Revendedor eliminado', {
-          description: 'El revendedor ha sido eliminado correctamente del sistema.',
+        toast.success("Revendedor eliminado", {
+          description:
+            "El revendedor ha sido eliminado correctamente del sistema.",
         });
         setDeleteDialogOpen(false);
         setRevendedorToDelete(null);
         onRefresh();
       } catch (error) {
-        toast.error('Error al eliminar revendedor', {
+        toast.error("Error al eliminar revendedor", {
           description: error instanceof Error ? error.message : undefined,
         });
       }
@@ -93,75 +113,94 @@ export function RevendedoresTable({
   };
 
   const handleWhatsApp = (revendedor: Usuario) => {
-    const phone = revendedor.telefono.replace(/\D/g, '');
-    window.open(`https://wa.me/${phone}`, '_blank');
+    const phone = revendedor.telefono.replace(/\D/g, "");
+    window.open(`https://wa.me/${phone}`, "_blank");
   };
 
   const columns: Column<Usuario>[] = [
     {
-      key: 'nombre',
-      header: 'Nombre',
+      key: "nombre",
+      header: "Nombre",
       sortable: true,
-      width: '14%',
+      width: "14%",
       render: (item) => (
-        <div className="font-medium">{item.nombre} {item.apellido}</div>
+        <div className="font-medium">
+          {item.nombre} {item.apellido}
+        </div>
       ),
     },
     {
-      key: 'tipo',
-      header: 'Tipo',
+      key: "tipo",
+      header: "Tipo",
       sortable: false,
-      align: 'center',
-      width: '16%',
+      align: "center",
+      width: "16%",
       render: () => <span>Revendedor</span>,
     },
     {
-      key: 'metodoPagoNombre',
-      header: 'Método de Pago',
+      key: "metodoPagoNombre",
+      header: "Método de Pago",
       sortable: false,
-      align: 'center',
-      width: '16%',
-      render: (item) => getUsuarioMetodoPagoNombre(item.metodoPagoId, item.metodoPagoNombre),
+      align: "center",
+      width: "16%",
+      render: (item) =>
+        getUsuarioMetodoPagoNombre(item.metodoPagoId, item.metodoPagoNombre),
     },
     {
-      key: 'ventasActivas',
-      header: 'Servicios Activos',
+      key: "ventasActivas",
+      header: "Servicios Activos",
       sortable: true,
-      align: 'center',
-      width: '16%',
+      align: "center",
+      width: "16%",
       render: (item) => {
         const serviciosActivos = item.serviciosActivos ?? 0;
         const isActive = serviciosActivos > 0;
         return (
           <div className="flex items-center justify-center gap-2">
-            <Monitor className={`h-4 w-4 ${isActive ? 'text-green-500' : 'text-muted-foreground'}`} />
-            <span className={isActive ? '' : 'text-muted-foreground'}>{serviciosActivos}</span>
+            <Monitor
+              className={`h-4 w-4 ${isActive ? "text-green-500" : "text-muted-foreground"}`}
+            />
+            <span className={isActive ? "" : "text-muted-foreground"}>
+              {serviciosActivos}
+            </span>
           </div>
         );
       },
     },
     {
-      key: 'montoSinConsumir',
-      header: 'Monto Sin Consumir',
+      key: "montoSinConsumir",
+      header: "Monto Sin Consumir",
       sortable: true,
-      align: 'center',
-      width: '16%',
+      align: "center",
+      width: "16%",
       render: (item) => {
         const isActive = (item.serviciosActivos ?? 0) > 0;
         const monto = ventasPorUsuario[item.id]?.montoSinConsumir ?? 0;
         return (
           <div className="flex items-center justify-center gap-1">
-            <span className={isActive ? 'text-green-500 font-medium' : 'text-muted-foreground'}>$</span>
-            <span className={isActive ? 'font-medium' : 'text-muted-foreground'}>{monto.toFixed(2)}</span>
+            <span
+              className={
+                isActive
+                  ? "text-green-500 font-medium"
+                  : "text-muted-foreground"
+              }
+            >
+              $
+            </span>
+            <span
+              className={isActive ? "font-medium" : "text-muted-foreground"}
+            >
+              {monto.toFixed(2)}
+            </span>
           </div>
         );
       },
     },
     {
-      key: 'contacto',
-      header: 'Contacto',
-      align: 'center',
-      width: '16%',
+      key: "contacto",
+      header: "Contacto",
+      align: "center",
+      width: "16%",
       render: (item) => (
         <Button
           variant="ghost"
@@ -195,9 +234,24 @@ export function RevendedoresTable({
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="w-[180px] justify-between font-normal">
+              <Button
+                variant="outline"
+                className="w-[180px] justify-between font-normal"
+              >
                 {selectedMetodoPagoLabel}
-                <svg className="h-4 w-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                <svg
+                  className="h-4 w-4 opacity-50"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-[180px]">
@@ -208,7 +262,21 @@ export function RevendedoresTable({
                   className="flex items-center justify-between"
                 >
                   {option.label}
-                  {metodoPagoFilter === option.value && <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>}
+                  {metodoPagoFilter === option.value && (
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2.5}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  )}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -232,14 +300,18 @@ export function RevendedoresTable({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     {onView && (
-                      <DropdownMenuItem onClick={() => onView(usuario)}>
-                        <Eye className="h-4 w-4 mr-2" />
-                        Ver detalles
+                      <DropdownMenuItem asChild>
+                        <Link href={`/usuarios/${usuario.id}`}>
+                          <Eye className="h-4 w-4 mr-2" />
+                          Ver detalles
+                        </Link>
                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuItem onClick={() => onEdit(usuario)}>
-                      <Edit className="h-4 w-4 mr-2" />
-                      Editar
+                    <DropdownMenuItem asChild>
+                      <Link href={`/usuarios/editar/${usuario.id}`}>
+                        <Edit className="h-4 w-4 mr-2" />
+                        Editar
+                      </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => handleDelete(usuario)}

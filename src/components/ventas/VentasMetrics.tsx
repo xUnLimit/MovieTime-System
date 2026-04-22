@@ -1,18 +1,28 @@
-'use client';
+"use client";
 
-import { memo, useEffect } from 'react';
-import { MetricCard } from '@/components/shared/MetricCard';
-import { useVentasStore } from '@/store/ventasStore';
-import { useDashboardStore } from '@/store/dashboardStore';
-import { CreditCard, DollarSign, CalendarRange, Wallet, CheckCircle2, XCircle } from 'lucide-react';
-import { useIngresoMensualEsperado } from '@/hooks/use-ingreso-mensual-esperado';
-import { useMontoSinConsumirTotal } from '@/hooks/use-monto-sin-consumir-total';
+import { memo, useEffect } from "react";
+import { MetricCard } from "@/components/shared/MetricCard";
+import { useVentasStore } from "@/store/ventasStore";
+import { useDashboardStore } from "@/store/dashboardStore";
+import {
+  CreditCard,
+  DollarSign,
+  CalendarRange,
+  Wallet,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
+import { useIngresoMensualEsperado } from "@/hooks/use-ingreso-mensual-esperado";
+import { useMontoSinConsumirTotal } from "@/hooks/use-monto-sin-consumir-total";
 
 export const VentasMetrics = memo(function VentasMetrics() {
-  const { fetchCounts, totalVentas, ventasActivas, ventasInactivas } = useVentasStore();
+  const { fetchCounts, totalVentas, ventasActivas, ventasInactivas } =
+    useVentasStore();
   const { stats: dashboardStats, fetchDashboardStats } = useDashboardStore();
-  const { value: ingresoMensual, isLoading: isLoadingMensual } = useIngresoMensualEsperado();
-  const { value: montoSinConsumir, isLoading: isLoadingMonto } = useMontoSinConsumirTotal();
+  const { value: ingresoMensual, isLoading: isLoadingMensual } =
+    useIngresoMensualEsperado();
+  const { value: montoSinConsumir, isLoading: isLoadingMonto } =
+    useMontoSinConsumirTotal();
 
   useEffect(() => {
     fetchCounts();
@@ -22,7 +32,7 @@ export const VentasMetrics = memo(function VentasMetrics() {
   const ingresoTotal = dashboardStats?.ingresosTotal ?? null;
 
   const formatValue = (val: number | null, loading: boolean) => {
-    if (loading || val === null) return 'Calculando...';
+    if (loading || val === null) return "Calculando...";
     return `$${val.toFixed(2)}`;
   };
 
@@ -44,7 +54,13 @@ export const VentasMetrics = memo(function VentasMetrics() {
       />
       <MetricCard
         title="Ingreso Mensual Esperado"
-        value={isLoadingMensual ? 'Calculando...' : (ingresoMensual !== null ? `$${ingresoMensual.toFixed(2)}` : '-')}
+        value={
+          isLoadingMensual
+            ? "Calculando..."
+            : ingresoMensual !== null
+              ? `$${ingresoMensual.toFixed(2)}`
+              : "-"
+        }
         icon={CalendarRange}
         iconColor="text-blue-500"
         underlineColor="bg-blue-500"

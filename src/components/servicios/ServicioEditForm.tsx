@@ -1,54 +1,68 @@
-'use client';
+"use client";
 
-import { useEffect, useState, useMemo } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { useEffect, useState, useMemo } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { toast } from 'sonner';
-import { ChevronDown, Calendar as CalendarIcon } from 'lucide-react';
-import { formatearFecha } from '@/lib/utils/calculations';
-import { useServiciosStore } from '@/store/serviciosStore';
-import { useCategoriasStore } from '@/store/categoriasStore';
-import { useMetodosPagoStore } from '@/store/metodosPagoStore';
-import { useRouter } from 'next/navigation';
-import { Servicio, MetodoPago } from '@/types';
-import { addMonths } from 'date-fns';
-import { CURRENCY_SYMBOLS, CYCLE_MONTHS } from '@/lib/constants';
-import { usePagosServicio } from '@/hooks/use-pagos-servicio';
-import { update, getCount, COLLECTIONS } from '@/lib/firebase/firestore';
+} from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { toast } from "sonner";
+import { ChevronDown, Calendar as CalendarIcon } from "lucide-react";
+import { formatearFecha } from "@/lib/utils/calculations";
+import { useServiciosStore } from "@/store/serviciosStore";
+import { useCategoriasStore } from "@/store/categoriasStore";
+import { useMetodosPagoStore } from "@/store/metodosPagoStore";
+import { useRouter } from "next/navigation";
+import { Servicio, MetodoPago } from "@/types";
+import { addMonths } from "date-fns";
+import { CURRENCY_SYMBOLS, CYCLE_MONTHS } from "@/lib/constants";
+import { usePagosServicio } from "@/hooks/use-pagos-servicio";
+import { update, getCount, COLLECTIONS } from "@/lib/firebase/firestore";
 
 const servicioEditSchema = z.object({
-  nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  categoriaId: z.string().min(1, 'Debe seleccionar una categoría'),
-  tipoPlan: z.string().min(1, 'Debe seleccionar un tipo de plan'),
-  correo: z.string().email('Por favor ingrese un correo electrónico válido'),
-  contrasena: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
-  metodoPagoId: z.string().min(1, 'Debe seleccionar un método de pago'),
-  costoServicio: z.string()
-    .refine((val) => val !== '', 'Por favor ingrese el costo del servicio')
-    .refine((val) => !isNaN(Number(val)), 'El costo debe ser un valor numérico')
-    .refine((val) => Number(val) > 0, 'El costo debe ser mayor a 0'),
-  perfilesDisponibles: z.string()
-    .refine((val) => val !== '', 'Por favor ingrese el número de perfiles')
-    .refine((val) => !isNaN(Number(val)), 'Debe ingresar un valor numérico')
-    .refine((val) => Number(val) >= 1, 'Debe tener al menos 1 perfil disponible')
-    .refine((val) => Number.isInteger(Number(val)), 'El número de perfiles debe ser un valor entero'),
-  cicloPago: z.enum(['mensual', 'trimestral', 'semestral', 'anual']),
+  nombre: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
+  categoriaId: z.string().min(1, "Debe seleccionar una categoría"),
+  tipoPlan: z.string().min(1, "Debe seleccionar un tipo de plan"),
+  correo: z.string().email("Por favor ingrese un correo electrónico válido"),
+  contrasena: z
+    .string()
+    .min(6, "La contraseña debe tener al menos 6 caracteres"),
+  metodoPagoId: z.string().min(1, "Debe seleccionar un método de pago"),
+  costoServicio: z
+    .string()
+    .refine((val) => val !== "", "Por favor ingrese el costo del servicio")
+    .refine((val) => !isNaN(Number(val)), "El costo debe ser un valor numérico")
+    .refine((val) => Number(val) > 0, "El costo debe ser mayor a 0"),
+  perfilesDisponibles: z
+    .string()
+    .refine((val) => val !== "", "Por favor ingrese el número de perfiles")
+    .refine((val) => !isNaN(Number(val)), "Debe ingresar un valor numérico")
+    .refine(
+      (val) => Number(val) >= 1,
+      "Debe tener al menos 1 perfil disponible",
+    )
+    .refine(
+      (val) => Number.isInteger(Number(val)),
+      "El número de perfiles debe ser un valor entero",
+    ),
+  cicloPago: z.enum(["mensual", "trimestral", "semestral", "anual"]),
   fechaInicio: z.date(),
   fechaVencimiento: z.date(),
-  estado: z.enum(['activo', 'inactivo']),
+  estado: z.enum(["activo", "inactivo"]),
   notas: z.string().optional(),
 });
 
@@ -59,7 +73,10 @@ interface ServicioEditFormProps {
   returnTo?: string;
 }
 
-export function ServicioEditForm({ servicio, returnTo = '/servicios' }: ServicioEditFormProps) {
+export function ServicioEditForm({
+  servicio,
+  returnTo = "/servicios",
+}: ServicioEditFormProps) {
   const router = useRouter();
   const { updateServicio, fetchCounts } = useServiciosStore();
   const { categorias, fetchCategorias } = useCategoriasStore();
@@ -69,7 +86,9 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
   const [openFechaVencimiento, setOpenFechaVencimiento] = useState(false);
 
   // Cargar pagos del servicio
-  const { pagos: pagosServicio, refresh: refreshPagos } = usePagosServicio(servicio.id);
+  const { pagos: pagosServicio, refresh: refreshPagos } = usePagosServicio(
+    servicio.id,
+  );
   const ultimoPago = pagosServicio[0]; // Array ya viene ordenado por fecha desc
 
   // Estados para detectar cambios manuales (similar a VentasEditForm)
@@ -77,12 +96,14 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
   const [lastCicloId, setLastCicloId] = useState<string | null>(null);
 
   // Conteo real de ventas activas (fuente de verdad, no el campo denormalizado)
-  const [perfilesOcupadosReal, setPerfilesOcupadosReal] = useState<number>(servicio.perfilesOcupados || 0);
+  const [perfilesOcupadosReal, setPerfilesOcupadosReal] = useState<number>(
+    servicio.perfilesOcupados || 0,
+  );
 
   useEffect(() => {
     getCount(COLLECTIONS.VENTAS, [
-      { field: 'servicioId', operator: '==', value: servicio.id },
-      { field: 'estado', operator: '!=', value: 'inactivo' },
+      { field: "servicioId", operator: "==", value: servicio.id },
+      { field: "estado", operator: "!=", value: "inactivo" },
     ]).then((count) => setPerfilesOcupadosReal(count));
   }, [servicio.id]);
 
@@ -110,57 +131,77 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
   } = useForm<FormData>({
     resolver: zodResolver(servicioEditSchema),
     defaultValues: {
-      nombre: servicio.nombre || '',
-      categoriaId: servicio.categoriaId || '',
-      tipoPlan: (servicio.tipo || '') as FormData['tipoPlan'],
-      correo: servicio.correo || '',
-      contrasena: servicio.contrasena || '',
-      metodoPagoId: servicio.metodoPagoId || '',
+      nombre: servicio.nombre || "",
+      categoriaId: servicio.categoriaId || "",
+      tipoPlan: (servicio.tipo || "") as FormData["tipoPlan"],
+      correo: servicio.correo || "",
+      contrasena: servicio.contrasena || "",
+      metodoPagoId: servicio.metodoPagoId || "",
       costoServicio: String(servicio.costoServicio || 0),
       perfilesDisponibles: String(servicio.perfilesDisponibles || 1),
-      cicloPago: (servicio.cicloPago || 'mensual') as 'mensual' | 'trimestral' | 'semestral' | 'anual',
-      fechaInicio: servicio.fechaInicio ? new Date(servicio.fechaInicio) : new Date(),
-      fechaVencimiento: servicio.fechaVencimiento ? new Date(servicio.fechaVencimiento) : addMonths(new Date(), 1),
-      estado: servicio.activo ? 'activo' : 'inactivo',
-      notas: servicio.notas || '',
+      cicloPago: (servicio.cicloPago || "mensual") as
+        | "mensual"
+        | "trimestral"
+        | "semestral"
+        | "anual",
+      fechaInicio: servicio.fechaInicio
+        ? new Date(servicio.fechaInicio)
+        : new Date(),
+      fechaVencimiento: servicio.fechaVencimiento
+        ? new Date(servicio.fechaVencimiento)
+        : addMonths(new Date(), 1),
+      estado: servicio.activo ? "activo" : "inactivo",
+      notas: servicio.notas || "",
     },
   });
 
-  const nombreValue = watch('nombre');
-  const correoValue = watch('correo');
-  const contrasenaValue = watch('contrasena');
-  const categoriaIdValue = watch('categoriaId');
-  const tipoPlanValue = watch('tipoPlan');
-  const metodoPagoIdValue = watch('metodoPagoId');
-  const costoServicioValue = watch('costoServicio');
-  const perfilesDisponiblesValue = watch('perfilesDisponibles');
-  const cicloPagoValue = watch('cicloPago');
-  const fechaInicioValue = watch('fechaInicio');
-  const fechaVencimientoValue = watch('fechaVencimiento');
-  const estadoValue = watch('estado');
-  const notasValue = watch('notas');
+  const nombreValue = watch("nombre");
+  const correoValue = watch("correo");
+  const contrasenaValue = watch("contrasena");
+  const categoriaIdValue = watch("categoriaId");
+  const tipoPlanValue = watch("tipoPlan");
+  const metodoPagoIdValue = watch("metodoPagoId");
+  const costoServicioValue = watch("costoServicio");
+  const perfilesDisponiblesValue = watch("perfilesDisponibles");
+  const cicloPagoValue = watch("cicloPago");
+  const fechaInicioValue = watch("fechaInicio");
+  const fechaVencimientoValue = watch("fechaVencimiento");
+  const estadoValue = watch("estado");
+  const notasValue = watch("notas");
 
   // NO auto-actualizar precio cuando cambia el ciclo en modo edición
   // El usuario puede tener un costo personalizado que no debe ser sobreescrito
 
   // Auto-calcular fechaVencimiento cuando cambia el ciclo o la fecha de inicio (DESPUÉS de inicialización)
-  const [lastFechaInicioTime, setLastFechaInicioTime] = useState<number | null>(null);
+  const [lastFechaInicioTime, setLastFechaInicioTime] = useState<number | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!cicloInicializado || !fechaInicioValue) return;
 
     const cicloChanged = lastCicloId !== null && lastCicloId !== cicloPagoValue;
-    const fechaInicioChanged = lastFechaInicioTime !== null && lastFechaInicioTime !== fechaInicioValue.getTime();
+    const fechaInicioChanged =
+      lastFechaInicioTime !== null &&
+      lastFechaInicioTime !== fechaInicioValue.getTime();
 
     if (cicloChanged || fechaInicioChanged) {
-      const meses = CYCLE_MONTHS[cicloPagoValue as keyof typeof CYCLE_MONTHS] ?? 1;
+      const meses =
+        CYCLE_MONTHS[cicloPagoValue as keyof typeof CYCLE_MONTHS] ?? 1;
       const fechaCalculada = addMonths(new Date(fechaInicioValue), meses);
-      setValue('fechaVencimiento', fechaCalculada);
+      setValue("fechaVencimiento", fechaCalculada);
     }
 
     if (cicloChanged) setLastCicloId(cicloPagoValue);
     if (fechaInicioChanged) setLastFechaInicioTime(fechaInicioValue.getTime());
-  }, [cicloPagoValue, fechaInicioValue, setValue, cicloInicializado, lastCicloId, lastFechaInicioTime]);
+  }, [
+    cicloPagoValue,
+    fechaInicioValue,
+    setValue,
+    cicloInicializado,
+    lastCicloId,
+    lastFechaInicioTime,
+  ]);
 
   // Inicializar el ciclo y fecha solo una vez
   useEffect(() => {
@@ -179,12 +220,13 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
       contrasenaValue !== servicio.contrasena ||
       categoriaIdValue !== servicio.categoriaId ||
       tipoPlanValue !== servicio.tipo ||
-      metodoPagoIdValue !== (servicio.metodoPagoId || '') ||
+      metodoPagoIdValue !== (servicio.metodoPagoId || "") ||
       String(costoServicioValue) !== String(servicio.costoServicio || 0) ||
-      String(perfilesDisponiblesValue) !== String(servicio.perfilesDisponibles || 1) ||
-      cicloPagoValue !== (servicio.cicloPago || 'mensual') ||
-      estadoValue !== (servicio.activo ? 'activo' : 'inactivo') ||
-      notasValue !== (servicio.notas || '') ||
+      String(perfilesDisponiblesValue) !==
+        String(servicio.perfilesDisponibles || 1) ||
+      cicloPagoValue !== (servicio.cicloPago || "mensual") ||
+      estadoValue !== (servicio.activo ? "activo" : "inactivo") ||
+      notasValue !== (servicio.notas || "") ||
       fechaInicioValue?.getTime() !== servicio.fechaInicio?.getTime() ||
       fechaVencimientoValue?.getTime() !== servicio.fechaVencimiento?.getTime()
     );
@@ -208,68 +250,81 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
   // Auto-limpiar errores
   useEffect(() => {
     if (nombreValue && nombreValue.length >= 2 && errors.nombre) {
-      clearErrors('nombre');
+      clearErrors("nombre");
     }
   }, [nombreValue, errors.nombre, clearErrors]);
 
   useEffect(() => {
-    if (correoValue && correoValue.includes('@') && correoValue.includes('.') && errors.correo) {
-      clearErrors('correo');
+    if (
+      correoValue &&
+      correoValue.includes("@") &&
+      correoValue.includes(".") &&
+      errors.correo
+    ) {
+      clearErrors("correo");
     }
   }, [correoValue, errors.correo, clearErrors]);
 
   useEffect(() => {
     if (contrasenaValue && contrasenaValue.length >= 6 && errors.contrasena) {
-      clearErrors('contrasena');
+      clearErrors("contrasena");
     }
   }, [contrasenaValue, errors.contrasena, clearErrors]);
 
   useEffect(() => {
     if (categoriaIdValue && errors.categoriaId) {
-      clearErrors('categoriaId');
+      clearErrors("categoriaId");
     }
   }, [categoriaIdValue, errors.categoriaId, clearErrors]);
 
   useEffect(() => {
     if (tipoPlanValue && errors.tipoPlan) {
-      clearErrors('tipoPlan');
+      clearErrors("tipoPlan");
     }
   }, [tipoPlanValue, errors.tipoPlan, clearErrors]);
 
   useEffect(() => {
     if (metodoPagoIdValue && errors.metodoPagoId) {
-      clearErrors('metodoPagoId');
+      clearErrors("metodoPagoId");
     }
   }, [metodoPagoIdValue, errors.metodoPagoId, clearErrors]);
 
   useEffect(() => {
-    if (costoServicioValue && !isNaN(Number(costoServicioValue)) && Number(costoServicioValue) > 0 && errors.costoServicio) {
-      clearErrors('costoServicio');
+    if (
+      costoServicioValue &&
+      !isNaN(Number(costoServicioValue)) &&
+      Number(costoServicioValue) > 0 &&
+      errors.costoServicio
+    ) {
+      clearErrors("costoServicio");
     }
   }, [costoServicioValue, errors.costoServicio, clearErrors]);
 
   useEffect(() => {
     const perfiles = Number(perfilesDisponiblesValue);
-    const esValido = perfilesDisponiblesValue &&
+    const esValido =
+      perfilesDisponiblesValue &&
       !isNaN(perfiles) &&
       perfiles >= 1 &&
       Number.isInteger(perfiles);
     if (esValido && errors.perfilesDisponibles) {
-      clearErrors('perfilesDisponibles');
+      clearErrors("perfilesDisponibles");
     }
   }, [perfilesDisponiblesValue, errors.perfilesDisponibles, clearErrors]);
 
   const onSubmit = async (data: FormData) => {
     try {
-      const categoria = categorias.find(c => c.id === data.categoriaId);
-      const metodoPagoSeleccionado = metodosPago.find(m => m.id === data.metodoPagoId);
+      const categoria = categorias.find((c) => c.id === data.categoriaId);
+      const metodoPagoSeleccionado = metodosPago.find(
+        (m) => m.id === data.metodoPagoId,
+      );
 
       // Validar perfiles con conteo real (no el campo denormalizado que puede estar desfasado)
       const perfilesNuevos = Number(data.perfilesDisponibles);
-      if (data.estado === 'activo' && perfilesNuevos < perfilesOcupadosReal) {
+      if (data.estado === "activo" && perfilesNuevos < perfilesOcupadosReal) {
         const n = perfilesOcupadosReal;
-        setError('perfilesDisponibles', {
-          message: `No se puede reducir por debajo de los ${n} perfil${n !== 1 ? 'es' : ''} actualmente ocupado${n !== 1 ? 's' : ''}`,
+        setError("perfilesDisponibles", {
+          message: `No se puede reducir por debajo de los ${n} perfil${n !== 1 ? "es" : ""} actualmente ocupado${n !== 1 ? "s" : ""}`,
         });
         return;
       }
@@ -278,25 +333,27 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
       await updateServicio(servicio.id, {
         nombre: data.nombre,
         categoriaId: data.categoriaId,
-        categoriaNombre: categoria?.nombre || '',
+        categoriaNombre: categoria?.nombre || "",
         correo: data.correo,
         contrasena: data.contrasena,
         tipo: data.tipoPlan,
         costoServicio: Number(data.costoServicio),
         perfilesDisponibles: Number(data.perfilesDisponibles),
         metodoPagoId: data.metodoPagoId,
-        metodoPagoNombre: metodoPagoSeleccionado?.nombre,  // Denormalizado
-        moneda: metodoPagoSeleccionado?.moneda,            // Denormalizado
+        metodoPagoNombre: metodoPagoSeleccionado?.nombre, // Denormalizado
+        moneda: metodoPagoSeleccionado?.moneda, // Denormalizado
         cicloPago: data.cicloPago,
         fechaInicio: data.fechaInicio,
         fechaVencimiento: data.fechaVencimiento,
         notas: data.notas,
-        activo: data.estado === 'activo',
+        activo: data.estado === "activo",
       });
 
       // Resincronizar perfilesOcupados si el contador estaba desfasado
       if (servicio.perfilesOcupados !== perfilesOcupadosReal) {
-        await update(COLLECTIONS.SERVICIOS, servicio.id, { perfilesOcupados: perfilesOcupadosReal });
+        await update(COLLECTIONS.SERVICIOS, servicio.id, {
+          perfilesOcupados: perfilesOcupadosReal,
+        });
       }
 
       // Actualizar el último pago si existe (Single Source of Truth)
@@ -306,24 +363,25 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
           fechaVencimiento: data.fechaVencimiento,
           monto: Number(data.costoServicio),
           metodoPagoId: data.metodoPagoId,
-          metodoPagoNombre: metodoPagoSeleccionado?.nombre,  // Denormalizado
-          moneda: metodoPagoSeleccionado?.moneda,            // Denormalizado
+          metodoPagoNombre: metodoPagoSeleccionado?.nombre, // Denormalizado
+          moneda: metodoPagoSeleccionado?.moneda, // Denormalizado
           cicloPago: data.cicloPago,
         });
       }
 
-      toast.success('Servicio actualizado', { description: 'Los datos del servicio han sido guardados correctamente.' });
+      toast.success("Servicio actualizado", {
+        description: "Los datos del servicio han sido guardados correctamente.",
+      });
 
       // Refrescar pagos y contadores
       refreshPagos();
-      await Promise.all([
-        fetchCategorias(true),
-        fetchCounts(true),
-      ]);
+      await Promise.all([fetchCategorias(true), fetchCounts(true)]);
 
       router.push(returnTo);
     } catch (error) {
-      toast.error('Error al actualizar el servicio', { description: error instanceof Error ? error.message : undefined });
+      toast.error("Error al actualizar el servicio", {
+        description: error instanceof Error ? error.message : undefined,
+      });
       console.error(error);
     }
   };
@@ -334,80 +392,93 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
 
   const getCicloLabel = (ciclo: string) => {
     switch (ciclo) {
-      case 'mensual':
-        return 'Mensual';
-      case 'trimestral':
-        return 'Trimestral';
-      case 'semestral':
-        return 'Semestral';
-      case 'anual':
-        return 'Anual';
+      case "mensual":
+        return "Mensual";
+      case "trimestral":
+        return "Trimestral";
+      case "semestral":
+        return "Semestral";
+      case "anual":
+        return "Anual";
       default:
-        return 'Seleccionar período';
+        return "Seleccionar período";
     }
   };
 
   const categoriaSeleccionada = useMemo(
-    () => categorias.find(c => c.id === categoriaIdValue),
-    [categorias, categoriaIdValue]
+    () => categorias.find((c) => c.id === categoriaIdValue),
+    [categorias, categoriaIdValue],
   );
 
-  const categoriaNombre = categoriaSeleccionada?.nombre ?? 'Seleccionar categoría';
+  const categoriaNombre =
+    categoriaSeleccionada?.nombre ?? "Seleccionar categoría";
 
   // Tipos de plan dinámicos según la categoría seleccionada (con fallback legacy)
   const tiposPlanesDinamicos = useMemo(() => {
     const custom = categoriaSeleccionada?.tiposPlanes || [];
     if (custom.length > 0) return custom;
     return [
-      { id: 'perfiles', nombre: 'Perfiles' },
-      { id: 'cuenta_completa', nombre: 'Cuenta Completa' },
+      { id: "perfiles", nombre: "Perfiles" },
+      { id: "cuenta_completa", nombre: "Cuenta Completa" },
     ];
   }, [categoriaSeleccionada]);
 
   const getTipoPlanLabel = (tipoId: string) => {
-    if (!tipoId) return 'Seleccionar tipo';
-    const found = tiposPlanesDinamicos.find(t => t.id === tipoId);
+    if (!tipoId) return "Seleccionar tipo";
+    const found = tiposPlanesDinamicos.find((t) => t.id === tipoId);
     if (found) return found.nombre;
-    if (tipoId === 'cuenta_completa') return 'Cuenta Completa';
-    if (tipoId === 'perfiles') return 'Perfiles';
+    if (tipoId === "cuenta_completa") return "Cuenta Completa";
+    if (tipoId === "perfiles") return "Perfiles";
     return tipoId;
   };
 
   const getEstadoLabel = (estado: string) => {
     switch (estado) {
-      case 'activo':
-        return 'Activo';
-      case 'inactivo':
-        return 'Inactivo';
+      case "activo":
+        return "Activo";
+      case "inactivo":
+        return "Inactivo";
       default:
-        return 'Seleccionar estado';
+        return "Seleccionar estado";
     }
   };
 
   const metodoPagoSeleccionado = metodoPagoIdValue
-    ? metodosPago.find(m => m.id === metodoPagoIdValue)
+    ? metodosPago.find((m) => m.id === metodoPagoIdValue)
     : null;
 
-  const metodoPagoNombre = metodoPagoSeleccionado?.nombre || 'Seleccionar método de pago';
+  const metodoPagoNombre =
+    metodoPagoSeleccionado?.nombre || "Seleccionar método de pago";
 
   const getSimboloMoneda = (moneda?: string, pais?: string): string => {
-    if (!moneda) return '$';
+    if (!moneda) return "$";
     const monedaKey = moneda.toUpperCase();
-    const paisKey = (pais || '').toUpperCase();
-    return CURRENCY_SYMBOLS[monedaKey] || CURRENCY_SYMBOLS[paisKey] || monedaKey;
+    const paisKey = (pais || "").toUpperCase();
+    return (
+      CURRENCY_SYMBOLS[monedaKey] || CURRENCY_SYMBOLS[paisKey] || monedaKey
+    );
   };
 
   const simboloMoneda = metodoPagoSeleccionado
-    ? getSimboloMoneda(metodoPagoSeleccionado.moneda, metodoPagoSeleccionado.pais)
-    : '$';
+    ? getSimboloMoneda(
+        metodoPagoSeleccionado.moneda,
+        metodoPagoSeleccionado.pais,
+      )
+    : "$";
 
   const categoriasActivas = useMemo(
-    () => categorias.filter((c) => c.activo).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
-    [categorias]
+    () =>
+      categorias
+        .filter((c) => c.activo)
+        .sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
+    [categorias],
   );
   const metodosPagoActivos = useMemo(
-    () => metodosPago.filter(m => m.activo && (!m.asociadoA || m.asociadoA === 'servicio')).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
-    [metodosPago]
+    () =>
+      metodosPago
+        .filter((m) => m.activo && (!m.asociadoA || m.asociadoA === "servicio"))
+        .sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
+    [metodosPago],
   );
 
   return (
@@ -418,12 +489,13 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
           <Label htmlFor="nombre">Nombre del servicio</Label>
           <Input
             id="nombre"
-            {...register('nombre')}
+            {...register("nombre")}
             placeholder="Ej: Netflix, Disney+"
             onChange={(e) => {
               const value = e.target.value;
-              const capitalized = value.charAt(0).toUpperCase() + value.slice(1);
-              setValue('nombre', capitalized);
+              const capitalized =
+                value.charAt(0).toUpperCase() + value.slice(1);
+              setValue("nombre", capitalized);
             }}
           />
           {errors.nombre && (
@@ -444,11 +516,14 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
                 <ChevronDown className="h-4 w-4 opacity-50" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
+            <DropdownMenuContent
+              align="start"
+              className="w-[var(--radix-dropdown-menu-trigger-width)]"
+            >
               {categoriasActivas.map((categoria) => (
                 <DropdownMenuItem
                   key={categoria.id}
-                  onClick={() => setValue('categoriaId', categoria.id)}
+                  onClick={() => setValue("categoriaId", categoria.id)}
                 >
                   {categoria.nombre}
                 </DropdownMenuItem>
@@ -468,7 +543,7 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
           <Input
             id="correo"
             type="email"
-            {...register('correo')}
+            {...register("correo")}
             placeholder="correo@ejemplo.com"
           />
           {errors.correo && (
@@ -481,7 +556,7 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
           <Input
             id="contrasena"
             type="text"
-            {...register('contrasena')}
+            {...register("contrasena")}
             placeholder="Ingrese la contraseña"
           />
           {errors.contrasena && (
@@ -505,11 +580,14 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
                 <ChevronDown className="h-4 w-4 opacity-50" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
+            <DropdownMenuContent
+              align="start"
+              className="w-[var(--radix-dropdown-menu-trigger-width)]"
+            >
               {metodosPagoActivos.map((metodo) => (
                 <DropdownMenuItem
                   key={metodo.id}
-                  onClick={() => setValue('metodoPagoId', metodo.id)}
+                  onClick={() => setValue("metodoPagoId", metodo.id)}
                 >
                   {metodo.nombre}
                 </DropdownMenuItem>
@@ -517,7 +595,9 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
             </DropdownMenuContent>
           </DropdownMenu>
           {errors.metodoPagoId && (
-            <p className="text-sm text-red-500">{errors.metodoPagoId.message}</p>
+            <p className="text-sm text-red-500">
+              {errors.metodoPagoId.message}
+            </p>
           )}
         </div>
 
@@ -531,13 +611,25 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
               id="costoServicio"
               type="text"
               inputMode="decimal"
-              {...register('costoServicio')}
+              {...register("costoServicio")}
               placeholder="0.00"
-              className={simboloMoneda.length > 1 ? 'pl-10' : 'pl-7'}
+              className={simboloMoneda.length > 1 ? "pl-10" : "pl-7"}
               onKeyDown={(e) => {
                 const char = e.key;
                 const currentValue = (e.target as HTMLInputElement).value;
-                if (['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(char)) {
+                if (
+                  [
+                    "Backspace",
+                    "Delete",
+                    "Tab",
+                    "Escape",
+                    "Enter",
+                    "ArrowLeft",
+                    "ArrowRight",
+                    "ArrowUp",
+                    "ArrowDown",
+                  ].includes(char)
+                ) {
                   return;
                 }
                 if (e.ctrlKey || e.metaKey) {
@@ -546,14 +638,16 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
                 if (!/[0-9.]/.test(char)) {
                   e.preventDefault();
                 }
-                if (char === '.' && currentValue.includes('.')) {
+                if (char === "." && currentValue.includes(".")) {
                   e.preventDefault();
                 }
               }}
             />
           </div>
           {errors.costoServicio && (
-            <p className="text-sm text-red-500">{errors.costoServicio.message}</p>
+            <p className="text-sm text-red-500">
+              {errors.costoServicio.message}
+            </p>
           )}
         </div>
       </div>
@@ -573,9 +667,15 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
                 <ChevronDown className="h-4 w-4 opacity-50" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
+            <DropdownMenuContent
+              align="start"
+              className="w-[var(--radix-dropdown-menu-trigger-width)]"
+            >
               {tiposPlanesDinamicos.map((tipo) => (
-                <DropdownMenuItem key={tipo.id} onClick={() => setValue('tipoPlan', tipo.id)}>
+                <DropdownMenuItem
+                  key={tipo.id}
+                  onClick={() => setValue("tipoPlan", tipo.id)}
+                >
                   {tipo.nombre}
                 </DropdownMenuItem>
               ))}
@@ -599,17 +699,26 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
                 <ChevronDown className="h-4 w-4 opacity-50" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
-              <DropdownMenuItem onClick={() => setValue('cicloPago', 'mensual')}>
+            <DropdownMenuContent
+              align="start"
+              className="w-[var(--radix-dropdown-menu-trigger-width)]"
+            >
+              <DropdownMenuItem
+                onClick={() => setValue("cicloPago", "mensual")}
+              >
                 Mensual
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setValue('cicloPago', 'trimestral')}>
+              <DropdownMenuItem
+                onClick={() => setValue("cicloPago", "trimestral")}
+              >
                 Trimestral
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setValue('cicloPago', 'semestral')}>
+              <DropdownMenuItem
+                onClick={() => setValue("cicloPago", "semestral")}
+              >
                 Semestral
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setValue('cicloPago', 'anual')}>
+              <DropdownMenuItem onClick={() => setValue("cicloPago", "anual")}>
                 Anual
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -633,11 +742,9 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
               >
                 <CalendarIcon className="h-4 w-4 flex-shrink-0" />
                 <span className="text-sm">
-                  {fechaInicioValue ? (
-                    formatearFecha(fechaInicioValue)
-                  ) : (
-                    'Seleccionar fecha'
-                  )}
+                  {fechaInicioValue
+                    ? formatearFecha(fechaInicioValue)
+                    : "Seleccionar fecha"}
                 </span>
               </Button>
             </PopoverTrigger>
@@ -647,7 +754,7 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
                 selected={fechaInicioValue}
                 onSelect={(date) => {
                   if (date) {
-                    setValue('fechaInicio', date);
+                    setValue("fechaInicio", date);
                   }
                 }}
                 defaultMonth={fechaInicioValue ?? new Date()}
@@ -662,7 +769,10 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
 
         <div className="space-y-2">
           <Label htmlFor="fechaVencimiento">Fecha de vencimiento</Label>
-          <Popover open={openFechaVencimiento} onOpenChange={setOpenFechaVencimiento}>
+          <Popover
+            open={openFechaVencimiento}
+            onOpenChange={setOpenFechaVencimiento}
+          >
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
@@ -671,11 +781,9 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
               >
                 <CalendarIcon className="h-4 w-4 flex-shrink-0" />
                 <span className="text-sm">
-                  {fechaVencimientoValue ? (
-                    formatearFecha(fechaVencimientoValue)
-                  ) : (
-                    'Seleccionar fecha'
-                  )}
+                  {fechaVencimientoValue
+                    ? formatearFecha(fechaVencimientoValue)
+                    : "Seleccionar fecha"}
                 </span>
               </Button>
             </PopoverTrigger>
@@ -685,7 +793,7 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
                 selected={fechaVencimientoValue}
                 onSelect={(date) => {
                   if (date) {
-                    setValue('fechaVencimiento', date);
+                    setValue("fechaVencimiento", date);
                   }
                 }}
                 defaultMonth={fechaVencimientoValue ?? new Date()}
@@ -694,7 +802,9 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
             </PopoverContent>
           </Popover>
           {errors.fechaVencimiento && (
-            <p className="text-sm text-red-500">{errors.fechaVencimiento.message}</p>
+            <p className="text-sm text-red-500">
+              {errors.fechaVencimiento.message}
+            </p>
           )}
         </div>
       </div>
@@ -707,11 +817,23 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
             id="perfiles"
             type="text"
             inputMode="numeric"
-            {...register('perfilesDisponibles')}
+            {...register("perfilesDisponibles")}
             placeholder="Ingrese la cantidad"
             onKeyDown={(e) => {
               const char = e.key;
-              if (['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(char)) {
+              if (
+                [
+                  "Backspace",
+                  "Delete",
+                  "Tab",
+                  "Escape",
+                  "Enter",
+                  "ArrowLeft",
+                  "ArrowRight",
+                  "ArrowUp",
+                  "ArrowDown",
+                ].includes(char)
+              ) {
                 return;
               }
               if (e.ctrlKey || e.metaKey) {
@@ -723,7 +845,9 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
             }}
           />
           {errors.perfilesDisponibles && (
-            <p className="text-sm text-red-500">{errors.perfilesDisponibles.message}</p>
+            <p className="text-sm text-red-500">
+              {errors.perfilesDisponibles.message}
+            </p>
           )}
         </div>
 
@@ -740,11 +864,14 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
                 <ChevronDown className="h-4 w-4 opacity-50" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
-              <DropdownMenuItem onClick={() => setValue('estado', 'activo')}>
+            <DropdownMenuContent
+              align="start"
+              className="w-[var(--radix-dropdown-menu-trigger-width)]"
+            >
+              <DropdownMenuItem onClick={() => setValue("estado", "activo")}>
                 Activo
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setValue('estado', 'inactivo')}>
+              <DropdownMenuItem onClick={() => setValue("estado", "inactivo")}>
                 Inactivo
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -760,7 +887,7 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
         <Label htmlFor="notas">Notas adicionales</Label>
         <Textarea
           id="notas"
-          {...register('notas')}
+          {...register("notas")}
           placeholder="Información adicional relevante..."
           rows={6}
         />
@@ -772,7 +899,7 @@ export function ServicioEditForm({ servicio, returnTo = '/servicios' }: Servicio
           Cancelar
         </Button>
         <Button type="submit" disabled={isSubmitting || !hasChanges}>
-          {isSubmitting ? 'Actualizando...' : 'Guardar Cambios'}
+          {isSubmitting ? "Actualizando..." : "Guardar Cambios"}
         </Button>
       </div>
     </form>
