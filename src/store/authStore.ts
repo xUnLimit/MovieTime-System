@@ -1,7 +1,13 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import { User } from '@/types';
-import { signIn, signOut as firebaseSignOut, onAuthStateChange, convertFirebaseUser } from '@/lib/firebase/auth';
+import { 
+  signIn, 
+  signOut as firebaseSignOut, 
+  onAuthStateChange, 
+  convertFirebaseUser,
+  convertFirebaseUserAsync 
+} from '@/lib/firebase/auth';
 
 const STORAGE_KEY = 'auth-storage';
 const REMEMBER_KEY = 'auth-remember';
@@ -56,7 +62,8 @@ export const useAuthStore = create<AuthState>()(
 
           try {
             const firebaseUser = await signIn(email, password, rememberMe);
-            const user = convertFirebaseUser(firebaseUser);
+            // Use async version to get latest custom claims
+            const user = await convertFirebaseUserAsync(firebaseUser);
 
             // Clear old data from both storages first
             clearAllAuthStorage();
@@ -112,10 +119,18 @@ export const useAuthStore = create<AuthState>()(
         initAuth: () => {
           if (authListenerInitialized) return;
           authListenerInitialized = true;
-          onAuthStateChange((firebaseUser) => {
+          onAuthStateChange(async (firebaseUser) => {
             if (firebaseUser) {
-              const user = convertFirebaseUser(firebaseUser);
-              set({ user, isAuthenticated: true, isLoading: false });
+              try {
+                // IMPORTANT: Fetch claims asynchronously to ensure correct role
+                const user = await convertFirebaseUserAsync(firebaseUser);
+                set({ user, isAuthenticated: true, isLoading: false });
+              } catch (error) {
+                console.error('Error hydrating user claims:', error);
+                // Fallback to sync version if async fails
+                const user = convertFirebaseUser(firebaseUser);
+                set({ user, isAuthenticated: true, isLoading: false });
+              }
             } else {
               // Firebase has no user — clear everything
               clearAllAuthStorage();

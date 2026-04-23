@@ -23,7 +23,8 @@ import {
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useSidebarState } from '@/hooks/use-sidebar';
-import React, { useEffect, useRef } from 'react';
+import { useAuthStore } from '@/store/authStore';
+import React, { useEffect, useRef, useMemo } from 'react';
 
 type NavItem = { name: string; href: string; icon: React.ComponentType<{ className?: string }>; badge?: string };
 type NavSection = { label?: string; items: NavItem[] };
@@ -115,8 +116,35 @@ interface SidebarProps {
 export function Sidebar({ collapsed: controlledCollapsed, onCollapse, mobileOpen = false, onMobileClose }: SidebarProps = {}) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
+  const { user } = useAuthStore();
   const { isOpen, toggle } = useSidebarState();
   const themeButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Filter sections based on user role
+  const filteredSections = useMemo(() => {
+    return navigationSections.map(section => {
+      if (!user) return section;
+
+      const items = section.items.filter(item => {
+        // Admin-only paths
+        const adminOnlyPaths = [
+          '/gastos',
+          '/editor-mensajes',
+          '/categorias',
+          '/metodos-pago',
+          '/log-actividad'
+        ];
+        
+        if (adminOnlyPaths.includes(item.href)) {
+          return user.role === 'admin';
+        }
+        
+        return true;
+      });
+
+      return { ...section, items };
+    }).filter(section => section.items.length > 0);
+  }, [user]);
 
   const collapsed = controlledCollapsed !== undefined ? controlledCollapsed : !isOpen;
   const setCollapsed = onCollapse || (() => toggle());
@@ -239,7 +267,7 @@ export function Sidebar({ collapsed: controlledCollapsed, onCollapse, mobileOpen
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-2">
-        {navigationSections.map((section, sectionIdx) => (
+        {filteredSections.map((section, sectionIdx) => (
           <div key={sectionIdx} className="mb-4">
             {/* Label de sección */}
             {section.label && (

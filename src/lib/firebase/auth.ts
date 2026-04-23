@@ -66,6 +66,7 @@ export async function createUser(
 
 /**
  * Listen to authentication state changes
+ * Note: Now handles async role fetching internally if needed by the callback
  */
 export function onAuthStateChange(callback: (user: FirebaseUser | null) => void) {
   return onAuthStateChanged(auth, callback);
@@ -79,10 +80,32 @@ export function getCurrentUser(): FirebaseUser | null {
 }
 
 /**
- * Convert Firebase User to App User
+ * Convert Firebase User to App User (Synchronous version)
+ * Note: Use this only for initial UI state. The actual role should be verified via convertFirebaseUserAsync.
  */
 export function convertFirebaseUser(firebaseUser: FirebaseUser): User {
-  const isAdmin = firebaseUser.email?.startsWith('admin@') || false;
+  return {
+    id: firebaseUser.uid,
+    email: firebaseUser.email || '',
+    displayName: firebaseUser.displayName || firebaseUser.email || '',
+    role: 'operador', // Default to restricted role in sync version
+    active: true,
+    createdAt: new Date(firebaseUser.metadata.creationTime || Date.now()),
+    updatedAt: new Date(),
+  };
+}
+
+/**
+ * Convert Firebase User to App User (Asynchronous version - PREFERRED)
+ * Extracts roles from Firebase Custom Claims for maximum security.
+ * Access via email prefix is now disabled.
+ */
+export async function convertFirebaseUserAsync(firebaseUser: FirebaseUser): Promise<User> {
+  // Force refresh token to get latest claims
+  const tokenResult = await firebaseUser.getIdTokenResult(true);
+  
+  // Role based STRICTLY on custom claim 'admin'
+  const isAdmin = tokenResult.claims.admin === true;
 
   return {
     id: firebaseUser.uid,

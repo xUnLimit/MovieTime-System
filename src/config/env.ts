@@ -14,7 +14,7 @@ export const env = {
   apiUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
 
   // Features
-  enableMockAuth: process.env.NEXT_PUBLIC_ENABLE_MOCK_AUTH !== 'false', // Default true
+  enableMockAuth: process.env.NEXT_PUBLIC_ENABLE_MOCK_AUTH === 'true', // Default false
 
   // Environment
   isDevelopment: process.env.NODE_ENV === 'development',

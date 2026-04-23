@@ -60,10 +60,14 @@ export function UserMenu() {
             <User className="mr-2 h-4 w-4" />
             <span>Perfil</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setConfiguracionOpen(true)}>
-            <Settings className="mr-2 h-4 w-4" />
-            <span>Configuración</span>
-          </DropdownMenuItem>
+          
+          {user.role === 'admin' && (
+            <DropdownMenuItem onSelect={() => setConfiguracionOpen(true)}>
+              <Settings className="mr-2 h-4 w-4" />
+              <span>Configuración</span>
+            </DropdownMenuItem>
+          )}
+
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleLogout}>
             <LogOut className="mr-2 h-4 w-4" />
@@ -72,10 +76,12 @@ export function UserMenu() {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <ConfiguracionDialog
-        open={configuracionOpen}
-        onOpenChange={setConfiguracionOpen}
-      />
+      {user.role === 'admin' && (
+        <ConfiguracionDialog
+          open={configuracionOpen}
+          onOpenChange={setConfiguracionOpen}
+        />
+      )}
     </>
   );
 }
