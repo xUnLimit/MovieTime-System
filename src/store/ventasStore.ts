@@ -201,6 +201,9 @@ export const useVentasStore = create<VentasState>()(
             window.localStorage.setItem('venta-created', Date.now().toString());
             window.dispatchEvent(new Event('venta-created'));
           }
+
+          // ✅ Sync notifications for this new venta (non-blocking)
+          sincronizarUnaVenta(ventaId).catch(() => {});
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Error al crear venta';
           set({ error: errorMessage });

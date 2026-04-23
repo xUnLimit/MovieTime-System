@@ -230,6 +230,9 @@ export const useServiciosStore = create<ServiciosState>()(
             entidadNombre: `${servicioData.nombre} [${servicioData.correo}]`,
             detalles: `Servicio creado: "${servicioData.nombre}" [${servicioData.correo}] (${servicioData.tipo}) — $${servicioData.costoServicio ?? 0} ${moneda ?? 'USD'} (${servicioData.cicloPago ?? 'mensual'})`,
           }).catch(() => {});
+
+          // ✅ Sync notifications for this new service (non-blocking)
+          sincronizarUnServicio(id).catch(() => {});
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Error al crear servicio';
           set({ error: errorMessage });

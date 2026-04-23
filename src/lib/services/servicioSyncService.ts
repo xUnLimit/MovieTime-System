@@ -1,5 +1,5 @@
 import { COLLECTIONS, getAll, queryDocuments, update } from '@/lib/firebase/firestore';
-import { sincronizarNotificacionesForzado } from '@/lib/services/notificationSyncService';
+import { sincronizarUnServicio, sincronizarUnaVenta, sincronizarNotificacionesForzado } from '@/lib/services/notificationSyncService';
 import { useNotificacionesStore } from '@/store/notificacionesStore';
 import { useVentasStore } from '@/store/ventasStore';
 import type { Servicio, VentaDoc } from '@/types';
@@ -92,6 +92,9 @@ function emitServicioSyncEvents(ventasWereUpdated: boolean) {
   }
 }
 
+/**
+ * Synchronize all dependencies of a service (mainly denormalized data in sales)
+ */
 export async function syncServicioDependencias(
   previousServicio: ServicioDenormalizedSnapshot,
   nextServicio: ServicioDenormalizedSnapshot,
@@ -100,6 +103,7 @@ export async function syncServicioDependencias(
   const { refreshNotifications = true, emitEvents = true } = options;
   const ventaUpdates = getServicioVentaUpdates(previousServicio, nextServicio);
   let ventasActualizadas = 0;
+  let ventasDelServicioIds: string[] = [];
 
   if (Object.keys(ventaUpdates).length > 0) {
     const ventasDelServicio = await queryDocuments<{ id: string }>(COLLECTIONS.VENTAS, [
@@ -107,6 +111,7 @@ export async function syncServicioDependencias(
     ]);
 
     ventasActualizadas = ventasDelServicio.length;
+    ventasDelServicioIds = ventasDelServicio.map(v => v.id);
 
     await Promise.all(
       ventasDelServicio.map((venta) => update(COLLECTIONS.VENTAS, venta.id, ventaUpdates))
@@ -116,7 +121,16 @@ export async function syncServicioDependencias(
   }
 
   if (refreshNotifications) {
-    await sincronizarNotificacionesForzado();
+    // Surgical sync for the service notification
+    await sincronizarUnServicio(nextServicio.id);
+    
+    // Surgical sync for each associated sale (only if they were actually updated)
+    if (ventasDelServicioIds.length > 0) {
+      await Promise.all(
+        ventasDelServicioIds.map((id) => sincronizarUnaVenta(id))
+      );
+    }
+
     await Promise.all([
       useNotificacionesStore.getState().fetchNotificaciones(true),
       useNotificacionesStore.getState().fetchCounts(),
@@ -130,6 +144,9 @@ export async function syncServicioDependencias(
   return { ventasActualizadas };
 }
 
+/**
+ * Full resync of denormalized service data in all sales
+ */
 export async function resyncServiciosDenormalizedData(preFetchedData?: {
   servicios?: Servicio[];
   ventas?: VentaDoc[];
@@ -179,6 +196,7 @@ export async function resyncServiciosDenormalizedData(preFetchedData?: {
     }
   }
 
+  // Full forced sync is appropriate for a full resync
   await sincronizarNotificacionesForzado();
   await Promise.all([
     useNotificacionesStore.getState().fetchNotificaciones(true),

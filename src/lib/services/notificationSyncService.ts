@@ -468,3 +468,89 @@ export async function sincronizarNotificacionesForzado(): Promise<void> {
   // with fresh data from Firestore but preserves leida and resaltada state
   await sincronizarNotificaciones(true);
 }
+
+/**
+ * Surgical sync for a single Venta
+ * Updates or creates notification for a specific sale, or removes it if no longer needed.
+ */
+export async function sincronizarUnaVenta(ventaId: string): Promise<void> {
+  try {
+    const [venta, notificacionesExistentes] = await Promise.all([
+      getById<VentaDoc>(COLLECTIONS.VENTAS, ventaId),
+      queryDocuments(COLLECTIONS.NOTIFICACIONES, [
+        { field: 'entidad', operator: '==', value: 'venta' },
+        { field: 'ventaId', operator: '==', value: ventaId }
+      ]) as Promise<(NotificacionVenta & { id: string })[]>
+    ]);
+
+    if (!venta || venta.estado === 'inactivo') {
+      // If venta doesn't exist or is inactive, remove any existing notifications
+      if (notificacionesExistentes.length > 0) {
+        await Promise.all(notificacionesExistentes.map(n => remove(COLLECTIONS.NOTIFICACIONES, n.id)));
+      }
+      return;
+    }
+
+    // Check if it's within notification range (vencida or next 7 days)
+    const fechaLimite = addDays(new Date(), 7);
+    const esProxima = venta.fechaFin && startOfDay(new Date(venta.fechaFin)) <= startOfDay(fechaLimite);
+
+    if (esProxima) {
+      await procesarNotificacionVenta(venta, notificacionesExistentes[0], true);
+    } else if (notificacionesExistentes.length > 0) {
+      // If it was próxima but now it's not (e.g., renewed far into future), remove it
+      await Promise.all(notificacionesExistentes.map(n => remove(COLLECTIONS.NOTIFICACIONES, n.id)));
+    }
+  } catch (error) {
+    console.error(`[NotificationSync] Error in surgical sync for venta ${ventaId}:`, error);
+  }
+}
+
+/**
+ * Surgical sync for a single Servicio (includes Reposo check)
+ * Updates or creates notification for a specific service, or removes it if no longer needed.
+ */
+export async function sincronizarUnServicio(servicioId: string): Promise<void> {
+  try {
+    const [servicio, notifServicioExistentes, notifReposoExistentes] = await Promise.all([
+      getById<Servicio>(COLLECTIONS.SERVICIOS, servicioId),
+      queryDocuments(COLLECTIONS.NOTIFICACIONES, [
+        { field: 'entidad', operator: '==', value: 'servicio' },
+        { field: 'servicioId', operator: '==', value: servicioId }
+      ]) as Promise<(NotificacionServicio & { id: string })[]>,
+      queryDocuments(COLLECTIONS.NOTIFICACIONES, [
+        { field: 'entidad', operator: '==', value: 'reposo' },
+        { field: 'servicioId', operator: '==', value: servicioId }
+      ]) as Promise<(NotificacionReposo & { id: string })[]>
+    ]);
+
+    if (!servicio) {
+      // If service deleted, remove all related notifications
+      const allToDel = [...notifServicioExistentes, ...notifReposoExistentes];
+      if (allToDel.length > 0) {
+        await Promise.all(allToDel.map(n => remove(COLLECTIONS.NOTIFICACIONES, n.id)));
+      }
+      return;
+    }
+
+    // 1. Check for regular service notification (expiration)
+    const fechaLimite = addDays(new Date(), 7);
+    const esProximo = servicio.activo && servicio.fechaVencimiento && 
+                      startOfDay(new Date(servicio.fechaVencimiento)) <= startOfDay(fechaLimite);
+
+    if (esProximo) {
+      await procesarNotificacionServicio(servicio, notifServicioExistentes[0], true);
+    } else if (notifServicioExistentes.length > 0) {
+      await Promise.all(notifServicioExistentes.map(n => remove(COLLECTIONS.NOTIFICACIONES, n.id)));
+    }
+
+    // 2. Check for reposo notification
+    if (servicio.enReposo && servicio.fechaFinReposo) {
+      await procesarNotificacionReposo(servicio, notifReposoExistentes[0], true);
+    } else if (notifReposoExistentes.length > 0) {
+      await Promise.all(notifReposoExistentes.map(n => remove(COLLECTIONS.NOTIFICACIONES, n.id)));
+    }
+  } catch (error) {
+    console.error(`[NotificationSync] Error in surgical sync for servicio ${servicioId}:`, error);
+  }
+}
