@@ -93,10 +93,10 @@ export interface NotificacionServicio extends NotificacionBase {
 }
 
 /**
- * Notification for Netflix reposo completion
+ * Notification for reposo completion
  *
  * Generated when fechaFinReposo <= today
- * Stays as "Completado" until manual activation from /netflix-reposo
+ * Stays as "Completado" until manual activation from /reposo
  */
 export interface NotificacionReposo extends NotificacionBase {
   entidad: 'reposo';

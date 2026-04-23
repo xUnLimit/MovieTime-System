@@ -106,12 +106,12 @@ export function NotificationBell() {
                 </div>
               )}
 
-              {/* Netflix reposo */}
+              {/* Servicios en reposo */}
               {reposoCompletados > 0 && (
                 <div className="grid grid-cols-3 items-center gap-4">
                   <span className="col-span-2 flex items-center gap-2">
                     <Moon className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium">Netflix en reposo</span>
+                    <span className="text-sm font-medium">Servicios en reposo</span>
                   </span>
                   <span className="text-right text-sm">{reposoCompletados}</span>
                 </div>

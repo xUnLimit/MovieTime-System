@@ -129,7 +129,7 @@ function NetflixReposoMetrics({ servicios }: { servicios: ReposoServicio[] }) {
   );
 }
 
-function NetflixReposoPageContent() {
+function ReposoPageContent() {
   const { updateServicio, deleteServicio, fetchCounts } = useServiciosStore();
   const { fetchCategorias } = useCategoriasStore();
   const { fetchNotificaciones } = useNotificacionesStore();
@@ -579,7 +579,7 @@ function NetflixReposoPageContent() {
           <DataTable
             data={filteredServicios as unknown as Record<string, unknown>[]}
             columns={columns as unknown as Column<Record<string, unknown>>[]}
-            emptyMessage="No hay servicios Netflix en reposo"
+            emptyMessage="No hay servicios en reposo"
             pagination
             itemsPerPageOptions={[10, 25, 50]}
             actions={(item) => {
@@ -605,7 +605,7 @@ function NetflixReposoPageContent() {
                       }}
                     >
                       <Power className="h-4 w-4 mr-2 text-green-600" />
-                      Activar Netflix
+                      Activar Servicio
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => {
@@ -697,10 +697,10 @@ function NetflixReposoPageContent() {
   );
 }
 
-export default function NetflixReposoPage() {
+export default function ReposoPage() {
   return (
-    <ModuleErrorBoundary moduleName="Netflix en Reposo">
-      <NetflixReposoPageContent />
+    <ModuleErrorBoundary moduleName="Servicios en Reposo">
+      <ReposoPageContent />
     </ModuleErrorBoundary>
   );
 }

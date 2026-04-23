@@ -87,8 +87,8 @@ const navigationSections: NavSection[] = [
         icon: DollarSign
       },
       {
-        name: 'Netflix Reposo',
-        href: '/netflix-reposo',
+        name: 'Reposo',
+        href: '/reposo',
         icon: Pause
       },
       {

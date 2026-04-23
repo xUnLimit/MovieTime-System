@@ -52,7 +52,7 @@ function NotificacionesMetrics() {
         underlineColor="bg-orange-500"
       />
       <MetricCard
-        title="Netflix en Reposo"
+        title="Servicios en Reposo"
         value={reposoCompletados}
         icon={Pause}
         iconColor="text-purple-500"
@@ -173,7 +173,7 @@ function NotificacionesPageContent() {
           <ServiciosProximosTable />
         </TabsContent>
 
-        {/* Netflix Reposo Tab */}
+        {/* Servicios Reposo Tab */}
         <TabsContent value="reposo" className="space-y-4">
           <ReposoNotificacionesTable />
         </TabsContent>

@@ -199,7 +199,7 @@ export function ReposoNotificacionesTable() {
               {filtered.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
-                    No hay notificaciones de Netflix en reposo
+                    No hay notificaciones de servicios en reposo
                   </TableCell>
                 </TableRow>
               ) : (

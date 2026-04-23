@@ -286,7 +286,7 @@ async function procesarNotificacionServicio(servicio: Servicio, forzarActualizac
 }
 
 /**
- * Process a Netflix reposo service and create/update completion notification
+ * Process a reposo service and create/update completion notification
  * Only creates notification when fechaFinReposo <= today (reposo completed)
  */
 async function procesarNotificacionReposo(servicio: Servicio, forzarActualizacion = false): Promise<void> {
@@ -455,7 +455,7 @@ export async function sincronizarNotificaciones(forzarActualizacion = false): Pr
       }
     }
 
-    // 3️⃣ Query Netflix reposo
+    // 3️⃣ Query servicios reposo
     const serviciosReposo = (await queryDocuments(COLLECTIONS.SERVICIOS, [
       { field: 'enReposo', operator: '==', value: true },
     ])) as Servicio[];

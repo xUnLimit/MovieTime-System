@@ -628,8 +628,6 @@ export function ServicioForm({
     return tipoId;
   };
 
-  const esNetflix = categoriaNombre?.toLowerCase().includes("netflix") ?? false;
-
   const getEstadoLabel = (estado: string) => {
     switch (estado) {
       case "activo":
@@ -1128,13 +1126,11 @@ export function ServicioForm({
                   >
                     Inactivo
                   </DropdownMenuItem>
-                  {esNetflix && (
-                    <DropdownMenuItem
-                      onClick={() => setValue("estado", "reposo")}
-                    >
-                      Reposo
-                    </DropdownMenuItem>
-                  )}
+                  <DropdownMenuItem
+                    onClick={() => setValue("estado", "reposo")}
+                  >
+                    Reposo
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
               {errors.estado && (
@@ -1143,7 +1139,7 @@ export function ServicioForm({
             </div>
           </div>
 
-          {/* Duración del reposo (solo Netflix en reposo) */}
+          {/* Duración del reposo */}
           {estadoValue === "reposo" && (
             <div className="space-y-2">
               <Label htmlFor="diasReposo">Duración del reposo</Label>
@@ -1162,7 +1158,7 @@ export function ServicioForm({
                   align="start"
                   className="w-[var(--radix-dropdown-menu-trigger-width)]"
                 >
-                  {[28, 29, 30, 31].map((d) => (
+                  {[7, 28, 29, 30, 31].map((d) => (
                     <DropdownMenuItem
                       key={d}
                       onClick={() => setValue("diasReposo", d.toString())}
