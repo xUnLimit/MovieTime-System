@@ -354,10 +354,8 @@ export function VentasEditForm({ venta }: VentasEditFormProps) {
   const planesDisponibles = useMemo(() => {
     if (!categoriaSeleccionada?.planes || !servicioSeleccionado?.tipo)
       return [];
-    return categoriaSeleccionada.planes.filter((plan) =>
-      servicioSeleccionado.tipo === "cuenta_completa"
-        ? plan.tipoPlan === "cuenta_completa"
-        : plan.tipoPlan === "perfiles",
+    return categoriaSeleccionada.planes.filter(
+      (plan) => plan.tipoPlan === servicioSeleccionado.tipo
     );
   }, [categoriaSeleccionada, servicioSeleccionado?.tipo]);
 

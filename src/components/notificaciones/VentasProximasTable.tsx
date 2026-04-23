@@ -178,6 +178,7 @@ export function VentasProximasTable() {
   const [notifSeleccionada, setNotifSeleccionada] = useState<(NotificacionVenta & { id: string }) | null>(null);
   const [metodosPagoUsuarios, setMetodosPagoUsuarios] = useState<MetodoPago[]>([]);
   const [categoriaPlanes, setCategoriaPlanes] = useState<Plan[]>([]);
+  const [servicioTipoSeleccionado, setServicioTipoSeleccionado] = useState<string | undefined>();
 
   // Get venta notifications (type-safe filtering)
   const ventasNotificaciones = useMemo(() => {
@@ -352,6 +353,7 @@ export function VentasProximasTable() {
   const handleRenovar = async (notif: NotificacionVenta & { id: string }) => {
     setNotifSeleccionada(notif);
     setCategoriaPlanes([]);
+    setServicioTipoSeleccionado(undefined);
     // Fetch payment methods and categoria planes in parallel
     const [metodos] = await Promise.all([
       fetchMetodosPagoUsuarios(),
@@ -360,6 +362,14 @@ export function VentasProximasTable() {
           const categoriaDoc = await getById<Record<string, unknown>>(COLLECTIONS.CATEGORIAS, notif.categoriaId);
           if (categoriaDoc && Array.isArray(categoriaDoc.planes)) {
             setCategoriaPlanes(categoriaDoc.planes as Plan[]);
+          }
+        }
+      })(),
+      (async () => {
+        if (notif.servicioId) {
+          const servicioDoc = await getById<Record<string, unknown>>(COLLECTIONS.SERVICIOS, notif.servicioId);
+          if (servicioDoc && typeof servicioDoc.tipo === 'string') {
+            setServicioTipoSeleccionado(servicioDoc.tipo);
           }
         }
       })(),
@@ -967,7 +977,7 @@ export function VentasProximasTable() {
           }}
           metodosPago={metodosPagoUsuarios}
           categoriaPlanes={categoriaPlanes}
-          tipoPlan={undefined}
+          tipoPlan={servicioTipoSeleccionado}
           onConfirm={handleConfirmRenovacion}
           clienteNombre={notifSeleccionada.clienteNombre}
           clienteSoloNombre={notifSeleccionada.clienteNombre.split(' ')[0]}
