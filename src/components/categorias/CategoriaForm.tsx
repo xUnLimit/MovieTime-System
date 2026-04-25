@@ -853,16 +853,32 @@ export function CategoriaForm({
                               </Label>
                               <Input
                                 id={`plan-precio-${plan.id}`}
-                                type="number"
-                                step="0.01"
-                                value={plan.precio === 0 ? "" : plan.precio}
-                                onChange={(e) =>
-                                  actualizarPlan(
-                                    plan.id,
-                                    "precio",
-                                    parseFloat(e.target.value) || 0,
-                                  )
-                                }
+                                type="text"
+                                inputMode="decimal"
+                                value={plan.precio === 0 ? "" : plan.precio.toString()}
+                                onChange={(e) => {
+                                  const val = e.target.value.replace(',', '.');
+                                  if (/^\d*\.?\d*$/.test(val)) {
+                                    const parsed = parseFloat(val);
+                                    actualizarPlan(
+                                      plan.id,
+                                      "precio",
+                                      isNaN(parsed) ? 0 : parsed,
+                                    );
+                                    // Para que el input mantenga el "." mientras se escribe,
+                                    // necesitamos que el estado sea un string o manejarlo localmente.
+                                    // Dado que actualizarPlan actualiza el estado del padre,
+                                    // si el padre guarda un number, el "." se perderá en el re-render.
+                                    // Pero vamos a intentar forzar el valor del input si termina en "."
+                                    if (val.endsWith('.')) {
+                                      e.target.value = val;
+                                    }
+                                  }
+                                }}
+                                onBlur={(e) => {
+                                  const val = e.target.value.replace(',', '.');
+                                  actualizarPlan(plan.id, "precio", parseFloat(val) || 0);
+                                }}
                                 placeholder="$0.00"
                                 className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                               />

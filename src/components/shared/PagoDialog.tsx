@@ -109,6 +109,9 @@ export function PagoDialog(props: PagoDialogProps) {
   const [fechaVencimientoOpen, setFechaVencimientoOpen] = useState(false);
   const [previewMessage, setPreviewMessage] = useState('');
   const [isCostoFocused, setIsCostoFocused] = useState(false);
+  const [isDescuentoFocused, setIsDescuentoFocused] = useState(false);
+  const [costoInput, setCostoInput] = useState('');
+  const [descuentoInput, setDescuentoInput] = useState('');
   const isVenta = props.context === 'venta';
   const isEdit = props.mode === 'edit';
   const venta = props.context === 'venta' ? props.venta : null;
@@ -160,6 +163,19 @@ export function PagoDialog(props: PagoDialogProps) {
   const descuentoValue = watch('descuento');
   const fechaInicioValue = watch('fechaInicio');
   const fechaVencimientoValue = watch('fechaVencimiento');
+
+  // Sincronizar inputs locales con valores del formulario cuando cambian externamente (ej: dropdown de ciclo)
+  useEffect(() => {
+    if (!isCostoFocused) {
+      setCostoInput(costoValue !== undefined ? costoValue.toString() : '');
+    }
+  }, [costoValue, isCostoFocused]);
+
+  useEffect(() => {
+    if (!isDescuentoFocused) {
+      setDescuentoInput(descuentoValue !== undefined ? descuentoValue.toString() : '');
+    }
+  }, [descuentoValue, isDescuentoFocused]);
 
   const metodosFiltrados = useMemo(() => {
     const metodosBase = metodosPago.filter((m) =>
@@ -473,16 +489,29 @@ export function PagoDialog(props: PagoDialogProps) {
           id="costo"
           type="text"
           inputMode="decimal"
-          value={isCostoFocused ? String(costoValue ?? '') : costoNormalizado.toFixed(2)}
-          onFocus={() => setIsCostoFocused(true)}
+          value={isCostoFocused ? costoInput : costoNormalizado.toFixed(2)}
+          onFocus={() => {
+            setIsCostoFocused(true);
+            setCostoInput(costoValue !== undefined ? costoValue.toString() : '');
+          }}
           onBlur={(e) => {
-            const normalizedValue = roundToDecimals(parseFloat(e.target.value.replace(',', '.')) || 0);
+            const val = e.target.value.replace(',', '.');
+            const normalizedValue = roundToDecimals(parseFloat(val) || 0);
             setValue('costo', normalizedValue);
             setIsCostoFocused(false);
           }}
           onChange={(e) => {
-            const sanitized = e.target.value.replace(',', '.');
-            setValue('costo', parseFloat(sanitized) || 0);
+            const val = e.target.value.replace(',', '.');
+            // Permitir solo números decimales parciales válidos (ej: "10.", "10.5")
+            if (/^\d*\.?\d*$/.test(val)) {
+              setCostoInput(val);
+              const parsed = parseFloat(val);
+              if (!isNaN(parsed)) {
+                setValue('costo', parsed);
+              } else if (val === '' || val === '.') {
+                setValue('costo', 0);
+              }
+            }
           }}
           className="flex-1 min-w-0 bg-transparent outline-none text-base md:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
         />
@@ -499,15 +528,36 @@ export function PagoDialog(props: PagoDialogProps) {
       <div className="flex h-9 w-full items-center rounded-md border border-input bg-transparent dark:bg-input/30 px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px] outline-none">
         <input
           id="descuento"
-          type="number"
-          step="0.01"
-          value={descuentoValue ?? ''}
+          type="text"
+          inputMode="decimal"
+          value={isDescuentoFocused ? descuentoInput : (descuentoValue ?? 0).toString()}
           onFocus={() => {
-            if (descuentoValue === 0) setValue('descuento', undefined);
+            setIsDescuentoFocused(true);
+            if (descuentoValue === 0) {
+              setDescuentoInput('');
+              setValue('descuento', undefined);
+            } else {
+              setDescuentoInput(descuentoValue?.toString() || '');
+            }
+          }}
+          onBlur={(e) => {
+            const val = e.target.value.replace(',', '.');
+            const parsed = parseFloat(val);
+            setValue('descuento', isNaN(parsed) ? undefined : parsed);
+            setIsDescuentoFocused(false);
           }}
           onChange={(e) => {
-            const value = e.target.value;
-            setValue('descuento', value === '' ? undefined : parseFloat(value));
+            const val = e.target.value.replace(',', '.');
+            // Permitir solo números decimales parciales válidos
+            if (/^\d*\.?\d*$/.test(val)) {
+              setDescuentoInput(val);
+              const parsed = parseFloat(val);
+              if (!isNaN(parsed)) {
+                setValue('descuento', parsed);
+              } else if (val === '' || val === '.') {
+                setValue('descuento', undefined);
+              }
+            }
           }}
           className="flex-1 min-w-0 bg-transparent outline-none text-base md:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
         />
