@@ -25,6 +25,7 @@ import { crearPagoInicial } from '@/lib/services/pagosServicioService';
 import { useActivityLogStore } from '@/store/activityLogStore';
 import { useAuthStore } from '@/store/authStore';
 import { detectarCambios } from '@/lib/utils/activityLogHelpers';
+import { sincronizarUnServicio } from '@/lib/services/notificationSyncService';
 
 // Helper para obtener contexto de usuario
 function getLogContext() {

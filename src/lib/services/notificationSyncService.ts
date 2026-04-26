@@ -17,6 +17,7 @@ import { addDays, differenceInDays, startOfDay } from 'date-fns';
 import {
   COLLECTIONS,
   queryDocuments,
+  getById,
   create,
   update,
   remove,
@@ -486,7 +487,7 @@ export async function sincronizarUnaVenta(ventaId: string): Promise<void> {
     if (!venta || venta.estado === 'inactivo') {
       // If venta doesn't exist or is inactive, remove any existing notifications
       if (notificacionesExistentes.length > 0) {
-        await Promise.all(notificacionesExistentes.map(n => remove(COLLECTIONS.NOTIFICACIONES, n.id)));
+        await Promise.all(notificacionesExistentes.map((n: NotificacionVenta & { id: string }) => remove(COLLECTIONS.NOTIFICACIONES, n.id)));
       }
       return;
     }
@@ -499,7 +500,7 @@ export async function sincronizarUnaVenta(ventaId: string): Promise<void> {
       await procesarNotificacionVenta(venta, notificacionesExistentes[0], true);
     } else if (notificacionesExistentes.length > 0) {
       // If it was próxima but now it's not (e.g., renewed far into future), remove it
-      await Promise.all(notificacionesExistentes.map(n => remove(COLLECTIONS.NOTIFICACIONES, n.id)));
+      await Promise.all(notificacionesExistentes.map((n: NotificacionVenta & { id: string }) => remove(COLLECTIONS.NOTIFICACIONES, n.id)));
     }
   } catch (error) {
     console.error(`[NotificationSync] Error in surgical sync for venta ${ventaId}:`, error);
@@ -526,9 +527,9 @@ export async function sincronizarUnServicio(servicioId: string): Promise<void> {
 
     if (!servicio) {
       // If service deleted, remove all related notifications
-      const allToDel = [...notifServicioExistentes, ...notifReposoExistentes];
+      const allToDel: (Notificacion & { id: string })[] = [...notifServicioExistentes, ...notifReposoExistentes];
       if (allToDel.length > 0) {
-        await Promise.all(allToDel.map(n => remove(COLLECTIONS.NOTIFICACIONES, n.id)));
+        await Promise.all(allToDel.map((n: Notificacion & { id: string }) => remove(COLLECTIONS.NOTIFICACIONES, n.id)));
       }
       return;
     }
@@ -541,14 +542,14 @@ export async function sincronizarUnServicio(servicioId: string): Promise<void> {
     if (esProximo) {
       await procesarNotificacionServicio(servicio, notifServicioExistentes[0], true);
     } else if (notifServicioExistentes.length > 0) {
-      await Promise.all(notifServicioExistentes.map(n => remove(COLLECTIONS.NOTIFICACIONES, n.id)));
+      await Promise.all(notifServicioExistentes.map((n: NotificacionServicio & { id: string }) => remove(COLLECTIONS.NOTIFICACIONES, n.id)));
     }
 
     // 2. Check for reposo notification
     if (servicio.enReposo && servicio.fechaFinReposo) {
       await procesarNotificacionReposo(servicio, notifReposoExistentes[0], true);
     } else if (notifReposoExistentes.length > 0) {
-      await Promise.all(notifReposoExistentes.map(n => remove(COLLECTIONS.NOTIFICACIONES, n.id)));
+      await Promise.all(notifReposoExistentes.map((n: NotificacionReposo & { id: string }) => remove(COLLECTIONS.NOTIFICACIONES, n.id)));
     }
   } catch (error) {
     console.error(`[NotificationSync] Error in surgical sync for servicio ${servicioId}:`, error);

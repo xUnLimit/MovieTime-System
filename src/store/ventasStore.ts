@@ -6,6 +6,7 @@ import { useActivityLogStore } from '@/store/activityLogStore';
 import { useAuthStore } from '@/store/authStore';
 import { format } from 'date-fns';
 import { detectarCambios } from '@/lib/utils/activityLogHelpers';
+import { sincronizarUnaVenta } from '@/lib/services/notificationSyncService';
 import { adjustIngresosStats, getMesKeyFromDate, getDiaKeyFromDate, upsertVentaPronostico } from '@/lib/services/dashboardStatsService';
 import type { VentaPronostico } from '@/types/dashboard';
 import { currencyService } from '@/lib/services/currencyService';
